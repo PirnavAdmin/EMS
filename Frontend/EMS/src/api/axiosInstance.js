@@ -328,10 +328,7 @@ api.interceptors.response.use(
         config,
         status,
         data
-      ) ||
-      status === 401 ||
-      status === 403 ||
-      status === 500
+      )
     ) {
  
       handleAutoLogout();
