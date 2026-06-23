@@ -74,7 +74,7 @@ namespace EmployeeManagementSystem.Services
 
                 message.Body = $"Hello {employeeName},\n\n" +
                                $"Your account is created in Pirnav Company.\n\n" +
-                               $"Login Link: http://16.112.124.216:3000/register\n" +
+                               $"Login Link: https://hrms.pirnav.com/register\n" +
                                $"Newly User Verify your account by using Register and Login.";
 
                 smtp.Send(message);

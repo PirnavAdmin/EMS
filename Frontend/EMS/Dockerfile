@@ -2,7 +2,7 @@ FROM node:22-alpine AS build
  
 WORKDIR /app
 
-ARG VITE_API_ORIGIN=http://16.112.124.216:5007
+ARG VITE_API_ORIGIN=https://hrms.pirnav.com
 ENV VITE_API_ORIGIN=$VITE_API_ORIGIN
  
 COPY package*.json ./

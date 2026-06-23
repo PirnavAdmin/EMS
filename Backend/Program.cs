@@ -65,10 +65,7 @@ var allowedCorsOrigins = configuredCorsOrigins is { Length: > 0 }
     ? configuredCorsOrigins
     : new[]
     {
-        "http://16.112.124.216:3000",
-        "http://16.112.124.216:5007",
-        "http://16.112.124.216",
-        "https://16.112.124.216",
+        "https://hrms.pirnav.com",
         "http://localhost:3000",
         "http://localhost:4200",
         "http://localhost:5173"
