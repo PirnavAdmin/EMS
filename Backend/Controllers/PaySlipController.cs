@@ -58,9 +58,26 @@ namespace EmployeeManagementSystem.Controllers
 
         {
 
-            var result = await _service.GeneratePaySlip(employeeId, year, month, OtherDeductions ?? 0);
+            try
+            {
+                var result = await _service.GeneratePaySlip(employeeId, year, month, OtherDeductions ?? 0);
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
 
         }
 
@@ -76,9 +93,26 @@ namespace EmployeeManagementSystem.Controllers
 
         {
 
-            var result = await _service.GenerateAllPaySlips(year, month);
+            try
+            {
+                var result = await _service.GenerateAllPaySlips(year, month);
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
 
         }
 

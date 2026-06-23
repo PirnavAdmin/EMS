@@ -164,9 +164,7 @@ namespace EmployeeManagementSystem.Services
                 "Templates",
                 "PaySlipTemplate.docx");
 
-            if (!File.Exists(templatePath))
-                throw new Exception(
-                    $"Template not found: {templatePath}");
+            EnsureValidWordTemplate(templatePath);
 
             var outputFolder = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -177,7 +175,7 @@ namespace EmployeeManagementSystem.Services
                 Directory.CreateDirectory(outputFolder);
 
             var fileName =
-    $"Payslip_{employee.Employee_Id}_{GetIndianTime():yyyyMMddHHmmss}.docx";
+    $"Payslip_{employee.Employee_Id}_{GetIndianTime():yyyyMMddHHmmssfff}_{Guid.NewGuid():N}.docx";
 
             var outputPath =
                 Path.Combine(outputFolder, fileName);
@@ -188,7 +186,7 @@ namespace EmployeeManagementSystem.Services
             // REPLACE BOOKMARKS
             //--------------------------------
             using (WordprocessingDocument wordDoc =
-                WordprocessingDocument.Open(outputPath, true))
+                OpenGeneratedPayslip(outputPath))
             {
                 var candidateName = personalInfo == null
     ? "-"
@@ -520,6 +518,39 @@ namespace EmployeeManagementSystem.Services
                     run.Append(
                         new Text(text ?? "-"));
                 }
+            }
+        }
+
+        private static void EnsureValidWordTemplate(string templatePath)
+        {
+            if (!File.Exists(templatePath))
+                throw new InvalidOperationException(
+                    $"Payslip template not found on server: {templatePath}");
+
+            try
+            {
+                using var template =
+                    WordprocessingDocument.Open(templatePath, false);
+            }
+            catch (FileFormatException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Payslip template is corrupted or not a valid .docx file on server: {templatePath}. Replace PaySlipTemplate.docx and rebuild/redeploy.",
+                    ex);
+            }
+        }
+
+        private static WordprocessingDocument OpenGeneratedPayslip(string outputPath)
+        {
+            try
+            {
+                return WordprocessingDocument.Open(outputPath, true);
+            }
+            catch (FileFormatException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Generated payslip document is corrupted before PDF conversion: {outputPath}. This can happen if the template is invalid or concurrent requests overwrite the same output file.",
+                    ex);
             }
         }
 
