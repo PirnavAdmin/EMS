@@ -1,0 +1,166 @@
+/* ================= PAGE ================= */
+ 
+.permission-page {
+  padding: 20px;
+  background: #f5f7fb;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+}
+ 
+/* ================= HEADER ================= */
+ 
+.permission-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+ 
+.permission-top h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1f2937;
+}
+ 
+.permission-top h2 span {
+  color: #3b5fcc;
+}
+ 
+/* ================= SELECT ALL BUTTON ================= */
+ 
+.select-all-btn {
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+ 
+.select-all-btn:hover {
+  background: #16a34a;
+}
+ 
+/* ================= GROUP ================= */
+ 
+.permission-group {
+  background: #ffffff;
+  border-radius: 14px;
+  margin-bottom: 20px;
+  padding: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+ 
+/* ================= GROUP HEADER ================= */
+ 
+.group-header {
+  background: #eef2ff;
+  color: #3b5fcc;
+  font-weight: 600;
+  padding: 10px 15px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+ 
+/* ================= ROW ================= */
+ 
+.permission-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  color: #374151;
+}
+ 
+.permission-row:last-child {
+  border-bottom: none;
+}
+ 
+/* ================= SWITCH ================= */
+ 
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 22px;
+}
+ 
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+ 
+/* slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  background-color: #d1d5db;
+  border-radius: 999px;
+  inset: 0;
+  transition: 0.3s;
+}
+ 
+/* circle */
+.slider:before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+ 
+/* checked */
+.switch input:checked + .slider {
+  background-color: #22c55e;
+}
+ 
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+ 
+/* ================= FOOTER ================= */
+ 
+.permission-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+ 
+/* skip */
+.permission-actions button:first-child {
+  background: #e5e7eb;
+  color: #111827;
+}
+ 
+/* save */
+.permission-actions button:last-child {
+  background: #22c55e;
+  color: white;
+}
+ 
+/* buttons common */
+.permission-actions button {
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+ 
+.permission-actions button:hover {
+  opacity: 0.9;
+}
+ 

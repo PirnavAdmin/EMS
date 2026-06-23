@@ -1,0 +1,283 @@
+:root {
+  --font-sans: Inter, sans-serif;
+  --button-font-family: Inter, sans-serif;
+  --page-heading-font-family: Inter, sans-serif;
+  --page-heading-font-size: 24px;
+  --page-heading-font-weight: 700;
+  --page-heading-color: #0f172a;
+  --page-heading-letter-spacing: 0;
+  --page-subtitle-font-size: 14px;
+  --page-subtitle-color: #64748b;
+  --type-page-heading-size: 24px;
+  --type-page-heading-weight: 700;
+  --type-page-heading-line-height: 1.2;
+  --type-section-text-size: 14px;
+  --type-section-text-weight: 400;
+  --type-section-text-line-height: 1.5;
+  --type-card-title-size: 18px;
+  --type-card-title-weight: 600;
+  --type-modal-title-size: 20px;
+  --type-modal-title-weight: 700;
+  --type-form-label-size: 14px;
+  --type-form-label-weight: 600;
+  --type-table-head-size: 13px;
+  --type-table-head-weight: 700;
+  --type-table-head-color: #334155;
+  --type-table-head-letter-spacing: 0.3px;
+  --type-table-cell-size: 14px;
+  --type-table-cell-weight: 500;
+  --type-button-size: 14px;
+  --type-button-weight: 600;
+  --type-input-size: 14px;
+  --type-input-weight: 500;
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: Inter, sans-serif !important;
+}
+
+.type-page-heading,
+.app-page-title,
+.title,
+.main-title,
+.page-title,
+.leave-main-title,
+.attendance-header h2,
+.holiday-header h2,
+.company-header h2,
+.branch-header h2,
+.job-header-unique h2,
+.projects-header h2,
+.dept-header h2,
+.leave-header h2,
+.emp-header-unique h2,
+.notifications-header h2,
+.assets-header h2,
+.roles-header-bar h2,
+.task-header h2,
+.clients-header h2,
+.ems-task-header-wrapper h2,
+.offer-header h2,
+.reports-header h2,
+.payroll-header h2,
+.payslip-header h1,
+.permission-top h2,
+.page-header-row h1,
+.page-header-row h2 {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-page-heading-size) !important;
+  font-weight: var(--type-page-heading-weight) !important;
+  line-height: var(--type-page-heading-line-height) !important;
+  letter-spacing: 0 !important;
+  color: #0f172a !important;
+}
+
+.type-section-text,
+.app-page-subtitle,
+.subtitle,
+.page-subtitle,
+.udb-subtitle,
+.attendance-subtitle,
+.holiday-header p,
+.company-header p,
+.branch-header p,
+.projects-header p,
+.dept-header p,
+.leave-header p,
+.emp-header-unique p,
+.notifications-header p,
+.assets-header p,
+.clients-header p,
+.task-header p,
+.ems-task-header-wrapper p,
+.offer-header p,
+.reports-header p,
+.payroll-header p,
+.payslip-header p,
+.permission-top p,
+.page-header-row p {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-section-text-size) !important;
+  font-weight: var(--type-section-text-weight) !important;
+  line-height: var(--type-section-text-line-height) !important;
+  letter-spacing: 0 !important;
+  color: #64748b !important;
+}
+
+.type-card-title,
+.card-title,
+.udb-card-title,
+.udb-section-title,
+.leave-card-header h4,
+.section-title-wrap h2,
+.recent-table-header h4,
+.employee-header h3,
+.salary-structure-title,
+.salary-breakup-header h5,
+.compensation-title {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-card-title-size) !important;
+  font-weight: var(--type-card-title-weight) !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0 !important;
+  color: #0f172a !important;
+}
+
+.type-modal-heading,
+.attendance-modal-header h3,
+.company-modal-head h3,
+.projects-modal-header h3,
+.ems-task-create-header h3,
+.dept-members-modal-header h3,
+.emp-modal-header h3,
+.view-header h3,
+.modal-content h2,
+.modal-content h3,
+.clients-add-modal-box-unique h3,
+.dept-modal-box h3,
+.holiday-modal-box h3,
+.job-modal-box h3,
+.roles-modal-container h3,
+.delete-modal h3,
+.asset-delete-modal h3,
+.change-password-modal h3,
+.projects-delete-title {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-modal-title-size) !important;
+  font-weight: var(--type-modal-title-weight) !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+  color: #0f172a !important;
+}
+
+.type-modal-subtext,
+.company-modal-head p,
+.projects-modal-header p,
+.ems-task-create-header p,
+.dept-members-modal-header p,
+.emp-modal-header p,
+.view-header p {
+  font-family: Inter, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  letter-spacing: 0 !important;
+  color: #64748b !important;
+}
+
+.type-form-label,
+label,
+.auth-field-label,
+.leave-details-label,
+.comp-label,
+.salary-structure-field-label,
+.salary-breakup-field label,
+.ctc-card label,
+.manual-field label,
+.standard-periods label,
+.specific-period label,
+.mode-dropdown-wrapper label,
+.attendance-form-group label,
+.form-group label,
+.dept-field-group label,
+.holiday-field-group label,
+.roles-field-group label,
+.job-field-group label,
+.clients-field-group label,
+.ems-task-field-group label,
+.emp-field-group label,
+.emp-form-group label,
+.projects-field label,
+.asset-field-group label,
+.apply-card label {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-form-label-size) !important;
+  font-weight: var(--type-form-label-weight) !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0 !important;
+  color: #334155 !important;
+}
+
+.type-table-header,
+table thead th,
+[role="columnheader"],
+.attendance-table-header,
+.attendance-table-header-5,
+.attendance-table-header span,
+.monthly-head,
+.week-table-header,
+.week-table-header span {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-table-head-size) !important;
+  font-weight: var(--type-table-head-weight) !important;
+  line-height: 1.3 !important;
+  text-transform: uppercase !important;
+  letter-spacing: var(--type-table-head-letter-spacing) !important;
+  color: var(--type-table-head-color) !important;
+}
+
+.type-table-cell,
+table tbody td,
+.attendance-row,
+.attendance-row-5,
+.monthly-employee-cell,
+.monthly-day-cell,
+.emp-name,
+.time-text,
+.hours-text,
+.asset-cell-text {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-table-cell-size) !important;
+  font-weight: var(--type-table-cell-weight) !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0 !important;
+  color: #0f172a;
+}
+
+.monthly-count {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-table-cell-size) !important;
+  font-weight: var(--type-table-cell-weight) !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0 !important;
+}
+
+button,
+[role="button"],
+input[type="button"],
+input[type="reset"],
+input[type="submit"],
+.type-button {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-button-size) !important;
+  font-weight: var(--type-button-weight) !important;
+  letter-spacing: 0 !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.app-input,
+.app-select,
+.app-textarea,
+.app-date-input,
+.auth-field-input,
+.comp-input input,
+.salary-ctc-input,
+.attendance-time-select,
+.date-picker-input {
+  font-family: Inter, sans-serif !important;
+  font-size: var(--type-input-size) !important;
+  font-weight: var(--type-input-weight) !important;
+  letter-spacing: 0 !important;
+}
+
+.client-details-copy {
+  line-height: 1.8;
+}

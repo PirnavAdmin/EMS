@@ -1,0 +1,484 @@
+/* ================= PAGE ================= */
+
+.holiday-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+  background: transparent;
+  min-height: 100%;
+}
+
+/* ================= HEADER ================= */
+
+.holiday-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.holiday-header-copy {
+  min-width: 0;
+}
+
+.holiday-header h2 {
+  margin: 0;
+}
+
+.holiday-header p {
+  margin: 4px 0 0;
+}
+
+/* ================= ADD BUTTON ================= */
+
+.holiday-add-btn {
+  flex: 0 0 auto;
+  min-height: 40px;
+  background: #00d1d1 !important;
+  color: #041c32 !important;
+  border: 1px solid #00d1d1;
+  padding: 0 16px;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 209, 209, 0.14);
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.holiday-add-btn:hover {
+  background: #12dbdb !important;
+  transform: translateY(-1px);
+}
+
+/* ================= TABLE WRAPPER ================= */
+
+.holiday-table-wrapper {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e6ebf2;
+  border-radius: 16px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ================= TABLE ================= */
+
+.holiday-table-wrapper .holiday-table {
+  width: max-content;
+  min-width: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: #fff;
+}
+
+.holiday-table--admin {
+  min-width: 818px;
+}
+
+.holiday-table--user {
+  width: 100% !important;
+  min-width: 620px;
+  table-layout: fixed;
+  --user-holiday-sno-width: 52px;
+}
+
+.holiday-table th,
+.holiday-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 14px;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+
+.holiday-table th {
+  background: #f8fafc;
+  text-align: left;
+  font-weight: 700;
+  font-size: 13px;
+  color: #475467;
+  white-space: nowrap;
+}
+
+.holiday-table thead th:first-child {
+  border-top-left-radius: 16px;
+}
+
+.holiday-table thead th:last-child {
+  border-top-right-radius: 16px;
+}
+
+.holiday-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.holiday-table tbody tr:hover {
+  background: #fbfdff;
+}
+
+/* Column Widths */
+
+.holiday-width-sno {
+  width: 58px;
+}
+
+.holiday-width-name {
+  width: 294px;
+}
+
+.holiday-width-date {
+  width: 116px;
+}
+
+.holiday-width-day {
+  width: 92px;
+}
+
+.holiday-width-type {
+  width: 96px;
+}
+
+.holiday-width-actions {
+  width: 162px;
+}
+
+.holiday-table--user .holiday-width-sno {
+  width: var(--user-holiday-sno-width);
+}
+
+.holiday-table--user .holiday-width-name {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.5);
+}
+
+.holiday-table--user .holiday-width-date {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.21);
+}
+
+.holiday-table--user .holiday-width-day {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.15);
+}
+
+.holiday-table--user .holiday-width-type {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.14);
+}
+
+.holiday-col-sno {
+  width: 58px;
+  text-align: center !important;
+}
+
+.holiday-col-name {
+  width: 294px;
+  text-align: left !important;
+}
+
+.holiday-col-date {
+  width: 116px;
+}
+
+.holiday-col-day {
+  width: 92px;
+}
+
+.holiday-col-type {
+  width: 96px;
+}
+
+.holiday-col-actions {
+  width: 162px;
+  text-align: center !important;
+}
+
+.holiday-table--user .holiday-col-sno {
+  width: var(--user-holiday-sno-width);
+}
+
+.holiday-table--user .holiday-col-name {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.5);
+}
+
+.holiday-table--user .holiday-col-date {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.21);
+}
+
+.holiday-table--user .holiday-col-day {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.15);
+}
+
+.holiday-table--user .holiday-col-type {
+  width: calc((100% - var(--user-holiday-sno-width)) * 0.14);
+}
+
+.holiday-col-date,
+.holiday-col-day,
+.holiday-col-type,
+.holiday-col-actions {
+  white-space: nowrap;
+}
+
+.holiday-table--user th,
+.holiday-table--user td {
+  padding-inline: 10px;
+}
+
+.holiday-table--user .holiday-col-name,
+.holiday-table--user .holiday-col-date,
+.holiday-table--user .holiday-col-day,
+.holiday-table--user .holiday-col-type {
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.holiday-table--user .holiday-name-cell {
+  gap: 6px;
+}
+
+.holiday-table--user .holiday-name-text {
+  width: 100%;
+  max-width: none;
+}
+
+/* ================= HOLIDAY NAME CELL ================= */
+
+.holiday-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.holiday-icon {
+  color: #06283d;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.holiday-name-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #041c32;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* ================= MODAL ================= */
+
+.holiday-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 4000;
+}
+
+.holiday-modal-box {
+  background: #ffffff;
+  width: 420px;
+  max-width: 90%;
+  padding: 28px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  animation: modalFade 0.2s ease;
+}
+
+.holiday-modal-box h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.holiday-modal-box p {
+  font-size: 15px;
+  color: #4b5563;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* Modal Inputs */
+
+.holiday-modal-box input,
+.holiday-modal-box select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  outline: none;
+}
+
+.holiday-modal-box input:focus,
+.holiday-modal-box select:focus {
+  border-color: #0aa89e;
+  box-shadow: 0 0 0 3px rgba(10, 168, 158, 0.1);
+}
+
+.holiday-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.holiday-field-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.holiday-modal-box .has-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+}
+
+.holiday-form-error,
+.holiday-field-helper {
+  margin: 0;
+  font-size: 12px;
+}
+
+.holiday-form-error {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.holiday-field-helper {
+  color: #64748b;
+}
+
+.holiday-action-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.holiday-table .app-action-button {
+  min-width: 72px;
+  min-height: 34px;
+  padding: 0.45rem 0.7rem;
+  border-radius: 9px;
+}
+
+/* Modal Buttons */
+
+.holiday-modal-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.holiday-cancel-btn {
+  background: #e5e7eb;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.holiday-cancel-btn:hover {
+  background: #d1d5db;
+}
+
+.holiday-save-btn {
+  background: #00d1d1 !important;
+  color: #000 !important;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.holiday-save-btn:hover {
+  background: #08968e;
+}
+
+.holiday-cancel-btn:disabled,
+.holiday-save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ================= ANIMATION ================= */
+
+@keyframes modalFade {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ================= DELETE POPUP BUTTONS ================= */
+
+.holiday-delete-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.holiday-delete-btn:hover {
+  background: #dc2626;
+}
+
+.holiday-modal-btns button:first-child {
+  background: #e5e7eb !important;
+  color: #111 !important;
+  border: none !important;
+  padding: 10px 18px !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+}
+
+.holiday-modal-btns button:first-child:hover {
+  background: #d1d5db !important;
+}
+
+@media (max-width: 767px) {
+  .holiday-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .holiday-header-copy {
+    width: 100%;
+  }
+
+  .holiday-add-btn {
+    width: 100%;
+  }
+
+  .holiday-table th,
+  .holiday-table td {
+    padding: 10px 11px;
+  }
+
+  .holiday-modal-btns {
+    flex-direction: column-reverse;
+  }
+
+  .holiday-modal-btns button {
+    width: 100%;
+  }
+}

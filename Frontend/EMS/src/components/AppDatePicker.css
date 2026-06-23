@@ -1,0 +1,121 @@
+.app-date-calendar,
+.react-datepicker {
+  width: min(190px, calc(100vw - 10px)) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+ 
+/* HEADER */
+.react-datepicker__current-month {
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+ 
+.app-calendar-header {
+  padding: 0.28rem 0.35rem 0.3rem !important;
+}
+ 
+.react-datepicker__triangle {
+  display: none !important;
+}
+ 
+.app-calendar-header-top {
+  min-height: 1.4rem !important;
+  margin-bottom: 0.2rem !important;
+}
+ 
+/* LEFT & RIGHT ARROWS */
+.app-calendar-nav-button {
+  width: 1rem !important;
+  height: 1rem !important;
+  min-width: 1rem !important;
+  padding: 0 !important;
+}
+ 
+/* MONTH YEAR DROPDOWN */
+.app-calendar-dropdown-row {
+  gap: 0.2rem !important;
+}
+ 
+.app-calendar-dropdown-button {
+  min-height: 20px !important;
+  height: 20px !important;
+  padding: 0 0.3rem !important;
+  font-size: 0.55rem !important;
+  border-radius: 6px !important;
+}
+ 
+/* MONTH & YEAR DROPDOWN LIST */
+.app-calendar-dropdown-option {
+  font-size: 0.55rem !important;
+  padding: 3px 6px !important;
+  min-height: 18px !important;
+}
+ 
+/* MONTH AREA */
+.react-datepicker__month-container {
+  width: 100% !important;
+}
+ 
+.react-datepicker__month {
+  padding: 0.2rem 0.25rem 0.35rem !important;
+  margin: 0 !important;
+}
+ 
+.react-datepicker__day-names {
+  padding: 0.12rem 0.2rem 0.08rem !important;
+  margin-bottom: 0.05rem !important;
+}
+ 
+.react-datepicker__week {
+  display: flex !important;
+  justify-content: space-between !important;
+}
+ 
+/* DAYS */
+.react-datepicker__day-name,
+.react-datepicker__day,
+.react-datepicker__time-name {
+  width: 1rem !important;
+  height: 1.15rem !important;
+  line-height: 1.15rem !important;
+  margin: 0.03rem auto !important;
+  font-size: 0.55rem !important;
+}
+ 
+/* SU MO TU */
+.react-datepicker__day-name {
+  font-size: 0.5rem !important;
+  font-weight: 600 !important;
+}
+ 
+.react-datepicker__header {
+  padding-top: 0.25rem !important;
+}
+ 
+/* MOBILE */
+@media (max-width: 420px) {
+  .app-date-calendar,
+  .react-datepicker {
+    width: min(175px, calc(100vw - 10px)) !important;
+  }
+ 
+  .react-datepicker__current-month {
+    font-size: 0.72rem !important;
+  }
+ 
+  .react-datepicker__day-name,
+  .react-datepicker__day,
+  .react-datepicker__time-name {
+    width: 0.9rem !important;
+    height: 1rem !important;
+    line-height: 1rem !important;
+    font-size: 0.5rem !important;
+  }
+ 
+  .react-datepicker__day-name {
+    font-size: 0.45rem !important;
+  }
+}
+ 

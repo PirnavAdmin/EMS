@@ -1,0 +1,136 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|c:\\users\\admin\\onedrive\\desktop\\ems new\\backend\\services\\manualpayslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|solutionrelative:backend\\services\\manualpayslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|c:\\users\\admin\\onedrive\\desktop\\ems new\\backend\\services\\payslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|solutionrelative:backend\\services\\payslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|c:\\users\\admin\\onedrive\\desktop\\ems new\\backend\\services\\taskmanagementservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|solutionrelative:backend\\services\\taskmanagementservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|c:\\users\\admin\\onedrive\\desktop\\ems new\\backend\\services\\attendanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|solutionrelative:backend\\services\\attendanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|c:\\users\\admin\\onedrive\\desktop\\ems new\\backend\\services\\employeeleaveservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|solutionrelative:backend\\services\\employeeleaveservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|c:\\users\\admin\\onedrive\\desktop\\ems new\\backend\\controllers\\taskmanagementcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|solutionrelative:backend\\controllers\\taskmanagementcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|c:\\users\\admin\\onedrive\\desktop\\ems new\\backend\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AF7C3609-04D3-3095-6E3B-30BF7EBE5EFB}|Backend\\EmployeeManagementSystem.csproj|solutionrelative:backend\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 4,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "EmployeeLeaveService.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\EmployeeLeaveService.cs",
+              "RelativeDocumentMoniker": "Backend\\Services\\EmployeeLeaveService.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\EmployeeLeaveService.cs",
+              "RelativeToolTip": "Backend\\Services\\EmployeeLeaveService.cs",
+              "ViewState": "AgIAAP8BAAAAAAAAAAAiwBoCAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-18T11:32:50.576Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "TaskManagementController.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Controllers\\TaskManagementController.cs",
+              "RelativeDocumentMoniker": "Backend\\Controllers\\TaskManagementController.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Controllers\\TaskManagementController.cs",
+              "RelativeToolTip": "Backend\\Controllers\\TaskManagementController.cs",
+              "ViewState": "AgIAABMBAAAAAAAAAAAUwCwBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-18T11:03:11.946Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TaskManagementService.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\TaskManagementService.cs",
+              "RelativeDocumentMoniker": "Backend\\Services\\TaskManagementService.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\TaskManagementService.cs",
+              "RelativeToolTip": "Backend\\Services\\TaskManagementService.cs",
+              "ViewState": "AgIAACIAAAAAAAAAAAAkwHMBAAAgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-18T10:56:41.774Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Program.cs",
+              "RelativeDocumentMoniker": "Backend\\Program.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Program.cs",
+              "RelativeToolTip": "Backend\\Program.cs",
+              "ViewState": "AgIAAFkAAAAAAAAAAAAqwGAAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-18T10:48:00.694Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ManualPayslipService.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\ManualPayslipService.cs",
+              "RelativeDocumentMoniker": "Backend\\Services\\ManualPayslipService.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\ManualPayslipService.cs",
+              "RelativeToolTip": "Backend\\Services\\ManualPayslipService.cs",
+              "ViewState": "AgIAAMMBAAAAAAAAAAAAAGYBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-18T10:12:14.072Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "AttendanceService.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\AttendanceService.cs",
+              "RelativeDocumentMoniker": "Backend\\Services\\AttendanceService.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\AttendanceService.cs",
+              "RelativeToolTip": "Backend\\Services\\AttendanceService.cs",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAAAB0AAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-18T11:33:44.763Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "PaySlipService.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\PaySlipService.cs",
+              "RelativeDocumentMoniker": "Backend\\Services\\PaySlipService.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS New\\Backend\\Services\\PaySlipService.cs",
+              "RelativeToolTip": "Backend\\Services\\PaySlipService.cs",
+              "ViewState": "AgIAACECAAAAAAAAAAAuwDkCAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-18T10:12:05.62Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

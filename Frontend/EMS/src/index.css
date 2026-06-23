@@ -1,0 +1,1709 @@
+:root {
+  --font-sans: Inter, sans-serif;
+  --bg-app: #f5f7fa;
+  --bg-page: #ffffff;
+  --bg-muted: #f5f7fa;
+  --bg-soft: #eef4f8;
+  --navy-950: #041c32;
+  --navy-900: #06283d;
+  --navy-800: #12324a;
+  --text-strong: #041c32;
+  --text-body: #334155;
+  --text-muted: #64748b;
+  --border-soft: #e2e8f0;
+  --border-strong: #d7e1eb;
+  --teal-600: #00d1d1;
+  --teal-500: #0fd8d8;
+  --teal-100: rgba(0, 209, 209, 0.12);
+  --danger-500: #dc2626;
+  --danger-50: #fef2f2;
+  --shadow-xs: 0 1px 2px rgba(4, 28, 50, 0.03);
+  --shadow-sm: 0 8px 20px rgba(4, 28, 50, 0.04);
+  --shadow-md: 0 14px 30px rgba(4, 28, 50, 0.06);
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --content-max: 1400px;
+  --space-page: clamp(16px, 2.5vw, 32px);
+  --space-section: clamp(16px, 2vw, 24px);
+  --space-card: clamp(16px, 1.6vw, 22px);
+  --button-font-family: Inter, sans-serif;
+  --button-font-weight: 600;
+  --page-heading-font-family: Inter, sans-serif;
+  --page-heading-font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  --page-heading-font-weight: 700;
+  --page-heading-color: #041c32;
+  --page-heading-letter-spacing: -0.03em;
+  --page-subtitle-font-size: 0.875rem;
+  --page-subtitle-color: #64748b;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+  --control-height: 44px;
+  --control-padding-block: 0.72rem;
+  --control-padding-inline: 0.875rem;
+  --table-head-bg: #f8fafc;
+  --table-row-hover: #fbfdff;
+  --table-cell-py: 0.825rem;
+  --table-cell-px: 1rem;
+  --table-text-size: 0.875rem;
+  --modal-radius-xl: 20px;
+  --modal-padding: clamp(18px, 2.1vw, 26px);
+  --modal-gap: 18px;
+  --modal-shadow: 0 24px 54px rgba(4, 28, 50, 0.14);
+  --app-modal-overlay-z: 12000;
+  --app-modal-surface-z: 12010;
+  --app-select-chevron-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23041c32' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  font-family: var(--font-sans);
+  line-height: var(--line-height-normal);
+  font-weight: 400;
+  color: var(--text-body);
+  background: var(--bg-app);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  overflow-x: hidden;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg-app);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: var(--line-height-normal);
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button,
+[role="button"],
+input[type="button"],
+input[type="reset"],
+input[type="submit"] {
+  font-family: var(--button-font-family) !important;
+  font-style: normal !important;
+  font-weight: var(--button-font-weight) !important;
+  letter-spacing: 0 !important;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input,
+select,
+textarea {
+  border-radius: 12px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+select:not([multiple]),
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  padding-right: 2.75rem !important;
+  background-image: var(--app-select-chevron-icon) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.9rem center !important;
+  background-size: 1rem !important;
+  cursor: pointer;
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: rgba(20, 184, 166, 0.18);
+  color: var(--text-strong);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+.app-card,
+.app-panel,
+.app-surface {
+  background: var(--bg-page);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.app-surface-muted {
+  background: var(--bg-muted);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+
+.app-page-title {
+  margin: 0;
+  color: var(--page-heading-color);
+  font-family: var(--page-heading-font-family);
+  font-size: var(--page-heading-font-size);
+  font-weight: var(--page-heading-font-weight);
+  letter-spacing: var(--page-heading-letter-spacing);
+}
+
+.app-page-subtitle {
+  margin: 8px 0 0;
+  color: var(--page-subtitle-color);
+  font-size: var(--page-subtitle-font-size);
+  line-height: 1.6;
+}
+
+.title,
+.main-title,
+.page-title,
+.udb-title,
+.leave-main-title,
+.attendance-header h2,
+.holiday-header h2,
+.company-header h2,
+.job-header-unique h2,
+.projects-header h2,
+.dept-header h2,
+.leave-header h2,
+.emp-header-unique h2,
+.notifications-header h2,
+.assets-header h2,
+.roles-header-bar h2,
+.task-header h2,
+.clients-header h2,
+.ems-task-header-wrapper h2,
+.offer-header h2,
+.reports-header h2,
+.payroll-header h2,
+.payslip-header h1 {
+  margin-top: 0 !important;
+  color: var(--page-heading-color) !important;
+  font-family: var(--page-heading-font-family) !important;
+  font-size: var(--page-heading-font-size) !important;
+  font-style: normal !important;
+  font-weight: var(--page-heading-font-weight) !important;
+  letter-spacing: var(--page-heading-letter-spacing) !important;
+  line-height: 1.12 !important;
+}
+
+.subtitle,
+.page-subtitle,
+.udb-subtitle,
+.attendance-subtitle,
+.holiday-header p,
+.company-header p,
+.projects-header p,
+.dept-header p,
+.leave-header p,
+.emp-header-unique p,
+.notifications-header p,
+.assets-header p,
+.clients-header p,
+.task-header p,
+.ems-task-header-wrapper p,
+.offer-header p,
+.reports-header p,
+.payroll-header p,
+.payslip-header p {
+  color: var(--page-subtitle-color) !important;
+  font-family: var(--page-heading-font-family) !important;
+  font-size: var(--page-subtitle-font-size) !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.6 !important;
+}
+
+.app-inline-error,
+.field-error,
+.form-error,
+.error {
+  color: var(--danger-500);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.app-button-primary,
+.app-button-secondary,
+.app-button-danger {
+  min-height: 42px;
+  padding: 0.625rem 1.125rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.app-button-primary {
+  background: linear-gradient(135deg, #00d1d1 0%, #0fc2ce 100%);
+  border-color: #00d1d1;
+  color: #041c32;
+  box-shadow: 0 6px 14px rgba(0, 209, 209, 0.12);
+}
+
+.app-button-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #10dbdb 0%, #1acbd6 100%);
+  border-color: #10dbdb;
+  transform: translateY(-1px);
+}
+
+.app-button-secondary {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  color: var(--text-body);
+}
+
+.app-button-danger {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.app-button-secondary:hover:not(:disabled) {
+  background: var(--bg-muted);
+  border-color: #c6d2df;
+}
+
+.app-button-danger:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.app-button-primary:disabled,
+.app-button-secondary:disabled,
+.app-button-danger:disabled,
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
+.app-action-button,
+.app-icon-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.app-action-button {
+  min-height: 36px;
+  padding: 0.5rem 0.875rem;
+  white-space: nowrap;
+}
+
+.app-icon-action-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.app-action-button--edit,
+.app-icon-action-button--edit {
+  background: rgba(0, 209, 209, 0.08);
+  border-color: rgba(0, 209, 209, 0.18);
+  color: #06283d;
+}
+
+.app-action-button--edit:hover:not(:disabled),
+.app-icon-action-button--edit:hover:not(:disabled) {
+  background: rgba(0, 209, 209, 0.14);
+  border-color: rgba(0, 209, 209, 0.28);
+  transform: translateY(-1px);
+}
+
+.app-action-button--delete,
+.app-icon-action-button--delete {
+  background: #fff5f5;
+  border-color: #fecaca;
+  color: #c62828;
+}
+
+.app-action-button--delete:hover:not(:disabled),
+.app-icon-action-button--delete:hover:not(:disabled) {
+  background: #ffe8e8;
+  border-color: #fca5a5;
+  transform: translateY(-1px);
+}
+
+.app-input,
+.app-select,
+.app-textarea,
+.app-date-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 0.875rem;
+  border-radius: 12px;
+  border: 1px solid #d7e1ea;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.875rem;
+  line-height: var(--line-height-normal);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.app-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.app-input:focus,
+.app-select:focus,
+.app-textarea:focus,
+.app-date-input:focus {
+  border-color: #00d1d1;
+  box-shadow: 0 0 0 3px rgba(0, 209, 209, 0.12);
+}
+
+.app-readonly-field,
+.app-input:disabled,
+.app-select:disabled,
+.app-textarea:disabled,
+.app-date-input:disabled {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+  border-color: #dbe4ee !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+.app-truncate {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.app-empty-state {
+  padding: 2rem 1.25rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  line-height: var(--line-height-relaxed);
+}
+
+.app-table-empty-cell {
+  padding: 2rem 1.25rem;
+  text-align: center !important;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.app-table-header-center th {
+  text-align: center;
+}
+
+.app-table-scroll {
+  width: 100%;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.55) rgba(226, 232, 240, 0.72);
+}
+
+.app-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.app-table-scroll::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.72);
+  border-radius: 999px;
+}
+
+.app-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 999px;
+}
+
+.app-table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
+.page-shell :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  p,
+  span,
+  strong,
+  a,
+  td,
+  th,
+  label
+) {
+  overflow-wrap: anywhere;
+}
+
+.page-shell :is(
+  .attendance-header,
+  .holiday-header,
+  .company-header,
+  .branch-header,
+  .job-header-unique,
+  .projects-header,
+  .dept-header,
+  .leave-header,
+  .emp-header-unique,
+  .notifications-header,
+  .assets-header,
+  .roles-header-bar,
+  .task-header,
+  .clients-header,
+  .ems-task-header-wrapper,
+  .offer-header,
+  .payroll-header,
+  .permission-top,
+  .payslip-header,
+  .page-header-row
+) {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  flex-wrap: wrap !important;
+  margin-bottom: clamp(12px, 1.8vw, 18px) !important;
+}
+
+.page-shell :is(
+  .attendance-header,
+  .holiday-header,
+  .company-header,
+  .branch-header,
+  .job-header-unique,
+  .projects-header,
+  .dept-header,
+  .leave-header,
+  .emp-header-unique,
+  .notifications-header,
+  .assets-header,
+  .roles-header-bar,
+  .task-header,
+  .clients-header,
+  .ems-task-header-wrapper,
+  .offer-header,
+  .payroll-header,
+  .permission-top,
+  .payslip-header,
+  .page-header-row
+) > :first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.page-shell :is(
+  .attendance-header,
+  .holiday-header,
+  .company-header,
+  .branch-header,
+  .job-header-unique,
+  .projects-header,
+  .dept-header,
+  .leave-header,
+  .emp-header-unique,
+  .notifications-header,
+  .assets-header,
+  .roles-header-bar,
+  .task-header,
+  .clients-header,
+  .ems-task-header-wrapper,
+  .offer-header,
+  .payroll-header,
+  .permission-top,
+  .payslip-header,
+  .page-header-row
+) :is(h1, h2, h3) {
+  margin-bottom: 0 !important;
+  text-align: left !important;
+}
+
+.page-shell :is(
+  .attendance-header,
+  .holiday-header,
+  .company-header,
+  .branch-header,
+  .job-header-unique,
+  .projects-header,
+  .dept-header,
+  .leave-header,
+  .emp-header-unique,
+  .notifications-header,
+  .assets-header,
+  .roles-header-bar,
+  .task-header,
+  .clients-header,
+  .ems-task-header-wrapper,
+  .offer-header,
+  .payroll-header,
+  .payslip-header,
+  .page-header-row
+) p {
+  margin: 6px 0 0 !important;
+  max-width: min(760px, 100%);
+  text-align: left !important;
+}
+
+.page-shell :is(
+  .attendance-header,
+  .holiday-header,
+  .company-header,
+  .branch-header,
+  .job-header-unique,
+  .projects-header,
+  .dept-header,
+  .leave-header,
+  .emp-header-unique,
+  .notifications-header,
+  .assets-header,
+  .roles-header-bar,
+  .task-header,
+  .clients-header,
+  .ems-task-header-wrapper,
+  .offer-header,
+  .payroll-header,
+  .permission-top,
+  .payslip-header,
+  .page-header-row
+) > button {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.page-shell :is(
+  .form-group,
+  .dept-field-group,
+  .holiday-field-group,
+  .roles-field-group,
+  .job-field-group,
+  .clients-field-group,
+  .ems-task-field-group,
+  .emp-field-group,
+  .emp-form-group
+) {
+  min-width: 0;
+}
+
+.page-shell :is(
+  .form-group,
+  .dept-field-group,
+  .holiday-field-group,
+  .roles-field-group,
+  .job-field-group,
+  .clients-field-group,
+  .ems-task-field-group,
+  .emp-field-group,
+  .emp-form-group
+) > label {
+  margin: 0;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.page-shell :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+) {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--control-padding-block) var(--control-padding-inline);
+  border: 1px solid #d7e1ea;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.page-shell textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.page-shell :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+):focus {
+  border-color: #00d1d1;
+  box-shadow: 0 0 0 3px rgba(0, 209, 209, 0.12);
+  outline: none;
+}
+
+.page-shell :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+):disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #dbe4ee;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.page-shell :is(input.has-error, select.has-error, textarea.has-error, .input-error) {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08) !important;
+}
+
+.page-shell :is(
+  .projects-add-btn,
+  .holiday-add-btn,
+  .company-add-btn,
+  .add-client-btn,
+  .roles-add-btn,
+  .emp-add-btn,
+  .job-add-btn,
+  .mark-read-btn,
+  .select-all-btn,
+  .submit-btn,
+  .btn-primary,
+  .btn-secondary,
+  .add-education-btn,
+  .apply-submit-btn,
+  .apply-cancel-btn,
+  .clients-add-cancel-btn-unique,
+  .clients-add-save-btn-unique,
+  .holiday-cancel-btn,
+  .holiday-save-btn,
+  .holiday-delete-btn,
+  .emp-save-btn,
+  .emp-close-btn,
+  .company-header-edit,
+  .emp-delete-cancel-btn,
+  .emp-delete-btn,
+  .dept-save-btn,
+  .cancel-btn,
+  .confirm-delete-btn,
+  .ems-task-submit-btn,
+  .ems-task-cancel-btn,
+  .projects-secondary-btn,
+  .projects-save-btn
+) {
+  min-height: 42px;
+  padding: 0.625rem 1rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.page-shell :is(
+  .emp-table,
+  .projects-table,
+  .holiday-table,
+  .branch-table,
+  .roles-table-main,
+  .assets-table,
+  .ems-task-data-main-table,
+  .task-table table,
+  .leave-table table,
+  .leave-history table,
+  .offer-list table,
+  .recent-table table
+) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.page-shell :is(
+  .emp-table,
+  .projects-table,
+  .holiday-table,
+  .branch-table,
+  .roles-table-main,
+  .assets-table,
+  .ems-task-data-main-table,
+  .task-table table,
+  .leave-table table,
+  .leave-history table,
+  .offer-list table,
+  .recent-table table
+) thead {
+  background: var(--table-head-bg);
+}
+
+.page-shell :is(
+  .emp-table,
+  .projects-table,
+  .holiday-table,
+  .branch-table,
+  .roles-table-main,
+  .assets-table,
+  .ems-task-data-main-table,
+  .task-table table,
+  .leave-table table,
+  .leave-history table,
+  .offer-list table,
+  .recent-table table
+) :is(th, td) {
+  padding: var(--table-cell-py) var(--table-cell-px);
+  border-bottom: 1px solid #e8eef5;
+  font-size: var(--table-text-size);
+  line-height: 1.45;
+  vertical-align: middle;
+}
+
+.page-shell :is(
+  .emp-table,
+  .projects-table,
+  .holiday-table,
+  .branch-table,
+  .roles-table-main,
+  .assets-table,
+  .ems-task-data-main-table,
+  .task-table table,
+  .leave-table table,
+  .leave-history table,
+  .offer-list table,
+  .recent-table table
+) th {
+  color: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.page-shell :is(
+  .emp-table,
+  .projects-table,
+  .holiday-table,
+  .branch-table,
+  .roles-table-main,
+  .assets-table,
+  .ems-task-data-main-table,
+  .task-table table,
+  .leave-table table,
+  .leave-history table,
+  .offer-list table,
+  .recent-table table
+) tbody tr:hover {
+  background: var(--table-row-hover);
+}
+
+.page-shell :is(
+  .emp-table,
+  .projects-table,
+  .holiday-table,
+  .branch-table,
+  .roles-table-main,
+  .assets-table,
+  .ems-task-data-main-table,
+  .task-table table,
+  .leave-table table,
+  .leave-history table,
+  .offer-list table,
+  .recent-table table
+) tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.page-shell :is(
+  .app-table-actions,
+  .projects-action-cell,
+  .roles-action-group,
+  .action-btns,
+  .assets-action-buttons
+) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.page-shell :is(
+  .projects-status,
+  .task-status,
+  .ems-task-priority-pill,
+  .ems-task-state-pill
+) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.app-date-input-wrapper {
+  display: block;
+  position: relative;
+  width: 100%;
+}
+
+#app-datepicker-portal {
+  position: relative;
+  z-index: calc(var(--app-modal-surface-z) + 80);
+}
+
+.react-datepicker-popper {
+  z-index: calc(var(--app-modal-surface-z) + 90) !important;
+  max-width: calc(100vw - 24px);
+  pointer-events: auto;
+  animation: app-datepicker-pop 0.16s ease-out;
+  will-change: opacity, transform;
+}
+
+.react-datepicker-popper[data-placement^="bottom"] {
+  transform-origin: top left;
+}
+
+.react-datepicker-popper[data-placement^="top"] {
+  transform-origin: bottom left;
+}
+
+@keyframes app-datepicker-pop {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.app-date-calendar,
+.react-datepicker {
+  width: 352px !important;
+  max-width: calc(100vw - 24px) !important;
+  border: 1px solid #e1e8f0 !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  box-shadow: 0 20px 44px rgba(4, 28, 50, 0.16) !important;
+  font-family: var(--font-sans) !important;
+  color: #0f172a !important;
+  overflow: visible !important;
+}
+
+.react-datepicker__header {
+  position: relative !important;
+  z-index: 2 !important;
+  background: #f8fbfd !important;
+  border-bottom: 1px solid #e1e8f0 !important;
+  border-radius: 14px 14px 0 0 !important;
+  padding: 0 !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  color: var(--text-strong) !important;
+  font-size: 0.9375rem !important;
+  font-weight: 700 !important;
+}
+
+.app-calendar-header {
+  position: relative;
+  z-index: 4;
+  padding: 0.75rem 1.25rem 0.8rem;
+}
+
+.app-calendar-header-top {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr 2.25rem;
+  align-items: center;
+  min-height: 2rem;
+  margin-bottom: 0.55rem;
+}
+
+.app-calendar-current-month {
+  color: #001a2f;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.app-calendar-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #06283d;
+  transition:
+    background-color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.app-calendar-nav-button span {
+  width: 0.72rem;
+  height: 0.72rem;
+  border-left: 3px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.app-calendar-nav-button-next span {
+  transform: rotate(225deg);
+}
+
+.app-calendar-nav-button:hover:not(:disabled),
+.app-calendar-nav-button:focus-visible:not(:disabled) {
+  background: rgba(0, 209, 209, 0.12);
+}
+
+.app-calendar-nav-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.app-calendar-dropdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+  gap: 2.35rem;
+  align-items: start;
+}
+
+.app-calendar-dropdown {
+  position: relative;
+  min-width: 0;
+}
+
+.app-calendar-dropdown-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 38px;
+  padding: 0.35rem 0.875rem;
+  border: 1px solid #dbe5ef;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #041c32;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  box-shadow: 0 1px 1px rgba(4, 28, 50, 0.02);
+}
+
+.app-calendar-dropdown-button:hover,
+.app-calendar-dropdown-button:focus-visible {
+  border-color: #c7d5e4;
+  box-shadow: 0 0 0 3px rgba(0, 209, 209, 0.1);
+}
+
+.app-calendar-dropdown-chevron {
+  width: 0.62rem;
+  height: 0.62rem;
+  margin-left: 0.75rem;
+  border-right: 3px solid #06283d;
+  border-bottom: 3px solid #06283d;
+  transform: translateY(-2px) rotate(45deg);
+  flex: 0 0 auto;
+}
+
+.app-calendar-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 264px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #aeb9c6;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(4, 28, 50, 0.14);
+  scrollbar-width: thin;
+  scrollbar-color: #b8c2cc transparent;
+}
+
+.app-calendar-dropdown-menu::-webkit-scrollbar {
+  width: 7px;
+}
+
+.app-calendar-dropdown-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-calendar-dropdown-menu::-webkit-scrollbar-thumb {
+  background: #b8c2cc;
+  border-radius: 999px;
+}
+
+.app-calendar-dropdown-option {
+  display: block;
+  width: 100%;
+  min-height: 33px;
+  padding: 0.25rem 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+  color: #041c32;
+  font-size: 1.125rem;
+  font-weight: 400 !important;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.app-calendar-dropdown-option:hover,
+.app-calendar-dropdown-option:focus-visible {
+  background: #edf6f8;
+}
+
+.app-calendar-dropdown-option.is-selected {
+  background: #2b70d7;
+  color: #ffffff;
+}
+
+.react-datepicker__month-container {
+  width: 100% !important;
+  float: none !important;
+}
+
+.react-datepicker__month {
+  margin: 0 !important;
+  padding: 0.55rem 1.15rem 0.8rem !important;
+}
+
+.react-datepicker__week {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: center;
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day,
+.react-datepicker__time-name {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  margin: 0.18rem auto !important;
+  border-radius: 8px !important;
+  color: #111827 !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+.react-datepicker__day-names {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 0 !important;
+  padding: 0.75rem 1.15rem 0.3rem !important;
+}
+
+.react-datepicker__day-name {
+  color: #111827 !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: #00d1d1 !important;
+  color: #041c32 !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+}
+
+.react-datepicker__day:hover,
+.react-datepicker__month-text:hover,
+.react-datepicker__quarter-text:hover,
+.react-datepicker__year-text:hover {
+  background: rgba(0, 209, 209, 0.16) !important;
+  border-radius: 8px !important;
+}
+
+.react-datepicker__day--outside-month {
+  color: #111827 !important;
+}
+
+.react-datepicker__day--disabled {
+  color: #c5ced8 !important;
+  cursor: not-allowed !important;
+}
+
+.react-datepicker__day--disabled:hover {
+  background: transparent !important;
+}
+
+.react-datepicker__triangle {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+  stroke: #e1e8f0 !important;
+}
+
+.react-datepicker__month-dropdown,
+.react-datepicker__year-dropdown,
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  border-radius: 10px !important;
+  border: 1px solid var(--border-soft) !important;
+  padding: 0.35rem 0.5rem !important;
+  font-family: var(--font-sans) !important;
+}
+
+.react-datepicker__aria-live {
+  display: none;
+}
+
+body.app-modal-open {
+  overflow: hidden !important;
+}
+
+body.app-modal-open .app-header,
+body.app-modal-open .sidebar,
+body.app-modal-open .sidebar-backdrop {
+  pointer-events: none !important;
+}
+
+:is(
+  .attendance-modal-overlay,
+  .apply-modal-overlay,
+  .asset-delete-overlay,
+  .change-password-overlay,
+  .clients-add-modal-overlay-unique,
+  .client-drawer-overlay,
+  .client-modal-overlay,
+  .client-view-overlay,
+  .company-modal-overlay,
+  .delete-overlay,
+  .dept-members-overlay,
+  .dept-modal-overlay,
+  .emp-delete-overlay,
+  .emp-modal-overlay,
+  .ems-task-create-overlay,
+  .ems-task-delete-overlay,
+  .ems-task-view-overlay,
+  .holiday-modal-overlay,
+  .image-modal-overlay,
+  .job-modal-overlay,
+  .leave-details-overlay,
+  .modal,
+  .projects-modal-overlay,
+  .roles-modal-overlay
+) {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  padding: clamp(16px, 3vw, 32px) !important;
+  overflow-y: auto;
+  background: rgba(4, 28, 50, 0.42) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  z-index: var(--app-modal-overlay-z) !important;
+  isolation: isolate;
+}
+
+:is(
+  .attendance-modal,
+  .apply-modal-box,
+  .asset-delete-modal,
+  .change-password-modal,
+  .clients-add-modal-box-unique,
+  .client-view-modal,
+  .company-modal-box,
+  .delete-modal,
+  .dept-members-modal,
+  .dept-modal-box,
+  .emp-delete-modal,
+  .emp-modal-box,
+  .ems-task-create-popup,
+  .ems-task-delete-popup,
+  .ems-task-view-popup,
+  .holiday-modal-box,
+  .image-modal,
+  .job-modal-box,
+  .leave-details-container,
+  .modal-content,
+  .projects-modal,
+  .projects-modal-small,
+  .roles-modal-container
+) {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  margin: 0 auto !important;
+  z-index: var(--app-modal-surface-z) !important;
+  max-height: min(calc(100vh - 32px), 100%) !important;
+}
+
+:is(
+  .attendance-modal,
+  .apply-modal-box,
+  .asset-delete-modal,
+  .change-password-modal,
+  .clients-add-modal-box-unique,
+  .client-view-modal,
+  .company-modal-box,
+  .delete-modal,
+  .dept-members-modal,
+  .dept-modal-box,
+  .emp-delete-modal,
+  .emp-modal-box,
+  .ems-task-create-popup,
+  .ems-task-delete-popup,
+  .ems-task-view-popup,
+  .holiday-modal-box,
+  .image-modal,
+  .job-modal-box,
+  .leave-details-container,
+  .modal-content,
+  .projects-modal,
+  .projects-modal-small,
+  .roles-modal-container
+) {
+  border-radius: var(--modal-radius-xl) !important;
+  border: 1px solid var(--border-soft) !important;
+  background: var(--bg-page) !important;
+  box-shadow: var(--modal-shadow) !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+}
+
+:is(
+  .company-modal-head,
+  .projects-modal-header,
+  .ems-task-create-header,
+  .attendance-modal-header,
+  .dept-members-modal-header,
+  .emp-modal-header,
+  .view-header
+) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+:is(
+  .company-modal-head,
+  .projects-modal-header,
+  .ems-task-create-header,
+  .attendance-modal-header,
+  .dept-members-modal-header,
+  .emp-modal-header,
+  .view-header
+) :is(h2, h3) {
+  margin: 0;
+}
+
+:is(
+  .company-modal-head,
+  .projects-modal-header,
+  .ems-task-create-header,
+  .attendance-modal-header,
+  .dept-members-modal-header,
+  .emp-modal-header,
+  .view-header
+) p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+:is(
+  .company-modal-close,
+  .projects-modal-close,
+  .attendance-modal-close,
+  .emp-modal-close-icon,
+  .view-close,
+  .ems-task-modal-close
+) {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+:is(
+  .holiday-modal-btns,
+  .dept-modal-btns,
+  .company-modal-btns,
+  .clients-add-actions-unique,
+  .roles-modal-actions,
+  .asset-modal-actions,
+  .asset-delete-actions,
+  .apply-modal-actions,
+  .projects-modal-btns,
+  .projects-delete-actions,
+  .ems-task-create-buttons,
+  .attendance-modal-footer,
+  .emp-modal-btns,
+  .emp-delete-actions,
+  .delete-actions,
+  .offer-buttons,
+  .permission-actions
+) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+:is(
+  .holiday-modal-btns,
+  .dept-modal-btns,
+  .company-modal-btns,
+  .clients-add-actions-unique,
+  .roles-modal-actions,
+  .asset-modal-actions,
+  .asset-delete-actions,
+  .apply-modal-actions,
+  .projects-modal-btns,
+  .projects-delete-actions,
+  .ems-task-create-buttons,
+  .attendance-modal-footer,
+  .emp-modal-btns,
+  .emp-delete-actions,
+  .delete-actions,
+  .offer-buttons,
+  .permission-actions
+) > button {
+  min-height: 42px;
+  padding: 0.625rem 1rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.app-month-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.app-month-picker-select {
+  min-width: 150px;
+}
+
+@supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
+  .app-header,
+  .header-icon-button,
+  .profile-dropdown,
+  .page-shell :is(
+    .emp-modal-overlay,
+    .emp-delete-overlay,
+    .dept-modal-overlay,
+    .delete-overlay,
+    .clients-add-modal-overlay-unique,
+    .client-modal-overlay,
+    .client-drawer-overlay,
+    .client-view-overlay
+  ) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (hover: none) {
+  .app-button-primary:hover,
+  .app-button-secondary:hover,
+  .app-button-danger:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-month-picker {
+    width: 100%;
+  }
+
+  .app-month-picker-select {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .page-shell :is(
+    .attendance-header,
+    .holiday-header,
+    .company-header,
+    .branch-header,
+    .job-header-unique,
+    .projects-header,
+    .dept-header,
+    .leave-header,
+    .emp-header-unique,
+    .notifications-header,
+    .assets-header,
+    .roles-header-bar,
+    .task-header,
+    .clients-header,
+    .ems-task-header-wrapper,
+    .offer-header,
+    .payroll-header,
+    .permission-top,
+    .payslip-header,
+    .page-header-row
+  ) > button {
+    width: 100%;
+  }
+
+  :is(
+    .holiday-modal-btns,
+    .dept-modal-btns,
+    .company-modal-btns,
+    .clients-add-actions-unique,
+    .roles-modal-actions,
+    .asset-modal-actions,
+    .asset-delete-actions,
+    .apply-modal-actions,
+    .projects-modal-btns,
+    .projects-delete-actions,
+    .ems-task-create-buttons,
+    .attendance-modal-footer,
+    .emp-modal-btns,
+    .emp-delete-actions,
+    .delete-actions,
+    .offer-buttons,
+    .permission-actions
+  ) {
+    align-items: stretch !important;
+  }
+
+  :is(
+    .holiday-modal-btns,
+    .dept-modal-btns,
+    .company-modal-btns,
+    .clients-add-actions-unique,
+    .roles-modal-actions,
+    .asset-modal-actions,
+    .asset-delete-actions,
+    .apply-modal-actions,
+    .projects-modal-btns,
+    .projects-delete-actions,
+    .ems-task-create-buttons,
+    .attendance-modal-footer,
+    .emp-modal-btns,
+    .emp-delete-actions,
+    .delete-actions,
+    .offer-buttons,
+    .permission-actions
+  ) > button {
+    width: 100%;
+  }
+
+  :is(
+    .attendance-modal,
+    .apply-modal-box,
+    .asset-delete-modal,
+    .change-password-modal,
+    .clients-add-modal-box-unique,
+    .client-view-modal,
+    .company-modal-box,
+    .delete-modal,
+    .dept-members-modal,
+    .dept-modal-box,
+    .emp-delete-modal,
+    .emp-modal-box,
+    .ems-task-create-popup,
+    .ems-task-delete-popup,
+    .ems-task-view-popup,
+    .holiday-modal-box,
+    .image-modal,
+    .job-modal-box,
+    .leave-details-container,
+    .modal-content,
+    .projects-modal,
+    .projects-modal-small,
+    .roles-modal-container
+  ) {
+    width: min(100%, calc(100vw - 20px)) !important;
+    max-height: calc(100vh - 20px) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-date-calendar,
+  .react-datepicker {
+    width: calc(100vw - 24px) !important;
+  }
+
+  .app-calendar-header {
+    padding: 0.7rem 0.9rem 0.75rem;
+  }
+
+  .app-calendar-dropdown-row {
+    gap: 0.75rem;
+    grid-template-columns: minmax(0, 1.1fr) minmax(88px, 0.75fr);
+  }
+
+  .app-calendar-dropdown-button {
+    min-height: 36px;
+    padding-inline: 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .react-datepicker__day-names,
+  .react-datepicker__month {
+    padding-inline: 0.75rem !important;
+  }
+
+  .react-datepicker__day-name,
+  .react-datepicker__day,
+  .react-datepicker__time-name {
+    width: 2rem !important;
+    height: 2rem !important;
+    font-size: 0.95rem !important;
+  }
+}

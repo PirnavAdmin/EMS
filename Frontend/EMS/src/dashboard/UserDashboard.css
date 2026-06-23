@@ -1,0 +1,329 @@
+/* ================= PAGE ================= */
+ 
+.udb-wrapper {
+  padding: 0;
+  background: transparent;
+  min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
+  color: #0f172a;
+  box-sizing: border-box;
+}
+ 
+/* ================= HEADER ================= */
+ 
+.udb-header {
+  margin-bottom: 28px;
+}
+ 
+.udb-title {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+ 
+.udb-subtitle {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 500;
+}
+ 
+/* ================= CARDS ================= */
+ 
+.udb-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px;
+  margin-bottom: 28px;
+  width: 100%;
+}
+ 
+.udb-card {
+  position: relative;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px solid #dfe7ef;
+  min-height: 150px;
+ 
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+ 
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+ 
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+ 
+  overflow: hidden;
+  min-width: 0;
+}
+ 
+.udb-card:hover {
+  transform: translateY(-2px);
+  border-color: #dbe6f2;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+}
+ 
+/* ================= ICON ================= */
+ 
+.udb-icon {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+ 
+  width: 46px;
+  height: 46px;
+ 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+ 
+  border-radius: 14px;
+  color: #ffffff;
+  font-size: 18px;
+ 
+  flex-shrink: 0;
+}
+ 
+.udb-blue {
+  background: #3b82f6;
+}
+ 
+.udb-green {
+  background: #22c55e;
+}
+ 
+.udb-orange {
+  background: #f59e0b;
+}
+ 
+.udb-purple {
+  background: #8b5cf6;
+}
+ 
+/* ================= CARD CONTENT ================= */
+ 
+.udb-card > div:first-child {
+  padding-right: 82px;
+}
+ 
+.udb-card-title {
+  margin: 0 0 14px;
+ 
+  font-size: clamp(14px, 1vw, 18px);
+  font-weight: 600;
+  line-height: 1.3;
+ 
+  color: #64748b;
+ 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ 
+.udb-card-number {
+  margin: 0;
+  font-size: clamp(18px, 1.5vw, 24px);
+  font-weight: 700;
+  line-height: 1;
+  color: #000000;
+}
+ 
+.udb-card-text {
+  margin-top: 12px;
+  font-size: clamp(13px, 0.9vw, 15px);
+  font-weight: 500;
+  color: #94a3b8;
+ 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ 
+/* ================= MAIN SECTION ================= */
+ 
+.udb-main {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: 22px;
+  width: 100%;
+}
+ 
+/* ================= SECTION ================= */
+ 
+.udb-section {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+ 
+  overflow: hidden;
+  min-width: 0;
+}
+ 
+.udb-section-title {
+  margin: 0 0 18px;
+  font-size: 19px;
+  font-weight: 700;
+  color: #0f172a;
+}
+ 
+/* ================= ROWS ================= */
+ 
+.udb-task-row,
+.udb-holiday-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+ 
+  padding: 15px 0;
+  border-bottom: 1px solid #eef2f7;
+ 
+  font-size: 14px;
+  color: #334155;
+}
+ 
+.udb-task-row:last-child,
+.udb-holiday-row:last-child {
+  border-bottom: none;
+}
+ 
+/* ================= STATUS ================= */
+ 
+.udb-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+ 
+.udb-pending {
+  background: #fee2e2;
+  color: #991b1b;
+}
+ 
+.udb-progress {
+  background: #dbeafe;
+  color: #1e40af;
+}
+ 
+.udb-completed {
+  background: #dcfce7;
+  color: #166534;
+}
+ 
+/* ================= ACTION BUTTONS ================= */
+ 
+.udb-actions {
+  margin-top: 26px;
+ 
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+ 
+.udb-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+ 
+  padding: 14px 16px;
+ 
+  border: 1px solid #d5e9e6;
+  border-radius: 16px;
+ 
+  background: #f7fbfb;
+  color: #0f766e;
+ 
+  font-size: 14px;
+  font-weight: 600;
+ 
+  cursor: pointer;
+ 
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+ 
+  min-width: 0;
+}
+ 
+.udb-action-btn:hover {
+  background: #eef8f7;
+  border-color: #b9ddd8;
+  transform: translateY(-1px);
+}
+ 
+/* ================= RESPONSIVE ================= */
+ 
+@media (max-width: 1400px) {
+ 
+  .udb-card {
+    padding: 22px;
+  }
+ 
+  .udb-card-title {
+    font-size: 16px;
+  }
+ 
+}
+ 
+@media (max-width: 1200px) {
+ 
+  .udb-cards,
+  .udb-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+ 
+  .udb-main {
+    grid-template-columns: 1fr;
+  }
+ 
+}
+ 
+@media (max-width: 768px) {
+ 
+  .udb-cards,
+  .udb-actions {
+    grid-template-columns: 1fr;
+  }
+ 
+  .udb-title {
+    font-size: 28px;
+  }
+ 
+  .udb-card {
+    min-height: 135px;
+    padding: 22px;
+  }
+ 
+  .udb-card-title {
+    font-size: 17px;
+  }
+ 
+  .udb-card-number {
+    font-size: 28px;
+  }
+ 
+  .udb-card-text {
+    font-size: 14px;
+  }
+ 
+  .udb-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+  }
+ 
+}
+ 
