@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "./Payroll.css";
 import api from "../api/axiosInstance";
-import { API_ENDPOINTS, buildApiUrl } from "../api/endpoints";
+import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
 import { formatDate } from "../utils/date";
 import { formatCurrency as formatAppCurrency } from "../utils/formatters";
 import { getStoredToken } from "../utils/authStorage";
@@ -157,7 +157,7 @@ function Payroll() {
       setRecentLoading(true);
       startPerformanceTimer(timerLabel);
 
-      const res = await api.get(API_ENDPOINTS.payroll.recent, {
+      const res = await api.get(buildServerUrl(API_ENDPOINTS.payroll.recent), {
         signal,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -368,7 +368,7 @@ function Payroll() {
 
         for (const employeeId of employeeIds) {
           for (const period of periods) {
-            await api.post(API_ENDPOINTS.payroll.generate, null, {
+            await api.post(buildServerUrl(API_ENDPOINTS.payroll.generate), null, {
               params: {
                 employeeId,
                 year: period.year,
@@ -391,7 +391,7 @@ function Payroll() {
             otherDeductions: Number(manualForm.otherDeductions) || 0
           };
 
-          await api.post(API_ENDPOINTS.payroll.manualGenerate, payload, {
+          await api.post(buildServerUrl(API_ENDPOINTS.payroll.manualGenerate), payload, {
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json"
@@ -421,7 +421,7 @@ function Payroll() {
   const handleDownloadPayslip = async (id) => {
     try {
       const response = await api.get(
-        buildApiUrl(API_ENDPOINTS.payroll.download(id)),
+        buildServerUrl(API_ENDPOINTS.payroll.download(id)),
         {
           responseType: "blob",
           headers: {
@@ -454,7 +454,7 @@ function Payroll() {
         recentFilterYear === "All" ? year : Number(recentFilterYear);
 
       const response = await api.get(
-        buildApiUrl(API_ENDPOINTS.payroll.salaryRegister),
+        buildServerUrl(API_ENDPOINTS.payroll.salaryRegister),
         {
           params: {
             month: registerMonth,

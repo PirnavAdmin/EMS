@@ -487,7 +487,11 @@ export const buildServerUrl = (path) =>
       return rawPath;
     }
 
-    return `${SERVER_URL}/${normalizePath(rawPath)}`;
+    const origin =
+      SERVER_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+
+    return `${origin}/${normalizePath(rawPath)}`;
   })();
 
 export const getAuthRoleForEmail = (email = "") =>

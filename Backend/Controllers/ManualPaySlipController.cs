@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace EmployeeManagementSystem.Controllers
 {
     [Route("api/manual-payslip")]
+    [Route("manual-payslip")]
     [ApiController]
     [EnableCors("AllowAll")]
     public class ManualPaySlipController : ControllerBase

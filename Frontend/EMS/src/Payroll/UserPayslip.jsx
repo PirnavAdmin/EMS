@@ -17,7 +17,7 @@ import { getStoredRole, getStoredToken } from "../utils/authStorage";
 
 import {
   API_ENDPOINTS,
-  buildApiUrl,
+  buildServerUrl,
 } from "../api/endpoints";
 
 function UserPayslip() {
@@ -35,8 +35,8 @@ function UserPayslip() {
     try {
       const endpoint =
         role === "admin"
-          ? API_ENDPOINTS.payroll.recent
-          : API_ENDPOINTS.payroll.myPayslips;
+          ? buildServerUrl(API_ENDPOINTS.payroll.recent)
+          : buildServerUrl(API_ENDPOINTS.payroll.myPayslips);
 
       const res = await api.get(endpoint, {
         headers: {
@@ -177,7 +177,7 @@ function UserPayslip() {
               className="view-btn"
               onClick={() =>
                 window.open(
-                  buildApiUrl(API_ENDPOINTS.payroll.preview(current.id)),
+                  buildServerUrl(API_ENDPOINTS.payroll.preview(current.id)),
                   "_blank"
                 )
               }
@@ -189,7 +189,7 @@ function UserPayslip() {
               className="download-btn"
               onClick={() =>
                 window.open(
-                  buildApiUrl(API_ENDPOINTS.payroll.download(current.id)),
+                  buildServerUrl(API_ENDPOINTS.payroll.download(current.id)),
                   "_blank"
                 )
               }
@@ -277,7 +277,7 @@ function UserPayslip() {
                     className="icon-btn view-icon-btn"
                     onClick={() =>
                       window.open(
-                        buildApiUrl(API_ENDPOINTS.payroll.preview(p.id)),
+                        buildServerUrl(API_ENDPOINTS.payroll.preview(p.id)),
                         "_blank"
                       )
                     }
@@ -290,7 +290,7 @@ function UserPayslip() {
                     className="icon-btn download-icon-btn"
                     onClick={() =>
                       window.open(
-                        buildApiUrl(API_ENDPOINTS.payroll.download(p.id)),
+                        buildServerUrl(API_ENDPOINTS.payroll.download(p.id)),
                         "_blank"
                       )
                     }

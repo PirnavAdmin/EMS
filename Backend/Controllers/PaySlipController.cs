@@ -15,6 +15,7 @@ namespace EmployeeManagementSystem.Controllers
 {
 
     [Route("api/[controller]")]
+    [Route("[controller]")]
 
     [ApiController]
 
