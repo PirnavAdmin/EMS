@@ -40,6 +40,10 @@
 <Content Include="Fonts\**\*">
 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 </Content>
+<None Update="Templates\**\*">
+<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+</None>
 </ItemGroup>
  
 

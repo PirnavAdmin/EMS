@@ -388,6 +388,13 @@ namespace EmployeeManagementSystem.Services
                 ? @"C:\Program Files\LibreOffice\program\soffice.exe"
                 : "/usr/bin/soffice";
 
+            if (!File.Exists(sofficePath))
+            {
+                throw new FileNotFoundException(
+                    $"LibreOffice executable not found at {sofficePath}. Install LibreOffice or update the configured soffice path.",
+                    sofficePath);
+            }
+
             using var process = new Process();
 
             process.StartInfo.FileName = sofficePath;
@@ -402,14 +409,24 @@ namespace EmployeeManagementSystem.Services
 
             process.Start();
 
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
             await process.WaitForExitAsync();
+
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (process.ExitCode != 0)
+            {
+                throw new Exception(
+                    $"PDF generation failed with exit code {process.ExitCode}. {error} {output}".Trim());
+            }
 
             if (!File.Exists(pdfPath))
             {
-                string error = await process.StandardError.ReadToEndAsync();
-
                 throw new Exception(
-                    $"PDF generation failed. {error}");
+                    $"PDF generation failed because LibreOffice did not create the expected file: {pdfPath}. {error} {output}".Trim());
             }
 
             if (File.Exists(outputPath))
