@@ -337,8 +337,7 @@ function MainLayout() {
         // =========================
         if (
           error?.response?.status === 401 ||
-          error?.response?.status === 403 ||
-          error?.response?.status === 500
+          error?.response?.status === 403
         ) {
  
           clearSessionTimer();
