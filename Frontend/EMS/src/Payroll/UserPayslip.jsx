@@ -17,7 +17,7 @@ import { getStoredRole, getStoredToken } from "../utils/authStorage";
 
 import {
   API_ENDPOINTS,
-  buildServerUrl,
+  buildApiUrl,
 } from "../api/endpoints";
 
 function UserPayslip() {
@@ -177,9 +177,7 @@ function UserPayslip() {
               className="view-btn"
               onClick={() =>
                 window.open(
-                  buildServerUrl(
-                    `/api/PaySlip/preview/${current.id}`
-                  ),
+                  buildApiUrl(API_ENDPOINTS.payroll.preview(current.id)),
                   "_blank"
                 )
               }
@@ -191,9 +189,7 @@ function UserPayslip() {
               className="download-btn"
               onClick={() =>
                 window.open(
-                  buildServerUrl(
-                    `/api/PaySlip/download/${current.id}`
-                  ),
+                  buildApiUrl(API_ENDPOINTS.payroll.download(current.id)),
                   "_blank"
                 )
               }
@@ -281,9 +277,7 @@ function UserPayslip() {
                     className="icon-btn view-icon-btn"
                     onClick={() =>
                       window.open(
-                        buildServerUrl(
-                          `/api/PaySlip/preview/${p.id}`
-                        ),
+                        buildApiUrl(API_ENDPOINTS.payroll.preview(p.id)),
                         "_blank"
                       )
                     }
@@ -296,9 +290,7 @@ function UserPayslip() {
                     className="icon-btn download-icon-btn"
                     onClick={() =>
                       window.open(
-                        buildServerUrl(
-                          `/api/PaySlip/download/${p.id}`
-                        ),
+                        buildApiUrl(API_ENDPOINTS.payroll.download(p.id)),
                         "_blank"
                       )
                     }

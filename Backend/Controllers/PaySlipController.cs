@@ -241,9 +241,9 @@ namespace EmployeeManagementSystem.Controllers
 
                 // FIXED URLS
 
-                PreviewUrl = $"/PaySlip/preview/{p.Id}",
+                PreviewUrl = $"/api/PaySlip/preview/{p.Id}",
 
-                DownloadUrl = $"/PaySlip/download/{p.Id}"
+                DownloadUrl = $"/api/PaySlip/download/{p.Id}"
 
             });
 

@@ -57,19 +57,37 @@ builder.Services.AddHostedService<AutoCheckoutService>();
 
 // ================= CORS =================
 
+var configuredCorsOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>();
+
+var allowedCorsOrigins = configuredCorsOrigins is { Length: > 0 }
+    ? configuredCorsOrigins
+    : new[]
+    {
+        "http://16.112.124.216:3000",
+        "http://16.112.124.216:5007",
+        "http://16.112.124.216",
+        "https://16.112.124.216",
+        "http://localhost:3000",
+        "http://localhost:4200",
+        "http://localhost:5173"
+    };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
+        if (allowedCorsOrigins.Contains("*"))
+        {
+            policy.SetIsOriginAllowed(_ => true);
+        }
+        else
+        {
+            policy.WithOrigins(allowedCorsOrigins);
+        }
+
         policy
-            .WithOrigins(
-                "http://16.112.124.216:3000",
-                "http://16.112.124.216",
-                "https://16.112.124.216",
-                "http://localhost:3000",
-                "http://localhost:4200",
-                "http://localhost:5173"
-            )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
