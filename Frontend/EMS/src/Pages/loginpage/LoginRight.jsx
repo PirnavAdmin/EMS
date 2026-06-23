@@ -1,6 +1,9 @@
 import React from "react";
 import pirnavLogo from "../../assets/pirnav.png";
 
+const pirnavLogoUrl =
+  "https://raw.githubusercontent.com/PirnavAdmin/EMS/main/Frontend/EMS/src/assets/pirnav.png";
+
 function LoginRight() {
   return (
     <>
@@ -18,9 +21,13 @@ function LoginRight() {
         }}
       >
         <img
-          src={pirnavLogo}
+          src={pirnavLogoUrl}
           alt="PIRNAV Logo"
           className="auth-right-logo"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = pirnavLogo;
+          }}
           style={{
             width: "420px",
             height: "auto",

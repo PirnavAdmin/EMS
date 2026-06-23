@@ -20,6 +20,9 @@ import "./Sidebar.css";
 import pirnavLogo from "../assets/pirnav.png";
 import { getStoredPermissions, getStoredRole } from "../utils/authStorage";
 
+const pirnavLogoUrl =
+  "https://raw.githubusercontent.com/PirnavAdmin/EMS/main/Frontend/EMS/src/assets/pirnav.png";
+
 const normalize = (name) =>
   (name || "")
     .toLowerCase()
@@ -442,9 +445,13 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
       >
         <div className="logo">
           <img
-            src={pirnavLogo}
+            src={pirnavLogoUrl}
             alt="Pirnav Logo"
             className="sidebar-logo-img"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = pirnavLogo;
+            }}
           />
         </div>
 
