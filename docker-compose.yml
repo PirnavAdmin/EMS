@@ -1,81 +1,51 @@
 services:
 
   backend:
-
     build:
-
       context: ./Backend
-
       dockerfile: Dockerfile
 
     image: ems-pirnav-backend:${IMAGE_TAG:-latest}
-
     restart: unless-stopped
 
     env_file:
-
       - ./.env
 
     environment:
-
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-
       ASPNETCORE_URLS: http://+:8080
 
     extra_hosts:
-
       - "host.docker.internal:host-gateway"
 
     ports:
-
       - "${BACKEND_PORT:-5007}:8080"
 
     volumes:
-
       - backend_generated_letters:/app/GeneratedLetters
-
       - backend_generated_payslips:/app/GeneratedPayslips
-
       - backend_wwwroot_generated_payslips:/app/wwwroot/GeneratedPayslips
-
       - backend_uploads:/app/wwwroot/uploads
-
       - ./Backend/Templates:/app/Templates
- 
+
   frontend:
-
     build:
-
       context: ./Frontend/EMS
-
       dockerfile: Dockerfile
-
       args:
-
-        # Browser code cannot resolve Docker DNS names; "/" lets Nginx proxy /api to backend:8080.
-
         VITE_API_ORIGIN: ${VITE_API_ORIGIN:-/}
 
     image: ems-pirnav-frontend:${IMAGE_TAG:-latest}
-
     restart: unless-stopped
 
     depends_on:
-
       - backend
 
     ports:
+      - "80:8080"
 
-      - "${FRONTEND_PORT:-3000}:8080"
- 
 volumes:
-
   backend_generated_letters:
-
   backend_generated_payslips:
-
   backend_wwwroot_generated_payslips:
-
   backend_uploads:
-
- 
