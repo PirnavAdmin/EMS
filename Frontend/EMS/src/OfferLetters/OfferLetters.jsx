@@ -49,7 +49,7 @@ function OfferLetters() {
 
   /* ================= PAGINATION ================= */
   const [currentPage, setCurrentPage] = useState(1);
-  const lettersPerPage = 50;
+  const [lettersPerPage, setLettersPerPage] = useState(30);
 
   const indexOfLast = currentPage * lettersPerPage;
   const indexOfFirst = indexOfLast - lettersPerPage;
@@ -416,6 +416,18 @@ function OfferLetters() {
     fetchOfferLetters();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [lettersPerPage]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(letters.length / lettersPerPage));
+
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, letters.length, lettersPerPage]);
+
   /* ================= VALIDATION ================= */
   const validateForm = () => {
     let newErrors = {};
@@ -569,8 +581,8 @@ function OfferLetters() {
       }
 
       const payload = {
-  candidate_Title: formData.title,
-  candidate_Name: formData.candidate_Name.trim(),
+        candidate_Title: formData.title,
+        candidate_Name: formData.candidate_Name.trim(),
 
         email: formData.email.trim(),
 
@@ -631,44 +643,44 @@ function OfferLetters() {
         "Offer Letter Generated Successfully"
       );
 
-     setFormData({
+      setFormData({
 
-  title: "Mr.",
- 
-  candidate_Name: "",
+        title: "Mr.",
 
-  email: "",
+        candidate_Name: "",
 
-  address: "",
+        email: "",
 
-  position: "",
+        address: "",
 
-  joining_Date: "",
+        position: "",
 
-  ctc_Annual: "",
- 
-  monthlyCTC: "",
- 
-  basic: "",
+        joining_Date: "",
 
-  hra: "",
+        ctc_Annual: "",
 
-  conveyance: "",
+        monthlyCTC: "",
 
-  medicalAllowance: "",
+        basic: "",
 
-  otherAllowance: "",
- 
-  providentFund: "",
+        hra: "",
 
-  professionalTax: "",
+        conveyance: "",
 
-  gross: "",
+        medicalAllowance: "",
 
-  netTakeHome: "",
+        otherAllowance: "",
 
-});
- 
+        providentFund: "",
+
+        professionalTax: "",
+
+        gross: "",
+
+        netTakeHome: "",
+
+      });
+
 
       setErrors({});
 
@@ -773,7 +785,7 @@ function OfferLetters() {
             margin: 0,
             fontSize: "26px",
             fontWeight: "650",
-            // color: "#141e35",
+            // color: "var(--text-primary)",
             display: "flex",
             alignItems: "center",
             gap: "8px",
@@ -788,7 +800,7 @@ function OfferLetters() {
             marginTop: "0px",
             marginLeft: "42px",
             fontSize: "15px",
-            color: "#64748b",
+            color: "var(--text-muted)",
             fontWeight: "500",
           }}
         >
@@ -1017,24 +1029,20 @@ function OfferLetters() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setIsEditMode(!isEditMode)
-                }
+                onClick={() => setIsEditMode(!isEditMode)}
                 style={{
                   background: isEditMode
-                    ? "#dc2626"
-                    : "#111827",
-                  color: "#fff",
-                  border: "none",
+                    ? "var(--danger)"
+                    : "var(--primary)",
+                  color: "var(--theme-on-primary)",
+                  border: "1px solid var(--border-color)",
                   padding: "8px 16px",
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                   cursor: "pointer",
                   fontWeight: "600",
                 }}
               >
-                {isEditMode
-                  ? "Cancel Edit"
-                  : "Edit"}
+                {isEditMode ? "Cancel Edit" : "Edit"}
               </button>
             </div>
 
@@ -1305,37 +1313,37 @@ function OfferLetters() {
                 </th>
               </tr>
             </thead>
-<tbody>
-  {currentLetters.length > 0 ? (
-    currentLetters.map((item, index) => (
-      <tr key={item.id}>
-        <td>{indexOfFirst + index + 1}</td>
+            <tbody>
+              {currentLetters.length > 0 ? (
+                currentLetters.map((item, index) => (
+                  <tr key={item.id}>
+                    <td>{indexOfFirst + index + 1}</td>
 
-        <td>{item.candidate_Name}</td>
+                    <td>{item.candidate_Name}</td>
 
-        <td>{item.email}</td>
-        <td>{item.position}</td>
+                    <td>{item.email}</td>
+                    <td>{item.position}</td>
 
-        <td>
-          <button
-            className="download-btn"
-            onClick={() => handleDownload(item.id)}
-            disabled={downloadingId === item.id}
-          >
-            <FaDownload />
-            {downloadingId === item.id ? " Downloading..." : " Download"}
-          </button>
-        </td>
-      </tr>
-    ))
-  ) : (
-    <tr>
-      <td colSpan="5" style={{ textAlign: "center" }}>
-        No offer letters found
-      </td>
-    </tr>
-  )}
-</tbody>
+                    <td>
+                      <button
+                        className="download-btn"
+                        onClick={() => handleDownload(item.id)}
+                        disabled={downloadingId === item.id}
+                      >
+                        <FaDownload />
+                        {downloadingId === item.id ? " Downloading..." : " Download"}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: "center" }}>
+                    No offer letters found
+                  </td>
+                </tr>
+              )}
+            </tbody>
           </table>
         </div>
 
@@ -1343,85 +1351,80 @@ function OfferLetters() {
 
         {/* PAGINATION */}
         {totalPages > 1 && (
-          <div className="assets-pagination">
+          <div className="app-pagination-bar">
+            <div className="app-pagination-info">
+              Showing <strong>{indexOfFirst + 1}</strong>-<strong>{Math.min(indexOfLast, letters.length)}</strong> of <strong>{letters.length}</strong>
+            </div>
 
-            {/* PREVIOUS */}
-            <button
-              disabled={currentPage === 1}
-              onClick={() =>
-                setCurrentPage((prev) => prev - 1)
-              }
-            >
-              Prev
-            </button>
+            <div className="app-pagination-controls">
+              <select
+                className="app-pagination-page-size"
+                value={lettersPerPage}
+                onChange={(event) => setLettersPerPage(Number(event.target.value))}
+              >
+                {[10, 20, 30, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size} / page
+                  </option>
+                ))}
+              </select>
 
-            {/* FIRST PAGE */}
-            {currentPage > 3 && (
-              <>
-                <button onClick={() => setCurrentPage(1)}>
-                  1
-                </button>
+              <button
+                type="button"
+                className="app-pagination-button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+              >
+                First
+              </button>
 
-                {currentPage > 4 && (
-                  <span className="pagination-dots">...</span>
-                )}
-              </>
-            )}
+              <button
+                type="button"
+                className="app-pagination-button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              >
+                Previous
+              </button>
 
-            {/* PAGE NUMBERS */}
-            {Array.from(
-              { length: totalPages },
-              (_, i) => i + 1
-            )
-              .filter(
-                (page) =>
-                  page >= currentPage - 2 &&
-                  page <= currentPage + 2
-              )
-              .map((page) => (
-                <button
-                  key={page}
-                  className={
-                    currentPage === page
-                      ? "active-page"
-                      : ""
-                  }
-                  onClick={() =>
-                    setCurrentPage(page)
-                  }
-                >
-                  {page}
-                </button>
-              ))}
+              {Array.from({ length: totalPages }, (_, pageIndex) => pageIndex + 1)
+                .filter((page) => page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1))
+                .map((page, index, pages) => {
+                  const previousPage = pages[index - 1];
+                  const shouldShowDots = previousPage && page - previousPage > 1;
 
-            {/* LAST PAGE */}
-            {currentPage < totalPages - 2 && (
-              <>
-                {currentPage < totalPages - 3 && (
-                  <span className="pagination-dots">...</span>
-                )}
+                  return (
+                    <React.Fragment key={page}>
+                      {shouldShowDots && <span className="app-pagination-dots">...</span>}
+                      <button
+                        type="button"
+                        className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
 
-                <button
-                  onClick={() =>
-                    setCurrentPage(totalPages)
-                  }
-                >
-                  {totalPages}
-                </button>
-              </>
-            )}
+              <button
+                type="button"
+                className="app-pagination-button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              >
+                Next
+              </button>
 
-            {/* NEXT */}
-            <button
-              disabled={
-                currentPage === totalPages
-              }
-              onClick={() =>
-                setCurrentPage((prev) => prev + 1)
-              }
-            >
-              Next
-            </button>
+              <button
+                type="button"
+                className="app-pagination-button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+              >
+                Last
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -2,12 +2,90 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
- 
+
     <!-- Website Logo -->
-   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/PirnavAdmin/EMS/main/Frontend/EMS/src/assets/Pirnavlogo.png" />
- 
+   <link rel="icon" type="image/png" href="/Pirnav.png" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- 
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      (function () {
+        var THEME_STORAGE_KEY = "ems-theme";
+        var THEME_MODE_STORAGE_KEY = "darkMode";
+        var THEME_ALIASES = {
+          "aqua-professional": "light",
+          "professional-aqua": "light",
+          light: "light",
+          dark: "dark",
+          "dark-executive": "dark-executive",
+          "executive-dark-blue": "dark-executive",
+          true: "dark",
+          false: "light",
+        };
+        var THEME_CONFIGS = {
+          light: {
+            theme: "professional-aqua",
+            mode: "light",
+          },
+          dark: {
+            theme: "professional-aqua",
+            mode: "dark",
+          },
+          "dark-executive": {
+            theme: "dark-executive",
+            mode: "dark",
+          },
+        };
+
+        function resolveTheme(theme) {
+          return THEME_ALIASES[theme] || theme || "light";
+        }
+
+        function resolveThemeConfig(theme) {
+          return THEME_CONFIGS[theme] || THEME_CONFIGS.light;
+        }
+
+        try {
+          var storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+          var storedMode = localStorage.getItem(THEME_MODE_STORAGE_KEY);
+          var theme = resolveTheme(storedTheme || storedMode);
+          var themeConfig = resolveThemeConfig(theme);
+
+          document.documentElement.setAttribute(
+            "data-theme",
+            themeConfig.theme
+          );
+          document.documentElement.setAttribute(
+            "data-theme-mode",
+            themeConfig.mode
+          );
+          document.documentElement.style.colorScheme = themeConfig.mode;
+
+          if (storedTheme !== theme) {
+            localStorage.setItem(THEME_STORAGE_KEY, theme);
+          }
+
+          if (storedMode !== themeConfig.mode) {
+            localStorage.setItem(THEME_MODE_STORAGE_KEY, themeConfig.mode);
+          }
+        } catch (error) {
+          document.documentElement.setAttribute(
+            "data-theme",
+            "professional-aqua"
+          );
+          document.documentElement.setAttribute("data-theme-mode", "light");
+          document.documentElement.style.colorScheme = "light";
+        }
+      })();
+    </script>
+
     <!-- Website Title -->
     <title>PIRNAV EMS</title>
   </head>

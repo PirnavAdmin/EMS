@@ -85,7 +85,7 @@ function UserHolidays() {
       className="holiday-page holiday-page--user"
       style={{
         padding: "16px",
-        background: "#f8fafc",
+        background: "var(--bg-muted)",
         minHeight: "100vh",
       }}
     >
@@ -104,7 +104,7 @@ function UserHolidays() {
               margin: "0",
               fontSize: "24px",
               fontWeight: "700",
-              color: "#0f172a",
+              color: "var(--text-strong)",
             }}
           >
             Company Holidays
@@ -113,7 +113,7 @@ function UserHolidays() {
           <p
             style={{
               marginTop: "4px",
-              color: "#64748b",
+              color: "var(--text-muted)",
               fontSize: "14px",
             }}
           >
@@ -126,11 +126,11 @@ function UserHolidays() {
       <div
         className="holiday-table-wrapper app-table-scroll"
         style={{
-          background: "#ffffff",
+          background: "var(--bg-page)",
           borderRadius: "16px",
           overflow: "hidden",
-          border: "1px solid #e2e8f0",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+          border: "1px solid var(--border-soft)",
+          boxShadow: "0 2px 8px var(--shadow-color-xs)",
         }}
       >
 
@@ -154,8 +154,8 @@ function UserHolidays() {
 
             <tr
               style={{
-                background: "#f8fafc",
-                borderBottom: "1px solid #e2e8f0",
+                background: "var(--bg-muted)",
+                borderBottom: "1px solid var(--border-soft)",
               }}
             >
 
@@ -225,7 +225,7 @@ function UserHolidays() {
                   style={{
                     padding: "28px",
                     textAlign: "center",
-                    color: "#64748b",
+                    color: "var(--text-muted)",
                     fontSize: "14px",
                   }}
                 >
@@ -241,7 +241,7 @@ function UserHolidays() {
                 <tr
                   key={h.id}
                   style={{
-                    borderBottom: "1px solid #eef2f7",
+                    borderBottom: "1px solid var(--border-soft)",
                     transition: "0.2s ease",
                   }}
                 >
@@ -251,7 +251,7 @@ function UserHolidays() {
                     style={{
                       padding: "16px 20px",
                       fontSize: "14px",
-                      color: "#0f172a",
+                      color: "var(--text-strong)",
                     }}
                   >
                     {i + 1}
@@ -277,7 +277,7 @@ function UserHolidays() {
                       <FaCalendarAlt
                         className="holiday-icon"
                         style={{
-                          color: "#0f172a",
+                          color: "var(--text-strong)",
                           minWidth: "14px",
                           fontSize: "14px",
                         }}
@@ -297,7 +297,7 @@ function UserHolidays() {
                     style={{
                       padding: "16px 20px",
                       fontSize: "14px",
-                      color: "#334155",
+                      color: "var(--text-body)",
                     }}
                   >
                     {formatDate(h.date)}
@@ -308,7 +308,7 @@ function UserHolidays() {
                     style={{
                       padding: "16px 20px",
                       fontSize: "14px",
-                      color: "#334155",
+                      color: "var(--text-body)",
                     }}
                   >
                     {h.day}
@@ -319,7 +319,7 @@ function UserHolidays() {
                     style={{
                       padding: "16px 20px",
                       fontSize: "14px",
-                      color: "#334155",
+                      color: "var(--text-body)",
                     }}
                   >
                     {h.type}

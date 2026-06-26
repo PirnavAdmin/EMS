@@ -48,8 +48,18 @@ function AuthField({
           maxLength={maxLength}
           aria-invalid={Boolean(error)}
           required={required}
+          style={{
+            border: "none",
+            outline: "none",
+            boxShadow: "none",
+            background: "transparent",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
           {...rest}
         />
+
         {action ? (
           <button
             type="button"

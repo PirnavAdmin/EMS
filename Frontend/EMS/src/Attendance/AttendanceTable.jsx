@@ -157,12 +157,15 @@ function AttendanceTable({
   const [downloadingReport, setDownloadingReport] = useState("");
   const [isDailyDownloading, setIsDailyDownloading] = useState(false);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
-  const [downloadReportType, setDownloadReportType] = useState("Monthly");
+  const [downloadReportType, setDownloadReportType] = useState("Daily");
   const [downloadReportMonth, setDownloadReportMonth] = useState("");
   const [downloadReportYear, setDownloadReportYear] = useState(
     new Date().getFullYear()
   );
   const [selectedReportWeekId, setSelectedReportWeekId] = useState("");
+  // New state for Daily download date
+  const [downloadReportDate, setDownloadReportDate] = useState(getTodayInputValue());
+  
   const [, setLiveTimer] = useState(0);
   const [dailyPage, setDailyPage] = useState(1);
   const [monthlyPage, setMonthlyPage] = useState(1);
@@ -827,6 +830,18 @@ function AttendanceTable({
 
       return "-";
     }
+  };
+
+  const openGoogleMap = (lat, lng) => {
+    if (!lat || !lng) {
+      toast.warning("Location not available");
+      return;
+    }
+
+    window.open(
+      `https://www.google.com/maps?q=${lat},${lng}`,
+      "_blank"
+    );
   };
 
   const getProgressWidth = (emp) => {
@@ -1613,9 +1628,10 @@ function AttendanceTable({
   ]);
 
   const openDownloadModal = useCallback(() => {
-    setDownloadReportType("Monthly");
+    setDownloadReportType("Daily");
     setDownloadReportMonth(defaultReportMonth);
     setSelectedReportWeekId("");
+    setDownloadReportDate(getTodayInputValue());
     setDownloadModalOpen(true);
   }, [defaultReportMonth]);
 
@@ -1628,7 +1644,7 @@ function AttendanceTable({
   }, [downloadingReport]);
 
   const handleAttendanceReportDownload = useCallback(async () => {
-    if (!selectedReportMonthMeta) {
+    if (!selectedReportMonthMeta && downloadReportType !== "Daily") {
       toast.warning("Select a month to download attendance.");
       return;
     }
@@ -1644,19 +1660,56 @@ function AttendanceTable({
     try {
       setDownloadingReport(downloadReportType.toLowerCase());
 
-      if (downloadReportType === "Monthly") {
+      if (downloadReportType === "Daily") {
+        const targetDate = downloadReportDate || getTodayInputValue();
+
+        const response = await api.get(
+          API_ENDPOINTS.attendance.downloadDaily,
+          {
+            params: { date: targetDate },
+            responseType: "arraybuffer",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const blob = new Blob([response.data]);
+        const url = window.URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `daily-attendance-${targetDate}.xlsx`;
+        link.click();
+
+        window.URL.revokeObjectURL(url);
+
+        toast.success("Daily attendance downloaded successfully.");
+
+      }
+      else if (downloadReportType === "Monthly") {
+
         await downloadMonthlyAttendanceReport({
           month: selectedReportMonthMeta.month,
           year: selectedReportMonthMeta.year,
           token,
-          fallbackFileName:
-            `monthly-attendance-${getReportMonthName(
-              selectedReportMonthMeta.year,
-              selectedReportMonthMeta.month
-            )}-${selectedReportMonthMeta.year}.xlsx`,
         });
 
-        toast.success("Monthly attendance downloaded successfully.");
+      }
+      else if (downloadReportType === "Weekly") {
+
+        if (!selectedReportWeek) {
+          toast.warning("Select a week");
+          return;
+        }
+
+        await downloadWeeklyAttendanceReport({
+          token,
+          params: {
+            weekStartDate: selectedReportWeek.fromDate,
+          },
+        });
+
       } else {
         await downloadWeeklyAttendanceReport({
           token,
@@ -1692,6 +1745,7 @@ function AttendanceTable({
     selectedReportMonthMeta,
     selectedReportWeek,
     token,
+    downloadReportDate,
   ]);
 
   // =========================
@@ -2446,9 +2500,12 @@ function AttendanceTable({
         onClick={onPrevious}
         disabled={currentPage === 1}
         style={{
-          border: "1px solid #d1d5db",
-          background: currentPage === 1 ? "#f8fafc" : "#fff",
-          color: "#334155",
+          border: "1px solid var(--attendance-border)",
+          background:
+            currentPage === 1
+              ? "var(--attendance-summary)"
+              : "var(--attendance-card)",
+          color: "var(--attendance-text)",
           padding: "8px 14px",
           borderRadius: "10px",
           cursor: currentPage === 1 ? "not-allowed" : "pointer",
@@ -2462,7 +2519,7 @@ function AttendanceTable({
         style={{
           fontSize: "14px",
           fontWeight: 600,
-          color: "#334155"
+          color: "var(--attendance-muted)"
         }}
       >
         Page {currentPage} of {totalPages}
@@ -2473,9 +2530,12 @@ function AttendanceTable({
         onClick={onNext}
         disabled={currentPage === totalPages}
         style={{
-          border: "1px solid #d1d5db",
-          background: currentPage === totalPages ? "#f8fafc" : "#fff",
-          color: "#334155",
+          border: "1px solid var(--attendance-border)",
+          background:
+            currentPage === totalPages
+              ? "var(--attendance-summary)"
+              : "var(--attendance-card)",
+          color: "var(--attendance-text)",
           padding: "8px 14px",
           borderRadius: "10px",
           cursor: currentPage === totalPages ? "not-allowed" : "pointer",
@@ -2765,95 +2825,68 @@ function AttendanceTable({
             <button
               type="button"
               className="attendance-download-btn attendance-primary-report-btn"
-              disabled={isDailyDownloading}
-              onClick={async () => {
-                try {
-
-                  setIsDailyDownloading(true);
-
-                  const now = new Date();
-
-                  const todayDate =
-                    `${now.getFullYear()}-${String(
-                      now.getMonth() + 1
-                    ).padStart(2, "0")}-${String(
-                      now.getDate()
-                    ).padStart(2, "0")}`;
-
-                  const response = await api.get(
-                    API_ENDPOINTS.attendance.downloadDaily,
-                    {
-                      params: {
-                        date: todayDate,
-                      },
-                      responseType: "arraybuffer",
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                      },
-                    }
-                  );
-
-                  const blob = new Blob(
-                    [response.data],
-                    {
-                      type:
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    }
-                  );
-
-                  const downloadUrl =
-                    window.URL.createObjectURL(blob);
-
-                  const link =
-                    document.createElement("a");
-
-                  link.href = downloadUrl;
-
-                  link.download =
-                    `daily-attendance-${todayDate}.xlsx`;
-
-                  document.body.appendChild(link);
-
-                  link.click();
-
-                  document.body.removeChild(link);
-
-                  window.URL.revokeObjectURL(downloadUrl);
-
-                  toast.success(
-                    "Daily attendance downloaded successfully."
-                  );
-
-                } catch (error) {
-
-                  logPerformanceError(
-                    "Daily attendance download error:",
-                    error
-                  );
-
-                  toast.error(
-                    "Failed to download daily attendance."
-                  );
-
-                } finally {
-
-                  setIsDailyDownloading(false);
-
-                }
-              }}
+              onClick={openDownloadModal}
             >
-              {isDailyDownloading
-                ? "Downloading..."
-                : "Download Daily"}
+              Download Attendance
             </button>
 
             <button
               type="button"
               className="attendance-download-btn attendance-primary-report-btn"
-              onClick={openDownloadModal}
+              onClick={() =>
+                document
+                  .getElementById("monthlyAttendanceUpload")
+                  ?.click()
+              }
             >
-              Download Attendance
+              Upload Monthly
             </button>
+
+            <input
+              id="monthlyAttendanceUpload"
+              type="file"
+              accept=".xlsx,.xls"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                try {
+
+                  const file = e.target.files?.[0];
+
+                  if (!file) return;
+
+                  const formData = new FormData();
+                  formData.append("file", file);
+
+                  await api.post(
+                    API_ENDPOINTS.attendance.uploadMonthly,
+                    formData,
+                    {
+                      params: {
+                        month: monthNum || new Date().getMonth() + 1,
+                        year: yearNum || new Date().getFullYear(),
+                      },
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "multipart/form-data",
+                      },
+                    }
+                  );
+
+                  toast.success(
+                    "Monthly attendance uploaded successfully"
+                  );
+
+                } catch (error) {
+
+                  console.error(error);
+
+                  toast.error(
+                    "Failed to upload monthly attendance"
+                  );
+
+                }
+              }}
+            />
 
           </div>
 
@@ -2914,9 +2947,27 @@ function AttendanceTable({
                         </span>
                       </div>
 
-                      <div className="time-text">{formatCheckTime(getCheckIn(emp))}</div>
+                      <div
+                        className="time-text map-link"
+                        onClick={() => {
+                          if (emp.checkInMapUrl) {
+                            window.open(emp.checkInMapUrl, "_blank");
+                          }
+                        }}
+                      >
+                        📍 {formatCheckTime(getCheckIn(emp))}
+                      </div>
 
-                      <div className="time-text">{formatCheckTime(getCheckOut(emp))}</div>
+                      <div
+                        className="time-text map-link"
+                        onClick={() => {
+                          if (emp.checkOutMapUrl) {
+                            window.open(emp.checkOutMapUrl, "_blank");
+                          }
+                        }}
+                      >
+                        📍 {formatCheckTime(getCheckOut(emp))}
+                      </div>
 
                       <div className="hours-worked">
                         <div className="progress-bar">
@@ -2969,14 +3020,15 @@ function AttendanceTable({
                         top: 0,
                         left: 0,
                         zIndex: 9999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-header)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderBottom: "1px solid #e5e7eb",
+                        borderBottom: "1px solid var(--attendance-border)",
                         boxSizing: "border-box",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       EMPLOYEE
@@ -2990,7 +3042,7 @@ function AttendanceTable({
                           position: "sticky",
                           top: 0,
                           zIndex: 999,
-                          background: "#f8fafc",
+                          background: "var(--attendance-header)",
                           height: "72px",
                           minHeight: "72px",
                           display: "flex",
@@ -2998,6 +3050,7 @@ function AttendanceTable({
                           alignItems: "center",
                           justifyContent: "center",
                           gap: "4px",
+                          color: "var(--attendance-text)",
                         }}
                       >
                         <span className="monthly-day-number">
@@ -3010,170 +3063,180 @@ function AttendanceTable({
                       </div>
                     ))}
                     <div
-                      className="monthly-head summary-head present-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       P
                     </div>
 
                     <div
-                      className="monthly-head summary-head absent-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       A
                     </div>
 
                     <div
-                      className="monthly-head summary-head late-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       L
                     </div>
 
                     <div
-                      className="monthly-head summary-head halfday-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       HD
                     </div>
 
                     <div
-                      className="monthly-head summary-head leave-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       OL
                     </div>
 
                     <div
-                      className="monthly-head summary-head lop-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       LOP
                     </div>
 
                     <div
-                      className="monthly-head summary-head mc-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       MC
                     </div>
 
                     <div
-                      className="monthly-head summary-head lmc-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       LMC
                     </div>
 
                     <div
-                      className="monthly-head summary-head weekend-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       W
                     </div>
 
                     <div
-                      className="monthly-head summary-head holiday-text"
+                      className="monthly-head summary-head"
                       style={{
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       H
@@ -3185,12 +3248,13 @@ function AttendanceTable({
                         position: "sticky",
                         top: 0,
                         zIndex: 999,
-                        background: "#f8fafc",
+                        background: "var(--attendance-summary)",
                         height: "72px",
                         minHeight: "72px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        color: "var(--attendance-text)",
                       }}
                     >
                       ACTION
@@ -3292,150 +3356,60 @@ function AttendanceTable({
                           })}
 
                           <div
-                            className="monthly-count present-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.present || 0}
                           </div>
                           <div
-                            className="monthly-count absent-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.absent || 0}
                           </div>
 
                           <div
-                            className="monthly-count late-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.late || 0}
                           </div>
 
                           <div
-                            className="monthly-count halfday-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.halfDay || 0}
                           </div>
 
                           <div
-                            className="monthly-count leave-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.onLeave || 0}
                           </div>
 
                           <div
-                            className="monthly-count lop-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.lossOfPay || 0}
                           </div>
 
                           <div
-                            className="monthly-count mc-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.missedCheckout || 0}
                           </div>
 
                           <div
-                            className="monthly-count lmc-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.lateMissedCheckout || 0}
                           </div>
 
                           <div
-                            className="monthly-count weekend-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.weekend || 0}
                           </div>
 
                           <div
-                            className="monthly-count holiday-text"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
-                              marginTop: "-1px",
-                            }}
+                            className="monthly-count"
                           >
                             {counts.holiday || 0}
                           </div>
@@ -3443,12 +3417,8 @@ function AttendanceTable({
                           <div
                             className="monthly-count"
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minHeight: "58px",
-                              background: "#fff",
-                              borderBottom: "1px solid #eef2f7",
+                              background: "var(--attendance-summary)",
+                              borderBottom: "1px solid var(--attendance-border)",
                               marginTop: "-1px",
                             }}
                           >
@@ -3503,87 +3473,126 @@ function AttendanceTable({
                 </label>
 
                 <div className="attendance-report-type-grid">
-                  {["Monthly", "Weekly"].map((reportType) => (
-                    <button
-                      type="button"
-                      key={reportType}
-                      className={`attendance-report-type-btn ${downloadReportType === reportType
-                        ? "active"
-                        : ""
-                        }`}
-                      onClick={() => setDownloadReportType(reportType)}
+                  <button
+                    className={`attendance-report-type-btn ${downloadReportType === "Daily" ? "active" : ""
+                      }`}
+                    onClick={() => setDownloadReportType("Daily")}
+                  >
+                    Daily
+                  </button>
+
+                  <button
+                    className={`attendance-report-type-btn ${downloadReportType === "Monthly" ? "active" : ""
+                      }`}
+                    onClick={() => setDownloadReportType("Monthly")}
+                  >
+                    Monthly
+                  </button>
+
+                  <button
+                    className={`attendance-report-type-btn ${downloadReportType === "Weekly" ? "active" : ""
+                      }`}
+                    onClick={() => setDownloadReportType("Weekly")}
+                  >
+                    Weekly
+                  </button>
+                </div>
+              </div>
+
+              {/* Daily View: Select Date Only */}
+              {downloadReportType === "Daily" && (
+                <div className="attendance-report-section">
+                  <label className="attendance-report-label">
+                    Select Date
+                  </label>
+                  <input
+                    type="date"
+                    className="attendance-report-select"
+                    value={downloadReportDate}
+                    max={todayString}
+                    onChange={(e) => setDownloadReportDate(e.target.value)}
+                    disabled={Boolean(downloadingReport)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "12px",
+                      border: "1px solid var(--attendance-border)",
+                      background: "var(--attendance-card)",
+                      color: "var(--attendance-text)",
+                      fontSize: "14px",
+                      outline: "none"
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Monthly/Weekly View: Month & Year Selectors */}
+              {downloadReportType !== "Daily" && (
+                <div className="attendance-report-section">
+                  <label className="attendance-report-label">
+                    Month & Year
+                  </label>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 140px",
+                      gap: "12px",
+                    }}
+                  >
+                    {/* MONTH */}
+                    <select
+                      id="attendance-report-month"
+                      className="attendance-report-select"
+                      value={downloadReportMonth}
+                      onChange={(event) =>
+                        setDownloadReportMonth(event.target.value)
+                      }
                       disabled={Boolean(downloadingReport)}
                     >
-                      {reportType}
-                    </button>
-                  ))}
+                      {reportMonthOptions.map((monthOption) => (
+                        <option
+                          key={monthOption.value}
+                          value={monthOption.value}
+                        >
+                          {monthOption.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* YEAR */}
+                    <select
+                      className="attendance-report-select"
+                      value={downloadReportYear}
+                      onChange={(event) => {
+                        const selectedYear = Number(event.target.value);
+
+                        setDownloadReportYear(selectedYear);
+
+                        const currentMonth =
+                          parseReportMonthValue(downloadReportMonth);
+
+                        setDownloadReportMonth(
+                          getReportMonthValue(
+                            selectedYear,
+                            currentMonth?.month || 1
+                          )
+                        );
+                      }}
+                      disabled={Boolean(downloadingReport)}
+                    >
+                      {reportYearOptions.map((yearOption) => (
+                        <option
+                          key={yearOption.value}
+                          value={yearOption.value}
+                        >
+                          {yearOption.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
-
-              <div className="attendance-report-section">
-                <label className="attendance-report-label">
-                  Month & Year
-                </label>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 140px",
-                    gap: "12px",
-                  }}
-                >
-                  {/* MONTH */}
-                  <select
-                    id="attendance-report-month"
-                    className="attendance-report-select"
-                    value={downloadReportMonth}
-                    onChange={(event) =>
-                      setDownloadReportMonth(event.target.value)
-                    }
-                    disabled={Boolean(downloadingReport)}
-                  >
-                    {reportMonthOptions.map((monthOption) => (
-                      <option
-                        key={monthOption.value}
-                        value={monthOption.value}
-                      >
-                        {monthOption.label}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* YEAR */}
-                  <select
-                    className="attendance-report-select"
-                    value={downloadReportYear}
-                    onChange={(event) => {
-                      const selectedYear = Number(event.target.value);
-
-                      setDownloadReportYear(selectedYear);
-
-                      const currentMonth =
-                        parseReportMonthValue(downloadReportMonth);
-
-                      setDownloadReportMonth(
-                        getReportMonthValue(
-                          selectedYear,
-                          currentMonth?.month || 1
-                        )
-                      );
-                    }}
-                    disabled={Boolean(downloadingReport)}
-                  >
-                    {reportYearOptions.map((yearOption) => (
-                      <option
-                        key={yearOption.value}
-                        value={yearOption.value}
-                      >
-                        {yearOption.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
 
               {downloadReportType === "Weekly" && (
                 <div className="attendance-report-section">
@@ -4003,9 +4012,9 @@ function AttendanceTable({
                         minWidth: "180px",
                         padding: "10px 12px",
                         borderRadius: "12px",
-                        border: "1px solid #d7dee9",
-                        background: "#fff",
-                        color: "#0f172a",
+                        border: "1px solid var(--attendance-border)",
+                        background: "var(--attendance-card)",
+                        color: "var(--attendance-text)",
                         fontSize: "14px",
                         outline: "none"
                       }}

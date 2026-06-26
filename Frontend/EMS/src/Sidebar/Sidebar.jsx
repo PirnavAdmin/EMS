@@ -13,15 +13,13 @@ import {
   FaFileSignature,
   FaChartBar,
   FaMoneyBillWave,
+  FaProjectDiagram,
   FaUserTie,
 } from "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import pirnavLogo from "../assets/pirnav.png";
 import { getStoredPermissions, getStoredRole } from "../utils/authStorage";
-
-const pirnavLogoUrl =
-  "https://raw.githubusercontent.com/PirnavAdmin/EMS/main/Frontend/EMS/src/assets/pirnav.png";
 
 const normalize = (name) =>
   (name || "")
@@ -175,6 +173,11 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     label: "My Attendance",
     permission: "User Attendance",
   },
+  // {
+  //   to: "/teams",
+  //   icon: FaProjectDiagram,
+  //   label: "Teams",
+  // },
   {
     to: "/leave-management",
     icon: FaCalendarMinus,
@@ -255,6 +258,7 @@ function SidebarLink({ to, icon, label, compact, onClick }) {
       to={to}
       className={getMenuLinkClassName}
       onClick={onClick}
+      data-title={label}
       title={compact ? label : undefined}
     >
       <span className="menu-item-icon">{React.createElement(icon)}</span>
@@ -265,7 +269,12 @@ function SidebarLink({ to, icon, label, compact, onClick }) {
 
 function SubmenuLink({ to, icon, label, onClick }) {
   return (
-    <NavLink to={to} className={getSubmenuLinkClassName} onClick={onClick}>
+    <NavLink
+      to={to}
+      className={getSubmenuLinkClassName}
+      onClick={onClick}
+      data-title={label}
+    >
       <span className="submenu-item-icon">{React.createElement(icon)}</span>
       <span className="submenu-item-label">{label}</span>
     </NavLink>
@@ -395,6 +404,7 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
           className={`menu-item menu-toggle ${isMenuActive(menu.key) ? "active" : ""
             }`}
           onClick={() => toggleMenu(menu.key)}
+          data-title={menu.label}
           aria-expanded={isMenuExpanded(menu.key)}
           title={isCompact ? menu.label : undefined}
         >
@@ -444,15 +454,7 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
           } ${isMobile && mobileOpen ? "mobile-open" : ""}`}
       >
         <div className="logo">
-          <img
-            src={pirnavLogoUrl}
-            alt="Pirnav Logo"
-            className="sidebar-logo-img"
-            onError={(event) => {
-              event.currentTarget.onerror = null;
-              event.currentTarget.src = pirnavLogo;
-            }}
-          />
+          <img src={pirnavLogo} alt="Pirnav Logo" className="sidebar-logo-img" />
         </div>
 
         <nav className="menu">
@@ -466,4 +468,3 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
 }
 
 export default Sidebar;
-

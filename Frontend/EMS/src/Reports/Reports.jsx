@@ -24,10 +24,14 @@ import {
   getDownloadErrorMessage,
 } from "../utils/downloadUtils";
 import { formatCurrency } from "../utils/formatters";
+import { PageSkeleton } from "../components/Skeletons";
+import useTheme from "../theme/useTheme";
 
 function Reports() {
   const token = getStoredToken();
   const navigate = useNavigate();
+  const { themeMode } = useTheme();
+  const isDarkTheme = themeMode !== "light";
 
   const [reportCards, setReportCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -293,7 +297,11 @@ function Reports() {
   };
 
   if (loading) {
-    return <div className="reports-container">Loading reports...</div>;
+    return (
+      <div className="reports-container app-page-surface" style={{ padding: "24px" }}>
+        <PageSkeleton variant="cards" cardCount={6} />
+      </div>
+    );
   }
 
   if (error) {
@@ -302,7 +310,11 @@ function Reports() {
 
   return (
     <div className="reports-page">
-      <ToastContainer position="top-right" autoClose={2500} />
+      <ToastContainer
+        position="top-right"
+        autoClose={2500}
+        theme={isDarkTheme ? "dark" : "light"}
+      />
 
       <div className="reports-header">
         <h2 className="reports-title">Reports</h2>

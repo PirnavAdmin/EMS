@@ -1,4 +1,5 @@
-﻿using EmployeeManagementSystem.Interfaces;
+﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Interfaces;
 
 using Microsoft.AspNetCore.Authorization;
 
@@ -52,46 +53,24 @@ namespace EmployeeManagementSystem.Controllers
 
         // ✅ Check-In
 
-        [HttpPost("check-in")]
-
-        public async Task<IActionResult> CheckIn()
-
+        [Authorize]
+        [HttpPost("checkin")]
+        public async Task<IActionResult> CheckIn(
+      [FromBody] CheckInLocationDto dto)
         {
-
-            return await _attendanceService.CheckIn(User);
-
+            return await _attendanceService
+                .CheckIn(User, dto);
         }
 
         // ✅ Check-Out
 
-        [HttpPost("check-out")]
-
-        public async Task<IActionResult> CheckOut()
-
-        {
-
-            return await _attendanceService.CheckOut(User);
-
-        }
         [Authorize]
-
-        [HttpPost("start-break")]
-        public async Task<IActionResult> StartBreak()
+        [HttpPost("checkout")]
+        public async Task<IActionResult> CheckOut(
+       [FromBody] CheckOutLocationDto dto)
         {
-            return await _attendanceService.StartBreak(User);
-        }
-
-        [Authorize]
-        [HttpPost("end-break")]
-        public async Task<IActionResult> EndBreak()
-        {
-            return await _attendanceService.EndBreak(User);
-        }
-
-        [HttpGet("break-summary")]
-        public async Task<IActionResult> GetBreakSummary()
-        {
-            return await _attendanceService.GetTodayBreakSummary(User);
+            return await _attendanceService
+                .CheckOut(User, dto);
         }
         //---------------------------------------
 
@@ -188,21 +167,20 @@ public async Task<IActionResult> GetAttendanceByDate(
         // ✅ Monthly / Year View
 
         [HttpGet("monthly")]
-
         public async Task<IActionResult> GetMonthlyAttendance(
-
-            [FromQuery] int month,
-
-            [FromQuery] int year)
-
+     [FromQuery] int month,
+     [FromQuery] int year)
         {
+            if (month < 1 || month > 12)
+                return BadRequest("Month must be between 1 and 12.");
 
+            if (year < 2000 || year > 2100)
+                return BadRequest("Invalid year.");
 
-
-            var result = await _attendanceService.GetAllEmployeeAttendance(month, year);
+            var result = await _attendanceService
+                .GetAllEmployeeAttendance(month, year);
 
             return Ok(result);
-
         }
 
 
@@ -387,8 +365,42 @@ public async Task<IActionResult> GetAttendanceByDate(
                 $"PresentLateEmployees_{date:yyyyMMdd}.xlsx");
         }
 
+        [Authorize]
+        [HttpPost("update-activity")]
+        public async Task<IActionResult> UpdateActivity()
+        {
+            return await _attendanceService
+                .UpdateActivity(User);
+        }
+
+        [HttpPost("admin/upload-monthly")]
+
+        public async Task<IActionResult> UploadMonthlyAttendance(
+
+IFormFile file,
+
+int month,
+
+int year)
+
+        {
+
+            var result = await _attendanceService
+
+                .UploadMonthlyAttendance(file, month, year);
+
+            return Ok(result);
+
+        }
+
+       
+
+        }
+
+
+
     }
 
-}
+
 
 

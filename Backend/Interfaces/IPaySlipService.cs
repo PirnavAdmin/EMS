@@ -8,7 +8,12 @@ namespace EmployeeManagementSystem.Interfaces
 
     {
 
-        Task<string> GeneratePaySlip(string employeeId, int year, string month, decimal OtherDeductions);
+        Task<string> GeneratePaySlip(
+      string employeeId,
+      int year,
+      string month,
+      decimal OtherDeductions,
+      string? DeductionLabel = null);
 
         Task<List<string>> GenerateAllPaySlips(int year, string month);
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import "./ScreenPermissions.css";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
+import { PageSkeleton } from "../../components/Skeletons";
 
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -175,6 +176,13 @@ function ScreenPermissions() {
   };
 
   if (loading) return <p style={{ padding: "20px" }}>Loading...</p>;
+  if (loading) {
+    return (
+      <div className="permission-page" style={{ padding: "20px" }}>
+        <PageSkeleton variant="table" tableRows={8} tableColumns={2} />
+      </div>
+    );
+  }
 
   return (
     <>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "./Payroll.css";
 import api from "../api/axiosInstance";
-import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
+import { API_ENDPOINTS, buildApiUrl } from "../api/endpoints";
+import AppPagination from "../components/AppPagination";
 import { formatDate } from "../utils/date";
 import { formatCurrency as formatAppCurrency } from "../utils/formatters";
 import { getStoredToken } from "../utils/authStorage";
@@ -11,13 +12,8 @@ import {
   logPerformanceError,
   startPerformanceTimer,
 } from "../utils/performance";
-import {
-  FaDownload,
-  FaAngleLeft,
-  FaAngleRight,
-  FaAnglesLeft,
-  FaAnglesRight
-} from "react-icons/fa6";
+import { FaDownload } from "react-icons/fa6";
+import { TableSkeleton } from "../components/Skeletons";
 
 const PAYROLL_MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -61,7 +57,7 @@ function Payroll() {
   const [recentFilterYear, setRecentFilterYear] = useState(String(currentYearValue));
 
   const [recentPage, setRecentPage] = useState(1);
-  const [recentRowsPerPage, setRecentRowsPerPage] = useState(10);
+  const RECENT_ROWS_PER_PAGE = 30;
   const [recentLoading, setRecentLoading] = useState(false);
   const [isSalaryDownloading, setIsSalaryDownloading] = useState(false);
 
@@ -96,7 +92,7 @@ function Payroll() {
 
   useEffect(() => {
     setRecentPage(1);
-  }, [recentFilterMonth, recentFilterYear, recentRowsPerPage]);
+  }, [recentFilterMonth, recentFilterYear]);
 
   const parseDateSafely = (dateString) => {
     if (!dateString) return null;
@@ -157,7 +153,7 @@ function Payroll() {
       setRecentLoading(true);
       startPerformanceTimer(timerLabel);
 
-      const res = await api.get(buildServerUrl(API_ENDPOINTS.payroll.recent), {
+      const res = await api.get(API_ENDPOINTS.payroll.recent, {
         signal,
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -275,27 +271,17 @@ function Payroll() {
   }, [allPayslips, recentFilterMonth, recentFilterYear]);
 
   const recentTotalCount = filteredPayslips.length;
-  const totalRecentPages = Math.max(1, Math.ceil(recentTotalCount / recentRowsPerPage));
+  const totalRecentPages = Math.max(1, Math.ceil(recentTotalCount / RECENT_ROWS_PER_PAGE));
 
   const paginatedRecentPayslips = useMemo(() => {
-    const startIndex = (recentPage - 1) * recentRowsPerPage;
-    const endIndex = startIndex + recentRowsPerPage;
+    const startIndex = (recentPage - 1) * RECENT_ROWS_PER_PAGE;
+    const endIndex = startIndex + RECENT_ROWS_PER_PAGE;
     return filteredPayslips.slice(startIndex, endIndex);
-  }, [filteredPayslips, recentPage, recentRowsPerPage]);
+  }, [filteredPayslips, recentPage]);
 
   useEffect(() => {
     if (recentPage > totalRecentPages) setRecentPage(totalRecentPages);
   }, [recentPage, totalRecentPages]);
-
-  const getVisiblePages = () => {
-    const pages = [];
-    const maxVisible = 5;
-    let start = Math.max(1, recentPage - 2);
-    let end = Math.min(totalRecentPages, start + maxVisible - 1);
-    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  };
 
   const handleToggleEmployee = (employeeId) => {
     if (generating) return;
@@ -368,7 +354,7 @@ function Payroll() {
 
         for (const employeeId of employeeIds) {
           for (const period of periods) {
-            await api.post(buildServerUrl(API_ENDPOINTS.payroll.generate), null, {
+            await api.post(API_ENDPOINTS.payroll.generate, null, {
               params: {
                 employeeId,
                 year: period.year,
@@ -391,7 +377,7 @@ function Payroll() {
             otherDeductions: Number(manualForm.otherDeductions) || 0
           };
 
-          await api.post(buildServerUrl(API_ENDPOINTS.payroll.manualGenerate), payload, {
+          await api.post(API_ENDPOINTS.payroll.manualGenerate, payload, {
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json"
@@ -421,7 +407,7 @@ function Payroll() {
   const handleDownloadPayslip = async (id) => {
     try {
       const response = await api.get(
-        buildServerUrl(API_ENDPOINTS.payroll.download(id)),
+        buildApiUrl(API_ENDPOINTS.payroll.download(id)),
         {
           responseType: "blob",
           headers: {
@@ -454,7 +440,7 @@ function Payroll() {
         recentFilterYear === "All" ? year : Number(recentFilterYear);
 
       const response = await api.get(
-        buildServerUrl(API_ENDPOINTS.payroll.salaryRegister),
+        buildApiUrl(API_ENDPOINTS.payroll.salaryRegister),
         {
           params: {
             month: registerMonth,
@@ -570,9 +556,9 @@ function Payroll() {
   const baseTableCellStyle = {
     padding: "14px",
     fontSize: "14px",
-    borderBottom: "1px solid #f1f5f9",
+    borderBottom: "1px solid var(--bg-muted)",
     verticalAlign: "middle",
-    color: "#111827",
+    color: "var(--text-strong)",
     boxSizing: "border-box",
     lineHeight: 1.5,
     overflow: "hidden",
@@ -583,7 +569,7 @@ function Payroll() {
   const baseTableHeaderStyle = {
     ...baseTableCellStyle,
     paddingBottom: "16px",
-    borderBottom: "2px solid #e5e7eb"
+    borderBottom: "2px solid var(--border-soft)"
   };
 
   const getTableCellStyle = (width, align = "left", extraStyles = {}) => ({
@@ -666,11 +652,11 @@ function Payroll() {
                   padding: "8px 10px",
                   minHeight: "52px",
                   border: isActive
-                    ? "2px solid #2563eb"
-                    : "1px solid #dbe3ee",
+                    ? "2px solid var(--theme-info)"
+                    : "1px solid var(--border-soft)",
                   borderRadius: "10px",
                   marginBottom: "2px",
-                  background: "#fff"
+                  background: "var(--bg-page)"
                 }}
                 onClick={() => handleCardClick(emp)}
               >
@@ -713,7 +699,7 @@ function Payroll() {
                         padding: "0",
                         lineHeight: "1",
                         fontSize: "12px",
-                        color: "#64748b"
+                        color: "var(--text-muted)"
                       }}
                     >
                       {emp.employee_Id}
@@ -751,11 +737,10 @@ function Payroll() {
                 <div className="employee-header-info">
                   <h3>{previewEmployee?.name || "Employee"}</h3>
                   <p>
-                    {previewEmployee?.employee_Id || "-"} •{" "}
-                    {previewEmployee?.department || "-"} • CTC{" "}
-                    {formatCurrency(previewEmployee?.ctc, true)}{" "}
-                    • Joined{" "}
-                    {formatDate(previewEmployee?.joiningDate)}
+                    {previewEmployee?.employee_Id || "-"} {" • "}
+                    {previewEmployee?.department || "-"} {" • "}
+                    CTC {formatCurrency(previewEmployee?.ctc, true)} {" • "}
+                    Joined {formatDate(previewEmployee?.joiningDate)}
                   </p>
                 </div>
               </>
@@ -985,9 +970,9 @@ function Payroll() {
                   disabled={isSalaryDownloading}
                   onClick={handleDownloadSalaryRegister}
                   style={{
-                    border: "1px solid #93c5fd",
-                    background: "#dbeafe",
-                    color: "#2563eb",
+                    border: "1px solid var(--surface-info-soft)",
+                    background: "var(--surface-info-soft)",
+                    color: "var(--theme-info)",
                     padding: "10px 16px",
                     borderRadius: "10px",
                     fontSize: "14px",
@@ -1030,16 +1015,6 @@ function Payroll() {
                   ))}
                 </select>
 
-                <select
-                  value={recentRowsPerPage}
-                  onChange={(e) => setRecentRowsPerPage(Number(e.target.value))}
-                  disabled={generating || recentLoading}
-                >
-                  <option value={10}>10 / page</option>
-                  <option value={25}>25 / page</option>
-                  <option value={50}>50 / page</option>
-                  <option value={100}>100 / page</option>
-                </select>
               </div>
             </div>
 
@@ -1048,10 +1023,10 @@ function Payroll() {
                 width: "100%",
                 padding: "6px 15px",
                 marginBottom: "14px",
-                border: "1px solid #bae6fd",
+                border: "1px solid var(--surface-info-soft)",
                 borderRadius: "16px",
-                background: "#f0f9ff",
-                color: "#0284c7",
+                background: "var(--surface-info-soft)",
+                color: "var(--theme-info-strong)",
                 fontSize: "13px",
                 fontWeight: "450",
                 textAlign: "center",
@@ -1065,9 +1040,9 @@ function Payroll() {
               className="table-scroll"
               style={{
                 overflowX: "auto",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border-soft)",
                 borderRadius: "12px",
-                background: "#fff",
+                background: "var(--bg-page)",
                 position: "relative"
               }}
             >
@@ -1084,7 +1059,7 @@ function Payroll() {
                 {/* TABLE HEADER */}
                 <thead
                   style={{
-                    background: "#f8fafc"
+                    background: "var(--bg-muted)"
                   }}
                 >
                   <tr>
@@ -1116,9 +1091,9 @@ function Payroll() {
                                 : "0px",
                           textAlign: align,
                           verticalAlign: "middle",
-                          borderBottom: "1px solid #e2e8f0",
+                          borderBottom: "1px solid var(--border-soft)",
                           whiteSpace: "nowrap",
-                          background: "#f8fafc",
+                          background: "var(--bg-muted)",
                           height: "48px",
                           lineHeight: "20px"
                         }}
@@ -1133,16 +1108,20 @@ function Payroll() {
                 <tbody>
                   {recentLoading ? (
                     <tr>
-                      <td
-                        colSpan="8"
-                        style={{
-                          padding: "45px",
-                          textAlign: "center",
-                          color: "#64748b",
-                          fontSize: "15px"
-                        }}
-                      >
-                        Loading payslips...
+                      <td colSpan="8" style={{ padding: "0" }}>
+                        <TableSkeleton
+                          rows={6}
+                          columns={[
+                            { width: "240px", type: "avatar", headerWidth: "58%" },
+                            { width: "110px", headerWidth: "54%" },
+                            { width: "80px", headerWidth: "54%" },
+                            { width: "150px", headerWidth: "58%" },
+                            { width: "110px", headerWidth: "56%" },
+                            { width: "130px", headerWidth: "56%" },
+                            { width: "180px", headerWidth: "58%" },
+                            { width: "110px", type: "actions", headerWidth: "54%" },
+                          ]}
+                        />
                       </td>
                     </tr>
                   ) : paginatedRecentPayslips.length === 0 ? (
@@ -1152,7 +1131,7 @@ function Payroll() {
                         style={{
                           padding: "45px",
                           textAlign: "center",
-                          color: "#64748b",
+                          color: "var(--text-muted)",
                           fontSize: "15px"
                         }}
                       >
@@ -1169,7 +1148,7 @@ function Payroll() {
                         <tr
                           key={p.id || index}
                           style={{
-                            background: "#fff",
+                            background: "var(--bg-page)",
                             transition: "0.2s ease",
                             height: "50px"
                           }}
@@ -1178,19 +1157,19 @@ function Payroll() {
                           <td
                             style={{
                               padding: "0px 8px",
-                              borderBottom: "1px solid #f1f5f9",
+                              borderBottom: "1px solid var(--bg-muted)",
                               verticalAlign: "middle",
                               position: "sticky",
                               left: 0,
                               zIndex: 10,
-                              background: "#fff",
-                              boxShadow: "6px 0 10px rgba(0,0,0,0.06)"
+                              background: "var(--bg-page)",
+                              boxShadow: "6px 0 10px var(--shadow-color-xs)"
                             }}
                           >
                             <div
                               style={{
                                 fontWeight: 600,
-                                color: "#111827",
+                                color: "var(--text-strong)",
                                 fontSize: "13px",
                                 marginBottom: "1px",
                                 lineHeight: "16px"
@@ -1202,7 +1181,7 @@ function Payroll() {
                             <div
                               style={{
                                 fontSize: "11px",
-                                color: "#64748b",
+                                color: "var(--text-muted)",
                                 lineHeight: "14px"
                               }}
                             >
@@ -1214,8 +1193,8 @@ function Payroll() {
                           <td
                             style={{
                               padding: "10px 25px",
-                              borderBottom: "1px solid #f1f5f9",
-                              color: "#111827",
+                              borderBottom: "1px solid var(--bg-muted)",
+                              color: "var(--text-strong)",
                               verticalAlign: "middle",
                               fontSize: "13px",
                               lineHeight: "16px"
@@ -1228,9 +1207,9 @@ function Payroll() {
                           <td
                             style={{
                               padding: "4px 10px",
-                              borderBottom: "1px solid #f1f5f9",
+                              borderBottom: "1px solid var(--bg-muted)",
                               textAlign: "center",
-                              color: "#111827",
+                              color: "var(--text-strong)",
                               verticalAlign: "middle",
                               whiteSpace: "nowrap",
                               fontSize: "13px",
@@ -1244,11 +1223,11 @@ function Payroll() {
                           <td
                             style={{
                               padding: "4px 25px 4px 10px",
-                              borderBottom: "1px solid #f1f5f9",
+                              borderBottom: "1px solid var(--bg-muted)",
                               textAlign: "right",
                               verticalAlign: "middle",
                               fontWeight: 700,
-                              color: "#059669",
+                              color: "var(--success)",
                               fontSize: "13px",
                               fontVariantNumeric: "tabular-nums",
                               whiteSpace: "nowrap",
@@ -1262,10 +1241,10 @@ function Payroll() {
                           <td
                             style={{
                               padding: "4px 14px 4px 10px",
-                              borderBottom: "1px solid #f1f5f9",
+                              borderBottom: "1px solid var(--bg-muted)",
                               textAlign: "right",
                               verticalAlign: "middle",
-                              color: "#dc2626",
+                              color: "var(--theme-danger)",
                               fontSize: "13px",
                               fontVariantNumeric: "tabular-nums",
                               whiteSpace: "nowrap",
@@ -1285,11 +1264,11 @@ function Payroll() {
                           <td
                             style={{
                               padding: "4px 14px 4px 10px",
-                              borderBottom: "1px solid #f1f5f9",
+                              borderBottom: "1px solid var(--bg-muted)",
                               textAlign: "right",
                               verticalAlign: "middle",
                               fontWeight: 700,
-                              color: "#111827",
+                              color: "var(--text-strong)",
                               fontSize: "13px",
                               fontVariantNumeric: "tabular-nums",
                               whiteSpace: "nowrap",
@@ -1303,10 +1282,10 @@ function Payroll() {
                           <td
                             style={{
                               padding: "4px 10px",
-                              borderBottom: "1px solid #f1f5f9",
+                              borderBottom: "1px solid var(--bg-muted)",
                               textAlign: "center",
                               verticalAlign: "middle",
-                              color: "#475569",
+                              color: "var(--text-body)",
                               fontSize: "12px",
                               lineHeight: "16px"
                             }}
@@ -1331,7 +1310,7 @@ function Payroll() {
                           <td
                             style={{
                               padding: "4px 10px",
-                              borderBottom: "1px solid #f1f5f9",
+                              borderBottom: "1px solid var(--bg-muted)",
                               textAlign: "center",
                               verticalAlign: "middle"
                             }}
@@ -1350,7 +1329,7 @@ function Payroll() {
                                 style={{
                                   cursor: "pointer",
                                   fontSize: "15px",
-                                  color: "#2563eb"
+                                  color: "var(--theme-info)"
                                 }}
                               />
                             </div>
@@ -1362,6 +1341,13 @@ function Payroll() {
                 </tbody>
               </table>
             </div>
+
+            <AppPagination
+              totalItems={recentTotalCount}
+              currentPage={recentPage}
+              onPageChange={setRecentPage}
+              itemLabel="payslips"
+            />
           </div>
         </div>
       )}

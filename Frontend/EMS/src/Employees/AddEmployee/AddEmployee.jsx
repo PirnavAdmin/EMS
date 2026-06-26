@@ -4,7 +4,14 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS, buildApiUrl } from "../../api/endpoints";
-import { getStoredToken } from "../../utils/authStorage";
+import {
+  getStoredEmployeeId,
+  getStoredToken,
+} from "../../utils/authStorage";
+import {
+  downloadBinaryFile,
+  getDownloadErrorMessage,
+} from "../../utils/downloadUtils";
 import Stepper from "./Stepper";
 import PersonalInfo from "./PersonalInfo";
 import BankInfo from "./BankInfo";
@@ -21,7 +28,9 @@ function AddEmployee() {
 
   const [step, setStep] = useState(1);
   const [maxStep, setMaxStep] = useState(1);
-  const [employeeId, setEmployeeId] = useState(id || "");
+  const [employeeId, setEmployeeId] = useState(
+    id || getStoredEmployeeId() || ""
+  );
   const [employeeData, setEmployeeData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,6 +38,11 @@ function AddEmployee() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [profileDownloadStatus, setProfileDownloadStatus] = useState({
+    type: "",
+    message: "",
+  });
+  const [profilePdfLoading, setProfilePdfLoading] = useState(false);
 
   const bankRef = useRef(null);
 
@@ -57,10 +71,18 @@ function AddEmployee() {
 
         setEmployeeData(employee);
 
-        if (employee?.employeeId) {
-          setEmployeeId(employee.employeeId);
-        } else if (employee?.id) {
-          setEmployeeId(employee.id);
+        const resolvedEmployeeId =
+          employee?.employeeId ||
+          employee?.employee_Id ||
+          employee?.personalInfo?.employee_Id ||
+          employee?.personalInfo?.employeeId ||
+          employee?.personalInfo?.id ||
+          employee?.id ||
+          id ||
+          getStoredEmployeeId();
+
+        if (resolvedEmployeeId) {
+          setEmployeeId(String(resolvedEmployeeId));
         }
 
         const hasData = Boolean(
@@ -192,6 +214,98 @@ function AddEmployee() {
     }
   };
 
+  const profileEmployeeId =
+    employeeId ||
+    employeeData?.personalInfo?.employee_Id ||
+    employeeData?.personalInfo?.employeeId ||
+    employeeData?.employeeId ||
+    employeeData?.id ||
+    id ||
+    getStoredEmployeeId();
+
+  const handleDownloadProfilePdf = async () => {
+    if (profilePdfLoading) {
+      return;
+    }
+
+    if (!profileEmployeeId) {
+      const message = "Employee ID not found for PDF download.";
+      setProfileDownloadStatus({
+        type: "success",
+        message,
+      });
+
+      setTimeout(() => {
+        setProfileDownloadStatus({
+          type: "",
+          message: "",
+        });
+      }, 3000);
+      toast.error(message);
+      return;
+    }
+
+    const token = getStoredToken();
+
+    if (!token) {
+      const message = "Session expired. Please login again.";
+      setProfileDownloadStatus({
+        type: "error",
+        message,
+      });
+      toast.error(message);
+      return;
+    }
+
+    setProfilePdfLoading(true);
+    setProfileDownloadStatus({
+      type: "loading",
+      message: "Preparing profile PDF download...",
+    });
+
+    try {
+      await downloadBinaryFile({
+        endpoint: buildApiUrl(
+          API_ENDPOINTS.employees.exportProfilePdf(profileEmployeeId)
+        ),
+        token,
+        fallbackFileName: `EmployeeProfile_${profileEmployeeId}.pdf`,
+        accept:
+          "application/pdf, application/octet-stream;q=0.9, */*;q=0.1",
+      });
+      const message = "Profile PDF downloaded successfully.";
+
+      setProfileDownloadStatus({
+        type: "success",
+        message,
+      });
+
+      setTimeout(() => {
+        setProfileDownloadStatus({
+          type: "",
+          message: "",
+        });
+      }, 3000);
+
+      toast.success(message);
+    } catch (error) {
+      const message = error?.response
+        ? await getDownloadErrorMessage(
+          error,
+          "Failed to download employee profile PDF."
+        )
+        : error?.message || "Failed to download employee profile PDF.";
+
+      setProfileDownloadStatus({
+        type: "error",
+        message,
+      });
+      toast.error(message);
+    } finally {
+      setProfilePdfLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="employee-loader-container">
@@ -213,9 +327,9 @@ function AddEmployee() {
         theme="light"
       />
 
-      <div className="page-header-row">
-        <div>
-          <h2 className="page-title">{viewMode ? "Employee Details" : "My Profile"}</h2>
+      <div className="page-header-row profile-card">
+        <div className="profile-header-copy">
+          <h2 className="page-title profile-title">{viewMode ? "Employee Details" : "My Profile"}</h2>
 
           <p className="page-subtitle">
             {viewMode
@@ -228,9 +342,37 @@ function AddEmployee() {
           {noDataMessage && <div className="employee-empty-message">{noDataMessage}</div>}
         </div>
 
-        <button className="edit-profile-btn" onClick={handleEditToggle}>
-          {isEditing ? "Cancel Edit" : "Edit"}
-        </button>
+        <div className="profile-header-actions">
+          <div className="profile-header-buttons">
+
+            <button
+              type="button"
+              className="profile-download-btn"
+              onClick={handleDownloadProfilePdf}
+              disabled={profilePdfLoading || !profileEmployeeId}
+            >
+              {profilePdfLoading ? "Downloading..." : "Download PDF"}
+            </button>
+
+            <button
+              type="button"
+              className="edit-profile-btn"
+              onClick={handleEditToggle}
+            >
+              {isEditing ? "Cancel Edit" : "Edit"}
+            </button>
+
+            {profileDownloadStatus.message && (
+              <div
+                className={`profile-download-status ${profileDownloadStatus.type}`}
+              >
+                {profileDownloadStatus.message}
+
+              </div>
+            )}
+
+          </div>
+        </div>
       </div>
 
       <Stepper step={step} setStep={setStep} maxStep={viewMode ? 6 : maxStep} />

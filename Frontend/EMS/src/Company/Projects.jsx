@@ -5,6 +5,8 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AppDatePicker from "../components/AppDatePicker";
+import AppPagination from "../components/AppPagination";
+import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection } from "../utils/collections";
 import { formatDate, toIsoDateString } from "../utils/date";
 
@@ -361,6 +363,8 @@ function Projects() {
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PROJECTS_PER_PAGE = 30;
 
   const projectNameInputRef = useRef(null);
   const employeeLookup = useMemo(
@@ -851,6 +855,29 @@ function Projects() {
   const selectedProjectMemberCount =
     selectedProjectMembers.length;
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(projectsList.length / PROJECTS_PER_PAGE)
+  );
+
+  const indexOfLastProject = currentPage * PROJECTS_PER_PAGE;
+  const indexOfFirstProject = indexOfLastProject - PROJECTS_PER_PAGE;
+
+  const currentProjects = useMemo(
+    () => projectsList.slice(indexOfFirstProject, indexOfLastProject),
+    [indexOfFirstProject, indexOfLastProject, projectsList]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [projectsList.length]);
+
   return (
     <div className="projects-page">
       <ToastContainer position="top-right" autoClose={2600} />
@@ -892,8 +919,19 @@ function Projects() {
           <tbody>
             {projectsLoading ? (
               <tr>
-                <td colSpan="7" className="projects-empty-state">
-                  Loading projects...
+                <td colSpan="7" style={{ padding: "0" }}>
+                  <TableSkeleton
+                    rows={10}
+                    columns={[
+                      { width: "minmax(220px, 1.4fr)", type: "avatar", headerWidth: "60%" },
+                      { width: "180px", headerWidth: "58%" },
+                      { width: "120px", headerWidth: "54%" },
+                      { width: "120px", headerWidth: "54%" },
+                      { width: "100px", type: "status", headerWidth: "52%" },
+                      { width: "140px", type: "status", headerWidth: "56%" },
+                      { width: "150px", type: "actions", headerWidth: "54%" },
+                    ]}
+                  />
                 </td>
               </tr>
             ) : projectsList.length === 0 ? (
@@ -903,7 +941,7 @@ function Projects() {
                 </td>
               </tr>
             ) : (
-              projectsList.map((project, index) => (
+              currentProjects.map((project, index) => (
                 <tr
                   key={`${project.id}-${index}`}
                   className="project-row-clickable"
@@ -920,11 +958,11 @@ function Projects() {
                         setShowProjectDetails(true);
                       }}
                     >
-                      <strong title={project.name}>
+                      <strong className="project-name" title={project.name}>
                         {project.name || "-"}
                       </strong>
 
-                      <span title={project.id}>
+                      <span className="project-id" title={project.id}>
                         {project.id || "-"}
                       </span>
                     </div>
@@ -995,6 +1033,15 @@ function Projects() {
           </tbody>
         </table>
       </div>
+
+      {projectsList.length > 0 && (
+        <AppPagination
+          totalItems={projectsList.length}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          itemLabel="projects"
+        />
+      )}
 
       {projectsShowModal && (
         <div
@@ -1236,7 +1283,7 @@ function Projects() {
                                   <div
                                     style={{
                                       fontWeight: 600,
-                                      color: "#0f172a",
+                                      color: "var(--text-strong)",
                                     }}
                                   >
                                     {fullName}
@@ -1244,7 +1291,7 @@ function Projects() {
 
                                   <small
                                     style={{
-                                      color: "#64748b",
+                                      color: "var(--text-muted)",
                                     }}
                                   >
                                     Employee ID: {emp.employee_Id}

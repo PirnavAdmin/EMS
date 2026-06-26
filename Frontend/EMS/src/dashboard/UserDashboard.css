@@ -7,7 +7,7 @@
   width: 100%;
   overflow-x: hidden;
   font-family: var(--font-sans);
-  color: #0f172a;
+  color: var(--text-strong);
   box-sizing: border-box;
 }
  
@@ -22,12 +22,12 @@
   font-size: 34px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #0f172a;
+  color: var(--text-strong);
 }
  
 .udb-subtitle {
   margin-top: 8px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 16px;
   font-weight: 500;
 }
@@ -44,17 +44,17 @@
  
 .udb-card {
   position: relative;
-  background: #ffffff;
+  background: var(--bg-page);
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid #dfe7ef;
+  border: 1px solid var(--border-soft);
   min-height: 150px;
  
   display: flex;
   flex-direction: column;
   justify-content: space-between;
  
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow-sm);
  
   transition:
     transform 0.2s ease,
@@ -67,8 +67,8 @@
  
 .udb-card:hover {
   transform: translateY(-2px);
-  border-color: #dbe6f2;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+  border-color: var(--sidebar-accent-soft);
+  box-shadow: var(--shadow-md);
 }
  
 /* ================= ICON ================= */
@@ -86,26 +86,26 @@
   justify-content: center;
  
   border-radius: 14px;
-  color: #ffffff;
+  color: var(--theme-on-primary);
   font-size: 18px;
  
   flex-shrink: 0;
 }
  
 .udb-blue {
-  background: #3b82f6;
+  background: linear-gradient(135deg, var(--theme-info) 0%, var(--theme-info-strong) 100%);
 }
- 
+
 .udb-green {
-  background: #22c55e;
+  background: linear-gradient(135deg, var(--theme-success) 0%, var(--theme-success-strong) 100%);
 }
- 
+
 .udb-orange {
-  background: #f59e0b;
+  background: linear-gradient(135deg, var(--theme-warning) 0%, var(--theme-warning-strong) 100%);
 }
- 
+
 .udb-purple {
-  background: #8b5cf6;
+  background: linear-gradient(135deg, var(--theme-secondary) 0%, var(--theme-primary) 100%);
 }
  
 /* ================= CARD CONTENT ================= */
@@ -121,7 +121,7 @@
   font-weight: 600;
   line-height: 1.3;
  
-  color: #64748b;
+  color: var(--text-muted);
  
   white-space: nowrap;
   overflow: hidden;
@@ -133,14 +133,14 @@
   font-size: clamp(18px, 1.5vw, 24px);
   font-weight: 700;
   line-height: 1;
-  color: #000000;
+  color: var(--text-strong);
 }
  
 .udb-card-text {
   margin-top: 12px;
   font-size: clamp(13px, 0.9vw, 15px);
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--text-muted);
  
   white-space: nowrap;
   overflow: hidden;
@@ -159,11 +159,11 @@
 /* ================= SECTION ================= */
  
 .udb-section {
-  background: #ffffff;
+  background: var(--bg-page);
   padding: 24px;
   border-radius: 22px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
  
   overflow: hidden;
   min-width: 0;
@@ -173,7 +173,7 @@
   margin: 0 0 18px;
   font-size: 19px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-strong);
 }
  
 /* ================= ROWS ================= */
@@ -186,10 +186,10 @@
   gap: 12px;
  
   padding: 15px 0;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--border-soft);
  
   font-size: 14px;
-  color: #334155;
+  color: var(--text-body);
 }
  
 .udb-task-row:last-child,
@@ -207,18 +207,18 @@
 }
  
 .udb-pending {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
 }
- 
+
 .udb-progress {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--surface-info-soft);
+  color: var(--theme-info-strong);
 }
- 
+
 .udb-completed {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--surface-success-soft);
+  color: var(--theme-success-strong);
 }
  
 /* ================= ACTION BUTTONS ================= */
@@ -239,11 +239,11 @@
  
   padding: 14px 16px;
  
-  border: 1px solid #d5e9e6;
+  border: 1px solid var(--border-soft);
   border-radius: 16px;
- 
-  background: #f7fbfb;
-  color: #0f766e;
+
+  background: var(--bg-soft);
+  color: var(--theme-secondary);
  
   font-size: 14px;
   font-weight: 600;
@@ -259,8 +259,8 @@
 }
  
 .udb-action-btn:hover {
-  background: #eef8f7;
-  border-color: #b9ddd8;
+  background: var(--sidebar-accent-hover);
+  border-color: var(--sidebar-accent-soft);
   transform: translateY(-1px);
 }
  
@@ -327,3 +327,163 @@
  
 }
  
+/* =========================================
+   Welcome Popup
+========================================= */
+
+.udb-welcome-overlay{
+    position:fixed;
+    inset:0;
+    background:var(--theme-overlay);
+    backdrop-filter:blur(4px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:9999;
+    animation:udbFade .35s ease;
+}
+
+.udb-welcome-modal{
+
+    width:min(92%,540px);
+
+    background:var(--bg-page);
+
+    border-radius:20px;
+
+    padding:42px;
+
+    text-align:center;
+
+    box-shadow:var(--shadow-lg);
+
+    animation:udbPopup .45s ease;
+}
+
+.udb-welcome-icon{
+
+    width:82px;
+    height:82px;
+
+    margin:auto;
+
+    border-radius:50%;
+
+    background:linear-gradient(135deg,var(--surface-info-soft),var(--surface-success-soft));
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    color:var(--theme-info);
+
+    font-size:34px;
+
+    margin-bottom:20px;
+}
+
+.udb-welcome-title{
+
+    font-size:30px;
+
+    font-weight:700;
+
+    color:var(--text-strong);
+
+    margin-bottom:18px;
+}
+
+.udb-welcome-quote{
+
+    font-size:17px;
+
+    font-style:italic;
+
+    color:var(--text-body);
+
+    line-height:1.8;
+
+    margin-bottom:24px;
+}
+
+.udb-welcome-subtitle{
+
+    color:var(--text-muted);
+
+    font-size:15px;
+
+    margin-bottom:32px;
+}
+
+.udb-welcome-btn{
+
+    background:linear-gradient(135deg,var(--theme-primary),var(--theme-secondary));
+
+    color:var(--theme-on-primary);
+
+    border:none;
+
+    border-radius:16px;
+
+    padding:14px 36px;
+
+    font-size:16px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.25s;
+}
+
+.udb-welcome-btn:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:var(--shadow-lg);
+}
+
+@keyframes udbFade{
+
+    from{opacity:0;}
+    to{opacity:1;}
+}
+
+@keyframes udbPopup{
+
+    from{
+        opacity:0;
+        transform:translateY(30px) scale(.9);
+    }
+
+    to{
+        opacity:1;
+        transform:translateY(0) scale(1);
+    }
+}
+
+@media(max-width:768px){
+
+.udb-welcome-modal{
+
+    width:calc(100% - 32px);
+
+    padding:30px 24px;
+}
+
+.udb-welcome-title{
+
+    font-size:26px;
+}
+
+.udb-welcome-quote{
+
+    font-size:15px;
+}
+
+.udb-welcome-btn{
+
+    width:100%;
+}
+
+}

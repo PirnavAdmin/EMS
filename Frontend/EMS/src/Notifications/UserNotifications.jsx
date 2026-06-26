@@ -3,6 +3,7 @@ import "./Notifications.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
+import { CardSkeleton } from "../components/Skeletons";
 import {
   FaCheckCircle,
   FaExclamationTriangle,
@@ -186,7 +187,7 @@ function UserNotifications() {
 
       <div className="notifications-list">
         {loading ? (
-          <p className="no-notifications">Loading...</p>
+          <CardSkeleton count={4} variant="panel" />
         ) : notifications.length === 0 ? (
           <p className="no-notifications">No notifications</p>
         ) : (

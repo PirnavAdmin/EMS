@@ -163,7 +163,7 @@ const getAuthErrorMessage = (
 // =========================
 const hasExpiredTokenMessage =
   (data) =>
-    /token\s+expired|expired\s+token|jwt\s+expired/i.test(
+    /token\s+expired|session\s+expired|expired\s+token|jwt\s+expired/i.test(
       getAuthErrorMessage(data)
     );
  
@@ -180,6 +180,7 @@ const shouldForceLogout = (
   getStoredToken() &&
   (
     status === 401 ||
+    status === 403 ||
     hasExpiredTokenMessage(data)
   );
  
@@ -330,17 +331,10 @@ api.interceptors.response.use(
         data
       )
     ) {
- 
+
       handleAutoLogout();
- 
-      localStorage.clear();
- 
-      sessionStorage.clear();
- 
-      window.location.href =
-        "/login";
     }
- 
+
     return Promise.reject(
       error
     );

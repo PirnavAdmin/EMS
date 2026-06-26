@@ -15,7 +15,6 @@ namespace EmployeeManagementSystem.Controllers
 {
 
     [Route("api/[controller]")]
-    [Route("[controller]")]
 
     [ApiController]
 
@@ -44,42 +43,22 @@ namespace EmployeeManagementSystem.Controllers
         // GENERATE SINGLE PAYSLIP
 
         //--------------------------------
-
         [HttpPost("generate")]
-
         public async Task<IActionResult> GeneratePaySlip(
-
-            string employeeId,
-
-            int year,
-
-            string month,
-
-            decimal? OtherDeductions)
-
+    string employeeId,
+    int year,
+    string month,
+    decimal? OtherDeductions,
+    string? DeductionLabel)
         {
+            var result = await _service.GeneratePaySlip(
+                employeeId,
+                year,
+                month,
+                OtherDeductions ?? 0,
+                DeductionLabel);
 
-            try
-            {
-                var result = await _service.GeneratePaySlip(employeeId, year, month, OtherDeductions ?? 0);
-
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
-            }
-
+            return Ok(result);
         }
 
         //--------------------------------
@@ -94,26 +73,9 @@ namespace EmployeeManagementSystem.Controllers
 
         {
 
-            try
-            {
-                var result = await _service.GenerateAllPaySlips(year, month);
+            var result = await _service.GenerateAllPaySlips(year, month);
 
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
-            }
+            return Ok(result);
 
         }
 

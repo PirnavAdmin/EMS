@@ -8,6 +8,7 @@ import {
   formatDate,
   timeAgo
 } from "../utils/date";
+import { PageSkeleton } from "../components/Skeletons";
 import {
   endPerformanceTimer,
   logPerformanceError,
@@ -20,7 +21,8 @@ import {
   FaClock,
   FaCalendarCheck,
   FaPlaneDeparture,
-  FaBell
+  FaBell,
+  FaSun
 } from "react-icons/fa";
 
 function UserDashboard() {
@@ -35,6 +37,8 @@ function UserDashboard() {
     recentActivities: [],
     upcomingHolidays: []
   });
+  const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const getToken = () =>
     localStorage.getItem("token") ||
@@ -45,6 +49,20 @@ function UserDashboard() {
 
     fetchDashboard(controller.signal);
 
+    const hasShown = sessionStorage.getItem("welcomeShown");
+
+    if (!hasShown) {
+      const timer = setTimeout(() => {
+        setShowWelcome(true);
+        sessionStorage.setItem("welcomeShown", "true");
+      }, 600);
+
+      return () => {
+        clearTimeout(timer);
+        controller.abort();
+      };
+    }
+
     return () => controller.abort();
   }, []);
 
@@ -52,6 +70,7 @@ function UserDashboard() {
     const timerLabel = "user-dashboard:initial-data";
 
     try {
+      setLoading(true);
 
       const token = getToken();
 
@@ -95,9 +114,53 @@ function UserDashboard() {
     } finally {
 
       endPerformanceTimer(timerLabel);
+      setLoading(false);
 
     }
   };
+
+  if (loading) {
+    return (
+      <div className="udb-wrapper">
+
+        <PageSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
+  {
+    showWelcome && (
+      <div className="udb-welcome-overlay">
+        <div className="udb-welcome-modal">
+
+          <div className="udb-welcome-icon">
+            <FaSun />
+          </div>
+
+          <h2 className="udb-welcome-title">
+            Welcome Back!
+          </h2>
+
+          <p className="udb-welcome-quote">
+            "Success doesn't come from what you do occasionally,
+            it comes from what you do consistently."
+          </p>
+
+          <p className="udb-welcome-subtitle">
+            Have a productive and successful day ahead 🚀
+          </p>
+
+          <button
+            className="udb-welcome-btn"
+            onClick={() => setShowWelcome(false)}
+          >
+            Start My Day
+          </button>
+
+        </div>
+      </div>
+    )
+  }
 
   return (
 
@@ -272,12 +335,12 @@ function UserDashboard() {
                   </span>
 
                   <span className="udb-activity-time">
-  {rawTime
-    ? rawTime.toLowerCase?.().includes("ago")
-      ? rawTime
-      : timeAgo(rawTime)
-    : ""}
-</span>
+                    {rawTime
+                      ? rawTime.toLowerCase?.().includes("ago")
+                        ? rawTime
+                        : timeAgo(rawTime)
+                      : ""}
+                  </span>
 
                 </div>
 

@@ -14,6 +14,7 @@ import "./UserPayslip.css";
 import api from "../api/axiosInstance";
 import { extractCollection } from "../utils/collections";
 import { getStoredRole, getStoredToken } from "../utils/authStorage";
+import { PageSkeleton } from "../components/Skeletons";
 
 import {
   API_ENDPOINTS,
@@ -35,8 +36,8 @@ function UserPayslip() {
     try {
       const endpoint =
         role === "admin"
-          ? buildServerUrl(API_ENDPOINTS.payroll.recent)
-          : buildServerUrl(API_ENDPOINTS.payroll.myPayslips);
+          ? API_ENDPOINTS.payroll.recent
+          : API_ENDPOINTS.payroll.myPayslips;
 
       const res = await api.get(endpoint, {
         headers: {
@@ -66,9 +67,9 @@ function UserPayslip() {
 
   if (loading) {
     return (
-      <p className="loading-text">
-        Loading payslips...
-      </p>
+      <div className="payslip-container" style={{ padding: "24px" }}>
+        <PageSkeleton variant="dashboard" />
+      </div>
     );
   }
 
@@ -177,7 +178,9 @@ function UserPayslip() {
               className="view-btn"
               onClick={() =>
                 window.open(
-                  buildServerUrl(API_ENDPOINTS.payroll.preview(current.id)),
+                  buildServerUrl(
+                    `/api/PaySlip/preview/${current.id}`
+                  ),
                   "_blank"
                 )
               }
@@ -189,7 +192,9 @@ function UserPayslip() {
               className="download-btn"
               onClick={() =>
                 window.open(
-                  buildServerUrl(API_ENDPOINTS.payroll.download(current.id)),
+                  buildServerUrl(
+                    `/api/PaySlip/download/${current.id}`
+                  ),
                   "_blank"
                 )
               }
@@ -247,7 +252,7 @@ function UserPayslip() {
                       {role === "admin" && (
                         <span
                           style={{
-                            color: "#00a7b5",
+                            color: "var(--primary)",
                             marginLeft: "8px",
                           }}
                         >
@@ -277,7 +282,9 @@ function UserPayslip() {
                     className="icon-btn view-icon-btn"
                     onClick={() =>
                       window.open(
-                        buildServerUrl(API_ENDPOINTS.payroll.preview(p.id)),
+                        buildServerUrl(
+                          `/api/PaySlip/preview/${p.id}`
+                        ),
                         "_blank"
                       )
                     }
@@ -290,7 +297,9 @@ function UserPayslip() {
                     className="icon-btn download-icon-btn"
                     onClick={() =>
                       window.open(
-                        buildServerUrl(API_ENDPOINTS.payroll.download(p.id)),
+                        buildServerUrl(
+                          `/api/PaySlip/download/${p.id}`
+                        ),
                         "_blank"
                       )
                     }

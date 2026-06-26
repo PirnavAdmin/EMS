@@ -36,6 +36,18 @@ export default function LoginLeft() {
     }
   };
 
+  const resolveIdentityValue = (...values) => {
+    for (const value of values) {
+      const normalizedValue = String(value ?? "").trim();
+
+      if (normalizedValue) {
+        return normalizedValue;
+      }
+    }
+
+    return "";
+  };
+
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberEmail");
     const savedPassword = localStorage.getItem("rememberPassword");
@@ -143,6 +155,44 @@ export default function LoginLeft() {
         ] ||
         "User";
 
+      const employeeId = resolveIdentityValue(
+        response.data.employeeId,
+        response.data.employee_Id,
+        response.data.employeeID,
+        decoded?.employeeId,
+        decoded?.employee_Id,
+        decoded?.EmployeeId,
+        decoded?.Employee_Id,
+        decoded?.employeeID,
+        decoded?.empId
+      );
+
+      const userId = resolveIdentityValue(
+        response.data.userId,
+        response.data.user_Id,
+        response.data.UserId,
+        decoded?.userId,
+        decoded?.user_Id,
+        decoded?.UserId,
+        decoded?.nameid,
+        decoded?.sub,
+        decoded?.[
+          "http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"
+        ]
+      );
+
+      const attendanceId = resolveIdentityValue(
+        response.data.attendanceId,
+        response.data.attendance_Id,
+        decoded?.attendanceId,
+        decoded?.attendance_Id,
+        decoded?.AttendanceId,
+        decoded?.Attendance_Id
+      );
+
+      const resolvedEmployeeId =
+        employeeId || userId || attendanceId;
+
       let role = response.data.role || decoded?.role || "user";
 
       if (form.email === "admin@ems.com") {
@@ -159,6 +209,18 @@ export default function LoginLeft() {
       storage.setItem("roleName", roleName || "");
       storage.setItem("roleId", roleId || "");
       storage.setItem("email", form.email);
+
+      if (resolvedEmployeeId) {
+        storage.setItem("employeeId", resolvedEmployeeId);
+      }
+
+      if (userId) {
+        storage.setItem("userId", userId);
+      }
+
+      if (attendanceId) {
+        storage.setItem("attendanceId", attendanceId);
+      }
 
       let modules = [];
 

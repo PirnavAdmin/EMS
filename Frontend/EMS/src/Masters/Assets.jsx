@@ -4,6 +4,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
+import AppPagination from "../components/AppPagination";
 import { extractCollection, sortByNewestIdFirst } from "../utils/collections";
 import { formatEmployeeCode, normalizeText } from "../utils/formatters";
 
@@ -265,7 +266,7 @@ export default function Assets() {
   const [assetToDelete, setAssetToDelete] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const assetsPerPage = 50;
+  const ASSETS_PER_PAGE = 30;
 
   const [previewImages, setPreviewImages] = useState([]);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -1056,19 +1057,27 @@ export default function Assets() {
     );
 
   });
-  const indexOfLast = currentPage * assetsPerPage;
-  const indexOfFirst = indexOfLast - assetsPerPage;
+  const indexOfLast = currentPage * ASSETS_PER_PAGE;
+  const indexOfFirst = indexOfLast - ASSETS_PER_PAGE;
   const currentAssets =
     filteredAssets.slice(
       indexOfFirst,
       indexOfLast
     );
   const totalPages =
-    Math.ceil(
-      filteredAssets.length / assetsPerPage
-    );
+    Math.max(1, Math.ceil(filteredAssets.length / ASSETS_PER_PAGE));
 
   const imagePreviewItems = useMemo(() => previewImages, [previewImages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, assetFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     return () => {
@@ -1105,25 +1114,11 @@ export default function Assets() {
           + Add Asset
         </button>
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "16px",
-          marginBottom: "22px",
-          width: "100%",
-        }}
-      >
+      <div className="assets-toolbar">
 
         {/* SEARCH */}
 
-        <div
-          style={{
-            position: "relative",
-            flex: "1",
-            minWidth: "320px",
-          }}
-        >
+        <div className="assets-toolbar-search">
 
           <input
             type="text"
@@ -1132,18 +1127,7 @@ export default function Assets() {
             onChange={(e) =>
               setSearchTerm(e.target.value)
             }
-            style={{
-              width: "100%",
-              height: "46px",
-              padding: "0 18px 0 18px",
-              border: "1px solid #dbe3ef",
-              borderRadius: "18px",
-              outline: "none",
-              fontSize: "16px",
-              background: "#ffffff",
-              color: "#0f172a",
-              boxSizing: "border-box",
-            }}
+            className="assets-toolbar-input app-input"
           />
 
           {/* <span
@@ -1153,10 +1137,10 @@ export default function Assets() {
               top: "50%",
               transform: "translateY(-50%)",
               fontSize: "18px",
-              color: "#94a3b8",
+              color: "var(--text-muted)",
             }}
           >
-            🔍
+            ðŸ”
           </span> */}
 
         </div>
@@ -1168,18 +1152,7 @@ export default function Assets() {
           onChange={(e) =>
             setStatusFilter(e.target.value)
           }
-          style={{
-            width: "260px",
-            height: "46px",
-            padding: "0 18px",
-            border: "1px solid #dbe3ef",
-            borderRadius: "18px",
-            background: "#fff",
-            fontSize: "16px",
-            outline: "none",
-            color: "#0f172a",
-            cursor: "pointer",
-          }}
+          className="assets-toolbar-select app-select"
         >
           <option value="">All Status</option>
           <option value="Assigned">Assigned</option>
@@ -1196,39 +1169,18 @@ export default function Assets() {
           onChange={(e) =>
             setAssetFilter(e.target.value)
           }
-          style={{
-            width: "260px",
-            height: "46px",
-            padding: "0 18px",
-            border: "1px solid #dbe3ef",
-            borderRadius: "18px",
-            background: "#fff",
-            fontSize: "16px",
-            outline: "none",
-            color: "#0f172a",
-            boxSizing: "border-box",
-          }}
+          className="assets-toolbar-input assets-toolbar-input--compact app-input"
         />
 
         {/* RESET BUTTON */}
 
         <button
           type="button"
+          className="reset-btn app-button-secondary"
           onClick={() => {
             setSearchTerm("");
             setStatusFilter("");
             setAssetFilter("");
-          }}
-          style={{
-            minWidth: "120px",
-            height: "46px",
-            border: "none",
-            borderRadius: "18px",
-            background: "#0f172a",
-            color: "#fff",
-            fontSize: "16px",
-            fontWeight: "600",
-            cursor: "pointer",
           }}
         >
           Reset
@@ -1268,7 +1220,7 @@ export default function Assets() {
                         style={{
                           fontSize: "14px",
                           fontWeight: "600",
-                          color: "#111827",
+                          color: "var(--text-strong)",
                           maxWidth: "260px",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -1283,7 +1235,7 @@ export default function Assets() {
                       <span
                         style={{
                           fontSize: "12px",
-                          color: "#64748b",
+                          color: "var(--text-muted)",
                           fontWeight: "500",
                         }}
                         title={asset.assignedTo || "-"}
@@ -1379,31 +1331,14 @@ export default function Assets() {
         </table>
       </div>
 
-      <div className="assets-pagination">
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(currentPage - 1)}
-        >
-          Prev
-        </button>
-
-        {[...Array(totalPages)].map((_, index) => (
-          <button
-            key={index}
-            className={currentPage === index + 1 ? "active-page" : ""}
-            onClick={() => setCurrentPage(index + 1)}
-          >
-            {index + 1}
-          </button>
-        ))}
-
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(currentPage + 1)}
-        >
-          Next
-        </button>
-      </div>
+      {filteredAssets.length > 0 && (
+        <AppPagination
+          totalItems={filteredAssets.length}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          itemLabel="assets"
+        />
+      )}
 
       {showForm && (
         <div className="modal">
@@ -1451,7 +1386,7 @@ export default function Assets() {
                     <span
                       style={{
                         fontWeight: "700",
-                        color: "#111827",
+                        color: "var(--text-strong)",
                         display: "inline-block",
                         maxWidth: "220px",
                         overflow: "hidden",
@@ -1736,10 +1671,10 @@ export default function Assets() {
                 style={{
                   marginBottom: "16px",
                   padding: "12px",
-                  background: "#f8fafc",
+                  background: "var(--bg-muted)",
                   borderRadius: "10px",
                   fontSize: "14px",
-                  color: "#334155",
+                  color: "var(--text-body)",
                   lineHeight: "1.5",
                 }}
               >

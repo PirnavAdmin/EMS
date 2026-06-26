@@ -199,6 +199,18 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
+        [HttpGet("export-profile-pdf/{employeeId}")]
+        public async Task<IActionResult> ExportEmployeeProfilePdf(string employeeId)
+        {
+            var pdf = await _employeeService
+                .ExportEmployeeProfilePdf(employeeId);
+
+            return File(
+                pdf,
+                "application/pdf",
+                $"EmployeeProfile_{employeeId}.pdf");
+        }
+
     }
 
 }

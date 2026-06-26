@@ -393,6 +393,7 @@ function Holidays() {
             <div className="holiday-modal-btns">
               <button
                 className="holiday-cancel-btn"
+                
                 type="button"
                 onClick={closeModal}
                 disabled={saving}

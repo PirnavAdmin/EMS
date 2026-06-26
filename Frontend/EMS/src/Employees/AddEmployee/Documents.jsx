@@ -846,16 +846,6 @@ function Documents({
                                     </p>
                                 </div>
 
-                                <div
-                                    className={`documents-progress-category-status ${group.completionPercent === 100
-                                        ? "is-complete"
-                                        : "is-pending"
-                                        }`}
-                                >
-                                    {group.completionPercent === 100
-                                        ? "Complete"
-                                        : `${group.pendingCount} pending`}
-                                </div>
                             </div>
 
                             <div className="documents-progress-category-bar">

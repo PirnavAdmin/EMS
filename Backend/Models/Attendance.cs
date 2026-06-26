@@ -29,6 +29,24 @@ namespace EmployeeManagementSystem.Models
 
         public int WorkingMinutes { get; set; }
         public int TotalBreakMinutes { get; set; }
+        public decimal? CheckInLatitude { get; set; }
+        public decimal? CheckInLongitude { get; set; }
+
+        public decimal? CheckOutLatitude { get; set; }
+        public decimal? CheckOutLongitude { get; set; }
+
+        public decimal? DistanceMeters { get; set; }
+
+        public string? LocationStatus { get; set; }
+
+        public string? CheckoutType { get; set; }
+
+        public string? AutoCheckoutReason { get; set; }
+        public bool IsLocationMismatch { get; set; } = false;
+
+        public string? LocationChangeReason { get; set; }
+        public DateTime? LastActivityTime { get; set; }
+
 
     }
 

@@ -5,8 +5,10 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
+import AppPagination from "../components/AppPagination";
 import TruncatedText from "../components/TruncatedText";
 import SalaryStructureCard from "../components/SalaryStructureCard";
+import { TableSkeleton } from "../components/Skeletons";
 import useSalaryStructure from "../hooks/useSalaryStructure";
 import { extractCollection } from "../utils/collections";
 import { formatDate, toIsoDateString } from "../utils/date";
@@ -106,7 +108,8 @@ function EmployeeList() {
   const [newRole, setNewRole] = useState("");
   const [errors, setErrors] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const employeesPerPage = 10;
+  const [loading, setLoading] = useState(true);
+  const EMPLOYEES_PER_PAGE = 30;
   const [empForm, setEmpForm] = useState(initialEmployeeForm);
   const {
     ctcValue: employeeCtcValue,
@@ -128,6 +131,8 @@ function EmployeeList() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true);
+
         const [roleRes, empRes, deptRes] = await Promise.all([
           api.get(API_ENDPOINTS.masters.roles.list),
           api.get(API_ENDPOINTS.employees.list),
@@ -144,6 +149,8 @@ function EmployeeList() {
         console.error("Data load error:", err);
         setMessage("Unable to load employees.");
         setMessageType("error");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -306,24 +313,24 @@ function EmployeeList() {
     // =========================
     // EMAIL VALIDATION
     // =========================
-   
+
 
     // =========================
-// EMAIL VALIDATION
-// =========================
-const email = empForm.email.trim().toLowerCase();
+    // EMAIL VALIDATION
+    // =========================
+    const email = empForm.email.trim().toLowerCase();
 
-if (!email) {
-  nextErrors.email = "Email is required";
-} else if (!isEditMode) {
-  const emailExists = empList.some(
-    (emp) => String(emp.email).toLowerCase() === email
-  );
+    if (!email) {
+      nextErrors.email = "Email is required";
+    } else if (!isEditMode) {
+      const emailExists = empList.some(
+        (emp) => String(emp.email).toLowerCase() === email
+      );
 
-  if (emailExists) {
-    nextErrors.email = "Email already exists.";
-  }
-}
+      if (emailExists) {
+        nextErrors.email = "Email already exists.";
+      }
+    }
 
     // =========================
     // OTHER VALIDATIONS
@@ -584,24 +591,83 @@ if (!email) {
     return "No employees available.";
   }, [departmentFilter, empSearch, statusFilter]);
 
-  const totalPages = Math.ceil(
-    filteredEmployees.length / employeesPerPage
-  );
-
-  const indexOfLastEmployee = currentPage * employeesPerPage;
+  const indexOfLastEmployee = currentPage * EMPLOYEES_PER_PAGE;
 
   const indexOfFirstEmployee =
-    indexOfLastEmployee - employeesPerPage;
+    indexOfLastEmployee - EMPLOYEES_PER_PAGE;
 
   const currentEmployees = filteredEmployees.slice(
     indexOfFirstEmployee,
     indexOfLastEmployee
   );
 
-  const handlePageChange = (pageNumber) => {
-    if (pageNumber < 1 || pageNumber > totalPages) return;
-    setCurrentPage(pageNumber);
-  };
+  if (loading) {
+    return (
+      <div className="emp-page-unique">
+        <div className="emp-header-unique">
+          <div>
+            <div
+              className="ui-skeleton"
+              style={{ width: "180px", height: "28px", marginBottom: "10px" }}
+            />
+            <div
+              className="ui-skeleton"
+              style={{ width: "260px", height: "14px" }}
+            />
+          </div>
+
+          <div className="emp-header-actions">
+            <div
+              className="ui-skeleton"
+              style={{ width: "138px", height: "42px", borderRadius: "12px" }}
+            />
+            <div
+              className="ui-skeleton"
+              style={{ width: "128px", height: "42px", borderRadius: "12px" }}
+            />
+          </div>
+        </div>
+
+        <div className="emp-toolbar">
+          <div
+            className="ui-skeleton"
+            style={{ flex: "1 1 280px", height: "44px", borderRadius: "14px" }}
+          />
+
+          <div className="emp-filter-group">
+            <div
+              className="ui-skeleton"
+              style={{ width: "180px", height: "44px", borderRadius: "12px" }}
+            />
+            <div
+              className="ui-skeleton"
+              style={{ width: "160px", height: "44px", borderRadius: "12px" }}
+            />
+            <div
+              className="ui-skeleton"
+              style={{ width: "180px", height: "44px", borderRadius: "12px" }}
+            />
+          </div>
+        </div>
+
+        <TableSkeleton
+          rows={10}
+          columns={[
+            { width: "minmax(230px, 1.4fr)", type: "avatar", headerWidth: "64%" },
+            { width: "120px", headerWidth: "58%" },
+            { width: "220px", headerWidth: "72%" },
+            { width: "150px", headerWidth: "70%" },
+            { width: "130px", type: "status", headerWidth: "56%" },
+            { width: "120px", headerWidth: "50%" },
+            { width: "170px", headerWidth: "60%" },
+            { width: "110px", headerWidth: "54%" },
+            { width: "165px", type: "actions", headerWidth: "52%" },
+          ]}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="emp-page-unique">
       {message && <div className={`emp-message ${messageType}`}>{message}</div>}
@@ -703,7 +769,7 @@ if (!email) {
             ))}
           </select>
 
-          
+
 
           <select
             className="emp-filter-select"
@@ -804,21 +870,9 @@ if (!email) {
                     <td>{emp.joined}</td>
 
                     <td className="emp-action-col">
-                      <div
-                        className="action-btns"
-                        style={{
-                          display: "flex",
-                          gap: "10px",
-                          alignItems: "center",
-                        }}
-                      >
+                      <div className="emp-action-buttons">
                         <button
-                          className="edit-btn"
-                          style={{
-                            width: "70px",
-                            minWidth: "70px",
-                            height: "40px",
-                          }}
+                          className="app-action-button emp-action-btn emp-action-btn--edit"
                           onClick={(event) => {
                             event.stopPropagation();
                             openEditEmployeeModal(emp);
@@ -828,12 +882,7 @@ if (!email) {
                         </button>
 
                         <button
-                          className="delete-btn"
-                          style={{
-                            width: "70px",
-                            minWidth: "70px",
-                            height: "40px",
-                          }}
+                          className="app-action-button emp-action-btn emp-action-btn--delete"
                           onClick={(event) => {
                             event.stopPropagation();
                             setEmployeeToDelete(emp.id);
@@ -850,73 +899,12 @@ if (!email) {
             </tbody>
           </table>
         </div>
-        <div className="emp-pagination">
-          <button
-            className="emp-page-btn"
-            disabled={currentPage === 1}
-            onClick={() => handlePageChange(currentPage - 1)}
-          >
-            Prev
-          </button>
-
-          {/* First Page */}
-          {currentPage > 3 && (
-            <>
-              <button
-                className="emp-page-btn"
-                onClick={() => handlePageChange(1)}
-              >
-                1
-              </button>
-
-              {currentPage > 4 && (
-                <span className="emp-page-dots">...</span>
-              )}
-            </>
-          )}
-
-          {/* Middle Pages */}
-          {Array.from({ length: totalPages }, (_, index) => index + 1)
-            .filter(
-              (page) =>
-                page >= currentPage - 1 &&
-                page <= currentPage + 1
-            )
-            .map((page) => (
-              <button
-                key={page}
-                className={`emp-page-btn ${currentPage === page ? "active" : ""
-                  }`}
-                onClick={() => handlePageChange(page)}
-              >
-                {page}
-              </button>
-            ))}
-
-          {/* Last Page */}
-          {currentPage < totalPages - 2 && (
-            <>
-              {currentPage < totalPages - 3 && (
-                <span className="emp-page-dots">...</span>
-              )}
-
-              <button
-                className="emp-page-btn"
-                onClick={() => handlePageChange(totalPages)}
-              >
-                {totalPages}
-              </button>
-            </>
-          )}
-
-          <button
-            className="emp-page-btn"
-            disabled={currentPage === totalPages}
-            onClick={() => handlePageChange(currentPage + 1)}
-          >
-            Next
-          </button>
-        </div>
+        <AppPagination
+          totalItems={filteredEmployees.length}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          itemLabel="employees"
+        />
       </div>
 
       {empShowModal && (
@@ -1098,6 +1086,7 @@ if (!email) {
               </button>
               <button
                 className="emp-save-btn"
+                
                 onClick={handleEmployeeSubmit}
                 disabled={isSubmitting}
               >

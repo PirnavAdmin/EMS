@@ -5,6 +5,7 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { formatDate } from "../utils/date";
 import { getStoredToken } from "../utils/authStorage";
+import { TableSkeleton } from "../components/Skeletons";
  
 function UserTaskManagement() {
   const [tasks, setTasks] = useState([]);
@@ -102,7 +103,31 @@ function UserTaskManagement() {
   useEffect(() => {
     fetchTasks();
   }, []);
- 
+
+  if (loading) {
+    return (
+      <div className="task-page">
+        <div className="task-header">
+          <div>
+            <h2>My Tasks</h2>
+            <p>View tasks assigned to you</p>
+          </div>
+        </div>
+
+        <TableSkeleton
+          rows={10}
+          columns={[
+            { width: "minmax(220px, 1.4fr)", type: "stacked", headerWidth: "62%" },
+            { width: "minmax(180px, 1fr)", headerWidth: "58%" },
+            { width: "140px", headerWidth: "56%" },
+            { width: "120px", type: "status", headerWidth: "56%" },
+            { width: "150px", type: "actions", headerWidth: "54%" },
+          ]}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="task-page">
       <div className="task-header">
@@ -125,13 +150,7 @@ function UserTaskManagement() {
           </thead>
  
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="5" className="no-data">
-                  Loading...
-                </td>
-              </tr>
-            ) : tasks.length === 0 ? (
+            {tasks.length === 0 ? (
               <tr>
                 <td colSpan="5" className="no-data">
                   No tasks assigned

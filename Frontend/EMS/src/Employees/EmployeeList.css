@@ -4,6 +4,14 @@
   min-height: 100%;
 }
 
+
+/* ACTION COLUMN */
+.emp-table .emp-action-buttons,
+.emp-table .emp-action-btn,
+.emp-table .app-action-button {
+  background-clip: padding-box;
+}
+
 .emp-header-unique {
   display: flex;
   justify-content: space-between;
@@ -14,9 +22,9 @@
 }
 
 .emp-download-btn {
-  background: #dbeafe;
-  color: #2563eb;
-  border: 1px solid #93c5fd;
+  background: var(--surface-info-soft);
+  color: var(--theme-info);
+  border: 1px solid var(--surface-info-soft);
   padding: 10px 16px;
   border-radius: 8px;
   font-weight: 600;
@@ -25,13 +33,14 @@
 }
 
 .emp-download-btn:hover {
-  background: #bfdbfe;
+  background: var(--surface-info-soft);
 }
 
 .emp-download-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
 /* =========================
    PAGINATION
 ========================= */
@@ -48,8 +57,8 @@
 .emp-page-btn {
   min-width: 40px;
   height: 40px;
-  border: 1px solid #dcdcdc;
-  background: #fff;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-page);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
@@ -57,13 +66,13 @@
 }
 
 .emp-page-btn:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--bg-muted);
 }
 
 .emp-page-btn.active {
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
+  background: var(--theme-info);
+  color: var(--theme-on-primary);
+  border-color: var(--theme-info);
 }
 
 .emp-page-btn:disabled {
@@ -72,25 +81,25 @@
 }
 
 .emp-page-btn.active {
-  background: #2563eb;
-  color: #ffffff !important;
-  border-color: #2563eb;
+  background: var(--theme-info);
+  color: var(--theme-on-primary) !important;
+  border-color: var(--theme-info);
 }
 
 .emp-page-btn.active:hover {
-  background: #1d4ed8;
-  color: #ffffff !important;
+  background: var(--theme-info-strong);
+  color: var(--theme-on-primary) !important;
 }
 
 .emp-header-unique h2 {
   margin: 0;
   font-size: 22px;
-  color: #041c32;
+  color: var(--text-strong);
 }
 
 .emp-header-unique p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
@@ -105,38 +114,54 @@
   min-height: 42px;
   padding: 10px 18px;
   border-radius: 12px;
+  border: 1px solid transparent;
   cursor: pointer;
   font-weight: 600;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
+    box-shadow 0.2s ease,
     color 0.2s ease,
     transform 0.2s ease;
+  box-shadow: var(--button-shadow);
 }
 
 .emp-add-btn,
 .emp-save-btn {
-  background: #00d1d1;
-  color: #041c32;
-  border: 1px solid #00d1d1;
+  background: var(--button-primary);
+  color: var(--theme-on-primary);
+  border-color: var(--theme-primary);
+}
+
+.emp-close-btn {
+  background: var(--button-secondary);
+  color: var(--button-secondary-text, var(--text-body));
+  border-color: var(--border-soft);
+}
+
+.emp-close-btn:hover:not(:disabled),
+.emp-close-btn:focus-visible:not(:disabled) {
+  background: var(--button-secondary-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--button-shadow-hover);
 }
 
 .emp-add-btn:hover,
 .emp-save-btn:hover:not(:disabled) {
-  background: #19dddd;
-  border-color: #19dddd;
-  transform: translateY(-1px);
+  background: var(--button-primary-hover);
+  border-color: var(--theme-secondary);
+  color: var(--theme-on-primary);
+  transform: none;
+  box-shadow: none;
 }
 
-.emp-close-btn {
-  background: #ffffff;
-  color: #334155;
-  border: 1px solid #d4dde7;
-}
-
-.emp-close-btn:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: rgba(0, 209, 209, 0.24);
+.emp-close-btn:hover:not(:disabled),
+.emp-close-btn:focus-visible:not(:disabled) {
+  background: var(--button-secondary-hover);
+  border-color: var(--border-strong);
+  transform: none;
+  box-shadow: none;
 }
 
 .emp-save-btn:disabled,
@@ -161,14 +186,15 @@
   min-height: 48px;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid #d7e1ea;
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--border-soft);
+  background-color: var(--input-bg);
+  color: var(--input-text);
   font-size: 14px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     background-color 0.2s ease;
+  box-shadow: var(--theme-shadow-xs);
 }
 
 .emp-search-box {
@@ -187,29 +213,29 @@
 .emp-filter-select:focus,
 .emp-modal-box input:focus,
 .emp-modal-box select:focus {
-  border-color: #00d1d1;
-  box-shadow: 0 0 0 3px rgba(0, 209, 209, 0.12);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px var(--input-focus);
   outline: none;
 }
 
 .emp-form-group {
-  border: 1px solid #d7e1ea;
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 12px;
-  background: #ffffff;
+  background: var(--bg-page);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .emp-form-group:focus-within {
-  border-color: #00d1d1;
-  box-shadow: 0 0 0 3px rgba(0, 209, 209, 0.12);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px var(--input-focus);
 }
 
 .ctc-value {
   font-weight: 600;
-  color: #0b7d8f;
+  color: var(--theme-secondary);
   font-size: 15px;
 }
 
@@ -234,9 +260,9 @@
   margin-bottom: 12px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: #eefcfc;
-  border: 1px solid rgba(0, 209, 209, 0.18);
-  color: #0b7d8f;
+  background: var(--surface-success-soft);
+  border: 1px solid var(--sidebar-accent-soft);
+  color: var(--theme-secondary);
   font-size: 13px;
   font-weight: 600;
   text-align: center;
@@ -262,18 +288,17 @@
 ========================================= */
 
 .emp-table-container {
-  background: #ffffff;
+  background: var(--card-bg);
   border-radius: 20px;
-  border: 1px solid rgba(4, 28, 50, 0.08);
-
+  border: 1px solid var(--border-soft);
   overflow-x: auto;
   overflow-y: hidden;
 
   width: 100%;
   position: relative;
-
   scrollbar-width: thin;
-  scrollbar-color: #00d1d1 #edf2f7;
+  scrollbar-color: var(--primary) var(--bg-muted);
+  box-shadow: var(--theme-shadow-sm);
 }
 
 /* Chrome Scrollbar */
@@ -283,12 +308,12 @@
 }
 
 .emp-table-container::-webkit-scrollbar-track {
-  background: #edf2f7;
+  background: var(--bg-muted);
   border-radius: 20px;
 }
 
 .emp-table-container::-webkit-scrollbar-thumb {
-  background: #00d1d1;
+  background: var(--primary);
   border-radius: 20px;
 }
 
@@ -311,13 +336,13 @@
 ========================================= */
 
 .emp-table thead {
-  background: #f8fbfd;
+  background: var(--table-header-bg);
 }
 
 .emp-table th,
 .emp-table td {
-  padding: 16px;
-  border-bottom: 1px solid #edf3f7;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
   font-size: 14px;
   vertical-align: middle;
 }
@@ -327,9 +352,9 @@
   top: 0;
   z-index: 2;
 
-  background: #f8fbfd;
+  background: var(--table-header-bg);
 
-  color: #06283d;
+  color: var(--text-strong);
   font-weight: 700;
 
   white-space: nowrap;
@@ -360,16 +385,17 @@
 }
 
 .emp-row-click td {
-  background: #ffffff;
+  background: var(--card-bg);
   transition: background-color 0.2s ease;
 }
 
 .emp-row-click:nth-child(even) td {
-  background: #fbfdff;
+  background: var(--bg-soft);
 }
 
 .emp-row-click:hover td {
-  background: #f3fcfc;
+  background: var(--table-row-hover) !important;
+  color: var(--text-strong) !important;
 }
 
 .emp-table tbody tr:last-child td {
@@ -394,7 +420,7 @@
   white-space: nowrap;
 
   font-weight: 600;
-  color: #041c32;
+  color: var(--text-strong);
 }
 
 .emp-id-code {
@@ -409,10 +435,10 @@
 
   border-radius: 999px;
 
-  background: rgba(0, 209, 209, 0.06);
-  border: 1px solid rgba(0, 209, 209, 0.16);
+  background: var(--sidebar-accent-soft);
+  border: 1px solid var(--sidebar-accent-soft);
 
-  color: #06283d;
+  color: var(--text-strong);
 
   font-size: 12px;
   font-weight: 700;
@@ -458,25 +484,30 @@
 
   z-index: 3;
 
-  width: 140px;
+  width: 220px;
+  min-width: 220px;
 
   text-align: center !important;
-
-  background: #ffffff;
-
-  border-left: 1px solid #edf3f7;
+  border-left: 1px solid var(--border-soft);
+  background: var(--card-bg);
 }
 
-.emp-table thead .emp-action-col {
-  background: #f8fbfd;
+.emp-action-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
+
+
 
 .emp-row-click:hover .emp-action-col {
-  background: #f3fcfc;
+  background: var(--table-row-hover) !important;
 }
 
 .emp-row-click:nth-child(even) .emp-action-col {
-  background: #fbfdff;
+  background: var(--bg-soft);
 }
 
 /* =========================================
@@ -488,7 +519,7 @@
 
   text-align: center !important;
 
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
@@ -496,55 +527,45 @@
    ACTION BUTTONS
 ========================================= */
 
-.action-btns {
+.emp-page-unique .emp-table .emp-action-buttons {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 8px;
-
-  flex-wrap: nowrap;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
 }
 
-.edit-btn,
-.delete-btn {
-  min-height: 34px;
+.emp-page-unique .emp-table .emp-action-btn {
+  width: 90px;
+  min-width: 90px;
+  height: 46px;
 
-  padding: 7px 12px;
-
-  border-radius: 10px;
-  border: 1px solid transparent;
-
-  cursor: pointer;
-
-  font-size: 12px;
+  border-radius: 14px;
+  font-size: 15px;
   font-weight: 600;
-
-  white-space: nowrap;
-
-  transition: all 0.2s ease;
 }
 
-.edit-btn {
-  background: rgba(0, 209, 209, 0.08);
-  border-color: rgba(0, 209, 209, 0.16);
-  color: #06283d;
+.emp-page-unique .emp-table .emp-action-btn--edit {
+  background: var(--sidebar-accent-soft);
+  border: 1px solid var(--sidebar-accent-hover);
+  color: var(--text-strong);
 }
 
-.edit-btn:hover {
-  background: rgba(0, 209, 209, 0.14);
-  border-color: rgba(0, 209, 209, 0.24);
+.emp-page-unique .emp-table .emp-action-btn--edit:hover:not(:disabled) {
+  background: var(--sidebar-accent-hover);
+  border-color: var(--sidebar-accent-soft);
   transform: translateY(-1px);
 }
 
-.delete-btn {
-  background: #fff5f5;
-  border-color: #ffd3d3;
-  color: #c62828;
+.emp-page-unique .emp-table .emp-action-btn--delete {
+  background: var(--surface-danger-soft);
+  border-color: var(--theme-danger);
+  color: var(--theme-danger-strong);
 }
 
-.delete-btn:hover {
-  background: #ffeaea;
-  border-color: #ffbbbb;
+.emp-page-unique .emp-table .emp-action-btn--delete:hover:not(:disabled) {
+  background: var(--surface-danger-soft);
+  border-color: var(--theme-danger-strong);
   transform: translateY(-1px);
 }
 
@@ -570,19 +591,19 @@
 }
 
 .emp-modal-overlay {
-  background: rgba(4, 28, 50, 0.18);
+  background: var(--theme-overlay);
   backdrop-filter: blur(8px);
 }
 
 .emp-delete-overlay {
-  background: rgba(4, 28, 50, 0.18);
+  background: var(--theme-overlay);
   z-index: 3000;
 }
 
 .emp-modal-box,
 .emp-delete-modal {
-  background: #ffffff;
-  border: 1px solid rgba(4, 28, 50, 0.08);
+  background: var(--card-bg);
+  border: 1px solid var(--border-soft);
 }
 
 .emp-modal-box {
@@ -594,11 +615,12 @@
   gap: 18px;
   max-height: 95vh;
   overflow-y: auto;
-  box-shadow: 0 10px 24px rgba(4, 28, 50, 0.05);
+  box-shadow: var(--theme-shadow-lg);
 }
 
 .emp-modal-box.salary-modal {
   width: min(960px, 100%);
+  overflow: visible;
 }
 
 .emp-modal-box.small {
@@ -609,18 +631,14 @@
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: #041c32;
+  color: var(--text-strong);
 }
 
 .emp-modal-box select {
   appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #64748b 50%),
-    linear-gradient(135deg, #64748b 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% - 3px),
-    calc(100% - 12px) calc(50% - 3px);
-  background-size: 6px 6px, 6px 6px;
+  background-image: var(--app-select-chevron-icon);
+  background-position: right 0.9rem center;
+  background-size: 1rem;
   background-repeat: no-repeat;
   padding-right: 42px;
 }
@@ -639,13 +657,13 @@
 .emp-form-group label {
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-body);
 }
 
 .emp-field-helper {
   margin: 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .emp-modal-header {
@@ -666,13 +684,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #1e293b;
+  color: var(--text-body);
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .emp-modal-close-icon:hover {
-  background: #f1f5f9;
+  background: var(--bg-muted);
 }
 
 .emp-modal-close-icon svg {
@@ -684,7 +702,7 @@
   max-width: 620px;
   font-size: 14px;
   line-height: 1.55;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .emp-modal-form-grid {
@@ -700,27 +718,52 @@
 .emp-modal-btns {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 4px;
-  padding-top: 18px;
-  border-top: 1px solid #edf2f7;
+  align-items: center;
+  gap: 12px;
+
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove white footer behind modal buttons */
+.emp-modal-btns,
+.emp-modal-btns::before,
+.emp-modal-btns::after {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.emp-save-btn:hover,
+.emp-close-btn:hover {
+  transform: translateY(-1px);
+}
+
+.emp-modal-btns::before,
+.emp-modal-btns::after {
+  display: none !important;
+  content: none !important;
 }
 
 .master-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f8fbfd;
+  background: var(--bg-muted);
   padding: 10px 12px;
   margin-bottom: 6px;
   border-radius: 10px;
-  border: 1px solid #ebf1f5;
+  border: 1px solid var(--bg-muted);
 }
 
 .master-item button {
-  border: 1px solid #ffcbcb;
-  background: #fff5f5;
-  color: #c62828;
+  border: 1px solid var(--surface-danger-soft);
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
   cursor: pointer;
   border-radius: 8px;
   padding: 4px 8px;
@@ -741,7 +784,7 @@
 .master-add-column label {
   font-size: 14px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-body);
 }
 
 .master-add-row {
@@ -754,8 +797,8 @@
 }
 
 .master-add input.input-error {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  border-color: var(--theme-danger);
+  box-shadow: 0 0 0 3px var(--surface-danger-soft);
 }
 
 .emp-delete-modal {
@@ -763,12 +806,12 @@
   padding: 28px;
   border-radius: 20px;
   text-align: left;
-  box-shadow: 0 10px 24px rgba(4, 28, 50, 0.05);
+  box-shadow: var(--theme-shadow-lg);
 }
 
 .emp-delete-modal h3 {
   margin: 0 0 12px;
-  color: #041c32;
+  color: var(--text-strong);
 }
 
 .emp-delete-actions {
@@ -791,32 +834,32 @@
 }
 
 .emp-delete-cancel-btn {
-  background: #f3f4f6;
-  color: #111827;
-  border: 1px solid #d7dee6;
+  background: var(--button-secondary);
+  color: var(--text-strong);
+  border: 1px solid var(--border-soft);
   padding: 6px 18px;
 }
 
 .emp-delete-cancel-btn:hover {
-  background: #e9edf2;
+  background: var(--button-secondary-hover);
   transform: translateY(-1px);
 }
 
 .emp-delete-btn {
-  background: #ef4444;
-  color: #ffffff;
-  border: 1px solid #ef4444;
+  background: var(--theme-danger);
+  color: var(--theme-on-primary);
+  border: 1px solid var(--theme-danger);
   padding: 6px 20px;
 }
 
 .emp-delete-btn:hover {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: var(--theme-danger);
+  border-color: var(--theme-danger);
   transform: translateY(-1px);
 }
 
 .form-error {
-  color: #dc2626;
+  color: var(--theme-danger);
   font-size: 12px;
   margin: 0;
 }
@@ -837,15 +880,15 @@
 }
 
 .emp-message.success {
-  background-color: #eefcfb;
-  color: #0b7d8f;
-  border-color: rgba(0, 209, 209, 0.18);
+  background-color: var(--surface-success-soft);
+  color: var(--theme-secondary);
+  border-color: var(--sidebar-accent-soft);
 }
 
 .emp-message.error {
-  background-color: #fff3f3;
-  color: #d93025;
-  border-color: #ffd7d7;
+  background-color: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
+  border-color: var(--surface-danger-soft);
 }
 
 @keyframes slideIn {
@@ -920,6 +963,7 @@
     width: 100%;
   }
 }
+
 /* =========================
    READ ONLY / DISABLED FIELDS
 ========================= */
@@ -927,17 +971,17 @@
 .emp-field-group input:disabled,
 .emp-field-group select:disabled,
 .emp-field-group textarea:disabled {
-  background: #f1f5f9 !important;
-  color: #64748b !important;
+  background-color: var(--bg-muted) !important;
+  color: var(--text-muted) !important;
   cursor: not-allowed !important;
   opacity: 1 !important;
-  border: 1px solid #dbe4ee !important;
+  border: 1px solid var(--border-soft) !important;
   box-shadow: none !important;
 }
 
 /* placeholder color */
 .emp-field-group input:disabled::placeholder {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 /* remove hover/focus effects */
@@ -945,7 +989,7 @@
 .emp-field-group input:disabled:focus,
 .emp-field-group select:disabled:hover,
 .emp-field-group select:disabled:focus {
-  border-color: #dbe4ee !important;
+  border-color: var(--border-soft) !important;
   box-shadow: none !important;
   outline: none !important;
 }
@@ -959,4 +1003,113 @@
 /* disabled select arrow */
 .emp-field-group select:disabled {
   opacity: 0.9;
+}
+
+
+.emp-page-unique .emp-table .emp-action-btn--edit:hover:not(:disabled) {
+  background: var(--theme-primary) !important;
+  color: var(--theme-on-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
+
+.emp-page-unique .emp-table .emp-action-btn--delete:hover:not(:disabled) {
+  background: var(--theme-danger) !important;
+  color: var(--theme-on-primary) !important;
+  border-color: var(--theme-danger) !important;
+}
+
+/* Remove white box behind Edit/Delete buttons */
+.emp-page-unique .emp-table .emp-action-buttons,
+.emp-page-unique .emp-table .app-action-button,
+.emp-page-unique .emp-table .emp-action-btn {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Edit button */
+.emp-page-unique .emp-table .emp-action-btn--edit {
+  background: var(--sidebar-accent-soft) !important;
+  border: 1px solid var(--sidebar-accent-hover) !important;
+  box-shadow: none !important;
+}
+
+/* Delete button */
+.emp-page-unique .emp-table .emp-action-btn--delete {
+  background: var(--surface-danger-soft) !important;
+  border: 1px solid var(--theme-danger) !important;
+  box-shadow: none !important;
+}
+
+
+/* Remove focus ring from Employee modal buttons */
+.emp-close-btn:focus,
+.emp-close-btn:focus-visible,
+.emp-save-btn:focus,
+.emp-save-btn:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.emp-close-btn:hover,
+.emp-save-btn:hover {
+  box-shadow: none !important;
+}
+
+.emp-modal-box {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-soft) !important;
+  box-shadow: var(--theme-shadow-lg) !important;
+}
+
+/* =========================================
+   FIX: Remove white background artifact from modal action buttons
+========================================= */
+
+/* Target modal buttons specifically to override any global styles */
+.emp-modal-btns .emp-save-btn,
+.emp-modal-btns .emp-close-btn {
+  position: relative;
+  background-clip: padding-box !important;
+}
+
+/* Remove pseudo-elements that might create white backgrounds */
+.emp-modal-btns .emp-save-btn::before,
+.emp-modal-btns .emp-save-btn::after,
+.emp-modal-btns .emp-close-btn::before,
+.emp-modal-btns .emp-close-btn::after {
+  display: none !important;
+  content: none !important;
+  background: transparent !important;
+}
+
+/* Override any global button:hover styles adding white backgrounds */
+.emp-modal-btns .emp-save-btn:hover,
+.emp-modal-btns .emp-save-btn:focus,
+.emp-modal-btns .emp-save-btn:focus-visible,
+.emp-modal-btns .emp-save-btn:active,
+.emp-modal-btns .emp-close-btn:hover,
+.emp-modal-btns .emp-close-btn:focus,
+.emp-modal-btns .emp-close-btn:focus-visible,
+.emp-modal-btns .emp-close-btn:active {
+  background-color: inherit !important;
+}
+
+/* Neutralize .app-action-button if applied to modal buttons */
+.emp-modal-btns .app-action-button,
+.emp-save-btn.app-action-button,
+.emp-close-btn.app-action-button {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.emp-save-btn.app-action-button:hover,
+.emp-close-btn.app-action-button:hover {
+  background: inherit !important;
+}
+
+/* Ensure no white background on any button state in modal */
+button.emp-save-btn,
+button.emp-close-btn {
+  background-clip: padding-box !important;
 }

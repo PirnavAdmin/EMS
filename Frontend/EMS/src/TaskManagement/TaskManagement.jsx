@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "./TaskManagement.css";
 import CreateTaskModal from "./CreateTaskModal";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
+import AppPagination from "../components/AppPagination";
 import { formatDate } from "../utils/date";
 import { extractCollection } from "../utils/collections";
 
@@ -15,6 +16,8 @@ function TaskManagement() {
   const [emsTaskData, setEmsTaskData] = useState([]);
   const [viewTask, setViewTask] = useState(null);
   const [deleteTaskId, setDeleteTaskId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const TASKS_PER_PAGE = 30;
 
   const formatTaskDate = (value) => {
     return formatDate(value);
@@ -63,6 +66,10 @@ function TaskManagement() {
   useEffect(() => {
     fetchTasks(true);
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [emsTaskFilter]);
 
   useEffect(() => {
 
@@ -179,6 +186,22 @@ function TaskManagement() {
           emsTaskFilter.toLowerCase()
       );
 
+  const paginatedTaskData = useMemo(() => {
+    const startIndex = (currentPage - 1) * TASKS_PER_PAGE;
+    return emsFilteredTaskData.slice(startIndex, startIndex + TASKS_PER_PAGE);
+  }, [currentPage, emsFilteredTaskData]);
+
+  useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(emsFilteredTaskData.length / TASKS_PER_PAGE)
+    );
+
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, emsFilteredTaskData.length]);
+
   return (
     <div
       className="ems-task-page-wrapper"
@@ -208,7 +231,7 @@ function TaskManagement() {
             style={{
               fontSize: "32px",
               fontWeight: "800",
-              color: "#0f172a",
+              color: "var(--text-strong)",
               marginBottom: "4px",
               lineHeight: "1.1"
             }}
@@ -219,7 +242,7 @@ function TaskManagement() {
           <p
             style={{
               fontSize: "14px",
-              color: "#64748b",
+              color: "var(--text-muted)",
               fontWeight: "500",
               margin: "0"
             }}
@@ -236,8 +259,8 @@ function TaskManagement() {
           }}
           style={{
             border: "none",
-            background: "#12c7c7",
-            color: "#001219",
+            background: "var(--primary)",
+            color: "var(--theme-on-primary)",
             padding: "10px 18px",
             borderRadius: "12px",
             fontSize: "14px",
@@ -245,7 +268,7 @@ function TaskManagement() {
             cursor: "pointer",
             height: "42px",
             minWidth: "140px",
-            boxShadow: "0 6px 18px rgba(18,199,199,0.15)"
+            boxShadow: "var(--button-shadow)"
           }}
         >
           + Create Task
@@ -268,11 +291,11 @@ function TaskManagement() {
         {/* TODO */}
         <div
           style={{
-            background: "#ffffff",
+            background: "var(--bg-page)",
             borderRadius: "14px",
             padding: "10px 22px",
-            boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
-            border: "1px solid #e5edf5",
+            boxShadow: "var(--shadow-sm)",
+            border: "1px solid var(--border-soft)",
             minHeight: "58px",
             display: "flex",
             justifyContent: "space-between",
@@ -281,7 +304,7 @@ function TaskManagement() {
         >
           <p
             style={{
-              color: "#475569",
+              color: "var(--text-body)",
               fontSize: "15px",
               margin: 0,
               fontWeight: "600"
@@ -294,7 +317,7 @@ function TaskManagement() {
             style={{
               fontSize: "22px",
               fontWeight: "700",
-              color: "#0f172a",
+              color: "var(--text-strong)",
               margin: 0,
               lineHeight: 1
             }}
@@ -310,11 +333,11 @@ function TaskManagement() {
         {/* IN PROGRESS */}
         <div
           style={{
-            background: "#ffffff",
+            background: "var(--bg-page)",
             borderRadius: "14px",
             padding: "10px 22px",
-            boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
-            border: "1px solid #e5edf5",
+            boxShadow: "var(--shadow-sm)",
+            border: "1px solid var(--border-soft)",
             minHeight: "58px",
             display: "flex",
             justifyContent: "space-between",
@@ -323,7 +346,7 @@ function TaskManagement() {
         >
           <p
             style={{
-              color: "#475569",
+              color: "var(--text-body)",
               fontSize: "15px",
               margin: 0,
               fontWeight: "600"
@@ -336,7 +359,7 @@ function TaskManagement() {
             style={{
               fontSize: "22px",
               fontWeight: "700",
-              color: "#2563eb",
+              color: "var(--theme-info)",
               margin: 0,
               lineHeight: 1
             }}
@@ -352,11 +375,11 @@ function TaskManagement() {
         {/* COMPLETED */}
         <div
           style={{
-            background: "#ffffff",
+            background: "var(--bg-page)",
             borderRadius: "14px",
             padding: "10px 22px",
-            boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
-            border: "1px solid #e5edf5",
+            boxShadow: "var(--shadow-sm)",
+            border: "1px solid var(--border-soft)",
             minHeight: "58px",
             display: "flex",
             justifyContent: "space-between",
@@ -365,7 +388,7 @@ function TaskManagement() {
         >
           <p
             style={{
-              color: "#475569",
+              color: "var(--text-body)",
               fontSize: "15px",
               margin: 0,
               fontWeight: "600"
@@ -378,7 +401,7 @@ function TaskManagement() {
             style={{
               fontSize: "22px",
               fontWeight: "700",
-              color: "#16a34a",
+              color: "var(--success)",
               margin: 0,
               lineHeight: 1
             }}
@@ -394,11 +417,11 @@ function TaskManagement() {
         {/* OVERDUE */}
         <div
           style={{
-            background: "#ffffff",
+            background: "var(--bg-page)",
             borderRadius: "14px",
             padding: "10px 22px",
-            boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
-            border: "1px solid #e5edf5",
+            boxShadow: "var(--shadow-sm)",
+            border: "1px solid var(--border-soft)",
             minHeight: "58px",
             display: "flex",
             justifyContent: "space-between",
@@ -407,7 +430,7 @@ function TaskManagement() {
         >
           <p
             style={{
-              color: "#475569",
+              color: "var(--text-body)",
               fontSize: "15px",
               margin: 0,
               fontWeight: "600"
@@ -420,7 +443,7 @@ function TaskManagement() {
             style={{
               fontSize: "22px",
               fontWeight: "700",
-              color: "#ef4444",
+              color: "var(--theme-danger)",
               margin: 0,
               lineHeight: 1
             }}
@@ -461,9 +484,9 @@ function TaskManagement() {
               height: "38px",
               transition: ".2s ease",
               background:
-                emsTaskFilter === tab ? "#12c7c7" : "#e2e8f0",
+                emsTaskFilter === tab ? "var(--primary)" : "var(--border-soft)",
               color:
-                emsTaskFilter === tab ? "#ffffff" : "#334155"
+                emsTaskFilter === tab ? "var(--bg-page)" : "var(--text-body)"
             }}
           >
             {tab}
@@ -484,16 +507,16 @@ function TaskManagement() {
 
         <div
           style={{
-            background: "#ecfeff",
-            color: "#17889c",
+            background: "var(--surface-info-soft)",
+            color: "var(--theme-info-strong)",
             padding: "10px",
             textAlign: "center",
             fontWeight: "700",
             fontSize: "14px",
-            borderBottom: "1px solid #d9fafa"
+            borderBottom: "1px solid var(--border-soft)"
           }}
         >
-          ← Scroll horizontally to view more task details →
+          Scroll horizontally to view more task details
         </div>
         <div
           className="ems-task-horizontal-scroll-wrapper"
@@ -546,19 +569,19 @@ function TaskManagement() {
                       textAlign: "center",
                       padding: "30px",
                       fontWeight: "600",
-                      color: "#64748b"
+                      color: "var(--text-muted)"
                     }}
                   >
                     No tasks found for the selected filter.
                   </td>
                 </tr>
               ) : (
-                emsFilteredTaskData.map((task) => (
+                paginatedTaskData.map((task) => (
                   <tr
                     key={task.emsTaskId}
                     onClick={() => setViewTask(task)}
                     style={{
-                      borderBottom: "1px solid #edf2f7",
+                      borderBottom: "1px solid var(--bg-muted)",
                       cursor: "pointer"
                     }}
                   >
@@ -567,7 +590,7 @@ function TaskManagement() {
                       style={{
                         padding: "14px 18px",
                         fontWeight: "700",
-                        color: "#0f172a",
+                        color: "var(--text-strong)",
                         whiteSpace: "nowrap",
                         overflow: "visible",
                         textOverflow: "ellipsis",
@@ -584,7 +607,7 @@ function TaskManagement() {
                     <td
                       style={{
                         padding: "14px 18px",
-                        color: "#334155",
+                        color: "var(--text-body)",
                         fontWeight: "600",
                         fontSize: "14px"
                       }}
@@ -597,7 +620,7 @@ function TaskManagement() {
                     <td
                       style={{
                         padding: "14px 18px",
-                        color: "#334155",
+                        color: "var(--text-body)",
                         fontWeight: "600",
                         fontSize: "14px"
                       }}
@@ -613,7 +636,7 @@ function TaskManagement() {
                       style={{
                         padding: "14px 18px",
                         cursor: "pointer",
-                        color: "#64748b",
+                        color: "var(--text-muted)",
                         maxWidth: "240px",
                         overflow: "hidden",
                         whiteSpace: "nowrap",
@@ -636,16 +659,16 @@ function TaskManagement() {
                           display: "inline-flex",
                           background:
                             task.emsTaskPriority?.toLowerCase() === "high"
-                              ? "#fee2e2"
+                              ? "var(--surface-danger-soft)"
                               : task.emsTaskPriority?.toLowerCase() === "medium"
-                                ? "#dbeafe"
-                                : "#e5e7eb",
+                                ? "var(--surface-info-soft)"
+                                : "var(--border-soft)",
                           color:
                             task.emsTaskPriority?.toLowerCase() === "high"
-                              ? "#991b1b"
+                              ? "var(--theme-danger-strong)"
                               : task.emsTaskPriority?.toLowerCase() === "medium"
-                                ? "#1d4ed8"
-                                : "#374151"
+                                ? "var(--theme-info-strong)"
+                                : "var(--text-body)"
                         }}
                       >
                         {task.emsTaskPriority}
@@ -657,7 +680,7 @@ function TaskManagement() {
                     <td
                       style={{
                         padding: "14px 18px",
-                        color: "#334155",
+                        color: "var(--text-body)",
                         fontWeight: "600",
                         whiteSpace: "nowrap",
                         fontSize: "14px"
@@ -675,12 +698,12 @@ function TaskManagement() {
                           fontSize: "14px",
                           color:
                             task.emsTaskState === "Completed"
-                              ? "#16a34a"
+                              ? "var(--success)"
                               : task.emsTaskState === "Overdue"
-                                ? "#ef4444"
+                                ? "var(--theme-danger)"
                                 : task.emsTaskState === "InProgress"
-                                  ? "#2563eb"
-                                  : "#64748b"
+                                  ? "var(--theme-info)"
+                                  : "var(--text-muted)"
                         }}
                       >
                         {task.emsTaskState}
@@ -705,9 +728,9 @@ function TaskManagement() {
                           setEmsTaskShowPopup(true);
                         }}
                         style={{
-                          border: "1px solid #bae6fd",
-                          background: "#ecfeff",
-                          color: "#0f3b52",
+                          border: "1px solid var(--border-soft)",
+                          background: "var(--surface-info-soft)",
+                          color: "var(--theme-info-strong)",
                           minWidth: "78px",
                           height: "40px",
                           borderRadius: "10px",
@@ -726,9 +749,9 @@ function TaskManagement() {
                           setDeleteTaskId(task.emsTaskId);
                         }}
                         style={{
-                          border: "1px solid #fecdd3",
-                          background: "#fff1f2",
-                          color: "#dc2626",
+                          border: "1px solid var(--border-soft)",
+                          background: "var(--surface-danger-soft)",
+                          color: "var(--theme-danger-strong)",
                           minWidth: "78px",
                           height: "40px",
                           borderRadius: "10px",
@@ -747,6 +770,13 @@ function TaskManagement() {
           </table>
         </div>
       </div>
+
+      <AppPagination
+        totalItems={emsFilteredTaskData.length}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        itemLabel="tasks"
+      />
 
       {/* VIEW TASK POPUP */}
 
@@ -773,7 +803,7 @@ function TaskManagement() {
                 className="ems-task-view-close"
                 onClick={() => setViewTask(null)}
               >
-                ×
+                X
               </button>
 
             </div>
@@ -832,7 +862,7 @@ function TaskManagement() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(15,23,42,0.35)",
+            background: "var(--card-overlay-bg)",
             backdropFilter: "blur(3px)",
             display: "flex",
             alignItems: "center",
@@ -843,17 +873,17 @@ function TaskManagement() {
           <div
             style={{
               width: "520px",
-              background: "#ffffff",
+              background: "var(--bg-page)",
               borderRadius: "22px",
               padding: "34px",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.15)"
+              boxShadow: "var(--shadow-lg)"
             }}
           >
             <h2
               style={{
                 fontSize: "22px",
                 fontWeight: "800",
-                color: "#0f172a",
+                color: "var(--text-strong)",
                 marginBottom: "26px"
               }}
             >
@@ -863,7 +893,7 @@ function TaskManagement() {
             <p
               style={{
                 fontSize: "17px",
-                color: "#475569",
+                color: "var(--text-body)",
                 marginBottom: "38px",
                 lineHeight: "1.5"
               }}
@@ -881,9 +911,9 @@ function TaskManagement() {
               <button
                 onClick={() => setDeleteTaskId(null)}
                 style={{
-                  border: "1px solid #dbe2ea",
-                  background: "#f8fafc",
-                  color: "#334155",
+                  border: "1px solid var(--border-soft)",
+                  background: "var(--bg-muted)",
+                  color: "var(--text-body)",
                   minWidth: "105px",
                   height: "52px",
                   borderRadius: "14px",
@@ -899,8 +929,8 @@ function TaskManagement() {
                 onClick={() => handleDeleteTask(deleteTaskId)}
                 style={{
                   border: "none",
-                  background: "#ef4444",
-                  color: "#ffffff",
+                  background: "var(--theme-danger)",
+                  color: "var(--theme-on-primary)",
                   minWidth: "138px",
                   height: "52px",
                   borderRadius: "14px",

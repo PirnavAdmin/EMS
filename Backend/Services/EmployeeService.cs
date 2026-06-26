@@ -5,6 +5,9 @@ using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using ClosedXML.Excel;
 using System.IO;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -989,6 +992,383 @@ namespace EmployeeManagementSystem.Services
             workbook.SaveAs(stream);
 
             return stream.ToArray();
+        }
+
+        public async Task<byte[]> ExportEmployeeProfilePdf(string employeeId)
+        {
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+
+            if (employee == null)
+                throw new Exception("Employee not found");
+
+            var personal = await _context.EmployeePersonalInfos
+                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+
+            var bank = await _context.EmployeeBankDetails
+                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+
+            var educations = await _context.EmployeeEducations
+                .Where(x => x.Employee_Id == employeeId)
+                .ToListAsync();
+
+            var experiences = await _context.EmployeeExperiences
+                .Where(x => x.Employee_Id == employeeId)
+                .ToListAsync();
+
+            var documents = await _context.EmployeeDocuments
+                .Where(x => x.Employee_Id == employeeId)
+                .ToListAsync();
+
+            var pdfBytes = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Margin(20);
+                    page.Footer()
+     .AlignCenter()
+     .Text(text =>
+     {
+         text.Span("Generated On : ");
+         text.Span(DateTime.Now.ToString("dd-MMM-yyyy HH:mm"));
+         text.Span(" | Page ");
+         text.CurrentPageNumber();
+         text.Span(" of ");
+         text.TotalPages();
+     });
+
+                    page.Content().Column(col =>
+                    {
+                        // HEADER CARD
+                        col.Item()
+.Border(1)
+.BorderColor("#D6D6D6")
+.Padding(10)
+.Column(header =>
+{
+    header.Item()
+        .Text("PIRNAV SOFTWARE SOLUTIONS")
+        .FontSize(22)
+        .Bold()
+        .FontColor("#1E40AF");
+
+    header.Item()
+        .Text("Employee Profile Report")
+        .FontSize(14);
+
+    header.Item()
+        .Text($"Generated On : {DateTime.Now:dd-MMM-yyyy}");
+});
+
+                        col.Item().PaddingVertical(10);
+
+                        // EMPLOYEE INFO CARD
+                        col.Item()
+                            .Border(1)
+                            .BorderColor("#D6D6D6")
+                            .Padding(10)
+                            .Column(card =>
+                            {
+                                card.Item()
+                                    .Text("EMPLOYEE INFORMATION")
+                                    .FontSize(14)
+                                    .Bold()
+                                    .FontColor("#1E40AF");
+
+                                card.Item().PaddingTop(10);
+
+                                card.Item().Row(row =>
+                                {
+                                    row.RelativeItem().Text($"Employee ID : {employee.Employee_Id}");
+                                    row.RelativeItem().Text($"Employee Name : {employee.Name}");
+                                });
+
+                                card.Item().Row(row =>
+                                {
+                                    row.RelativeItem().Text($"Department : {employee.Department}");
+                                    row.RelativeItem().Text($"Role : {employee.RoleName}");
+                                });
+
+                                card.Item().Row(row =>
+                                {
+                                    row.RelativeItem().Text($"Status : {employee.Status}");
+                                    row.RelativeItem().Text($"Joining Date : {employee.JoiningDate:dd-MMM-yyyy}");
+                                });
+
+                                card.Item().Text($"Email : {employee.Email}");
+                            });
+
+                        col.Item().PaddingVertical(8);
+
+                        // PERSONAL INFO CARD
+                        if (personal != null)
+                        {
+                            col.Item()
+                                .Border(1)
+                                .BorderColor("#D6D6D6")
+                                .Padding(10)
+                                .Column(card =>
+                                {
+                                    card.Item()
+                                        .Text("PERSONAL INFORMATION")
+                                        .FontSize(14)
+                                        .Bold()
+                                        .FontColor("#16A34A");
+
+                                    card.Item().PaddingTop(5);
+
+                                    card.Item().Row(row =>
+                                    {
+                                        row.RelativeItem()
+                                            .Text($"First Name : {personal.FirstName}");
+
+                                        row.RelativeItem()
+                                            .Text($"Last Name : {personal.LastName}");
+                                    });
+
+                                    card.Item().Row(row =>
+                                    {
+                                        row.RelativeItem()
+                                            .Text($"Gender : {personal.Gender}");
+
+                                        row.RelativeItem()
+                                            .Text($"DOB : {personal.DateOfBirth:dd-MMM-yyyy}");
+                                    });
+
+                                    card.Item().Row(row =>
+                                    {
+                                        row.RelativeItem()
+                                            .Text($"Phone : {personal.PhoneNumber}");
+
+                                        row.RelativeItem()
+                                            .Text($"Blood Group : {personal.BloodGroup}");
+                                    });
+
+                                    card.Item().Row(row =>
+                                    {
+                                        row.RelativeItem()
+                                            .Text($"PAN : {personal.PanNumber}");
+
+                                        row.RelativeItem()
+                                            .Text($"Aadhaar : {personal.AadhaarNumber}");
+                                    });
+
+                                    card.Item().Text(
+                                        $"Marital Status : {personal.Marital_Status}");
+                                });
+                        }
+
+                        col.Item().PaddingVertical(8);
+
+                        // ADDRESS CARD
+                        if (personal != null)
+                        {
+                            col.Item()
+                                .Border(1)
+                                .BorderColor("#D6D6D6")
+                                .Padding(10)
+                                .Column(card =>
+                                {
+                                    card.Item()
+                                        .Text("ADDRESS INFORMATION")
+                                        .FontSize(14)
+                                        .Bold()
+                                        .FontColor("#EA580C");
+
+                                    card.Item().PaddingTop(5);
+
+                                    card.Item().Text(
+                                        $"{personal.HouseNo}, {personal.Street}");
+
+                                    card.Item().Text(
+                                        $"{personal.City}, {personal.District}");
+
+                                    card.Item().Text(
+                                        $"{personal.State}, {personal.Country}");
+
+                                    card.Item().Text(
+                                        $"Pincode : {personal.Pincode}");
+                                });
+                        }
+
+                        col.Item().PaddingVertical(8);
+
+                        // BANK CARD
+                        if (bank != null)
+                        {
+                            col.Item()
+                                .Border(1)
+                                .BorderColor("#D6D6D6")
+                                .Padding(10)
+                                .Column(card =>
+                                {
+                                    card.Item()
+                                        .Text("BANK DETAILS")
+                                        .FontSize(14)
+                                        .Bold()
+                                        .FontColor("#7C3AED");
+
+                                    card.Item().PaddingTop(5);
+
+                                    card.Item().Row(row =>
+                                    {
+                                        row.RelativeItem()
+                                            .Text($"Bank : {bank.Bank_Name}");
+
+                                        row.RelativeItem()
+                                            .Text($"Branch : {bank.Branch_Name}");
+                                    });
+
+                                    card.Item().Row(row =>
+                                    {
+                                        row.RelativeItem()
+                                            .Text($"Account : {bank.Account_Number}");
+
+                                        row.RelativeItem()
+                                            .Text($"IFSC : {bank.IFSC_Code}");
+                                    });
+
+                                    card.Item().Text(
+                                        $"Account Holder : {bank.Account_Holder_Name}");
+
+                                    card.Item().Text(
+                                        $"UAN : {bank.UAN_Number}");
+
+                                    card.Item().Text(
+                                        $"PF : {bank.PF_Account_Number}");
+                                });
+                        }
+
+                        col.Item().PaddingVertical(10);
+
+                        // EDUCATION
+                        if (educations.Any())
+                        {
+                            col.Item()
+                                .Border(1)
+                                .BorderColor("#D6D6D6")
+                                .Padding(10)
+                                .Column(card =>
+                                {
+                                    card.Item()
+                                        .Text("EDUCATION")
+                                        .FontSize(14)
+                                        .Bold()
+                                        .FontColor("#1E40AF");
+
+                                    card.Item().PaddingTop(5);
+
+                                    foreach (var edu in educations)
+                                    {
+                                        card.Item().BorderBottom(1)
+                                            .BorderColor("#E5E7EB")
+                                            .PaddingBottom(5)
+                                            .PaddingTop(5)
+                                            .Column(x =>
+                                            {
+                                                x.Item().Text($"Degree : {edu.Degree}");
+
+                                                x.Item().Text($"University : {edu.UniversityBoard}");
+
+                                                x.Item().Row(row =>
+                                                {
+                                                    row.RelativeItem()
+                                                        .Text($"Year : {edu.YearOfPassing}");
+
+                                                    row.RelativeItem()
+                                                        .Text($"CGPA : {edu.PercentageCGPA}");
+                                                });
+                                            });
+                                    }
+                                });
+                        }
+                        // WORK EXPERIENCE
+                        if (experiences.Any())
+                        {
+                            col.Item()
+                                .Border(1)
+                                .BorderColor("#D6D6D6")
+                                .Padding(10)
+                                .Column(card =>
+                                {
+                                    card.Item()
+                                        .Text("WORK EXPERIENCE")
+                                        .FontSize(14)
+                                        .Bold()
+                                        .FontColor("#1E40AF");
+
+                                    card.Item().PaddingTop(5);
+
+                                    foreach (var exp in experiences)
+                                    {
+                                        card.Item()
+                                            .BorderBottom(1)
+                                            .BorderColor("#E5E7EB")
+                                            .PaddingBottom(5)
+                                            .PaddingTop(5)
+                                            .Column(x =>
+                                            {
+                                                x.Item().Text($"Company : {exp.CompanyName}");
+
+                                                x.Item().Text($"Designation : {exp.Designation}");
+
+                                                x.Item().Row(row =>
+                                                {
+                                                    row.RelativeItem()
+                                                        .Text($"From : {exp.FromDate:dd-MMM-yyyy}");
+
+                                                    row.RelativeItem()
+                                                        .Text($"To : {exp.ToDate:dd-MMM-yyyy}");
+                                                });
+
+                                                if (!string.IsNullOrWhiteSpace(exp.ReasonForLeaving))
+                                                {
+                                                    x.Item().Text($"Reason : {exp.ReasonForLeaving}");
+                                                }
+                                            });
+                                    }
+                                });
+                        }
+                        // DOCUMENTS
+                        if (documents.Any())
+                        {
+                            col.Item()
+                                .Border(1)
+                                .BorderColor("#D6D6D6")
+                                .Padding(10)
+                                .Column(card =>
+                                {
+                                    card.Item()
+                                        .Text("UPLOADED DOCUMENTS")
+                                        .FontSize(14)
+                                        .Bold()
+                                        .FontColor("#1E40AF");
+
+                                    card.Item().PaddingTop(5);
+
+                                    foreach (var doc in documents)
+                                    {
+                                        card.Item()
+                                            .BorderBottom(1)
+                                            .BorderColor("#E5E7EB")
+                                            .PaddingBottom(5)
+                                            .PaddingTop(5)
+                                            .Row(row =>
+                                            {
+                                                row.RelativeItem()
+                                                    .Text($"Document : {doc.Document_Type}");
+
+                                                row.RelativeItem()
+                                                    .Text(Path.GetFileName(doc.File_Path));
+                                            });
+                                    }
+                                });
+                        }
+                    });
+                });
+            }).GeneratePdf();
+
+            return pdfBytes;
         }
 
     }

@@ -25,6 +25,8 @@ import {
   startPerformanceTimer,
 } from "./utils/performance";
 import "./typography.css";
+import "./theme/theme-overrides.css";
+import { PageSkeleton } from "./components/Skeletons";
 
 /* ================= HELPERS ================= */
 
@@ -65,8 +67,12 @@ const lazyRoute = (routeName, loader) =>
     });
   });
 
-// Optimization: keep lazy route fallback invisible to avoid changing the existing UI.
-const RouteFallback = memo(() => null);
+// Keep route transitions filled with a themed skeleton instead of a blank screen.
+const RouteFallback = memo(() => (
+  <div className="app-route-skeleton" style={{ padding: "24px" }}>
+    <PageSkeleton variant="dashboard" />
+  </div>
+));
 
 const Register = lazyRoute("register", () => import("./Pages/loginpage/Register"));
 const Login = lazyRoute("login", () => import("./Pages/loginpage/Login"));
@@ -96,6 +102,8 @@ const UserAttendance = lazyRoute("user-attendance", () => import("./Attendance/U
 
 const LeaveManagement = lazyRoute("leave-management", () => import("./LeaveManagement/LeaveManagement"));
 const UserLeaveManagement = lazyRoute("user-leave-management", () => import("./LeaveManagement/UserLeaveManagement"));
+const Teams = lazyRoute("teams", () => import("./Teams/Teams"));
+const TeamDetails = lazyRoute("team-details", () => import("./Teams/TeamDetails"));
 
 const TaskManagement = lazyRoute("tasks", () => import("./TaskManagement/TaskManagement"));
 const UserTaskManagement = lazyRoute("user-tasks", () => import("./TaskManagement/UserTaskManagement"));
@@ -393,6 +401,10 @@ function App() {
                 </PermissionRoute>
               }
             />
+
+            {/* TEAMS */}
+            <Route path="/teams" element={<Teams />} />
+            <Route path="/teams/:teamId" element={<TeamDetails />} />
 
             {/* LEAVE */}
             <Route

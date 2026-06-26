@@ -1,15 +1,15 @@
 /* ================= EXPERIENCE CONTAINER ================= */
 body {
-  background: #f5f7fa;
+  background: var(--bg-muted);
   font-family: var(--font-sans);
   overflow-x: hidden;
 }
 
 .experience-container {
-  background: #ffffff;
+  background: var(--bg-page);
   padding: 25px;              /* proper inner spacing */
   border-radius: 12px;
-  border: 1px solid #eee;     /* subtle container border */
+  border: 1px solid var(--border-soft);     /* subtle container border */
   margin-bottom: 25px;
   margin: 15px;
 }
@@ -17,8 +17,8 @@ body {
 /* ================= EXPERIENCE CARD ================= */
 
 .experience-card {
-  background: #fafafa;
-  border: 1px solid #eee;
+  background: var(--bg-muted);
+  border: 1px solid var(--border-soft);
   padding: 20px;
   border-radius: 10px;
   margin-bottom: 20px;
@@ -55,7 +55,7 @@ body {
 .form-group label {
   font-size: 13px;
   margin-bottom: 6px;
-  color: #555;
+  color: var(--text-body);
 }
 
 /* ================= INPUTS ================= */
@@ -63,18 +63,18 @@ body {
 .form-group input,
 .form-group textarea {
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   font-size: 14px;
-  background: #f5f7fa;
+  background: var(--bg-muted);
   transition: 0.2s;
   outline: none;
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
-  border-color: #10b981;
-  background: #ffffff;
+  border-color: var(--success);
+  background: var(--bg-page);
 }
 
 .form-group textarea {
@@ -87,7 +87,7 @@ body {
 .add-btn {
   background: none;
   border: none;
-  color: #10b981;
+  color: var(--success);
   font-weight: 600;
   cursor: pointer;
   font-size: 14px;

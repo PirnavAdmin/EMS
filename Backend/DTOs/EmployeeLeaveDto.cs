@@ -7,5 +7,8 @@ public class EmployeeLeaveDto
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
     public string? Reason { get; set; }
+   
     public DateOnly? AppliedDate { get; set; }
+
+    public List<string>? ExternalApproverEmails { get; set; }
 }

@@ -230,11 +230,17 @@ namespace EmployeeManagementSystem.Migrations
                     b.Property<DateOnly?>("AppliedDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("ApprovedOn")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("EmployeeId")
-                        .HasColumnType("longtext")
+                        .HasColumnType("varchar(255)")
                         .HasColumnName("Employee_Id");
 
                     b.Property<string>("EmployeeName")
@@ -245,21 +251,31 @@ namespace EmployeeManagementSystem.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("From_Date");
 
+                    b.Property<string>("HRStatus")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("LeaveType")
                         .HasColumnType("longtext")
                         .HasColumnName("Leave_Type");
+
+                    b.Property<string>("ManagerStatus")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Reason")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Status")
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<DateTime>("ToDate")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("To_Date");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "Status", "FromDate", "ToDate");
 
                     b.ToTable("employeeleave", (string)null);
                 });
@@ -317,6 +333,8 @@ namespace EmployeeManagementSystem.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
 
                     b.ToTable("activitylogs", (string)null);
                 });
@@ -384,31 +402,102 @@ namespace EmployeeManagementSystem.Migrations
                     b.Property<DateTime>("Attendance_Date")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("AutoCheckoutReason")
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal?>("CheckInLatitude")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal?>("CheckInLongitude")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal?>("CheckOutLatitude")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal?>("CheckOutLongitude")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<DateTime?>("Check_In")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("Check_Out")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("CheckoutType")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("DeviceInfo")
                         .HasColumnType("longtext");
 
+                    b.Property<decimal?>("DistanceMeters")
+                        .HasColumnType("decimal(65,30)");
+
                     b.Property<string>("Employee_Id")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("IpAddress")
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("IsLocationMismatch")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("LastActivityTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LocationChangeReason")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("LocationStatus")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Status")
                         .HasColumnType("longtext");
+
+                    b.Property<int>("TotalBreakMinutes")
+                        .HasColumnType("int");
 
                     b.Property<int>("WorkingMinutes")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Attendance_Date");
+
+                    b.HasIndex("Employee_Id", "Attendance_Date");
+
                     b.ToTable("attendance", (string)null);
+                });
+
+            modelBuilder.Entity("EmployeeManagementSystem.Models.BreakLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AttendanceId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("BreakEnd")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("BreakStart")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttendanceId");
+
+                    b.ToTable("BreakLogs");
                 });
 
             modelBuilder.Entity("EmployeeManagementSystem.Models.Company", b =>
@@ -522,6 +611,54 @@ namespace EmployeeManagementSystem.Migrations
                         .IsUnique();
 
                     b.ToTable("employees", (string)null);
+                });
+
+            modelBuilder.Entity("EmployeeManagementSystem.Models.EmployeeDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Document_Type")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Employee_Id")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("File_Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("File_Path")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("File_Size_MB")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("Uploaded_Date")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Verification_Status")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Verified_By")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("Verified_Date")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EmployeeDocuments");
                 });
 
             modelBuilder.Entity("EmployeeManagementSystem.Models.EmployeeEducation", b =>
@@ -896,7 +1033,7 @@ namespace EmployeeManagementSystem.Migrations
 
                     b.Property<string>("EmployeeId")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("FilePath")
                         .HasColumnType("longtext");
@@ -908,7 +1045,7 @@ namespace EmployeeManagementSystem.Migrations
                         .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("Month")
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<decimal?>("NetSalary")
                         .HasColumnType("decimal(65,30)");
@@ -923,6 +1060,10 @@ namespace EmployeeManagementSystem.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("Month", "Year");
 
                     b.ToTable("payslips", (string)null);
                 });
@@ -1079,6 +1220,8 @@ namespace EmployeeManagementSystem.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Holiday_Date");
 
                     b.ToTable("holidays", (string)null);
                 });
@@ -1247,6 +1390,17 @@ namespace EmployeeManagementSystem.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("EmployeeManagementSystem.Models.BreakLog", b =>
+                {
+                    b.HasOne("EmployeeManagementSystem.Models.Attendance", "Attendance")
+                        .WithMany()
+                        .HasForeignKey("AttendanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attendance");
                 });
 
             modelBuilder.Entity("EmployeeManagementSystem.Models.EmployeeExperience", b =>

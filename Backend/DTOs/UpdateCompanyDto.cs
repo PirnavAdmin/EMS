@@ -22,7 +22,7 @@ namespace EmployeeManagementSystem.DTOs
 
         public string PANNumber { get; set; }
 
-        
+
         public int TotalBranches { get; set; }
     }
 }

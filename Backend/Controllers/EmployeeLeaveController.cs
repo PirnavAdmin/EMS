@@ -5,8 +5,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using System.Security.Claims;
+using EmployeeManagementSystem.DTOs;
 
-[Authorize]
+
 
 [ApiController]
 
@@ -27,7 +28,7 @@ public class EmployeeLeaveController : ControllerBase
     }
 
     // Employee applies leave
-
+    [Authorize]
     [HttpPost]
 
     public async Task<IActionResult> ApplyLeave(EmployeeLeaveDto dto)
@@ -39,7 +40,7 @@ public class EmployeeLeaveController : ControllerBase
     }
 
     // Employee sees their leaves
-
+    [Authorize]
     [HttpGet]
 
     public async Task<IActionResult> GetMyLeaves()
@@ -120,6 +121,12 @@ public class EmployeeLeaveController : ControllerBase
 
     }
 
+    [HttpGet("employee-leave-details/{employeeId}")]
+    public async Task<IActionResult> GetEmployeeLeaveDetails(string employeeId)
+    {
+        return await _service.GetEmployeeLeaveDetails(employeeId);
+    }
+
     [HttpGet("export")]
     public async Task<IActionResult> ExportLeaves()
     {
@@ -130,6 +137,93 @@ public class EmployeeLeaveController : ControllerBase
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"EmployeeLeaves_{DateTime.Now:yyyyMMddHHmmss}.xlsx"
         );
+    }
+
+
+    [Authorize]
+
+    [HttpPost("apply-wfh")]
+
+    public async Task<IActionResult> ApplyWFH(
+
+WorkFromHomeDto dto)
+
+    {
+
+        return await _service.ApplyWFH(dto, User);
+
+    }
+
+    [Authorize]
+
+    [HttpGet("all-wfh")]
+
+    public async Task<IActionResult> GetAllWFH()
+
+    {
+
+        return await _service.GetAllWFH();
+
+    }
+
+    [Authorize]
+
+    [HttpGet("my-wfh")]
+
+    public async Task<IActionResult> GetMyWFH()
+
+    {
+
+        return await _service.GetMyWFH(User);
+
+    }
+
+    [Authorize]
+
+    [HttpPut("update-wfh-status/{id}")]
+
+    public async Task<IActionResult> UpdateWFHStatus(
+
+        int id,
+
+        [FromQuery] string status)
+
+    {
+
+        return await _service.UpdateWFHStatus(
+
+            id,
+
+            status,
+
+            User);
+
+    }
+
+    [Authorize]
+
+    [HttpPut("cancel-wfh/{id}")]
+
+    public async Task<IActionResult> CancelWFH(int id)
+
+    {
+
+        return await _service.CancelWFH(id, User);
+
+    }
+
+    [HttpGet("mail-action")]
+    public async Task<IActionResult> MailAction(
+int leaveId,
+string action,
+string token,
+string approverEmail)
+    {
+        return await _service.MailAction(
+            leaveId,
+            action,
+            token,
+            approverEmail);
     }
 
 }

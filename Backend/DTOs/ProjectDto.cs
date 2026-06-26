@@ -1,7 +1,10 @@
 ﻿using EmployeeManagementSystem.DTOs;
+using System.ComponentModel.DataAnnotations;
 
 public class ProjectDto
 {
+    
+    public int Id { get; set; }
     public string Project_Name { get; set; }
         = string.Empty;
 

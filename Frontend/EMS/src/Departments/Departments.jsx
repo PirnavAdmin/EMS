@@ -963,6 +963,7 @@ function Departments() {
                   }}
                 >
                   ⋮
+
                 </button>
 
                 {activeMenu ===
@@ -1043,17 +1044,10 @@ function Departments() {
               <div className="dept-footer">
 
                 <span>
-                  👤 {
-                    deptEmployees.length
-                  }{" "}
-                  members
+                  👥 {deptEmployees.length} members
                 </span>
 
-                <span
-                  title={
-                    dept.building
-                  }
-                >
+                <span>
                   📍 {dept.building}
                 </span>
 
@@ -1096,7 +1090,7 @@ function Departments() {
                 onClick={closeModal}
                 aria-label="Close"
               >
-                ×
+                ✕
               </button>
             </div>
 
@@ -1163,11 +1157,11 @@ function Departments() {
                     borderRadius:
                       "10px",
                     background:
-                      "#ECFEFF",
+                      "var(--surface-info-soft)",
                     border:
-                      "1px solid #22D3EE",
+                      "1px solid var(--theme-secondary)",
                     color:
-                      "#0F172A",
+                      "var(--text-primary)",
                     fontSize:
                       "14px",
                     fontWeight:
@@ -1262,17 +1256,17 @@ function Departments() {
 
                           background:
                             isSelected
-                              ? "#2563EB"
-                              : "#FFFFFF",
+                              ? "var(--theme-primary)"
+                              : "var(--bg-page)",
 
                           color:
                             isSelected
-                              ? "#FFFFFF"
-                              : "#0F172A",
+                              ? "var(--bg-page)"
+                              : "var(--text-primary)",
 
                           border:
                             isSelected
-                              ? "1px solid #2563EB"
+                              ? "1px solid var(--theme-primary)"
                               : "1px solid transparent",
                         }}
                       >
@@ -1551,7 +1545,7 @@ function Departments() {
                 }
                 aria-label="Close department members"
               >
-                ×
+                Ãƒâ€”
               </button>
 
             </div>

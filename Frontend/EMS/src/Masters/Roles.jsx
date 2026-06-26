@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
 import "./Roles.css";
-import { FaShieldAlt, FaEdit, FaTrash } from "react-icons/fa";
+import { FaShieldAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
+import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByNewestIdFirst } from "../utils/collections";
 import {
   normalizeWhitespace,
-  sanitizeRoleNameInput,
   validateRoleName,
 } from "../utils/validation";
  
@@ -210,7 +210,11 @@ function Roles() {
   };
  
   if (loading) {
-    return <p style={{ padding: "20px" }}>Loading roles...</p>;
+    return (
+      <div style={{ padding: "20px" }}>
+        <TableSkeleton rows={10} columns={4} />
+      </div>
+    );
   }
  
   return (
@@ -247,10 +251,10 @@ function Roles() {
       <div
         className="roles-table-wrap"
         style={{
-          background: "#fff",
+          background: "var(--bg-page)",
           borderRadius: "16px",
           overflow: "hidden",
-          border: "1px solid #e5e7eb",
+          border: "1px solid var(--border-soft)",
         }}
       >
         <table
@@ -262,7 +266,7 @@ function Roles() {
           <thead>
             <tr
               style={{
-                background: "#f3f4f6",
+                background: "var(--bg-muted)",
                 height: "30px",
               }}
             >
@@ -272,7 +276,7 @@ function Roles() {
                   textAlign: "left",
                   fontSize: "15px",
                   fontWeight: "700",
-                  color: "#1e3a5f",
+                  color: "var(--text-primary)",
                 }}
               >
                 ROLE
@@ -284,7 +288,7 @@ function Roles() {
                   textAlign: "center",
                   fontSize: "15px",
                   fontWeight: "700",
-                  color: "#1e3a5f",
+                  color: "var(--text-primary)",
                 }}
               >
                 USERS
@@ -296,7 +300,7 @@ function Roles() {
                   textAlign: "center",
                   fontSize: "15px",
                   fontWeight: "700",
-                  color: "#1e3a5f",
+                  color: "var(--text-primary)",
                 }}
               >
                 STATUS
@@ -308,7 +312,7 @@ function Roles() {
                   textAlign: "center",
                   fontSize: "15px",
                   fontWeight: "700",
-                  color: "#1e3a5f",
+                  color: "var(--text-primary)",
                 }}
               >
                 ACTIONS
@@ -321,7 +325,7 @@ function Roles() {
               <tr
                 key={r.roleId || i}
                 style={{
-                  borderBottom: "1px solid #e5e7eb",
+                  borderBottom: "1px solid var(--border-soft)",
                   height: "62px",
                 }}
               >
@@ -346,11 +350,11 @@ function Roles() {
                         width: "36px",
                         height: "36px",
                         borderRadius: "10px",
-                        background: "#dff7f7",
+                        background: "var(--surface-info-soft)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "#00838f",
+                        color: "var(--theme-secondary)",
                         fontSize: "15px",
                         flexShrink: 0,
                       }}
@@ -362,7 +366,7 @@ function Roles() {
                       style={{
                         fontSize: "15px",
                         fontWeight: "500",
-                        color: "#0f172a",
+                        color: "var(--text-strong)",
                       }}
                     >
                       {r.roleName}
@@ -375,7 +379,7 @@ function Roles() {
                     textAlign: "center",
                     fontSize: "15px",
                     fontWeight: "600",
-                    color: "#0f172a",
+                    color: "var(--text-strong)",
                   }}
                 >
                   {r.users}
@@ -386,7 +390,7 @@ function Roles() {
                     textAlign: "center",
                     fontSize: "15px",
                     fontWeight: "500",
-                    color: "#0f172a",
+                    color: "var(--text-strong)",
                   }}
                 >
                   {r.status}
@@ -409,17 +413,7 @@ function Roles() {
                     <button
                       type="button"
                       onClick={() => handleEditClick(r)}
-                      style={{
-                        minWidth: "78px",
-                        height: "40px",
-                        borderRadius: "10px",
-                        border: "1px solid #b2ebf2",
-                        background: "#dff7f7",
-                        color: "#0f2b46",
-                        fontWeight: "700",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                      }}
+                      className="roles-action-btn roles-action-btn--edit"
                     >
                       Edit
                     </button>
@@ -436,18 +430,7 @@ function Roles() {
                         setShowDeletePopup(true);
                       }}
                       disabled={r.users > 0}
-                      style={{
-                        minWidth: "78px",
-                        height: "40px",
-                        borderRadius: "12px",
-                        border: "1px solid #f5c2c2",
-                        background: "#fff5f5",
-                        color: r.users > 0 ? "#bfc5ce" : "#ef4444",
-                        fontWeight: "700",
-                        fontSize: "14px",
-                        cursor: r.users > 0 ? "not-allowed" : "pointer",
-                        opacity: r.users > 0 ? 0.7 : 1,
-                      }}
+                      className="roles-action-btn roles-action-btn--delete"
                     >
                       Delete
                     </button>
@@ -497,9 +480,15 @@ function Roles() {
             </div>
  
             <div className="roles-modal-actions">
-              <button onClick={resetForm}>Cancel</button>
- 
-              <button onClick={handleRolesSubmit} disabled={saving}>
+              <button className="roles-modal-btn roles-modal-btn--secondary" onClick={resetForm}>
+                Cancel
+              </button>
+
+              <button
+                className="roles-modal-btn roles-modal-btn--primary"
+                onClick={handleRolesSubmit}
+                disabled={saving}
+              >
                 {saving ? (isEdit ? "Updating..." : "Saving...") : isEdit ? "Update" : "Save"}
               </button>
             </div>
@@ -508,19 +497,11 @@ function Roles() {
       )}
       {showDeletePopup && (
         <div className="roles-modal-overlay">
-          <div
-            style={{
-              width: "400px",
-              background: "#fff",
-              borderRadius: "20px",
-              padding: "30px",
-              boxShadow: "0 20px 50px rgba(0,0,0,0.15)",
-            }}
-          >
+          <div className="roles-delete-modal">
             <h2
               style={{
                 marginBottom: "15px",
-                color: "#041c32",
+                color: "var(--text-strong)",
                 fontSize: "18px",
                 fontWeight: "700",
               }}
@@ -530,7 +511,7 @@ function Roles() {
  
             <p
               style={{
-                color: "#475467",
+                color: "var(--text-body)",
                 fontSize: "16px",
                 marginBottom: "20px",
                 fontWeight: "500",
@@ -551,15 +532,7 @@ function Roles() {
                   setShowDeletePopup(false);
                   setDeleteRoleId(null);
                 }}
-                style={{
-                  padding: "12px 22px",
-                  borderRadius: "14px",
-                  border: "1px solid #d0d5dd",
-                  background: "#f9fafb",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                  fontSize: "14px",
-                }}
+                className="roles-modal-btn roles-modal-btn--secondary"
               >
                 Cancel
               </button>
@@ -570,16 +543,7 @@ function Roles() {
                   setShowDeletePopup(false);
                   setDeleteRoleId(null);
                 }}
-                style={{
-                  padding: "12px 22px",
-                  borderRadius: "14px",
-                  border: "none",
-                  background: "#ef4444",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: "700",
-                  fontSize: "14px",
-                }}
+                className="roles-modal-btn roles-modal-btn--danger"
               >
                 Yes, Delete
               </button>

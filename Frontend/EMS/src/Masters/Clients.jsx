@@ -47,6 +47,8 @@ function Clients() {
   const [errors, setErrors] = useState({});
 
   const [newClient, setNewClient] = useState(EMPTY_CLIENT_FORM);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [clientsPerPage, setClientsPerPage] = useState(30);
 
   const loadClients = async () => {
     try {
@@ -238,9 +240,7 @@ function Clients() {
     return Object.keys(cleanedErrors).length === 0;
   };
 
-  const handleViewClient = async (index) => {
-    const client = clients[index];
-
+  const handleViewClient = async (client) => {
     setSelectedClient(client);
     setShowDrawer(true);
     setMenuOpenIndex(null);
@@ -420,9 +420,7 @@ function Clients() {
     }
   };
 
-  const handleDelete = async (index) => {
-    const client = clients[index];
-
+  const handleDelete = async (client) => {
     try {
       await api.delete(
         API_ENDPOINTS.masters.clients.byId(
@@ -440,9 +438,9 @@ function Clients() {
     }
   };
 
-  const handleEdit = (index) => {
-    setNewClient(clients[index]);
-    setEditIndex(index);
+  const handleEdit = (client) => {
+    setNewClient(client);
+    setEditIndex(clients.findIndex((item) => item.client_Name === client.client_Name));
     setIsUpdate(true);
     setErrors({});
     setShowModal(true);
@@ -453,6 +451,29 @@ function Clients() {
     () => (Array.isArray(projects) ? projects : []),
     [projects]
   );
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(clients.length / clientsPerPage)
+  );
+
+  const indexOfLastClient = currentPage * clientsPerPage;
+  const indexOfFirstClient = indexOfLastClient - clientsPerPage;
+
+  const visibleClients = useMemo(
+    () => clients.slice(indexOfFirstClient, indexOfLastClient),
+    [clients, indexOfFirstClient, indexOfLastClient]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [clients.length, clientsPerPage]);
 
   return (
     <div className="clients-page">
@@ -479,7 +500,7 @@ function Clients() {
             No clients found.
           </div>
         ) : (
-          clients.map((client, index) => {
+          visibleClients.map((client, index) => {
             const clientName = getTextOrFallback(client.client_Name);
             const clientDescription = getTextOrFallback(
               client.description,
@@ -501,7 +522,7 @@ function Clients() {
                       aria-label={`Open actions for ${clientName}`}
                       aria-haspopup="menu"
                       aria-expanded={menuOpenIndex === index}
-                      onClick={() =>
+                    onClick={() =>
                         setMenuOpenIndex(menuOpenIndex === index ? null : index)
                       }
                     >
@@ -511,19 +532,19 @@ function Clients() {
                     {menuOpenIndex === index && (
                       <div className="menu-dropdown" role="menu">
                         <button
-                          className="menu-dropdown-item"
-                          type="button"
-                          role="menuitem"
-                          onClick={() => handleEdit(index)}
-                        >
+                        className="menu-dropdown-item"
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleEdit(client)}
+                      >
                           Edit
                         </button>
                         <button
-                          className="menu-dropdown-item menu-dropdown-item--danger"
-                          type="button"
-                          role="menuitem"
-                          onClick={() => handleDelete(index)}
-                        >
+                        className="menu-dropdown-item menu-dropdown-item--danger"
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleDelete(client)}
+                      >
                           Delete
                         </button>
                       </div>
@@ -566,7 +587,7 @@ function Clients() {
                   <button
                     className="view-link"
                     type="button"
-                    onClick={() => handleViewClient(index)}
+                    onClick={() => handleViewClient(client)}
                   >
                     View
                   </button>
@@ -576,6 +597,84 @@ function Clients() {
           })
         )}
       </div>
+
+      {clients.length > 0 && (
+        <div className="app-pagination-bar">
+          <div className="app-pagination-info">
+            Showing <strong>{indexOfFirstClient + 1}</strong>-<strong>{Math.min(indexOfLastClient, clients.length)}</strong> of <strong>{clients.length}</strong>
+          </div>
+
+          <div className="app-pagination-controls">
+            <select
+              className="app-pagination-page-size"
+              value={clientsPerPage}
+              onChange={(event) => setClientsPerPage(Number(event.target.value))}
+            >
+              {[10, 20, 30, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size} / page
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              className="app-pagination-button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+            >
+              First
+            </button>
+
+            <button
+              type="button"
+              className="app-pagination-button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            >
+              Previous
+            </button>
+
+            {Array.from({ length: totalPages }, (_, pageIndex) => pageIndex + 1)
+              .filter((page) => page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1))
+              .map((page, index, pages) => {
+                const previousPage = pages[index - 1];
+                const shouldShowDots = previousPage && page - previousPage > 1;
+
+                return (
+                  <React.Fragment key={page}>
+                    {shouldShowDots && <span className="app-pagination-dots">...</span>}
+                    <button
+                      type="button"
+                      className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+
+            <button
+              type="button"
+              className="app-pagination-button"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            >
+              Next
+            </button>
+
+            <button
+              type="button"
+              className="app-pagination-button"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
 
       {showDrawer && selectedClient && (
         <div

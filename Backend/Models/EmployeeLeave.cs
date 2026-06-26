@@ -26,12 +26,14 @@ public class EmployeeLeave
     public string? Reason { get; set; }
 
     public string? Status { get; set; } = "Pending";
-    public string ManagerStatus { get; set; } = "Pending";
+    public string? ManagerStatus { get; set; } = "Pending";
 
-    public string HRStatus { get; set; } = "Pending";
-    public DateOnly? AppliedDate {  get; set; }
+    public string? HRStatus { get; set; } = "Pending";
     public string? ApprovedBy { get; set; }
 
     public DateTime? ApprovedOn { get; set; }
+    public DateOnly? AppliedDate {  get; set; }
+    public string? ApprovalToken { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }

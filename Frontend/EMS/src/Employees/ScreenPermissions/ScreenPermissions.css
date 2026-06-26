@@ -2,7 +2,7 @@
  
 .permission-page {
   padding: 20px;
-  background: #f5f7fb;
+  background: var(--bg-muted);
   min-height: 100vh;
   font-family: var(--font-sans);
 }
@@ -19,18 +19,18 @@
 .permission-top h2 {
   font-size: 22px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-body);
 }
  
 .permission-top h2 span {
-  color: #3b5fcc;
+  color: var(--theme-primary);
 }
  
 /* ================= SELECT ALL BUTTON ================= */
  
 .select-all-btn {
-  background: #22c55e;
-  color: #fff;
+  background: var(--theme-success);
+  color: var(--theme-on-primary);
   border: none;
   padding: 8px 18px;
   border-radius: 8px;
@@ -40,24 +40,24 @@
 }
  
 .select-all-btn:hover {
-  background: #16a34a;
+  background: var(--success);
 }
  
 /* ================= GROUP ================= */
  
 .permission-group {
-  background: #ffffff;
+  background: var(--bg-page);
   border-radius: 14px;
   margin-bottom: 20px;
   padding: 10px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 3px 10px var(--shadow-color-xs);
 }
  
 /* ================= GROUP HEADER ================= */
  
 .group-header {
-  background: #eef2ff;
-  color: #3b5fcc;
+  background: var(--surface-info-soft);
+  color: var(--theme-primary);
   font-weight: 600;
   padding: 10px 15px;
   border-radius: 10px;
@@ -73,9 +73,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 15px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-soft);
   font-size: 14px;
-  color: #374151;
+  color: var(--text-body);
 }
  
 .permission-row:last-child {
@@ -101,7 +101,7 @@
 .slider {
   position: absolute;
   cursor: pointer;
-  background-color: #d1d5db;
+  background-color: var(--bg-muted);
   border-radius: 999px;
   inset: 0;
   transition: 0.3s;
@@ -115,14 +115,14 @@
   width: 16px;
   left: 3px;
   bottom: 3px;
-  background: #ffffff;
+  background: var(--bg-page);
   border-radius: 50%;
   transition: 0.3s;
 }
  
 /* checked */
 .switch input:checked + .slider {
-  background-color: #22c55e;
+  background-color: var(--theme-success);
 }
  
 .switch input:checked + .slider:before {
@@ -140,14 +140,14 @@
  
 /* skip */
 .permission-actions button:first-child {
-  background: #e5e7eb;
-  color: #111827;
+  background: var(--bg-muted);
+  color: var(--text-strong);
 }
  
 /* save */
 .permission-actions button:last-child {
-  background: #22c55e;
-  color: white;
+  background: var(--theme-success);
+  color: var(--theme-on-primary);
 }
  
 /* buttons common */

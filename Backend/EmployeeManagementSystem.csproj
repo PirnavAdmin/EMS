@@ -24,7 +24,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Office.Interop.Word" Version="12.0.0" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
-    <PackageReference Include="QuestPDF" Version="2025.7.4" />
+    <PackageReference Include="QuestPDF" Version="2026.6.0" />
     <PackageReference Include="Spire.Doc" Version="8.12.14" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Xceed.Words.NET" Version="5.2.25608.6677" />
@@ -40,10 +40,6 @@
 <Content Include="Fonts\**\*">
 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 </Content>
-<None Update="Templates\**\*">
-<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-</None>
 </ItemGroup>
  
 

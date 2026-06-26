@@ -331,14 +331,27 @@ function MainLayout() {
           error?.response?.data ||
           error.message
         );
- 
+
+        const errorMessage = [
+          error?.response?.data?.message,
+          error?.response?.data?.error,
+          error?.response?.data?.title,
+          error?.response?.data?.detail,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        const isAuthFailure =
+          error?.response?.status === 401 ||
+          error?.response?.status === 403 ||
+          /token\s+expired|session\s+expired|jwt\s+expired/i.test(
+            errorMessage
+          );
+
         // =========================
         // AUTO LOGOUT ON ERROR
         // =========================
-        if (
-          error?.response?.status === 401 ||
-          error?.response?.status === 403
-        ) {
+        if (isAuthFailure) {
  
           clearSessionTimer();
  

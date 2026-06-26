@@ -151,7 +151,24 @@ export const downloadMonthlyAttendanceReport = ({
       `monthly-attendance-${year}-${String(month).padStart(2, "0")}.xlsx`,
     forceFallbackFileName: true,
   });
- 
+
+export const downloadDailyAttendanceReport = ({
+  date,
+  token,
+  fallbackFileName,
+  forceFallbackFileName = true,
+}) =>
+  downloadAttendanceFile({
+    endpoint: API_ENDPOINTS.attendance.downloadDaily,
+    params: {
+      date,
+    },
+    token,
+    fallbackFileName:
+      fallbackFileName || `daily-attendance-${date}.xlsx`,
+    forceFallbackFileName,
+  });
+
 export const downloadWeeklyAttendanceReport = ({
   token,
   params,

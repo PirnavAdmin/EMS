@@ -3,6 +3,7 @@ using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OpenXmlPowerTools;
 
 [ApiController]
 
@@ -89,6 +90,7 @@ public class ProjectsController : ControllerBase
             return new ProjectDto
 
             {
+                Id = p.Id,
 
                 Project_Name = p.Project_Name,
 

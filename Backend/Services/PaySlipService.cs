@@ -35,7 +35,8 @@ namespace EmployeeManagementSystem.Services
             string employeeId,
             int year,
             string month,
-            decimal OtherDeductions)
+            decimal OtherDeductions,
+            string? DeductionLabel)
 
         {
 
@@ -164,7 +165,9 @@ namespace EmployeeManagementSystem.Services
                 "Templates",
                 "PaySlipTemplate.docx");
 
-            EnsureValidWordTemplate(templatePath);
+            if (!File.Exists(templatePath))
+                throw new Exception(
+                    $"Template not found: {templatePath}");
 
             var outputFolder = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -175,18 +178,20 @@ namespace EmployeeManagementSystem.Services
                 Directory.CreateDirectory(outputFolder);
 
             var fileName =
-    $"Payslip_{employee.Employee_Id}_{GetIndianTime():yyyyMMddHHmmssfff}_{Guid.NewGuid():N}.docx";
+    $"Payslip_{employee.Employee_Id}_{GetIndianTime():yyyyMMddHHmmss}.docx";
 
             var outputPath =
                 Path.Combine(outputFolder, fileName);
 
             File.Copy(templatePath, outputPath, true);
-
+            DeductionLabel = string.IsNullOrWhiteSpace(DeductionLabel)
+    ? "Other Deductions"
+    : DeductionLabel;
             //--------------------------------
             // REPLACE BOOKMARKS
             //--------------------------------
             using (WordprocessingDocument wordDoc =
-                OpenGeneratedPayslip(outputPath))
+                WordprocessingDocument.Open(outputPath, true))
             {
                 var candidateName = personalInfo == null
     ? "-"
@@ -330,7 +335,10 @@ namespace EmployeeManagementSystem.Services
                     "ProfessionalTax",
                     professionalTax.ToString("N2"));
 
-
+                ReplaceBookmark(
+    wordDoc,
+    "DeductionType",
+    DeductionLabel);
                 ReplaceBookmark(
                     wordDoc,
                     "OtherDeduction",
@@ -388,13 +396,6 @@ namespace EmployeeManagementSystem.Services
                 ? @"C:\Program Files\LibreOffice\program\soffice.exe"
                 : "/usr/bin/soffice";
 
-            if (!File.Exists(sofficePath))
-            {
-                throw new FileNotFoundException(
-                    $"LibreOffice executable not found at {sofficePath}. Install LibreOffice or update the configured soffice path.",
-                    sofficePath);
-            }
-
             using var process = new Process();
 
             process.StartInfo.FileName = sofficePath;
@@ -409,24 +410,14 @@ namespace EmployeeManagementSystem.Services
 
             process.Start();
 
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-
             await process.WaitForExitAsync();
-
-            var output = await outputTask;
-            var error = await errorTask;
-
-            if (process.ExitCode != 0)
-            {
-                throw new Exception(
-                    $"PDF generation failed with exit code {process.ExitCode}. {error} {output}".Trim());
-            }
 
             if (!File.Exists(pdfPath))
             {
+                string error = await process.StandardError.ReadToEndAsync();
+
                 throw new Exception(
-                    $"PDF generation failed because LibreOffice did not create the expected file: {pdfPath}. {error} {output}".Trim());
+                    $"PDF generation failed. {error}");
             }
 
             if (File.Exists(outputPath))
@@ -487,12 +478,12 @@ namespace EmployeeManagementSystem.Services
             foreach (var empId in employeeIds)
             {
                 var filePath =
-                    await GeneratePaySlip(
-                        empId,
-                        year,
-                        month,
-                        0);
-
+    await GeneratePaySlip(
+        empId,
+        year,
+        month,
+        0,
+        "Other Deductions");
                 result.Add(filePath);
             }
 
@@ -535,39 +526,6 @@ namespace EmployeeManagementSystem.Services
                     run.Append(
                         new Text(text ?? "-"));
                 }
-            }
-        }
-
-        private static void EnsureValidWordTemplate(string templatePath)
-        {
-            if (!File.Exists(templatePath))
-                throw new InvalidOperationException(
-                    $"Payslip template not found on server: {templatePath}");
-
-            try
-            {
-                using var template =
-                    WordprocessingDocument.Open(templatePath, false);
-            }
-            catch (FileFormatException ex)
-            {
-                throw new InvalidOperationException(
-                    $"Payslip template is corrupted or not a valid .docx file on server: {templatePath}. Replace PaySlipTemplate.docx and rebuild/redeploy.",
-                    ex);
-            }
-        }
-
-        private static WordprocessingDocument OpenGeneratedPayslip(string outputPath)
-        {
-            try
-            {
-                return WordprocessingDocument.Open(outputPath, true);
-            }
-            catch (FileFormatException ex)
-            {
-                throw new InvalidOperationException(
-                    $"Generated payslip document is corrupted before PDF conversion: {outputPath}. This can happen if the template is invalid or concurrent requests overwrite the same output file.",
-                    ex);
             }
         }
 

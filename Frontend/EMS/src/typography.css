@@ -1,14 +1,14 @@
 :root {
-  --font-sans: Inter, sans-serif;
-  --button-font-family: Inter, sans-serif;
-  --page-heading-font-family: Inter, sans-serif;
-  --page-heading-font-size: 24px;
+  --font-sans: "Poppins", sans-serif;
+  --button-font-family: "Poppins", sans-serif;
+  --page-heading-font-family: "Poppins", sans-serif;
+  --page-heading-font-size: 28px;
   --page-heading-font-weight: 700;
-  --page-heading-color: #0f172a;
-  --page-heading-letter-spacing: 0;
+  --page-heading-color: var(--text-strong);
+  --page-heading-letter-spacing: -0.03em;
   --page-subtitle-font-size: 14px;
-  --page-subtitle-color: #64748b;
-  --type-page-heading-size: 24px;
+  --page-subtitle-color: var(--text-muted);
+  --type-page-heading-size: 28px;
   --type-page-heading-weight: 700;
   --type-page-heading-line-height: 1.2;
   --type-section-text-size: 14px;
@@ -22,7 +22,7 @@
   --type-form-label-weight: 600;
   --type-table-head-size: 13px;
   --type-table-head-weight: 700;
-  --type-table-head-color: #334155;
+  --type-table-head-color: var(--text-body);
   --type-table-head-letter-spacing: 0.3px;
   --type-table-cell-size: 14px;
   --type-table-cell-weight: 500;
@@ -39,7 +39,7 @@ button,
 input,
 select,
 textarea {
-  font-family: Inter, sans-serif !important;
+  font-family: "Poppins", sans-serif !important;
 }
 
 .type-page-heading,
@@ -70,12 +70,12 @@ textarea {
 .permission-top h2,
 .page-header-row h1,
 .page-header-row h2 {
-  font-family: Inter, sans-serif !important;
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-page-heading-size) !important;
   font-weight: var(--type-page-heading-weight) !important;
   line-height: var(--type-page-heading-line-height) !important;
   letter-spacing: 0 !important;
-  color: #0f172a !important;
+  color: var(--text-primary) !important;
 }
 
 .type-section-text,
@@ -98,20 +98,21 @@ textarea {
 .ems-task-header-wrapper p,
 .offer-header p,
 .reports-header p,
-.payroll-header p,
-.payslip-header p,
-.permission-top p,
-.page-header-row p {
-  font-family: Inter, sans-serif !important;
+  .payroll-header p,
+  .payslip-header p,
+  .permission-top p,
+  .page-header-row p {
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-section-text-size) !important;
   font-weight: var(--type-section-text-weight) !important;
   line-height: var(--type-section-text-line-height) !important;
   letter-spacing: 0 !important;
-  color: #64748b !important;
+  color: var(--text-muted) !important;
 }
 
 .type-card-title,
 .card-title,
+.section-title,
 .udb-card-title,
 .udb-section-title,
 .leave-card-header h4,
@@ -119,14 +120,14 @@ textarea {
 .recent-table-header h4,
 .employee-header h3,
 .salary-structure-title,
-.salary-breakup-header h5,
-.compensation-title {
-  font-family: Inter, sans-serif !important;
+  .salary-breakup-header h5,
+  .compensation-title {
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-card-title-size) !important;
   font-weight: var(--type-card-title-weight) !important;
   line-height: 1.3 !important;
   letter-spacing: 0 !important;
-  color: #0f172a !important;
+  color: var(--text-primary) !important;
 }
 
 .type-modal-heading,
@@ -147,13 +148,13 @@ textarea {
 .delete-modal h3,
 .asset-delete-modal h3,
 .change-password-modal h3,
-.projects-delete-title {
-  font-family: Inter, sans-serif !important;
+  .projects-delete-title {
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-modal-title-size) !important;
   font-weight: var(--type-modal-title-weight) !important;
   line-height: 1.2 !important;
   letter-spacing: 0 !important;
-  color: #0f172a !important;
+  color: var(--text-primary) !important;
 }
 
 .type-modal-subtext,
@@ -168,7 +169,7 @@ textarea {
   font-weight: 400 !important;
   line-height: 1.5 !important;
   letter-spacing: 0 !important;
-  color: #64748b !important;
+  color: var(--text-muted) !important;
 }
 
 .type-form-label,
@@ -192,16 +193,16 @@ label,
 .clients-field-group label,
 .ems-task-field-group label,
 .emp-field-group label,
-.emp-form-group label,
-.projects-field label,
-.asset-field-group label,
-.apply-card label {
-  font-family: Inter, sans-serif !important;
+  .emp-form-group label,
+  .projects-field label,
+  .asset-field-group label,
+  .apply-card label {
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-form-label-size) !important;
   font-weight: var(--type-form-label-weight) !important;
   line-height: 1.45 !important;
   letter-spacing: 0 !important;
-  color: #334155 !important;
+  color: var(--text-body) !important;
 }
 
 .type-table-header,
@@ -212,8 +213,8 @@ table thead th,
 .attendance-table-header span,
 .monthly-head,
 .week-table-header,
-.week-table-header span {
-  font-family: Inter, sans-serif !important;
+  .week-table-header span {
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-table-head-size) !important;
   font-weight: var(--type-table-head-weight) !important;
   line-height: 1.3 !important;
@@ -227,21 +228,21 @@ table tbody td,
 .attendance-row,
 .attendance-row-5,
 .monthly-employee-cell,
-.monthly-day-cell,
-.emp-name,
-.time-text,
-.hours-text,
-.asset-cell-text {
-  font-family: Inter, sans-serif !important;
+  .monthly-day-cell,
+  .emp-name,
+  .time-text,
+  .hours-text,
+  .asset-cell-text {
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-table-cell-size) !important;
   font-weight: var(--type-table-cell-weight) !important;
   line-height: 1.45 !important;
   letter-spacing: 0 !important;
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .monthly-count {
-  font-family: Inter, sans-serif !important;
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-table-cell-size) !important;
   font-weight: var(--type-table-cell-weight) !important;
   line-height: 1.45 !important;
@@ -254,7 +255,7 @@ input[type="button"],
 input[type="reset"],
 input[type="submit"],
 .type-button {
-  font-family: Inter, sans-serif !important;
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-button-size) !important;
   font-weight: var(--type-button-weight) !important;
   letter-spacing: 0 !important;
@@ -267,12 +268,12 @@ textarea,
 .app-select,
 .app-textarea,
 .app-date-input,
-.auth-field-input,
-.comp-input input,
-.salary-ctc-input,
-.attendance-time-select,
-.date-picker-input {
-  font-family: Inter, sans-serif !important;
+  .auth-field-input,
+  .comp-input input,
+  .salary-ctc-input,
+  .attendance-time-select,
+  .date-picker-input {
+  font-family: "Poppins", sans-serif !important;
   font-size: var(--type-input-size) !important;
   font-weight: var(--type-input-weight) !important;
   letter-spacing: 0 !important;

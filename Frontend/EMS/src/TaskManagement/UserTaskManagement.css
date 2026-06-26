@@ -42,7 +42,7 @@
 
   font-weight: 700;
 
-  color: #041c32;
+  color: var(--text-strong);
 
   line-height: 1.2;
 
@@ -52,7 +52,7 @@
 
   margin: 6px 0 0;
 
-  color: #64748b;
+  color: var(--text-muted);
 
   font-size: 14px;
 
@@ -66,9 +66,9 @@
  
 .task-table {
 
-  background: #ffffff;
+  background: var(--bg-page);
 
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
 
   border-radius: 20px;
 
@@ -94,9 +94,9 @@
  
 .task-table th {
 
-  background: #f8fafc;
+  background: var(--bg-muted);
 
-  color: #06283d;
+  color: var(--text-strong);
 
   font-weight: 700;
 
@@ -112,7 +112,7 @@
 
   padding: 16px 18px;
 
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-soft);
 
   white-space: nowrap;
 
@@ -128,11 +128,11 @@
 
   padding: 16px 18px;
 
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-soft);
 
   font-size: 14px;
 
-  color: #334155;
+  color: var(--text-body);
 
   font-weight: 500;
 
@@ -146,7 +146,7 @@
  
 .task-table tbody tr:hover td {
 
-  background: #fbfeff;
+  background: var(--bg-soft);
 
 }
  
@@ -158,7 +158,7 @@
 
   padding: 24px !important;
 
-  color: #64748b;
+  color: var(--text-muted);
 
   font-weight: 500;
 
@@ -190,33 +190,33 @@
  
 .task-status.pending {
 
-  background: #fff7ed;
+  background: var(--surface-warning-soft);
 
-  color: #ea580c;
+  color: var(--theme-warning-strong);
 
 }
  
 .task-status.in-progress {
 
-  background: #eff6ff;
+  background: var(--surface-info-soft);
 
-  color: #2563eb;
+  color: var(--theme-info);
 
 }
  
 .task-status.completed {
 
-  background: rgba(0, 209, 209, 0.12);
+  background: var(--sidebar-accent-soft);
 
-  color: #0f766e;
+  color: var(--theme-secondary);
 
 }
  
 .task-status.overdue {
 
-  background: #fee2e2;
+  background: var(--surface-danger-soft);
 
-  color: #dc2626;
+  color: var(--theme-danger);
 
 }
  
@@ -230,13 +230,13 @@
 
   padding: 9px 12px;
 
-  border: 1px solid #d7e1ea;
+  border: 1px solid var(--border-soft);
 
   border-radius: 12px;
 
-  background: #ffffff;
+  background: var(--bg-page);
 
-  color: #041c32;
+  color: var(--text-strong);
 
   font-size: 14px;
 
@@ -258,9 +258,9 @@
  
 .task-action-dropdown:focus {
 
-  border-color: #00d1d1;
+  border-color: var(--primary);
 
-  box-shadow: 0 0 0 3px rgba(0, 209, 209, 0.12);
+  box-shadow: 0 0 0 3px var(--sidebar-accent-soft);
 
 }
  

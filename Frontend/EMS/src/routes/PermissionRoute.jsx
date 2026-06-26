@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { getStoredPermissions, getStoredRole } from "../utils/authStorage";
+import { PageSkeleton } from "../components/Skeletons";
 
 /* ✅ NORMALIZE */
 const normalize = (name) => {
@@ -48,7 +49,11 @@ const PermissionRoute = ({ children, module }) => {
 
   /* ⏳ WAIT */
   if (!Array.isArray(permissions)) {
-    return <p style={{ padding: "20px" }}>Loading...</p>;
+    return (
+      <div style={{ padding: "20px" }}>
+        <PageSkeleton variant="cards" cardCount={3} />
+      </div>
+    );
   }
 
   /* ✅ ROUTE MODULE */

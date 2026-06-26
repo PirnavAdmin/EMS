@@ -1,6 +1,6 @@
 .notifications-container {
   padding: 24px 28px;
-  background: #f6f8fc;
+  background: var(--bg-muted);
   min-height: 100vh;
   font-family: var(--font-sans);
   box-sizing: border-box;
@@ -20,19 +20,19 @@
   margin: 0;
   font-size: 28px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .notifications-header p {
   margin-top: 6px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 15px;
 }
 
 /* ================= BUTTON ================= */
 .mark-read-btn {
-  background: #2563eb;
-  color: #fff;
+  background: var(--theme-info);
+  color: var(--theme-on-primary);
   border: none;
   padding: 10px 16px;
   border-radius: 10px;
@@ -44,11 +44,12 @@
 }
 
 .mark-read-btn:hover {
-  background: #1d4ed8;
+  background: var(--theme-info-strong);
 }
 
 .mark-read-btn:disabled {
-  background: #cbd5e1;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
   cursor: not-allowed;
 }
 
@@ -64,10 +65,10 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  background: #fff;
+  background: var(--bg-page);
   border-radius: 16px;
   padding: 18px 20px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   border-left: 4px solid transparent;
@@ -76,12 +77,12 @@
 
 .notification-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .notification-card.unread {
-  border-left: 4px solid #2563eb;
-  background: #f8fbff;
+  border-left: 4px solid var(--theme-info);
+  background: var(--bg-muted);
 }
 
 .notification-card.read {
@@ -97,26 +98,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--theme-on-primary);
   font-size: 18px;
   flex-shrink: 0;
 }
 
 .icon-circle.success {
-  background: #16a34a;
+  background: var(--success);
 }
 
 .icon-circle.warning {
-  background: #f59e0b;
+  background: var(--theme-warning);
 }
 
 .icon-circle.info {
-  background: #2563eb;
+  background: var(--theme-info);
 }
 
 /* fallback */
 .icon-circle.default {
-  background: #0f172a;
+  background: var(--text-strong);
 }
 
 /* ================= CONTENT ================= */
@@ -128,7 +129,7 @@
 .notification-title {
   font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-body);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -138,7 +139,7 @@
 
 .notification-content p {
   margin: 0;
-  color: #475569;
+  color: var(--text-body);
   font-size: 14px;
   line-height: 1.6;
   word-break: break-word;
@@ -148,7 +149,7 @@
 .unread-dot {
   width: 9px;
   height: 9px;
-  background: #2563eb;
+  background: var(--theme-info);
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
@@ -157,7 +158,7 @@
 /* ================= TIME ================= */
 .notification-time {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--text-muted);
   white-space: nowrap;
   margin-left: 12px;
   font-weight: 500;
@@ -167,12 +168,12 @@
 /* ================= EMPTY / LOADING ================= */
 .no-notifications {
   text-align: center;
-  color: #64748b;
+  color: var(--text-muted);
   padding: 40px 0;
   font-size: 15px;
-  background: #fff;
+  background: var(--bg-page);
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ================= RESPONSIVE ================= */

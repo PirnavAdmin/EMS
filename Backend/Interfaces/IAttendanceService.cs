@@ -18,10 +18,13 @@ namespace EmployeeManagementSystem.Interfaces
 
         //---------------------------------------
 
-        Task<IActionResult> CheckIn(ClaimsPrincipal user);
+        Task<IActionResult> CheckIn(
+              ClaimsPrincipal user,
+              CheckInLocationDto dto);
 
-        Task<IActionResult> CheckOut(ClaimsPrincipal user);
-
+        Task<IActionResult> CheckOut(
+            ClaimsPrincipal user,
+            CheckOutLocationDto dto);
         //---------------------------------------
 
         // USER ATTENDANCE VIEWS
@@ -82,7 +85,7 @@ namespace EmployeeManagementSystem.Interfaces
 
 
         Task<byte[]> ExportMonthlyAttendance(int month, int year);
-
+        Task<string> UploadMonthlyAttendance(IFormFile file, int month, int year);
         Task<byte[]> ExportWeeklyAttendance(DateTime weekStartDate);
         Task<byte[]> ExportDailyAttendance(DateTime date);
 
@@ -90,10 +93,11 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<byte[]> ExportPresentAndLateEmployees(DateTime date);
 
-        Task<IActionResult> StartBreak(ClaimsPrincipal user);
+        Task<IActionResult> UpdateActivity(
+    ClaimsPrincipal user);
+        
 
-        Task<IActionResult> EndBreak(ClaimsPrincipal user);
 
-        Task<IActionResult> GetTodayBreakSummary(ClaimsPrincipal user);
+
     }
 }

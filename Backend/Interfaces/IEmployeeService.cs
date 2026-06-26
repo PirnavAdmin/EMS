@@ -16,5 +16,6 @@ namespace EmployeeManagementSystem.Services
 
         Task<Employee?> GetEmployeeByEmployeeId(string employeeId);
         Task SaveChanges();
+        Task<byte[]> ExportEmployeeProfilePdf(string employeeId);
     }
 }

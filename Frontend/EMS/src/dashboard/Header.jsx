@@ -19,6 +19,7 @@ import {
   getStoredRole,
 } from "../utils/authStorage";
 import { clearSessionTimer } from "../utils/sessionManager";
+import useTheme from "../theme/useTheme";
 import ChangePasswordModal from "./ChangePasswordModal";
 
 const getGreetingMeta = () => {
@@ -48,6 +49,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const profileMenuRef = useRef(null);
+  const { themeMode, themeOptions, setThemeMode } = useTheme();
   const [openProfile, setOpenProfile] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -134,7 +136,11 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
   }, [openProfile]);
 
   useEffect(() => {
-    setOpenProfile(false);
+    const closeTimer = window.setTimeout(() => {
+      setOpenProfile(false);
+    }, 0);
+
+    return () => window.clearTimeout(closeTimer);
   }, [location.pathname]);
 
   const unreadCount = notifications.filter(
@@ -180,8 +186,6 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
           right: 0,
           width: isMobileViewport ? "100%" : `calc(100% - ${headerOffset})`,
           zIndex: 1000,
-          background: "#f5f7fa",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
         }}
       >
         <div className="app-header-inner">
@@ -249,18 +253,18 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
                   <strong>{profileLabel}</strong>
                   <span>{email}</span>
                 </div>
-{role?.toLowerCase() !== "admin" && (
-  <button
-    type="button"
-    className="profile-item"
-    onClick={handleProfileClick}
-  >
-    <span className="profile-item-icon">
-      <FaUser />
-    </span>
-    <span>My Profile</span>
-  </button>
-)}
+                {role?.toLowerCase() !== "admin" && (
+                  <button
+                    type="button"
+                    className="profile-item"
+                    onClick={handleProfileClick}
+                  >
+                    <span className="profile-item-icon">
+                      <FaUser />
+                    </span>
+                    <span>My Profile</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -272,6 +276,47 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
                   </span>
                   <span>Change Password</span>
                 </button>
+
+                <div className="profile-appearance-section">
+                  <span className="profile-appearance-label">Theme</span>
+
+                  {themeOptions.map((option) => {
+                    const isActive = themeMode === option.value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`profile-mode-toggle ${
+                          isActive ? "active" : ""
+                        }`}
+                        onClick={() => setThemeMode(option.value)}
+                        aria-pressed={isActive}
+                        aria-label={`Select ${option.label}`}
+                      >
+                        <span
+                          className="profile-mode-toggle-icon"
+                          aria-hidden="true"
+                          style={{
+                            background: option.swatch,
+                            borderColor: isActive
+                              ? "var(--theme-primary)"
+                              : "var(--border-soft)",
+                          }}
+                        />
+
+                        <span className="profile-mode-toggle-copy">
+                          <strong>{option.label}</strong>
+                          <span>{option.description}</span>
+                        </span>
+
+                        <span className="profile-mode-toggle-state">
+                          {isActive ? "Active" : "Select"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
 
                 <button
                   type="button"

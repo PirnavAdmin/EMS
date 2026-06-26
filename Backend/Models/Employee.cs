@@ -44,6 +44,10 @@ namespace EmployeeManagementSystem.Models
         public ICollection<EmployeePersonalInfo> PersonalInfos { get; set; }
         [JsonIgnore]
         public EmployeeBankDetail BankDetails { get; set; }
+
+        //public ICollection<TeamMember>? TeamMembers { get; set; }
+
+        //public ICollection<Team>? ManagedTeams { get; set; }
     }
 
 }

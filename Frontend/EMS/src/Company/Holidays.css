@@ -36,12 +36,12 @@
 .holiday-add-btn {
   flex: 0 0 auto;
   min-height: 40px;
-  background: #00d1d1 !important;
-  color: #041c32 !important;
-  border: 1px solid #00d1d1;
+  background: var(--primary) !important;
+  color: var(--text-strong) !important;
+  border: 1px solid var(--primary);
   padding: 0 16px;
   border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0, 209, 209, 0.14);
+  box-shadow: var(--shadow-sm);
   transition:
     background-color 0.2s ease,
     transform 0.2s ease,
@@ -49,7 +49,7 @@
 }
 
 .holiday-add-btn:hover {
-  background: #12dbdb !important;
+  background: var(--theme-secondary) !important;
   transform: translateY(-1px);
 }
 
@@ -57,10 +57,10 @@
 
 .holiday-table-wrapper {
   width: 100%;
-  background: #fff;
-  border: 1px solid #e6ebf2;
+  background: var(--bg-page);
+  border: 1px solid var(--border-soft);
   border-radius: 16px;
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow-sm);
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -73,7 +73,7 @@
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
-  background: #fff;
+  background: var(--bg-page);
 }
 
 .holiday-table--admin {
@@ -90,18 +90,18 @@
 .holiday-table th,
 .holiday-table td {
   padding: 11px 12px;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--border-soft);
   font-size: 14px;
   line-height: 1.35;
   vertical-align: middle;
 }
 
 .holiday-table th {
-  background: #f8fafc;
+  background: var(--bg-muted);
   text-align: left;
   font-weight: 700;
   font-size: 13px;
-  color: #475467;
+  color: var(--text-body);
   white-space: nowrap;
 }
 
@@ -118,7 +118,7 @@
 }
 
 .holiday-table tbody tr:hover {
-  background: #fbfdff;
+  background: var(--bg-muted);
 }
 
 /* Column Widths */
@@ -254,7 +254,7 @@
 }
 
 .holiday-icon {
-  color: #06283d;
+  color: var(--text-strong);
   font-size: 14px;
   flex-shrink: 0;
 }
@@ -262,7 +262,7 @@
 .holiday-name-text {
   flex: 1 1 auto;
   min-width: 0;
-  color: #041c32;
+  color: var(--text-strong);
   font-weight: 500;
   text-align: left;
 }
@@ -272,7 +272,7 @@
 .holiday-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--theme-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -280,15 +280,15 @@
 }
 
 .holiday-modal-box {
-  background: #ffffff;
+  background: var(--bg-page);
   width: 420px;
   max-width: 90%;
   padding: 28px;
   border-radius: 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  gap: 10px;
+  box-shadow: var(--shadow-lg);
   animation: modalFade 0.2s ease;
 }
 
@@ -296,12 +296,12 @@
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-body);
 }
 
 .holiday-modal-box p {
   font-size: 15px;
-  color: #4b5563;
+  color: var(--text-body);
   line-height: 1.6;
   word-break: break-word;
 }
@@ -311,17 +311,30 @@
 .holiday-modal-box input,
 .holiday-modal-box select {
   width: 100%;
-  padding: 10px;
+  padding: 8px 12px;
+  min-height: 44px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-soft);
   font-size: 14px;
   outline: none;
 }
 
+.holiday-modal-btns {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.holiday-modal-btns:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .holiday-modal-box input:focus,
 .holiday-modal-box select:focus {
-  border-color: #0aa89e;
-  box-shadow: 0 0 0 3px rgba(10, 168, 158, 0.1);
+  border-color: var(--theme-secondary);
+  box-shadow: 0 0 0 3px var(--sidebar-accent-soft);
 }
 
 .holiday-field-group {
@@ -333,12 +346,12 @@
 .holiday-field-group label {
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-body);
 }
 
 .holiday-modal-box .has-error {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+  border-color: var(--theme-danger);
+  box-shadow: 0 0 0 3px var(--surface-danger-soft);
 }
 
 .holiday-form-error,
@@ -348,12 +361,12 @@
 }
 
 .holiday-form-error {
-  color: #dc2626;
+  color: var(--theme-danger);
   font-weight: 500;
 }
 
 .holiday-field-helper {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .holiday-action-cell {
@@ -376,26 +389,45 @@
 .holiday-modal-btns {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 10px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+
+  margin-top: 8px;
+
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+
+  padding: 0 !important;
+}
+
+.holiday-modal-btns::before,
+.holiday-modal-btns::after {
+  display: none !important;
+  content: none !important;
 }
 
 .holiday-cancel-btn {
-  background: #e5e7eb;
-  border: none;
-  padding: 8px 18px;
-  border-radius: 10px;
+  background: var(--bg-page) !important;
+  color: var(--text-strong) !important;
+
+  border: 1px solid var(--border-soft) !important;
+
+  padding: 10px 18px;
+  border-radius: 12px;
   cursor: pointer;
+
+  transition: all 0.2s ease;
 }
 
 .holiday-cancel-btn:hover {
-  background: #d1d5db;
+  background: var(--bg-muted) !important;
+  border-color: var(--sidebar-accent-hover) !important;
 }
 
 .holiday-save-btn {
-  background: #00d1d1 !important;
-  color: #000 !important;
+  background: var(--primary) !important;
+  color: var(--text-strong) !important;
   border: none;
   padding: 8px 18px;
   border-radius: 10px;
@@ -403,7 +435,7 @@
 }
 
 .holiday-save-btn:hover {
-  background: #08968e;
+  background: var(--theme-secondary);
 }
 
 .holiday-cancel-btn:disabled,
@@ -429,8 +461,8 @@
 /* ================= DELETE POPUP BUTTONS ================= */
 
 .holiday-delete-btn {
-  background: #ef4444;
-  color: white;
+  background: var(--theme-danger);
+  color: var(--theme-on-primary);
   border: none;
   padding: 8px 18px;
   border-radius: 10px;
@@ -438,21 +470,26 @@
 }
 
 .holiday-delete-btn:hover {
-  background: #dc2626;
+  background: var(--theme-danger);
 }
 
 .holiday-modal-btns button:first-child {
-  background: #e5e7eb !important;
-  color: #111 !important;
-  border: none !important;
+  background: transparent !important;
+  border: 2px solid var(--border-soft) !important;
+  color: var(--text-strong) !important;
+
   padding: 10px 18px !important;
-  border-radius: 10px !important;
+  border-radius: 12px !important;
+
   cursor: pointer !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
+
+  box-shadow: none !important;
 }
 
 .holiday-modal-btns button:first-child:hover {
-  background: #d1d5db !important;
+  background: transparent !important;
+  border-color: var(--theme-primary) !important;
 }
 
 @media (max-width: 767px) {

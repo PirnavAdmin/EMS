@@ -1,7 +1,7 @@
 /* PAGE */
 .attendance-page {
   padding: 20px;
-  background: #f5f7fb;
+  background: var(--attendance-bg);
   min-height: 100vh;
   font-family: var(--font-sans);
 }
@@ -18,11 +18,12 @@
   margin: 0;
   font-size: 22px;
   font-weight: 600;
+  color: var(--attendance-text);
 }
 
 .attendance-subtitle {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--attendance-muted);
   font-size: 13px;
 }
 
@@ -33,11 +34,12 @@
 
 .view-select {
   padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
+  border-radius: 14px;
+  border: 1px solid var(--input-border);
   outline: none;
   cursor: pointer;
-  background: #fff;
+  background-color: var(--input-bg);
+  color: var(--input-text);
   font-size: 14px;
 }
 
@@ -46,23 +48,25 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
+  background: var(--input-bg);
   padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
+  border-radius: 14px;
+  border: 1px solid var(--input-border);
   cursor: pointer;
 }
 
 .calendar-icon {
-  color: #555;
+  color: var(--input-text);
 }
 
 .date-picker-input {
-  border: none;
+  border: none !important;
   outline: none;
   cursor: pointer;
-  background: transparent;
+  background: transparent !important;
+  color: var(--input-text);
   font-size: 14px;
+  box-shadow: none !important;
 }
 
 /* TOOLBAR */
@@ -82,40 +86,51 @@
 .attendance-search-wrap {
   display: flex;
   align-items: center;
-  background: #fff;
+  background: var(--input-bg);
   padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
+  border-radius: 14px;
+  border: 1px solid var(--input-border);
   min-width: 250px;
 }
 
 .search-icon {
   margin-right: 8px;
-  color: #888;
+  color: var(--attendance-muted);
 }
 
 .attendance-search {
-  border: none;
+  border: none !important;
   outline: none;
   width: 100%;
+  background: transparent !important;
+  color: var(--input-text);
   font-size: 14px;
+  box-shadow: none !important;
+}
+
+html[data-theme-mode="dark"] .attendance-search-wrap input.attendance-search,
+html[data-theme-mode="dark"] .date-box input.date-picker-input {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* FILTER */
 .filter-select {
   padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  background: #fff;
+  border-radius: 14px;
+  border: 1px solid var(--input-border);
+  background-color: var(--input-bg);
+  color: var(--input-text);
   cursor: pointer;
 }
 
 /* TABLE */
 .attendance-table {
-  background: #fff;
+  background: var(--attendance-card);
   border-radius: 12px;
   padding: 10px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--theme-shadow-xs);
 }
 
 /* HEADER ROW */
@@ -125,8 +140,8 @@
   padding: 12px 16px;
   font-weight: 600;
   font-size: 13px;
-  color: #6b7280;
-  border-bottom: 1px solid #eee;
+  color: var(--attendance-muted);
+  border-bottom: 1px solid var(--attendance-border);
 }
 
 /* ROW */
@@ -135,19 +150,19 @@
   grid-template-columns: 2fr 1fr 1fr 1fr;
   padding: 12px 16px;
   font-size: 14px;
-  border-bottom: 1px solid #f1f1f1;
+  border-bottom: 1px solid var(--attendance-border);
   transition: all 0.2s ease;
 }
 
 /* HOVER EFFECT */
 .attendance-row:hover {
-  background: #f9fafb;
+  background: var(--attendance-summary);
   transform: scale(1.01);
 }
 
 /* EMPLOYEE NAME */
 .attendance-row div:first-child {
-  color: #2563eb;
+  color: var(--theme-info);
   font-weight: 600;
 }
 
@@ -156,14 +171,14 @@
   margin: 10px 16px;
   padding: 6px 12px;
   border: none;
-  background: #2563eb;
-  color: white;
+  background: var(--theme-info);
+  color: var(--theme-on-primary);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .attendance-table button:hover {
-  background: #1e40af;
+  background: var(--theme-info-strong);
 }
 
 /* MONTH VIEW TITLE */
@@ -177,7 +192,7 @@
 .attendance-table p {
   padding: 20px;
   text-align: center;
-  color: #777;
+  color: var(--attendance-muted);
 }
 
 /* RESPONSIVE */

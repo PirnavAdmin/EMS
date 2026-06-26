@@ -2,7 +2,7 @@
   padding: 20px;
 }
 body {
-  background: #f5f7fa;
+  background: var(--bg-muted);
   font-family: var(--font-sans);
   overflow-x: hidden;
 }
@@ -18,8 +18,8 @@ body {
   margin-bottom: 5px;
 }
 .job-add-btn {
-  background: #0aa89e;
-  color: white;
+  background: var(--theme-secondary);
+  color: var(--theme-on-primary);
   border: none;
   padding: 8px 18px;
   border-radius: 8px;
@@ -33,10 +33,10 @@ body {
 }
 
 .job-card-unique {
-  background: white;
+  background: var(--bg-page);
   padding: 15px;
   border-radius: 12px;
-  box-shadow: 0 0 8px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .job-top-unique {
@@ -47,7 +47,7 @@ body {
 
 .job-icon-unique {
   font-size: 20px;
-  color: #0aa89e;
+  color: var(--theme-secondary);
 }
 
 .job-badge {
@@ -57,18 +57,18 @@ body {
 }
 
 .job-open {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--surface-success-soft);
+  color: var(--theme-success-strong);
 }
 
 .job-closed {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
 }
 
 .job-hold {
-  background: #fde68a;
-  color: #92400e;
+  background: var(--surface-warning-soft);
+  color: var(--theme-warning-strong);
 }
 
 /* MODAL */
@@ -76,7 +76,7 @@ body {
 .job-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: var(--theme-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -84,7 +84,7 @@ body {
 }
 
 .job-modal-box {
-  background: #fff;
+  background: var(--bg-page);
   padding: 25px;
   border-radius: 14px;
   width: 400px;
@@ -97,7 +97,7 @@ body {
 .job-modal-box select {
   padding: 10px;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-soft);
   width: 100%;
   box-sizing: border-box;
 }
@@ -111,25 +111,25 @@ body {
 .job-field-group label {
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-body);
 }
 
 .job-modal-box input:focus,
 .job-modal-box select:focus {
-  border-color: #0aa89e;
-  box-shadow: 0 0 0 3px rgba(10, 168, 158, 0.1);
+  border-color: var(--theme-secondary);
+  box-shadow: 0 0 0 3px var(--sidebar-accent-soft);
   outline: none;
 }
 
 .job-modal-box .has-error {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+  border-color: var(--theme-danger);
+  box-shadow: 0 0 0 3px var(--surface-danger-soft);
 }
 
 .job-error {
   margin: 0;
   font-size: 12px;
-  color: #dc2626;
+  color: var(--theme-danger);
   font-weight: 500;
 }
 
@@ -140,16 +140,16 @@ body {
 }
 
 .job-cancel-btn {
-  background: #e5e7eb;
-  color: #111827;
+  background: var(--bg-muted);
+  color: var(--text-strong);
   border: none;
   padding: 7px 16px;
   border-radius: 6px;
 }
 
 .job-save-btn {
-  background: #0aa89e;
-  color: white;
+  background: var(--theme-secondary);
+  color: var(--theme-on-primary);
   border: none;
   padding: 7px 16px;
   border-radius: 6px;

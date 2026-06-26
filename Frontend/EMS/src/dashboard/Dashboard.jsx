@@ -5,6 +5,7 @@ import TopCharts from "./TopCharts";
 import RecentActivity from "./RecentActivity";
 import Holidays from "./Holidays";
 import QuickActions from "./QuickActions";
+import { PageSkeleton } from "../components/Skeletons";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { sortByRecency } from "../utils/collections";
@@ -16,6 +17,7 @@ import {
 
 function Dashboard() {
   const [dashboardData, setDashboardData] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -23,6 +25,8 @@ function Dashboard() {
 
     const fetchDashboard = async () => {
       try {
+        setLoading(true);
+
         // Optimization: fetch dashboard data once and share it with child widgets.
         startPerformanceTimer(timerLabel);
 
@@ -42,6 +46,7 @@ function Dashboard() {
         );
       } finally {
         endPerformanceTimer(timerLabel);
+        setLoading(false);
       }
     };
 
@@ -60,6 +65,14 @@ function Dashboard() {
     // Optimization: memoize activity sorting so card rerenders do not repeat the same work.
     return sortByRecency(Array.isArray(activityData) ? activityData : []).slice(0, 6);
   }, [dashboardData]);
+
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <PageSkeleton variant="dashboard" />
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard">

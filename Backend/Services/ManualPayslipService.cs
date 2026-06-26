@@ -106,8 +106,6 @@ namespace EmployeeManagementSystem.Services
                 "Templates",
                 "PaySlipTemplate.docx");
 
-            EnsureValidWordTemplate(templatePath);
-
             var outputFolder = Path.Combine(
       Directory.GetCurrentDirectory(),
       "wwwroot",
@@ -117,7 +115,7 @@ namespace EmployeeManagementSystem.Services
                 Directory.CreateDirectory(outputFolder);
 
             var fileName =
-                $"Payslip_{employee.Employee_Id}_{GetIndianTime():yyyyMMddHHmmssfff}_{Guid.NewGuid():N}.docx";
+                $"Payslip_{employee.Employee_Id}_{GetIndianTime():yyyyMMddHHmmss}.docx";
 
             var outputPath = Path.Combine(outputFolder, fileName);
 
@@ -128,7 +126,7 @@ namespace EmployeeManagementSystem.Services
             // WORD BOOKMARKS (UNCHANGED)
             //--------------------------------
             using (WordprocessingDocument wordDoc =
-                OpenGeneratedPayslip(outputPath))
+                WordprocessingDocument.Open(outputPath, true))
             {
                 ReplaceBookmark(wordDoc, "CandidateName", employee.Name);
                 ReplaceBookmark(wordDoc, "EmployeeID", employee.Employee_Id);
@@ -229,13 +227,6 @@ namespace EmployeeManagementSystem.Services
                 ? @"C:\Program Files\LibreOffice\program\soffice.exe"
                 : "/usr/bin/soffice";
 
-            if (!File.Exists(sofficePath))
-            {
-                throw new FileNotFoundException(
-                    $"LibreOffice executable not found at {sofficePath}. Install LibreOffice or update the configured soffice path.",
-                    sofficePath);
-            }
-
             using var process = new Process();
 
             process.StartInfo.FileName = sofficePath;
@@ -250,24 +241,14 @@ namespace EmployeeManagementSystem.Services
 
             process.Start();
 
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-
             await process.WaitForExitAsync();
-
-            var output = await outputTask;
-            var error = await errorTask;
-
-            if (process.ExitCode != 0)
-            {
-                throw new Exception(
-                    $"PDF generation failed with exit code {process.ExitCode}. {error} {output}".Trim());
-            }
 
             if (!File.Exists(pdfPath))
             {
+                string error = await process.StandardError.ReadToEndAsync();
+
                 throw new Exception(
-                    $"PDF generation failed because LibreOffice did not create the expected file: {pdfPath}. {error} {output}".Trim());
+                    $"PDF generation failed. {error}");
             }
 
             if (File.Exists(outputPath))
@@ -408,39 +389,6 @@ namespace EmployeeManagementSystem.Services
                     if (textElement != null)
                         textElement.Text = text;
                 }
-            }
-        }
-
-        private static void EnsureValidWordTemplate(string templatePath)
-        {
-            if (!File.Exists(templatePath))
-                throw new InvalidOperationException(
-                    $"Payslip template not found on server: {templatePath}");
-
-            try
-            {
-                using var template =
-                    WordprocessingDocument.Open(templatePath, false);
-            }
-            catch (FileFormatException ex)
-            {
-                throw new InvalidOperationException(
-                    $"Payslip template is corrupted or not a valid .docx file on server: {templatePath}. Replace PaySlipTemplate.docx and rebuild/redeploy.",
-                    ex);
-            }
-        }
-
-        private static WordprocessingDocument OpenGeneratedPayslip(string outputPath)
-        {
-            try
-            {
-                return WordprocessingDocument.Open(outputPath, true);
-            }
-            catch (FileFormatException ex)
-            {
-                throw new InvalidOperationException(
-                    $"Generated payslip document is corrupted before PDF conversion: {outputPath}. This can happen if the template is invalid or concurrent requests overwrite the same output file.",
-                    ex);
             }
         }
     }

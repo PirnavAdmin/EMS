@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
+import { PageSkeleton } from "../components/Skeletons";
  
 function ClientDetails() {
   const { id } = useParams();
@@ -40,7 +41,7 @@ function ClientDetails() {
   if (loading) {
     return (
       <div style={{ padding: "30px" }}>
-        <p>Loading client details...</p>
+        <PageSkeleton variant="form" formFields={6} formColumns={1} />
       </div>
     );
   }
