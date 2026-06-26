@@ -52,9 +52,9 @@ services:
 
       args:
 
-        # Browser code cannot resolve Docker DNS names; "/" lets Nginx proxy /api to backend:8080.
+        # Browser code should use the public HRMS domain for API calls.
 
-        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-/}
+        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-https://hrms.pirnav.com}
 
     image: ems-pirnav-frontend:${IMAGE_TAG:-latest}
 
