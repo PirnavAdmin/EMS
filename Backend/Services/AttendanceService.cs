@@ -82,7 +82,7 @@ namespace EmployeeManagementSystem.Services
 
         }
 
-       
+
 
         private async Task<Employee?> GetEmployee(ClaimsPrincipal user)
 
@@ -103,7 +103,7 @@ namespace EmployeeManagementSystem.Services
      ClaimsPrincipal user,
      CheckInLocationDto dto)
         {
-           
+
             var emp = await GetEmployee(user);
 
             if (emp == null)
@@ -133,7 +133,7 @@ namespace EmployeeManagementSystem.Services
             var now = DateTime.UtcNow;
             var ist = ConvertToIST(now);
 
-            
+
 
             var checkInStartTime = new TimeSpan(8, 55, 0);
 
@@ -267,10 +267,10 @@ namespace EmployeeManagementSystem.Services
 
                 return new BadRequestObjectResult("Check-in not found");
 
-            
-            
-   
-           
+
+
+
+
             var now = DateTime.UtcNow;
 
             att.Check_Out = now;
@@ -293,8 +293,8 @@ namespace EmployeeManagementSystem.Services
                 {
                     att.Status = "Present";
                 }
-            
-        }
+
+            }
             else
                 att.Status = "Absent";
             // Store checkout location
@@ -349,24 +349,53 @@ namespace EmployeeManagementSystem.Services
 
                     att.LocationChangeReason =
                         dto.LocationChangeReason.Trim();
+                    // Get HR, HR Admin and Manager email addresses
+                    var allowedRoles = new[]
+  {
+    "HR",
+    "HR Admin",
+    "Manager"
+};
 
-                    await _emailService.SendLocationMismatchEmail(
-    "vijitha.putluru@pirnav.com", // Admin Email
-    emp.Employee_Id,
-    emp.Name ?? "",
-    emp.Email ?? "",
-    att.CheckInLatitude.Value,
-    att.CheckInLongitude.Value,
-    (decimal)dto.Latitude,
-    (decimal)dto.Longitude,
-    (decimal)distance,
-    dto.LocationChangeReason
-);
+                    var recipients = await (
+                        from u in _context.Users
+                        join r in _context.Roles
+                            on u.RoleId equals r.RoleId
+                        where u.Email != null &&
+                              allowedRoles.Contains(r.Name)
+                        select u.Email
+                    ).ToListAsync();
+                    // Add additional email addresses
+                    recipients.Add("hr.admin@pirnav.com");
+
+                    recipients.Add("hr@pirnav.com");
+
+                    // Remove duplicate email addresses
+                    recipients = recipients
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    // Send email to everyone
+                    foreach (var email in recipients)
+                    {
+                        await _emailService.SendLocationMismatchEmail(
+                            email,
+                            emp.Employee_Id,
+                            emp.Name ?? "",
+                            emp.Email ?? "",
+                            att.CheckInLatitude.Value,
+                            att.CheckInLongitude.Value,
+                            (decimal)dto.Latitude,
+                            (decimal)dto.Longitude,
+                            (decimal)distance,
+                            dto.LocationChangeReason
+                        );
+                    }
                 }
             }
             att.CheckOutLatitude = dto.Latitude;
             att.CheckOutLongitude = dto.Longitude;
-         
+
 
             await _context.SaveChangesAsync();
 
@@ -517,18 +546,14 @@ namespace EmployeeManagementSystem.Services
                 : null,
 
                     Hours = FormatHours(
-
-            att == null
-
-                ? 0
-
-                : att.Check_Out == null
-
-                    ? (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes
-
-                    : att.WorkingMinutes
-
-        )
+    att == null
+        ? 0
+        : att.Check_In == null
+            ? 0
+            : att.Check_Out == null
+                ? (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes
+                : att.WorkingMinutes
+)
 
                 });
 
@@ -857,7 +882,7 @@ namespace EmployeeManagementSystem.Services
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
                         Hours = "0h 0m"
-                       
+
                     });
                     continue;
                 }
@@ -877,7 +902,7 @@ namespace EmployeeManagementSystem.Services
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
                         Hours = "0h 0m"
-                      
+
                     });
 
                     continue;
@@ -921,7 +946,7 @@ namespace EmployeeManagementSystem.Services
     : "0h 0m"
 
                 });
-            
+
             }
 
             return new OkObjectResult(result);
@@ -992,7 +1017,7 @@ namespace EmployeeManagementSystem.Services
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
                         Hours = "0h 0m"
-                      
+
                     });
                     continue;
 
@@ -1079,7 +1104,7 @@ namespace EmployeeManagementSystem.Services
            ? FormatHours(att.WorkingMinutes)
            : "0h 0m"
 
-                   
+
                 });
 
             }
@@ -1218,7 +1243,7 @@ namespace EmployeeManagementSystem.Services
             ? FormatHours(att.WorkingMinutes)
             : "0h 0m",
 
-                   
+
                 });
             }
 
@@ -1592,7 +1617,7 @@ namespace EmployeeManagementSystem.Services
                 .AsNoTracking()
 
                 .Where(a =>
-                
+
                     a.Employee_Id == employeeId &&
 
                     a.Attendance_Date >= start &&
@@ -1734,14 +1759,14 @@ namespace EmployeeManagementSystem.Services
                 }
             }
 
-                return new AttendanceSummaryDto
-                {
-                    PresentDays = present,
-                    AbsentDays = absent,
-                    LopDays = lopDays
-                };
+            return new AttendanceSummaryDto
+            {
+                PresentDays = present,
+                AbsentDays = absent,
+                LopDays = lopDays
+            };
 
-            }
+        }
 
 
         public async Task<string> UploadMonthlyAttendance(
