@@ -1468,7 +1468,7 @@
           }
         }
       },
-      "QuestPDF/2025.7.4": {
+      "QuestPDF/2026.6.0": {
         "type": "package",
         "compile": {
           "lib/net8.0/QuestPDF.dll": {
@@ -1524,19 +1524,15 @@
             "assetType": "native",
             "rid": "osx-x64"
           },
+          "runtimes/win-arm64/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-arm64"
+          },
+          "runtimes/win-arm64/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-arm64"
+          },
           "runtimes/win-x64/native/QuestPdfSkia.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/libgcc_s_seh-1.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/libstdc++-6.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/libwinpthread-1.dll": {
             "assetType": "native",
             "rid": "win-x64"
           },
@@ -1544,31 +1540,11 @@
             "assetType": "native",
             "rid": "win-x64"
           },
-          "runtimes/win-x64/native/zlib1.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
           "runtimes/win-x86/native/QuestPdfSkia.dll": {
             "assetType": "native",
             "rid": "win-x86"
           },
-          "runtimes/win-x86/native/libgcc_s_dw2-1.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/libstdc++-6.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/libwinpthread-1.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
           "runtimes/win-x86/native/qpdf.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/zlib1.dll": {
             "assetType": "native",
             "rid": "win-x86"
           }
@@ -5658,10 +5634,10 @@
         "pomelo.entityframeworkcore.mysql.nuspec"
       ]
     },
-    "QuestPDF/2025.7.4": {
-      "sha512": "XeiWilwLnqP2BIvDG+vh1+fjUoNWczPee5qifw8VppVOH7+vmxgoxG/KANcKftgqAfXiRQ++sXOSLPZRvXxD2g==",
+    "QuestPDF/2026.6.0": {
+      "sha512": "0DQY6bGXcFLdj10vXmdMMZqgShQGuy0XvPtkkfntlOmSrtIZTBmlLFQilg3OK/V9c6hlyqus+g6PKm5YexEZ0A==",
       "type": "package",
-      "path": "questpdf/2025.7.4",
+      "path": "questpdf/2026.6.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -5671,7 +5647,7 @@
         "ExternalDependencyLicenses/emsdk.txt",
         "ExternalDependencyLicenses/expat.txt",
         "ExternalDependencyLicenses/harfbuzz.txt",
-        "ExternalDependencyLicenses/icu.txt",
+        "ExternalDependencyLicenses/libgrapheme.txt",
         "ExternalDependencyLicenses/libjpeg-turbo.txt",
         "ExternalDependencyLicenses/libpng.txt",
         "ExternalDependencyLicenses/libwebp.txt",
@@ -5681,6 +5657,7 @@
         "ExternalDependencyLicenses/skia.txt",
         "ExternalDependencyLicenses/wuffs.txt",
         "ExternalDependencyLicenses/zlib.txt",
+        "LICENSE.md",
         "LatinWords.txt",
         "LatoFont/Lato-Black.ttf",
         "LatoFont/Lato-BlackItalic.ttf",
@@ -5703,20 +5680,21 @@
         "LatoFont/OFL.txt",
         "Logo.png",
         "MimeTypes.csv",
-        "PackageLicense.md",
         "README.md",
         "ReleaseNotes.txt",
         "build/QuestPDF.targets",
         "build/net4/QuestPDF.targets",
         "buildTransitive/QuestPDF.targets",
         "buildTransitive/net4/QuestPDF.targets",
+        "lib/net10.0/QuestPDF.dll",
+        "lib/net10.0/QuestPDF.xml",
         "lib/net6.0/QuestPDF.dll",
         "lib/net6.0/QuestPDF.xml",
         "lib/net8.0/QuestPDF.dll",
         "lib/net8.0/QuestPDF.xml",
         "lib/netstandard2.0/QuestPDF.dll",
         "lib/netstandard2.0/QuestPDF.xml",
-        "questpdf.2025.7.4.nupkg.sha512",
+        "questpdf.2026.6.0.nupkg.sha512",
         "questpdf.nuspec",
         "runtimes/linux-arm64/native/libQuestPdfSkia.so",
         "runtimes/linux-arm64/native/libqpdf.so",
@@ -5728,18 +5706,12 @@
         "runtimes/osx-arm64/native/libqpdf.dylib",
         "runtimes/osx-x64/native/libQuestPdfSkia.dylib",
         "runtimes/osx-x64/native/libqpdf.dylib",
+        "runtimes/win-arm64/native/QuestPdfSkia.dll",
+        "runtimes/win-arm64/native/qpdf.dll",
         "runtimes/win-x64/native/QuestPdfSkia.dll",
-        "runtimes/win-x64/native/libgcc_s_seh-1.dll",
-        "runtimes/win-x64/native/libstdc++-6.dll",
-        "runtimes/win-x64/native/libwinpthread-1.dll",
         "runtimes/win-x64/native/qpdf.dll",
-        "runtimes/win-x64/native/zlib1.dll",
         "runtimes/win-x86/native/QuestPdfSkia.dll",
-        "runtimes/win-x86/native/libgcc_s_dw2-1.dll",
-        "runtimes/win-x86/native/libstdc++-6.dll",
-        "runtimes/win-x86/native/libwinpthread-1.dll",
-        "runtimes/win-x86/native/qpdf.dll",
-        "runtimes/win-x86/native/zlib1.dll"
+        "runtimes/win-x86/native/qpdf.dll"
       ]
     },
     "RBush.Signed/4.0.0": {
@@ -9612,7 +9584,7 @@
       "Microsoft.EntityFrameworkCore.Tools >= 8.0.24",
       "Microsoft.Office.Interop.Word >= 12.0.0",
       "Pomelo.EntityFrameworkCore.MySql >= 8.0.3",
-      "QuestPDF >= 2025.7.4",
+      "QuestPDF >= 2026.6.0",
       "Spire.Doc >= 8.12.14",
       "Swashbuckle.AspNetCore >= 6.6.2",
       "Xceed.Words.NET >= 5.2.25608.6677",
@@ -9725,7 +9697,7 @@
           },
           "QuestPDF": {
             "target": "Package",
-            "version": "[2025.7.4, )"
+            "version": "[2026.6.0, )"
           },
           "Spire.Doc": {
             "target": "Package",

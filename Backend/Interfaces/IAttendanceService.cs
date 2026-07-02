@@ -95,8 +95,10 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<IActionResult> UpdateActivity(
     ClaimsPrincipal user);
-        
 
+        Task<IActionResult> SaveLocation(EmployeeLocationDto dto);
+        Task<IActionResult> GetLocations();
+        Task<AttendanceDashboardDto> GetDashboardAttendance(ClaimsPrincipal user);
 
 
     }

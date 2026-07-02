@@ -78,18 +78,20 @@ function OverrideMemberModal({
 
         console.log("Projects Response", data);
 
-        const formatted = (Array.isArray(data) ? data : []).map((p) => ({
-          id: Number(
+        const formatted = (Array.isArray(data) ? data : []).map((p, index) => ({
+          id:
             p.project_Id ??
             p.projectId ??
-            p.id
-          ),
+            p.id ??
+            `project-${index}`,
+
           project_Name:
             p.project_Name ??
             p.projectName ??
-            p.name
+            p.name ??
+            "Unknown Project"
         }));
-
+        
         setProjects(formatted);
 
         setProjects(formatted);

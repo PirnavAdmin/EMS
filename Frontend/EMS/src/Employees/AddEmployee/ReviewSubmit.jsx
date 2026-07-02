@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { formatDate, formatDateTime, parseDate } from "../../utils/date";
+import { formatDate, parseDate } from "../../utils/date";
 import {
   formatDocumentSize,
   loadStoredDocuments,
   mergeDocumentRecords,
 } from "./documentStore";
+import DocumentPreviewModal from "./DocumentPreviewModal";
 import "./AddEmployee.css";
 
 const getDisplayValue = (value, fallback = "-") => {
@@ -223,6 +224,7 @@ function ReviewSubmit({
   const experience = Array.isArray(data?.experience) ? data.experience : [];
   const [cachedDocuments, setCachedDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(Boolean(employeeId));
+  const [previewDocument, setPreviewDocument] = useState(null);
 
   const serverDocuments = Array.isArray(data?.documents) ? data.documents : [];
 
@@ -437,16 +439,20 @@ function ReviewSubmit({
                     value={formatDateTime(doc.uploadedAt || doc.createdAt)}
                   /> */}
 
-                  {doc.fileUrl && (
+                  {(doc.fileUrl || doc.downloadUrl || doc.blob instanceof Blob) && (
                     <div className="review-item review-item-full">
                       <span className="review-label">File</span>
 
                       <span className="review-value">
                         <a
-                          href={doc.fileUrl}
+                          href={doc.fileUrl || doc.downloadUrl || "#"}
                           target="_blank"
                           rel="noreferrer"
                           className="document-link"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setPreviewDocument(doc);
+                          }}
                         >
                           View Document
                         </a>
@@ -463,6 +469,12 @@ function ReviewSubmit({
           </div>
         )}
       </ReviewSection>
+
+      <DocumentPreviewModal
+        open={Boolean(previewDocument)}
+        document={previewDocument}
+        onClose={() => setPreviewDocument(null)}
+      />
 
       <div className="step-actions">
         <button type="button" className="btn secondary" onClick={onBack} disabled={submitting}>

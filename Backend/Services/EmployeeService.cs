@@ -74,11 +74,11 @@ namespace EmployeeManagementSystem.Services
             _context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
             {
                 Employee_Id = employee.Employee_Id,
-                Earned_Total = 10,
+                Earned_Total = 4,
                 Earned_Used = 0,
-                Casual_Total = 12,
+                Casual_Total = 4,
                 Casual_Used = 0,
-                Sick_Total = 10,
+                Sick_Total = 4,
                 Sick_Used = 0
             });
 
@@ -230,6 +230,282 @@ namespace EmployeeManagementSystem.Services
 
             return "Employee deleted successfully";
         }
+        public async Task<List<UpcomingBirthdayDto>> GetUpcomingBirthdays()
+        {
+            var today = DateTime.Today;
+
+            var birthdays = await
+(
+    from emp in _context.Employees.AsNoTracking()
+    join personal in _context.EmployeePersonalInfos.AsNoTracking()
+        on emp.Employee_Id equals personal.Employee_Id
+    where personal.DateOfBirth != DateTime.MinValue
+    select new
+    {
+        emp.Employee_Id,
+        emp.Name,
+        personal.DateOfBirth
+    }
+).ToListAsync();
+
+            var result = birthdays
+                .Select(x =>
+                {
+                    var nextBirthday = new DateTime(
+                        today.Year,
+                        x.DateOfBirth.Month,
+                        x.DateOfBirth.Day);
+
+                    if (nextBirthday < today)
+                        nextBirthday = nextBirthday.AddYears(1);
+
+                    return new UpcomingBirthdayDto
+                    {
+                        EmployeeId = x.Employee_Id,
+                        EmployeeName = x.Name,
+                        Birthday = x.DateOfBirth,
+                        DaysRemaining = (nextBirthday - today).Days
+                    };
+                })
+                .OrderBy(x => x.DaysRemaining)
+                .Take(6)
+                .ToList();
+
+            return result;
+        }
+
+        public async Task<object> BulkUploadEmployees(IFormFile file)
+
+        {
+
+            if (file == null || file.Length == 0)
+
+                return new { Message = "No file uploaded" };
+
+            int inserted = 0;
+
+            int updated = 0;
+
+            int failed = 0;
+
+            List<string> errors = new();
+
+            using var stream = new MemoryStream();
+
+            await file.CopyToAsync(stream);
+
+            using var workbook = new XLWorkbook(stream);
+
+            var worksheet = workbook.Worksheet(1);
+
+            var totalRows = worksheet.LastRowUsed().RowNumber();
+
+            for (int row = 2; row <= totalRows; row++)
+
+            {
+
+                try
+
+                {
+
+                    var employeeId = worksheet.Cell(row, 1).GetString().Trim();
+
+                    var name = worksheet.Cell(row, 2).GetString().Trim();
+
+                    var email = worksheet.Cell(row, 3).GetString().Trim();
+
+                    var department = worksheet.Cell(row, 4).GetString().Trim();
+
+                    var roleName = worksheet.Cell(row, 5).GetString().Trim();
+
+                    var status = worksheet.Cell(row, 6).GetString().Trim();
+
+                    var joiningDateText = worksheet.Cell(row, 7).GetString().Trim();
+
+                    var ctcText = worksheet.Cell(row, 8).GetString().Trim();
+
+                    if (string.IsNullOrWhiteSpace(employeeId))
+
+                    {
+
+                        failed++;
+
+                        errors.Add($"Row {row}: Employee_Id missing");
+
+                        continue;
+
+                    }
+
+                    var existingEmployee = await _context.Employees
+
+                        .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+
+                    DateTime joiningDate = DateTime.Parse(joiningDateText);
+
+                    decimal ctc = decimal.Parse(ctcText);
+
+                    if (existingEmployee != null)
+
+                    {
+
+                        existingEmployee.Name = name;
+
+                        existingEmployee.Email = email;
+
+                        existingEmployee.Department = department;
+
+                        existingEmployee.RoleName = roleName;
+
+                        existingEmployee.Status = status;
+
+                        existingEmployee.JoiningDate = joiningDate;
+
+                        existingEmployee.CTC = ctc;
+
+                        updated++;
+
+                    }
+
+                    else
+
+                    {
+
+                        var role = await _context.Roles
+
+                            .FirstOrDefaultAsync(r => r.Name == roleName);
+
+                        if (role == null)
+
+                        {
+
+                            failed++;
+
+                            errors.Add($"Row {row}: Invalid Role Name");
+
+                            continue;
+
+                        }
+
+                        var newEmployee = new Employee
+
+                        {
+
+                            Employee_Id = employeeId,
+
+                            Name = name,
+
+                            Email = email,
+
+                            Department = department,
+
+                            RoleName = roleName,
+
+                            RoleId = role.RoleId,
+
+                            Status = status,
+
+                            JoiningDate = joiningDate,
+
+                            CTC = ctc
+
+                        };
+
+                        await _context.Employees.AddAsync(newEmployee);
+
+                        await _context.SaveChangesAsync();
+
+                        _context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
+
+                        {
+
+                            Employee_Id = newEmployee.Employee_Id,
+
+                            Earned_Total = 10,
+
+                            Earned_Used = 0,
+
+                            Casual_Total = 12,
+
+                            Casual_Used = 0,
+
+                            Sick_Total = 10,
+
+                            Sick_Used = 0
+
+                        });
+
+                        var dept = await _context.Departments
+
+    .FirstOrDefaultAsync(d => d.DepartmentName == department);
+
+                        if (dept != null)
+
+                        {
+
+                            dept.MembersCount += 1;
+
+                        }
+
+                        await _emailService.SendEmailAsync(
+
+    email,
+
+    "EMS Login Details",
+
+    $@"
+
+    Hello {name},<br><br>
+ 
+    Your account is created in Pirnav Company.<br><br>
+ 
+    Login Link:
+<a href='https://hrms.pirnav.com'>
+https://hrms.pirnav.com
+</a><br><br>
+ 
+    Newly User Verify your account by using Register and Login.
+
+    "
+
+);
+
+                        inserted++;
+
+                    }
+
+                }
+
+                catch (Exception ex)
+
+                {
+
+                    failed++;
+
+                    errors.Add($"Row {row}: {ex.Message}");
+
+                }
+
+            }
+
+            await _context.SaveChangesAsync();
+
+            return new
+
+            {
+
+                Inserted = inserted,
+
+                Updated = updated,
+
+                Failed = failed,
+
+                Errors = errors
+
+            };
+
+        }
+        
+
 
         public async Task<Employee?> GetEmployeeByEmployeeId(string employeeId)
         {

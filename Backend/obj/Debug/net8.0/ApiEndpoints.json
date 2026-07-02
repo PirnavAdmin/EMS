@@ -312,32 +312,60 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
-    "Method": "GetBreakSummary",
-    "RelativePath": "api/Attendance/break-summary",
-    "HttpMethod": "GET",
+    "Method": "UploadMonthlyAttendance",
+    "RelativePath": "api/Attendance/admin/upload-monthly",
+    "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "month",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "year",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": []
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
     "Method": "CheckIn",
-    "RelativePath": "api/Attendance/check-in",
+    "RelativePath": "api/Attendance/checkin",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.CheckInLocationDto",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
     "Method": "CheckOut",
-    "RelativePath": "api/Attendance/check-out",
+    "RelativePath": "api/Attendance/checkout",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.CheckOutLocationDto",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -352,9 +380,9 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
-    "Method": "EndBreak",
-    "RelativePath": "api/Attendance/end-break",
-    "HttpMethod": "POST",
+    "Method": "GetDashboardAttendance",
+    "RelativePath": "api/Attendance/dashboard-attendance",
+    "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
     "Parameters": [],
@@ -390,6 +418,16 @@
         "IsRequired": false
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
+    "Method": "GetLocations",
+    "RelativePath": "api/Attendance/GetLocations",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -476,12 +514,18 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
-    "Method": "StartBreak",
-    "RelativePath": "api/Attendance/start-break",
+    "Method": "SaveLocation",
+    "RelativePath": "api/Attendance/SaveLocation",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.EmployeeLocationDto",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -534,6 +578,16 @@
         "IsRequired": false
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
+    "Method": "UpdateActivity",
+    "RelativePath": "api/Attendance/update-activity",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -1330,6 +1384,16 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "EmployeeLeaveController",
+    "Method": "GetAllWFH",
+    "RelativePath": "api/EmployeeLeave/all-wfh",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "EmployeeManagementSystem.Controllers.EmployeeLeaveController",
     "Method": "ApplyLeave",
     "RelativePath": "api/EmployeeLeave/apply",
@@ -1340,6 +1404,22 @@
       {
         "Name": "dto",
         "Type": "EmployeeLeaveDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeLeaveController",
+    "Method": "ApplyWFH",
+    "RelativePath": "api/EmployeeLeave/apply-wfh",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.WorkFromHomeDto",
         "IsRequired": true
       }
     ],
@@ -1378,6 +1458,22 @@
   },
   {
     "ContainingType": "EmployeeLeaveController",
+    "Method": "CancelWFH",
+    "RelativePath": "api/EmployeeLeave/cancel-wfh/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeLeaveController",
     "Method": "CancelLeave",
     "RelativePath": "api/EmployeeLeave/cancel/{id}",
     "HttpMethod": "PUT",
@@ -1394,12 +1490,59 @@
   },
   {
     "ContainingType": "EmployeeLeaveController",
+    "Method": "GetEmployeeLeaveDetails",
+    "RelativePath": "api/EmployeeLeave/employee-leave-details/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeLeaveController",
     "Method": "ExportLeaves",
     "RelativePath": "api/EmployeeLeave/export",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeLeaveController",
+    "Method": "MailAction",
+    "RelativePath": "api/EmployeeLeave/mail-action",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "leaveId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "action",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "token",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "approverEmail",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -1414,8 +1557,39 @@
   },
   {
     "ContainingType": "EmployeeLeaveController",
+    "Method": "GetMyWFH",
+    "RelativePath": "api/EmployeeLeave/my-wfh",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeLeaveController",
     "Method": "UpdateStatus",
     "RelativePath": "api/EmployeeLeave/update-status/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "status",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeLeaveController",
+    "Method": "UpdateWFHStatus",
+    "RelativePath": "api/EmployeeLeave/update-wfh-status/{id}",
     "HttpMethod": "PUT",
     "IsController": true,
     "Order": 0,
@@ -1577,6 +1751,22 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.EmployeesController",
+    "Method": "BulkUploadEmployees",
+    "RelativePath": "api/Employees/bulk-upload",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.EmployeesController",
     "Method": "ChangePassword",
     "RelativePath": "api/Employees/change-password",
     "HttpMethod": "POST",
@@ -1595,6 +1785,32 @@
     "ContainingType": "EmployeeManagementSystem.Controllers.EmployeesController",
     "Method": "DownloadFullMaster",
     "RelativePath": "api/Employees/download-full-master",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.EmployeesController",
+    "Method": "ExportEmployeeProfilePdf",
+    "RelativePath": "api/Employees/export-profile-pdf/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.EmployeesController",
+    "Method": "GetUpcomingBirthdays",
+    "RelativePath": "api/Employees/upcoming-birthdays",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -1963,6 +2179,11 @@
       {
         "Name": "OtherDeductions",
         "Type": "System.Nullable\u00601[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "DeductionLabel",
+        "Type": "System.String",
         "IsRequired": false
       }
     ],
@@ -2502,6 +2723,169 @@
       {
         "Name": "status",
         "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "GetTeams",
+    "RelativePath": "api/Team",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "GetDetails",
+    "RelativePath": "api/Team/{teamId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "teamId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "DeleteTeam",
+    "RelativePath": "api/Team/{teamId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "teamId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "RemoveMember",
+    "RelativePath": "api/Team/{teamId}/member/{employeeId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "teamId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "AddMembers",
+    "RelativePath": "api/Team/add-members",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.AddTeamMembersDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "GetAvailableEmployees",
+    "RelativePath": "api/Team/available-employees",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "Create",
+    "RelativePath": "api/Team/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.CreateTeamDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "GetManagers",
+    "RelativePath": "api/Team/managers",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "MemberOverride",
+    "RelativePath": "api/Team/member-override",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.MemberOverrideDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "UpdateTeam",
+    "RelativePath": "api/Team/update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.UpdateTeamDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TeamController",
+    "Method": "UpdateReportingDays",
+    "RelativePath": "api/Team/update-reporting-days",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.UpdateReportingDaysDto",
         "IsRequired": true
       }
     ],

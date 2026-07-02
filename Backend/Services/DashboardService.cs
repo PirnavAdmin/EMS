@@ -41,7 +41,7 @@ namespace EmployeeManagementSystem.Services
             var activityLogs = await _context.ActivityLogs
                 .Where(a => a.CreatedAt >= activityExpiry)
                 .OrderByDescending(a => a.CreatedAt)
-                .Take(5)
+                .Take(15)
                 .Select(a => new
                 {
                     a.Activity,

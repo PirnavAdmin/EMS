@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
+﻿import React, { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import "./AttendanceTable.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -12,6 +12,7 @@ import {
 } from "./attendanceDownloads";
 import {
   formatMonthYear,
+  formatDate,
   formatTime,
   getInputDateValue,
   getTodayInputValue,
@@ -55,11 +56,6 @@ const parseReportMonthValue = (monthValue) => {
 
 const getReportMonthLabel = (yearValue, monthValue) =>
   reportMonthFormatter.format(
-    new Date(yearValue, monthValue - 1, 1)
-  );
-
-const getReportMonthName = (yearValue, monthValue) =>
-  reportMonthNameFormatter.format(
     new Date(yearValue, monthValue - 1, 1)
   );
 
@@ -155,7 +151,6 @@ function AttendanceTable({
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [downloadingReport, setDownloadingReport] = useState("");
-  const [isDailyDownloading, setIsDailyDownloading] = useState(false);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [downloadReportType, setDownloadReportType] = useState("Daily");
   const [downloadReportMonth, setDownloadReportMonth] = useState("");
@@ -165,7 +160,7 @@ function AttendanceTable({
   const [selectedReportWeekId, setSelectedReportWeekId] = useState("");
   // New state for Daily download date
   const [downloadReportDate, setDownloadReportDate] = useState(getTodayInputValue());
-  
+
   const [, setLiveTimer] = useState(0);
   const [dailyPage, setDailyPage] = useState(1);
   const [monthlyPage, setMonthlyPage] = useState(1);
@@ -202,6 +197,14 @@ function AttendanceTable({
     checkIn: "",
     checkOut: ""
   });
+
+  // =========================
+  // LOCATION MODAL STATE
+  // =========================
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [locationModalData, setLocationModalData] = useState(null);
+  const [locationAddressLoading, setLocationAddressLoading] = useState(false);
+  const locationRequestRef = useRef(0);
 
   const token = getStoredToken();
 
@@ -257,6 +260,90 @@ function AttendanceTable({
 
   const getCheckOut = (emp) => {
     return emp?.checkOut || emp?.checkOutTime || emp?.outTime || null;
+  };
+
+  // =========================
+  // LOCATION HELPERS
+  // =========================
+  const parseLatLngFromUrl = (url) => {
+    if (!url) return null;
+
+    const match = String(url).match(
+      /q=(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/
+    );
+
+    if (!match) return null;
+
+    const lat = Number(match[1]);
+    const lng = Number(match[2]);
+
+    return Number.isFinite(lat) && Number.isFinite(lng)
+      ? { lat, lng }
+      : null;
+  };
+
+  // FIX: The check-in/check-out map link (checkInMapUrl / checkOutMapUrl) is the
+  // value captured live at the moment of check-in/check-out, so it is the most
+  // accurate source of truth. Any separately stored lat/lng style fields can go
+  // stale (e.g. overwritten by a later location update), which caused the modal
+  // to show the wrong / "current" location instead of the location recorded at
+  // the time of attendance. We now prefer the map-url coordinates first and only
+  // fall back to the other fields if no map url is present.
+  const getLocationCoords = (emp, prefix) => {
+    const mapUrl =
+      prefix === "checkIn" ? emp?.checkInMapUrl : emp?.checkOutMapUrl;
+
+    const urlCoords = parseLatLngFromUrl(mapUrl);
+
+    if (urlCoords) {
+      return urlCoords;
+    }
+
+    const lat =
+      emp?.[`${prefix}Lat`] ??
+      emp?.[`${prefix}Latitude`] ??
+      emp?.[`${prefix}Location`]?.lat ??
+      emp?.[`${prefix}Location`]?.latitude ??
+      emp?.[`${prefix}Coordinates`]?.lat ??
+      emp?.[`${prefix}Coordinates`]?.latitude ??
+      emp?.[`${prefix}GeoLocation`]?.lat ??
+      emp?.[`${prefix}GeoLocation`]?.latitude ??
+      null;
+
+    const lng =
+      emp?.[`${prefix}Lng`] ??
+      emp?.[`${prefix}Long`] ??
+      emp?.[`${prefix}Longitude`] ??
+      emp?.[`${prefix}Location`]?.lng ??
+      emp?.[`${prefix}Location`]?.longitude ??
+      emp?.[`${prefix}Coordinates`]?.lng ??
+      emp?.[`${prefix}Coordinates`]?.longitude ??
+      emp?.[`${prefix}GeoLocation`]?.lng ??
+      emp?.[`${prefix}GeoLocation`]?.longitude ??
+      null;
+
+    if (
+      lat !== null &&
+      lat !== undefined &&
+      lng !== null &&
+      lng !== undefined &&
+      Number.isFinite(Number(lat)) &&
+      Number.isFinite(Number(lng))
+    ) {
+      return { lat: Number(lat), lng: Number(lng) };
+    }
+
+    return null;
+  };
+
+  const getLocationAddress = (emp, prefix) => {
+    return (
+      emp?.[`${prefix}Address`] ||
+      emp?.[`${prefix}FullAddress`] ||
+      emp?.[`${prefix}Location`]?.address ||
+      emp?.[`${prefix}Location`]?.fullAddress ||
+      ""
+    );
   };
 
   const getNumericHoursValue = (value) => {
@@ -824,7 +911,7 @@ function AttendanceTable({
     catch (error) {
 
       logPerformanceError(
-        "❌ Time Format Error:",
+        "âŒ Time Format Error:",
         error
       );
 
@@ -832,32 +919,153 @@ function AttendanceTable({
     }
   };
 
-  const openGoogleMap = (lat, lng) => {
-    if (!lat || !lng) {
-      toast.warning("Location not available");
-      return;
+  const buildGoogleMapsUrl = (coords, address = "") => {
+    if (coords?.lat !== undefined && coords?.lat !== null && coords?.lng !== undefined && coords?.lng !== null) {
+      return `https://www.google.com/maps?q=${coords.lat},${coords.lng}`;
     }
 
-    window.open(
-      `https://www.google.com/maps?q=${lat},${lng}`,
-      "_blank"
-    );
+    const normalizedAddress = String(address || "").trim();
+
+    if (normalizedAddress) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(normalizedAddress)}`;
+    }
+
+    return "";
   };
 
-  const getProgressWidth = (emp) => {
-    const rawHours =
-      emp?.hoursWorked ||
-      emp?.totalHours ||
-      emp?.workingHours ||
-      emp?.hours ||
-      "0";
+  const formatCoordinate = (value) => {
+    const numericValue = Number(value);
 
-    const match = String(rawHours).match(/(\d+(\.\d+)?)/);
-    const hours = match ? parseFloat(match[1]) : 0;
+    if (!Number.isFinite(numericValue)) {
+      return "-";
+    }
 
-    if (!hours || isNaN(hours)) return 0;
+    return numericValue
+      .toFixed(6)
+      .replace(/\.?0+$/, "");
+  };
 
-    return Math.min((hours / 9) * 100, 100);
+  // =========================
+  // LOCATION MODAL HANDLERS
+  // =========================
+  const reverseGeocode = async (lat, lng) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+      );
+
+      const data = await res.json();
+
+      return data?.display_name || "";
+    } catch (error) {
+      logPerformanceError("Reverse Geocode Error:", error);
+      return "";
+    }
+  };
+
+  const openLocationModal = async (emp) => {
+    const requestId = ++locationRequestRef.current;
+    const employeeId = getEmployeeId(emp);
+    const employeeName = getEmployeeName(emp);
+
+    const checkInCoords = getLocationCoords(emp, "checkIn");
+    const checkOutCoords = getLocationCoords(emp, "checkOut");
+    const checkInAddress = getLocationAddress(emp, "checkIn");
+    const checkOutAddress = getLocationAddress(emp, "checkOut");
+    const attendanceDate =
+      getAttendanceRecordDate(emp) ||
+      emp?.date ||
+      emp?.attendanceDate ||
+      emp?.currentDate ||
+      null;
+    const hasLocationData = Boolean(
+      checkInCoords ||
+      checkOutCoords ||
+      checkInAddress ||
+      checkOutAddress
+    );
+    const baseData = {
+      employeeId,
+      employeeName,
+      dateLabel: formatDate(attendanceDate),
+      hasLocationData,
+      emptyMessage:
+        "No location information available for this attendance record.",
+      checkIn: {
+        time: formatCheckTime(getCheckIn(emp)),
+        coords: checkInCoords,
+        address: checkInAddress,
+      },
+      checkOut: {
+        time: formatCheckTime(getCheckOut(emp)),
+        coords: checkOutCoords,
+        address: checkOutAddress,
+      },
+    };
+
+    console.debug("[AttendanceTable] openLocationModal", {
+      employeeId,
+      employeeName,
+      hasLocationData,
+      hasCheckInCoords: Boolean(checkInCoords),
+      hasCheckOutCoords: Boolean(checkOutCoords),
+    });
+
+    if (!hasLocationData) {
+      console.debug(
+        "[AttendanceTable] No location data available for attendance record",
+        {
+          employeeId,
+          employeeName,
+          attendanceDate,
+        }
+      );
+    }
+
+    setLocationModalData(baseData);
+    setLocationModalOpen(true);
+
+    const needsCheckInAddress =
+      checkInCoords && !baseData.checkIn.address;
+
+    const needsCheckOutAddress =
+      checkOutCoords && !baseData.checkOut.address;
+
+    if (needsCheckInAddress || needsCheckOutAddress) {
+      setLocationAddressLoading(true);
+
+      const [inAddr, outAddr] = await Promise.all([
+        needsCheckInAddress
+          ? reverseGeocode(checkInCoords.lat, checkInCoords.lng)
+          : Promise.resolve(baseData.checkIn.address),
+        needsCheckOutAddress
+          ? reverseGeocode(checkOutCoords.lat, checkOutCoords.lng)
+          : Promise.resolve(baseData.checkOut.address),
+      ]);
+
+      if (requestId !== locationRequestRef.current) {
+        return;
+      }
+
+      setLocationModalData((prev) =>
+        prev
+          ? {
+            ...prev,
+            checkIn: { ...prev.checkIn, address: inAddr },
+            checkOut: { ...prev.checkOut, address: outAddr },
+          }
+          : prev
+      );
+
+      setLocationAddressLoading(false);
+    }
+  };
+
+  const closeLocationModal = () => {
+    locationRequestRef.current += 1;
+    setLocationModalOpen(false);
+    setLocationModalData(null);
+    setLocationAddressLoading(false);
   };
 
   // safer local YYYY-MM-DD formatter
@@ -1820,6 +2028,7 @@ function AttendanceTable({
   const closeEditModal = () => {
     setEditModalOpen(false);
     setSelectedEmployee(null);
+    setUpdateLoading(false);
     setEditForm({
       employeeId: "",
       date: "",
@@ -1827,6 +2036,14 @@ function AttendanceTable({
       checkOut: ""
     });
   };
+
+  const handleEditFormChange = (field, value) => {
+    setEditForm((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const openAttendanceDetails = async (emp) => {
 
     const employeeId =
@@ -2395,7 +2612,7 @@ function AttendanceTable({
       if (status === "Half Day") halfDay++;
       if (status === "Loss Of Pay") lossOfPay++;
       if (status === "Missed Checkout") missedCheckout++;
-      if (status === "Late & Missed Checkout") late & MissedCheckout++;
+      if (status === "Late & Missed Checkout") lateMissedCheckout++;
       if (status === "Weekend") weekends++;
       if (status === "Holiday") holidays++;
 
@@ -2637,6 +2854,26 @@ function AttendanceTable({
     );
 
   }, [editForm]);
+
+  // Small inline map-pin SVG icon used on the location/view button so it
+  // renders consistently across OS/browsers (emoji rendering varies a lot,
+  // which was part of why the button looked misaligned).
+  const MapPinIcon = () => (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
 
   return (
     <>
@@ -2894,103 +3131,146 @@ function AttendanceTable({
 
         {viewMode === "daily" ? (
           <>
-            <div className="attendance-table-header attendance-table-header-5">
-              <span>EMPLOYEE</span>
-              <span>STATUS</span>
-              <span>CHECK IN</span>
-              <span>CHECK OUT</span>
-              <span>HOURS WORKED</span>
+            <div className="attendance-table-scroll">
+              <table className="attendance-daily-table">
+                <colgroup>
+                  <col className="attendance-col-employee" />
+                  <col className="attendance-col-status" />
+                  <col className="attendance-col-time" />
+                  <col className="attendance-col-time" />
+                  <col className="attendance-col-hours" />
+                  <col className="attendance-col-location" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col" className="attendance-daily-employee-cell">
+                      Employee
+                    </th>
+                    <th scope="col" className="attendance-daily-status-cell">
+                      Status
+                    </th>
+                    <th scope="col" className="attendance-daily-time-cell">
+                      Check In
+                    </th>
+                    <th scope="col" className="attendance-daily-time-cell">
+                      Check Out
+                    </th>
+                    <th scope="col" className="attendance-daily-hours-cell">
+                      Hours Worked
+                    </th>
+                    <th scope="col" className="attendance-daily-location-cell">
+                      Location
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td
+                        className="attendance-empty attendance-empty-table"
+                        colSpan={6}
+                      >
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : filteredDailyData.length === 0 ? (
+                    <tr>
+                      <td
+                        className="attendance-empty attendance-empty-table"
+                        colSpan={6}
+                      >
+                        No Data
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedDailyData.map((emp, i) => {
+                      const finalStatus = getResolvedStatus(emp);
+                      const employeeName = getEmployeeName(emp);
+                      const employeeId = getEmployeeId(emp);
+                      const employeeDept = getEmployeeDept(emp);
+
+                      return (
+                        <tr
+                          key={`${employeeId}-${employeeName}-${i}`}
+                          className="attendance-daily-row"
+                        >
+                          <td className="attendance-daily-employee-cell">
+                            <div className="attendance-daily-employee">
+                              <div className="attendance-daily-avatar">
+                                {employeeName.charAt(0).toUpperCase()}
+                              </div>
+
+                              <div className="attendance-daily-employee-meta">
+                                <div
+                                  className="attendance-daily-employee-name"
+                                  title={employeeName}
+                                >
+                                  {employeeName}
+                                </div>
+
+                                <div className="attendance-daily-employee-id">
+                                  EMP ID: {employeeId}
+                                </div>
+
+                                <div className="attendance-daily-employee-designation">
+                                  {employeeDept}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="attendance-daily-status-cell">
+                            <span className={`status-badge ${getStatusClass(finalStatus)}`}>
+                              {finalStatus}
+                            </span>
+                          </td>
+
+                          <td className="attendance-daily-time-cell">
+                            <span className="attendance-daily-time-value">
+                              {formatCheckTime(getCheckIn(emp))}
+                            </span>
+                          </td>
+
+                          <td className="attendance-daily-time-cell">
+                            <span className="attendance-daily-time-value">
+                              {formatCheckTime(getCheckOut(emp))}
+                            </span>
+                          </td>
+
+                          <td className="attendance-daily-hours-cell">
+                            <div className="attendance-daily-hours-value">
+                              <span className="attendance-daily-hours-text">
+                                {formatHoursWorked(emp)}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="attendance-daily-location-cell">
+                            <button
+                              type="button"
+                              className="attendance-location-btn attendance-daily-view-btn"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openLocationModal(emp);
+                              }}
+                            >
+                              <MapPinIcon />
+                              <span>View</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            {loading ? (
-              <p className="attendance-empty">Loading...</p>
-            ) : filteredDailyData.length === 0 ? (
-              <p className="attendance-empty">No Data</p>
-            ) : (
-              <>
-                {paginatedDailyData.map((emp, i) => {
-                  const progressWidth = getProgressWidth(emp);
-                  const finalStatus = getResolvedStatus(emp);
-                  return (
-                    <div
-                      key={`${getEmployeeId(emp)}-${getEmployeeName(emp)}-${i}`}
-                      className="attendance-row attendance-row-5"
-                      onClick={() => {
-                        if (viewMode === "monthly") {
-                          openAttendanceDetails(emp);
-                        }
-                      }}
-                    >
-                      <div className="attendance-employee">
-                        <div className="avatar">
-                          {getEmployeeName(emp).charAt(0).toUpperCase()}
-                        </div>
-
-                        <div>
-                          <div className="emp-name" title={getEmployeeName(emp)}>
-                            {getEmployeeName(emp)}
-                          </div>
-
-                          <div className="emp-dept">
-                            EMP ID: {getEmployeeId(emp)}
-                          </div>
-
-                          <div className="emp-dept">
-                            {getEmployeeDept(emp)}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className={`status-badge ${getStatusClass(finalStatus)}`}>
-                          {finalStatus}
-                        </span>
-                      </div>
-
-                      <div
-                        className="time-text map-link"
-                        onClick={() => {
-                          if (emp.checkInMapUrl) {
-                            window.open(emp.checkInMapUrl, "_blank");
-                          }
-                        }}
-                      >
-                        📍 {formatCheckTime(getCheckIn(emp))}
-                      </div>
-
-                      <div
-                        className="time-text map-link"
-                        onClick={() => {
-                          if (emp.checkOutMapUrl) {
-                            window.open(emp.checkOutMapUrl, "_blank");
-                          }
-                        }}
-                      >
-                        📍 {formatCheckTime(getCheckOut(emp))}
-                      </div>
-
-                      <div className="hours-worked">
-                        <div className="progress-bar">
-                          <div
-                            className="progress progress-blue"
-                            style={{ width: `${progressWidth}%` }}
-                          />
-                        </div>
-                        <span className="hours-text">
-                          {formatHoursWorked(emp)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {renderPaginationControls(
-                  dailyPage,
-                  dailyTotalPages,
-                  () => setDailyPage((prev) => Math.max(prev - 1, 1)),
-                  () => setDailyPage((prev) => Math.min(prev + 1, dailyTotalPages))
-                )}
-              </>
+            {!loading && filteredDailyData.length > 0 && renderPaginationControls(
+              dailyPage,
+              dailyTotalPages,
+              () => setDailyPage((prev) => Math.max(prev - 1, 1)),
+              () => setDailyPage((prev) => Math.min(prev + 1, dailyTotalPages))
             )}
           </>
         ) : (
@@ -3462,7 +3742,7 @@ function AttendanceTable({
                 disabled={Boolean(downloadingReport)}
                 aria-label="Close download attendance report"
               >
-                ×
+                &times;
               </button>
             </div>
 
@@ -3653,15 +3933,27 @@ function AttendanceTable({
         </div>
       )}
 
-      {/* DETAILS MODAL */}
+      {/* EDIT MODAL */}
 
       {editModalOpen && (
-        <div className="attendance-modal-overlay">
-          <div className="attendance-modal">
+        <div className="attendance-modal-overlay" onClick={closeEditModal}>
+          <div
+            className="attendance-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attendance-edit-modal-title"
+          >
             <div className="attendance-modal-header">
-              <h3>Update Attendance</h3>
-              <button className="attendance-modal-close" onClick={closeEditModal}>
-                ×
+              <h3 id="attendance-edit-modal-title">Update Attendance</h3>
+              <button
+                type="button"
+                className="attendance-modal-close"
+                onClick={closeEditModal}
+                disabled={updateLoading}
+                aria-label="Close update attendance modal"
+              >
+                &times;
               </button>
             </div>
 
@@ -3671,615 +3963,242 @@ function AttendanceTable({
                   {getEmployeeName(selectedEmployee).charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div className="emp-name">{getEmployeeName(selectedEmployee)}</div>
+                  <div className="emp-name">
+                    {getEmployeeName(selectedEmployee)}
+                  </div>
                   <div className="emp-dept">
-                    {getEmployeeId(selectedEmployee)} •{" "}
-                    {getEmployeeDept(selectedEmployee)}
+                    {getEmployeeId(selectedEmployee) || editForm.employeeId}
                   </div>
                 </div>
               </div>
 
               <div className="attendance-form-grid">
                 <div className="attendance-form-group">
-                  <label>Employee ID</label>
+                  <label htmlFor="attendance-edit-employee-id">
+                    Employee ID
+                  </label>
                   <input
+                    id="attendance-edit-employee-id"
                     type="text"
-                    name="employeeId"
                     value={editForm.employeeId}
-                    onChange={handleEditChange}
-                    placeholder="Employee ID or name"
-                    list="attendance-employee-options"
+                    readOnly
                   />
-                  <datalist id="attendance-employee-options">
-                    {employeeDirectory.flatMap((employee) => [
-                      <option
-                        key={`${employee.id}-name`}
-                        value={employee.name}
-                        label={employee.id}
-                      />,
-                      <option
-                        key={`${employee.id}-id`}
-                        value={employee.id}
-                        label={employee.name}
-                      />,
-                    ])}
-                  </datalist>
                 </div>
 
                 <div className="attendance-form-group">
-                  <label>Date</label>
-                  <AppDatePicker
-                    name="date"
+                  <label htmlFor="attendance-edit-date">Date</label>
+                  <input
+                    id="attendance-edit-date"
+                    type="date"
                     value={editForm.date}
-                    onChange={handleEditChange}
-                    maxDate={todayString}
+                    onChange={(event) =>
+                      handleEditFormChange("date", event.target.value)
+                    }
+                    disabled={updateLoading}
                   />
                 </div>
 
                 <div className="attendance-form-group">
-                  <label>Check In</label>
-
-                  <div className="time-picker-wheel">
-
-                    <div className="time-wheel-column">
-                      <div className="wheel-label">
-                        Hour
-                      </div>
-
-                      <div className="time-wheel-scroll"
-                        ref={checkInHourRef}
-                      >
-                        {Array.from(
-                          { length: 24 },
-                          (item, hour) => hour
-                        ).map((hour) => {
-
-                          const value =
-                            String(hour).padStart(2, "0");
-
-                          return (
-                            <div
-                              key={value}
-                              data-value={value}
-                              className={`time-wheel-item ${getHour(editForm.checkIn) === value
-                                ? "active"
-                                : ""
-                                }`}
-                              onClick={() =>
-                                updateTime(
-                                  "checkIn",
-                                  "hour",
-                                  value
-                                )
-                              }
-                            >
-                              {value}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="time-wheel-column">
-                      <div className="wheel-label">
-                        Minute
-                      </div>
-
-
-                      <div
-                        className="time-wheel-scroll"
-                        ref={checkInMinuteRef}
-                      >
-                        {Array.from(
-                          { length: 60 },
-                          (item, minute) => minute
-                        ).map((minute) => {
-
-                          const value =
-                            String(minute).padStart(2, "0");
-
-                          return (
-                            <div
-                              key={value}
-                              data-value={value}
-                              className={`time-wheel-item ${getMinute(editForm.checkIn) === value
-                                ? "active"
-                                : ""
-                                }`}
-                              onClick={() =>
-                                updateTime(
-                                  "checkIn",
-                                  "minute",
-                                  value
-                                )
-                              }
-                            >
-                              {value}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                  </div>
+                  <label htmlFor="attendance-edit-check-in">Check In</label>
+                  <input
+                    id="attendance-edit-check-in"
+                    type="time"
+                    value={editForm.checkIn}
+                    onChange={(event) =>
+                      handleEditFormChange("checkIn", event.target.value)
+                    }
+                    disabled={updateLoading}
+                  />
                 </div>
 
                 <div className="attendance-form-group">
-                  <label>Check Out</label>
-
-                  <div className="time-picker-wheel">
-
-                    <div className="time-wheel-column">
-                      <div className="wheel-label">
-                        Hour
-                      </div>
-
-                      <div className="time-wheel-scroll"
-                        ref={checkOutHourRef}
-                      >
-                        {Array.from(
-                          { length: 24 },
-                          (item, hour) => hour
-                        ).map((hour) => {
-
-                          const value =
-                            String(hour).padStart(2, "0");
-
-                          return (
-                            <div
-                              key={value}
-                              data-value={value}
-                              className={`time-wheel-item ${getHour(editForm.checkOut) === value
-                                ? "active"
-                                : ""
-                                }`}
-                              onClick={() =>
-                                updateTime(
-                                  "checkOut",
-                                  "hour",
-                                  value
-                                )
-                              }
-                            >
-                              {value}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="time-wheel-column">
-                      <div className="wheel-label">
-                        Minute
-                      </div>
-
-                      <div className="time-wheel-scroll"
-                        ref={checkOutMinuteRef}
-                      >
-                        {Array.from(
-                          { length: 60 },
-                          (item, minute) => minute
-                        ).map((minute) => {
-
-                          const value =
-                            String(minute).padStart(2, "0");
-
-                          return (
-                            <div
-                              key={value}
-                              data-value={value}
-                              className={`time-wheel-item ${getMinute(editForm.checkOut) === value
-                                ? "active"
-                                : ""
-                                }`}
-                              onClick={() =>
-                                updateTime(
-                                  "checkOut",
-                                  "minute",
-                                  value
-                                )
-                              }
-                            >
-                              {value}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                  </div>
+                  <label htmlFor="attendance-edit-check-out">Check Out</label>
+                  <input
+                    id="attendance-edit-check-out"
+                    type="time"
+                    value={editForm.checkOut}
+                    onChange={(event) =>
+                      handleEditFormChange("checkOut", event.target.value)
+                    }
+                    disabled={updateLoading}
+                  />
                 </div>
               </div>
             </div>
 
             <div className="attendance-modal-footer">
-              <button className="attendance-cancel-btn" onClick={closeEditModal}>
+              <button
+                type="button"
+                className="attendance-cancel-btn"
+                onClick={closeEditModal}
+                disabled={updateLoading}
+              >
                 Cancel
               </button>
+
               <button
+                type="button"
                 className="attendance-save-btn"
                 onClick={handleUpdateAttendance}
                 disabled={updateLoading}
               >
-                {updateLoading ? "Updating..." : "Update Attendance"}
+                {updateLoading ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DETAILS MODAL */}
+      {/* LOCATION MODAL */}
 
-      {/* DETAILS MODAL */}
-
-      {detailsModalOpen && selectedAttendance && (
-
-        <div className="attendance-details-overlay">
-
-          <div className="attendance-details-modal compact-modal">
-
-            {/* HEADER */}
-
-            <div className="attendance-details-header">
-
-              <div className="attendance-details-profile">
-
-                <div className="attendance-details-avatar">
-                  {getEmployeeName(
-                    selectedAttendance.employee
-                  ).charAt(0).toUpperCase()}
-                </div>
-
-                <div>
-                  <h2>
-                    {getEmployeeName(
-                      selectedAttendance.employee
-                    )}
-                  </h2>
-
-                  <p>
-                    {getEmployeeId(
-                      selectedAttendance.employee
-                    )}
-                  </p>
-                </div>
-
+      {locationModalOpen && locationModalData && (
+        <div
+          className="attendance-modal-overlay location-modal-overlay"
+          onClick={closeLocationModal}
+        >
+          <div
+            className="location-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="location-modal-title"
+          >
+            <div className="location-modal-header">
+              <div className="location-modal-title-group">
+                <h3 id="location-modal-title">Location Details</h3>
+                <p>
+                  {locationModalData.employeeName}
+                  {locationModalData.employeeId
+                    ? ` | ${locationModalData.employeeId}`
+                    : ""}
+                  {locationModalData.dateLabel
+                    ? ` | ${locationModalData.dateLabel}`
+                    : ""}
+                </p>
               </div>
 
-              <div className="attendance-details-header-actions">
-
-                <button
-                  type="button"
-                  className="attendance-details-close"
-                  onClick={closeAttendanceDetails}
-                  aria-label="Close attendance details"
-                >
-                  ×
-                </button>
-
-              </div>
-
+              <button
+                type="button"
+                className="location-modal-close"
+                onClick={closeLocationModal}
+                aria-label="Close location details modal"
+              >
+                &times;
+              </button>
             </div>
 
-            {/* FILTER */}
-
-            <div className="attendance-filter-row">
-
-              <div className="attendance-filter-left">
-
-                <div className="attendance-filter-group">
-
-                  <label>Filter</label>
-
-                  <div className="attendance-filter-buttons">
-
-                    <button
-                      className={
-                        detailsFilter === "Monthly"
-                          ? "active"
-                          : ""
-                      }
-                      onClick={() => setDetailsFilter("Monthly")}
-                    >
-                      Monthly
-                    </button>
-
-                    <button
-                      className={
-                        detailsFilter === "Weekly"
-                          ? "active"
-                          : ""
-                      }
-                      onClick={() => setDetailsFilter("Weekly")}
-                    >
-                      Weekly
-                    </button>
+            <div className="location-modal-body">
+              <div className="attendance-location-summary">
+                <div className="attendance-location-summary-grid">
+                  <div className="attendance-location-summary-item">
+                    <span>Date</span>
+                    <strong>{locationModalData.dateLabel}</strong>
                   </div>
-
-                </div>
-
-                <div className="attendance-filter-group">
-
-                  <label>Month</label>
-
-                  <div className="attendance-date-picker-box">
-
-                    <select
-                      value={selectedDetailsMonth}
-                      onChange={handleDetailsMonthChange}
-                      style={{
-                        width: "100%",
-                        minWidth: "180px",
-                        padding: "10px 12px",
-                        borderRadius: "12px",
-                        border: "1px solid var(--attendance-border)",
-                        background: "var(--attendance-card)",
-                        color: "var(--attendance-text)",
-                        fontSize: "14px",
-                        outline: "none"
-                      }}
-                    >
-                      {availableDetailMonths.map((monthOption) => (
-                        <option
-                          key={monthOption.value}
-                          value={monthOption.value}
-                        >
-                          {monthOption.label}
-                        </option>
-                      ))}
-                    </select>
-
+                  <div className="attendance-location-summary-item">
+                    <span>Check In Time</span>
+                    <strong>{locationModalData.checkIn.time}</strong>
                   </div>
-
+                  <div className="attendance-location-summary-item">
+                    <span>Check Out Time</span>
+                    <strong>{locationModalData.checkOut.time}</strong>
+                  </div>
                 </div>
-
               </div>
 
-            </div>
-
-            {detailsLoading ? (
-
-              <div className="attendance-details-table">
-                <p>Loading attendance...</p>
-              </div>
-
-            ) : (
-
-              <>
-
-                {/* SUMMARY */}
-
-                <div className="attendance-summary-grid">
-
-                  <div className="summary-card blue">
-                    <span>Total Hours</span>
-                    <h3>{detailSummary.totalHours}</h3>
-                  </div>
-
-                  <div className="summary-card green">
-                    <span>Present</span>
-                    <h3>{detailSummary.present}</h3>
-                  </div>
-
-                  <div className="summary-card red">
-                    <span>Absent</span>
-                    <h3>{detailSummary.absent}</h3>
-                  </div>
-
-                  <div className="summary-card purple">
-                    <span>On Leave</span>
-                    <h3>{detailSummary.onLeave}</h3>
-                  </div>
-
-                  <div className="summary-card orange">
-                    <span>Late</span>
-                    <h3>{detailSummary.late}</h3>
-                  </div>
-
-                  <div className="summary-card blue">
-                    <span>Half Day</span>
-                    <h3>{detailSummary.halfDay}</h3>
-                  </div>
-
-                  <div className="summary-card gray">
-                    <span>Loss Of Pay</span>
-                    <h3>{detailSummary.lossOfPay}</h3>
-                  </div>
-
-                  <div className="summary-card amber">
-                    <span>Missed Checkout</span>
-                    <h3>{detailSummary.missedCheckout}</h3>
-                  </div>
-
-                  <div className="summary-card rose">
-                    <span>Late & Missed Checkout</span>
-                    <h3>{detailSummary.lateMissedCheckout}</h3>
-                  </div>
-
-                  <div className="summary-card gray">
-                    <span>Weekends</span>
-                    <h3>{detailSummary.weekends}</h3>
-                  </div>
-
-                  <div className="summary-card gray">
-                    <span>Holidays</span>
-                    <h3>{detailSummary.holidays}</h3>
-                  </div>
-
-                  <div className="summary-card gray">
-                    <span>Days</span>
-                    <h3>
-                      {detailsFilter === "Weekly"
-                        ? 7
-                        : detailsDaysInSelectedMonth}
-                    </h3>
-                  </div>
-
+              {!locationModalData.hasLocationData ? (
+                <div className="location-modal-empty-state">
+                  <p>{locationModalData.emptyMessage}</p>
                 </div>
+              ) : (
+                <div className="attendance-location-card-grid">
+                  {["checkIn", "checkOut"].map((type) => {
+                    const entry = locationModalData[type];
+                    const label =
+                      type === "checkIn" ? "Check In" : "Check Out";
+                    const mapsUrl = buildGoogleMapsUrl(
+                      entry.coords,
+                      entry.address
+                    );
+                    const mapSrc = entry.coords
+                      ? `https://maps.google.com/maps?q=${entry.coords.lat},${entry.coords.lng}&z=16&output=embed`
+                      : "";
 
-                {/* WEEKLY BREAKDOWN ONLY MONTHLY */}
+                    return (
+                      <section key={type} className="attendance-location-card">
+                        <div className="attendance-location-card-header">
+                          <div>
+                            <h4>{label}</h4>
+                            <p>{entry.time}</p>
+                          </div>
 
-                {detailsFilter === "Monthly" && (
-
-                  <div className="attendance-weekly-box">
-
-                    <h4>Weekly Hours Breakdown</h4>
-
-                    <div className="attendance-week-grid">
-
-                      {filteredWeeklyBreakdown.map((week, index) => (
-
-                        <div
-                          className="attendance-week-card"
-                          key={index}
-                        >
-
-                          <span className="attendance-week-label">
-                            Week {week.week}
+                          <span className="attendance-location-card-pill">
+                            {mapsUrl ? "Location Recorded" : "No Coordinates"}
                           </span>
-
-                          <p>
-                            {week.start.toLocaleDateString()} -{" "}
-                            {week.end.toLocaleDateString()}
-                          </p>
-
-                          <h3>
-                            {Number(week.hours || 0).toFixed(1)}h
-                          </h3>
-
                         </div>
 
-                      ))}
+                        <div className="attendance-location-details">
+                          <div className="attendance-location-field">
+                            <span>Latitude</span>
+                            <strong>
+                              {formatCoordinate(entry.coords?.lat)}
+                            </strong>
+                          </div>
 
-                    </div>
+                          <div className="attendance-location-field">
+                            <span>Longitude</span>
+                            <strong>
+                              {formatCoordinate(entry.coords?.lng)}
+                            </strong>
+                          </div>
 
-                  </div>
+                          <div className="attendance-location-field attendance-location-field-full">
+                            <span>Address</span>
+                            <strong>
+                              {locationAddressLoading && !entry.address
+                                ? "Loading address..."
+                                : entry.address || "Address not available"}
+                            </strong>
+                          </div>
 
-                )}
+                          <div className="attendance-location-field attendance-location-field-full">
+                            <span>Google Maps Link</span>
 
-                {/* TABLE */}
-
-                <div className="attendance-details-table">
-
-                  <table>
-
-                    <thead>
-
-                      <tr>
-                        <th>Date</th>
-                        <th>Day</th>
-                        <th>Status</th>
-                        <th>Hours</th>
-                      </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                      {filteredDetailDays.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="attendance-empty"
-                          >
-                            No attendance data available for selected month
-                          </td>
-                        </tr>
-                      )}
-
-                      {filteredDetailDays.map((d, index) => {
-
-                        const status =
-                          d?.resolvedStatus ||
-                          getResolvedStatus(d);
-
-                        const date =
-                          d?.resolvedDate ||
-                          getAttendanceRecordDate(d);
-
-                        const dateLabel =
-                          date
-                            ? date.toLocaleDateString()
-                            : "-";
-
-                        const dayLabel =
-                          date
-                            ? date.toLocaleDateString(
-                              "en-US",
-                              {
-                                weekday: "short"
-                              }
-                            )
-                            : "-";
-
-                        const resolvedHours =
-                          Number(d?.resolvedHours || 0);
-
-                        const checkInLabel =
-                          formatTime(
-                            d?.resolvedCheckIn ||
-                            getCheckIn(d)
-                          );
-
-                        const checkOutLabel =
-                          formatTime(
-                            d?.resolvedCheckOut ||
-                            getCheckOut(d)
-                          );
-
-                        return (
-
-                          <tr
-                            key={index}
-                            title={`Check In: ${checkInLabel} | Check Out: ${checkOutLabel}`}
-                          >
-
-                            <td>
-                              {dateLabel}
-                            </td>
-
-                            <td>
-                              {dayLabel}
-                            </td>
-
-                            <td>
-
-                              <span
-                                className={`status-badge ${getStatusClass(status)}`}
+                            {mapsUrl ? (
+                              <a
+                                href={mapsUrl}
+                                target="_blank"
+                                rel="noreferrer"
                               >
-                                {status || "No data"}
-                              </span>
+                                Open in Google Maps
+                              </a>
+                            ) : (
+                              <strong>Not available</strong>
+                            )}
+                          </div>
+                        </div>
 
-                            </td>
-
-                            <td>
-
-                              {resolvedHours > 0
-                                ? `${resolvedHours.toFixed(1)}h`
-                                : "0h"}
-
-                            </td>
-
-                          </tr>
-
-                        );
-
-                      })}
-
-                    </tbody>
-
-                  </table>
-
+                        <div className="attendance-location-map-shell">
+                          {mapSrc ? (
+                            <iframe
+                              title={`${type}-map`}
+                              src={mapSrc}
+                              loading="lazy"
+                              referrerPolicy="no-referrer-when-downgrade"
+                            />
+                          ) : (
+                            <div className="attendance-location-map-empty">
+                              Location not available
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    );
+                  })}
                 </div>
-
-              </>
-
-            )}
-
+              )}
+            </div>
           </div>
-
         </div>
-
       )}
     </>
   );
@@ -4287,3 +4206,5 @@ function AttendanceTable({
 
 // Optimization: memoize the table so unrelated parent renders do not redraw large attendance grids.
 export default memo(AttendanceTable);
+
+

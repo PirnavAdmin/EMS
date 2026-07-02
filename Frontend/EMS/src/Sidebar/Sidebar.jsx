@@ -173,11 +173,11 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     label: "My Attendance",
     permission: "User Attendance",
   },
-  // {
-  //   to: "/teams",
-  //   icon: FaProjectDiagram,
-  //   label: "Teams",
-  // },
+  {
+    to: "/teams",
+    icon: FaProjectDiagram,
+    label: "Teams",
+  },
   {
     to: "/leave-management",
     icon: FaCalendarMinus,

@@ -106,7 +106,7 @@
             },
             "QuestPDF": {
               "target": "Package",
-              "version": "[2025.7.4, )"
+              "version": "[2026.6.0, )"
             },
             "Spire.Doc": {
               "target": "Package",

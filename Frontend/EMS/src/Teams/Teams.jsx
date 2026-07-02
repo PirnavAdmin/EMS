@@ -150,9 +150,7 @@ function Teams() {
   const nextTeamNumber = useMemo(() => getNextTeamNumber(teams), [teams]);
 
   const handleCreateTeam = async (payload) => {
-
     try {
-
       const response = await api.post(
         API_ENDPOINTS.team.create,
         payload,
@@ -168,15 +166,14 @@ function Teams() {
       await fetchTeams();
 
       return response.data;
-
-    }
-    catch (err) {
-
+    } catch (err) {
       console.log(err);
-
       toast.error("Unable to create team");
     }
+  };
 
+  const handleAddTeam = () => {
+    setIsAddTeamOpen(true);
   };
 
   if (isLoading) {
@@ -226,8 +223,10 @@ function Teams() {
 
           {!isEmployee && (
             <button
-              onClick={handleAddTeam}
+              className="teams-add-btn"
+              onClick={() => setIsAddTeamOpen(true)}
             >
+              <FaPlus />
               Add Team
             </button>
           )}
@@ -299,3 +298,4 @@ function Teams() {
 }
 
 export default Teams;
+

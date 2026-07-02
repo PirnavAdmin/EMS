@@ -35,6 +35,40 @@
   line-height: 1.55;
 }
 
+.teams-add-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid  #16837D;
+  background: #16837D;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.teams-add-button:hover {
+  transform: translateY(-1px);
+}
+
+.teams-add-button-disabled {
+  background:  #16837D !important;
+  border-color: #d1d5db !important;
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+  opacity: 0.8;
+}
+
+.teams-add-button-disabled svg {
+  color: #9ca3af !important;
+}
+
+.teams-add-button-disabled:hover {
+  transform: none !important;
+}
+
 .teams-header-actions {
   display: inline-flex;
   align-items: center;

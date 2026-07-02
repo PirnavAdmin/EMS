@@ -898,17 +898,9 @@ C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\osx
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\osx-x64\native\libQuestPdfSkia.dylib
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\osx-x64\native\libqpdf.dylib
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x64\native\QuestPdfSkia.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x64\native\libgcc_s_seh-1.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x64\native\libstdc++-6.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x64\native\libwinpthread-1.dll
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x64\native\qpdf.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x64\native\zlib1.dll
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x86\native\QuestPdfSkia.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x86\native\libgcc_s_dw2-1.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x86\native\libstdc++-6.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x86\native\libwinpthread-1.dll
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x86\native\qpdf.dll
-C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x86\native\zlib1.dll
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\osx\native\libSkiaSharp.dylib
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-arm64\native\libSkiaSharp.dll
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-x64\native\libSkiaSharp.dll
@@ -1188,3 +1180,5 @@ C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\ClosedXML.Pa
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\ExcelNumberFormat.dll
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\RBush.dll
 C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\SixLabors.Fonts.dll
+C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-arm64\native\QuestPdfSkia.dll
+C:\Users\ADMIN\OneDrive\Desktop\EMS Pirnav\Backend\bin\Debug\net8.0\runtimes\win-arm64\native\qpdf.dll

@@ -365,6 +365,34 @@ public async Task<IActionResult> GetAttendanceByDate(
                 $"PresentLateEmployees_{date:yyyyMMdd}.xlsx");
         }
 
+        [HttpGet("GetLocations")]
+        public async Task<IActionResult> GetLocations()
+        {
+            return await _attendanceService.GetLocations();
+        }
+        [HttpPost("SaveLocation")]
+        public async Task<IActionResult> SaveLocation(EmployeeLocationDto dto)
+        {
+            return await _attendanceService.SaveLocation(dto);
+        }
+
+        [HttpGet("dashboard-attendance")]
+        public async Task<IActionResult> GetDashboardAttendance()
+        {
+            try
+            {
+                var result = await _attendanceService.GetDashboardAttendance(User);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = ex.ToString(),
+                    Inner = ex.InnerException?.ToString()
+                });
+            }
+        }
         [Authorize]
         [HttpPost("update-activity")]
         public async Task<IActionResult> UpdateActivity()

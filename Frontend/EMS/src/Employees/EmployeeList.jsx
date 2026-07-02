@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
+import { FaCloudUploadAlt } from "react-icons/fa";
 import "./EmployeeList.css";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
+import BulkUploadModal from "./BulkUploadModal";
 import AppDatePicker from "../components/AppDatePicker";
 import AppPagination from "../components/AppPagination";
 import TruncatedText from "../components/TruncatedText";
@@ -16,7 +18,6 @@ import {
   formatCurrency as formatAppCurrency,
   formatEmployeeCode,
 } from "../utils/formatters";
-import { isValidEmail } from "../utils/validation";
 import {
   SALARY_MIN,
   buildSalaryBreakupPayload,
@@ -90,12 +91,12 @@ function EmployeeList() {
   const [departmentFilter, setDepartmentFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("latest-desc");
-  const [joiningDateFilter, setJoiningDateFilter] = useState("");
 
   const [empShowModal, setEmpShowModal] = useState(false);
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -173,7 +174,6 @@ function EmployeeList() {
     empSearch,
     departmentFilter,
     statusFilter,
-    joiningDateFilter,
     sortBy,
   ]);
 
@@ -194,10 +194,12 @@ function EmployeeList() {
     try {
       const res = await api.get(API_ENDPOINTS.employees.list);
       setEmpList(normalizeEmployeeList(res, roleOptions));
+      return true;
     } catch (err) {
       console.error("Employee fetch error:", err.response?.data || err.message);
       setMessage("Unable to refresh employees.");
       setMessageType("error");
+      return false;
     }
   };
 
@@ -533,15 +535,10 @@ function EmployeeList() {
       const matchesStatus =
         statusFilter === "All" || emp.status === statusFilter;
 
-      const matchesJoiningDate =
-        !joiningDateFilter ||
-        emp.joinedValue === joiningDateFilter;
-
       return (
         matchesSearch &&
         matchesDepartment &&
-        matchesStatus &&
-        matchesJoiningDate
+        matchesStatus
       );
     });
 
@@ -724,6 +721,14 @@ function EmployeeList() {
             }}
           >
             {isDownloading ? "Downloading..." : "Download Excel"}
+          </button>
+
+          <button
+            className="emp-bulk-upload-btn"
+            onClick={() => setShowBulkUploadModal(true)}
+          >
+            <FaCloudUploadAlt />
+            Bulk Upload
           </button>
 
           <button className="emp-add-btn" onClick={openAddEmployeeModal}>
@@ -1194,6 +1199,20 @@ function EmployeeList() {
           </div>
         </div>
       )}
+
+      <BulkUploadModal
+        open={showBulkUploadModal}
+        onClose={() => setShowBulkUploadModal(false)}
+        onUploaded={async () => {
+          const refreshed = await fetchEmployees();
+
+          if (refreshed) {
+            setCurrentPage(1);
+          }
+
+          return refreshed;
+        }}
+      />
     </div>
   );
 }

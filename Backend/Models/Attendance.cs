@@ -45,6 +45,8 @@ namespace EmployeeManagementSystem.Models
         public bool IsLocationMismatch { get; set; } = false;
 
         public string? LocationChangeReason { get; set; }
+        //public string? CheckInAddress { get; set; }
+        //public string? CheckOutAddress { get; set; }
         public DateTime? LastActivityTime { get; set; }
 
 

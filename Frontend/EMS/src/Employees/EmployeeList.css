@@ -21,6 +21,7 @@
   flex-wrap: wrap;
 }
 
+
 .emp-download-btn {
   background: var(--surface-info-soft);
   color: var(--theme-info);
@@ -106,9 +107,12 @@
 .emp-header-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .emp-add-btn,
+.emp-bulk-upload-btn,
 .emp-save-btn,
 .emp-close-btn {
   min-height: 42px;
@@ -133,6 +137,15 @@
   border-color: var(--theme-primary);
 }
 
+.emp-bulk-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--sidebar-accent-soft), var(--bg-page));
+  color: var(--theme-secondary);
+  border-color: var(--border-soft);
+}
+
 .emp-close-btn {
   background: var(--button-secondary);
   color: var(--button-secondary-text, var(--text-body));
@@ -141,10 +154,11 @@
 
 .emp-close-btn:hover:not(:disabled),
 .emp-close-btn:focus-visible:not(:disabled) {
-  background: var(--button-secondary-hover);
-  border-color: var(--border-strong);
+  background: #16837d !important;
+  color: #ffffff !important;
+  border-color: #16837d !important;
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none !important;
 }
 
 .emp-add-btn:hover,
@@ -156,16 +170,24 @@
   box-shadow: none;
 }
 
+.emp-bulk-upload-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--sidebar-accent-hover), var(--bg-page));
+  border-color: var(--theme-primary);
+  transform: translateY(-1px);
+}
+
 .emp-close-btn:hover:not(:disabled),
 .emp-close-btn:focus-visible:not(:disabled) {
-  background: var(--button-secondary-hover);
-  border-color: var(--border-strong);
+  background: #16837d !important;
+  color: #ffffff !important;
+  border-color: #16837d !important;
   transform: none;
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
 .emp-save-btn:disabled,
-.emp-close-btn:disabled {
+.emp-close-btn:disabled,
+.emp-bulk-upload-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
@@ -924,6 +946,15 @@
 }
 
 @media (max-width: 720px) {
+  .emp-header-actions {
+    width: 100%;
+  }
+
+  .emp-header-actions > button {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
   .emp-toolbar {
     grid-template-columns: 1fr;
   }
@@ -1083,29 +1114,27 @@
   background: transparent !important;
 }
 
-/* Override any global button:hover styles adding white backgrounds */
+/* Keep Employee modal footer buttons visually stable on interaction */
 .emp-modal-btns .emp-save-btn:hover,
 .emp-modal-btns .emp-save-btn:focus,
 .emp-modal-btns .emp-save-btn:focus-visible,
-.emp-modal-btns .emp-save-btn:active,
+.emp-modal-btns .emp-save-btn:active {
+  background: var(--button-primary) !important;
+  border-color: var(--theme-primary) !important;
+  color: var(--theme-on-primary) !important;
+  transform: none !important;
+  box-shadow: var(--button-shadow) !important;
+}
+
 .emp-modal-btns .emp-close-btn:hover,
 .emp-modal-btns .emp-close-btn:focus,
 .emp-modal-btns .emp-close-btn:focus-visible,
 .emp-modal-btns .emp-close-btn:active {
-  background-color: inherit !important;
-}
-
-/* Neutralize .app-action-button if applied to modal buttons */
-.emp-modal-btns .app-action-button,
-.emp-save-btn.app-action-button,
-.emp-close-btn.app-action-button {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.emp-save-btn.app-action-button:hover,
-.emp-close-btn.app-action-button:hover {
-  background: inherit !important;
+  background: var(--button-secondary) !important;
+  border-color: var(--border-soft) !important;
+  color: var(--button-secondary-text, var(--text-body)) !important;
+  transform: none !important;
+  box-shadow: var(--button-shadow) !important;
 }
 
 /* Ensure no white background on any button state in modal */

@@ -60,7 +60,9 @@ function LeaveManagement() {
       setWfhData(sortByRecency(data));
 
     } catch (err) {
-      console.error("WFH Fetch Error", err);
+      console.log("Status:", err.response?.status);
+      console.log("Error Data:", err.response?.data);
+      console.log("Full Error:", err);
     }
   };
 
@@ -214,9 +216,9 @@ function LeaveManagement() {
       await fetchWFH();
 
     } catch (err) {
-
-      console.error(err);
-
+      console.log("Status:", err.response?.status);
+      console.log("Error Data:", err.response?.data);
+      console.log("Full Error:", err);
     } finally {
 
       setActionLoading("");
@@ -385,8 +387,7 @@ function LeaveManagement() {
 
                   return (
                     <tr
-                      key={leave.id}
-
+                      key={`${leave.requestType}-${leave.id}`}
                     >
                       <td>{leave.employeeId || "-"}</td>
 
@@ -781,7 +782,7 @@ function LeaveManagement() {
 
                   <tbody>
                     {selectedEmployee.history.map((item) => (
-                      <tr key={item.id}>
+                      <tr key={`${item.requestType}-${item.id}`}>
                         <td>{formatDate(item.createdAt)}</td>
 
                         <td>{item.leaveType}</td>

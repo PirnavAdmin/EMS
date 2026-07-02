@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 const MODAL_SELECTORS = [
   ".attendance-modal-overlay",
+  ".location-modal-overlay",
   ".apply-modal-overlay",
   ".asset-delete-overlay",
   ".change-password-overlay",

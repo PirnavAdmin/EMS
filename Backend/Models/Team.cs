@@ -1,40 +1,40 @@
-﻿//using System.ComponentModel.DataAnnotations;
-//using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-//namespace EmployeeManagementSystem.Models
-//{
-//    [Table("Teams")]
-//    public class Team
-//    {
-       
-//        [Key]
-        
-//        public int Id { get; set; }
+namespace EmployeeManagementSystem.Models
+{
+    [Table("Teams")]
+    public class Team
+    {
 
-//        public string TeamNumber { get; set; } = string.Empty;
+        [Key]
 
-//        public string TeamName { get; set; } = string.Empty;
+        public int Id { get; set; }
 
-//        // Stores P001, P025 etc.i
-//        public string ReportingManagerId { get; set; } = string.Empty;
+        public string TeamNumber { get; set; } = string.Empty;
 
-//        public string EngagementType { get; set; } = string.Empty;
+        public string TeamName { get; set; } = string.Empty;
 
-//        public int ProjectId { get; set; }
+        // Stores P001, P025 etc.i
+        public string ReportingManagerId { get; set; } = string.Empty;
 
-//        public bool IsActive { get; set; } = true;
+        public string EngagementType { get; set; } = string.Empty;
 
-//        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public int ProjectId { get; set; }
 
-//        [ForeignKey(nameof(ProjectId))]
-//        public Project? Project { get; set; }
+        public bool IsActive { get; set; } = true;
 
-//        [ForeignKey(nameof(ReportingManagerId))]
-//        [InverseProperty(nameof(Employee.ManagedTeams))]
-//        public Employee? ReportingManager { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-//        public ICollection<TeamMember>? Members { get; set; }
+        [ForeignKey(nameof(ProjectId))]
+        public Project? Project { get; set; }
 
-//        public ICollection<TeamReportingDay>? ReportingDays { get; set; }
-//    }
-//}
+        [ForeignKey(nameof(ReportingManagerId))]
+        [InverseProperty(nameof(Employee.ManagedTeams))]
+        public Employee? ReportingManager { get; set; }
+
+        public ICollection<TeamMember>? Members { get; set; }
+
+        public ICollection<TeamReportingDay>? ReportingDays { get; set; }
+    }
+}

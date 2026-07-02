@@ -65,6 +65,38 @@ const buildLeaveIdentifierFields = (
   };
 };
 
+const resolveEndpoint = (endpoint, label) => {
+  const resolved = typeof endpoint === "string"
+    ? endpoint.trim()
+    : "";
+
+  if (!resolved) {
+    console.error(
+      `[UserLeaveManagement] Missing or invalid ${label} endpoint`,
+      { endpoint }
+    );
+    return null;
+  }
+
+  return resolved;
+};
+
+const getRequestUrl = (endpoint) => {
+  try {
+    return api.getUri({
+      url: endpoint,
+      method: "get",
+    });
+  } catch (error) {
+    console.error(
+      "[UserLeaveManagement] Failed to build request URL",
+      { endpoint, error }
+    );
+
+    return `${api.defaults.baseURL || ""}${endpoint || ""}`;
+  }
+};
+
 function UserLeaveManagement() {
   const getToken = () =>
     localStorage.getItem("token") || sessionStorage.getItem("token");
@@ -164,25 +196,86 @@ function UserLeaveManagement() {
   };
 
   const fetchMyWFH = async () => {
+    const token = getToken();
+
+    if (!token) {
+      console.log(
+        "[UserLeaveManagement] Skipping WFH fetch because no auth token is available."
+      );
+      setWfhData([]);
+      return [];
+    }
+
+    const endpoint = resolveEndpoint(
+      API_ENDPOINTS.wfh?.my ?? API_ENDPOINTS.wfh?.myWfh,
+      "WFH"
+    );
+
+    if (!endpoint) {
+      setWfhData([]);
+      toast.error("WFH endpoint is not configured. Showing leave data only.");
+      return [];
+    }
+
+    const requestUrl = getRequestUrl(endpoint);
+
+    console.log(
+      "[UserLeaveManagement] Fetching WFH requests",
+      {
+        endpoint,
+        requestUrl
+      }
+    );
 
     try {
 
       const res = await api.get(
-        API_ENDPOINTS.wfh.myWfh,
+        endpoint,
         {
           headers: {
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${token}`
           }
         }
       );
 
       const data = extractCollection(res.data);
 
+      console.log(
+        "[UserLeaveManagement] WFH response received",
+        {
+          requestUrl,
+          count: Array.isArray(data) ? data.length : 0
+        }
+      );
+
       setWfhData(sortByRecency(data));
+
+      return data;
 
     } catch (err) {
 
-      console.error(err);
+      console.error(
+        "[UserLeaveManagement] WFH fetch failed",
+        {
+          endpoint,
+          requestUrl,
+          status: err?.response?.status,
+          message:
+            err?.response?.data?.message ||
+            err?.response?.data?.error ||
+            err?.response?.data ||
+            err?.message ||
+            "Unable to load WFH requests."
+        }
+      );
+
+      setWfhData([]);
+
+      toast.error(
+        "Unable to load Work From Home requests. Showing leave data only."
+      );
+
+      return [];
 
     }
   };
@@ -191,13 +284,20 @@ function UserLeaveManagement() {
     const loadPageData = async () => {
       setInitialLoading(true);
 
-      await Promise.allSettled([
-        fetchLeaves(),
-        fetchMyWFH(),
-        fetchBalance()
-      ]);
+      try {
+        const results = await Promise.allSettled([
+          fetchLeaves(),
+          fetchMyWFH(),
+          fetchBalance()
+        ]);
 
-      setInitialLoading(false);
+        console.log(
+          "[UserLeaveManagement] Initial data load settled",
+          results
+        );
+      } finally {
+        setInitialLoading(false);
+      }
     };
 
     loadPageData();
@@ -450,12 +550,13 @@ function UserLeaveManagement() {
           <TableSkeleton
             rows={6}
             columns={[
-              { width: "140px", headerWidth: "60%" },
-              { width: "120px", headerWidth: "58%" },
-              { width: "120px", headerWidth: "58%" },
-              { width: "minmax(200px, 1fr)", headerWidth: "62%" },
-              { width: "120px", type: "status", headerWidth: "54%" },
-              { width: "120px", type: "actions", headerWidth: "54%" },
+              { width: "90px", headerWidth: "60%" },
+              { width: "150px", headerWidth: "58%" },
+              { width: "110px", headerWidth: "58%" },
+              { width: "110px", headerWidth: "58%" },
+              { width: "minmax(220px, 1fr)", headerWidth: "62%" },
+              { width: "140px", type: "status", headerWidth: "54%" },
+              { width: "90px", type: "actions", headerWidth: "54%" },
             ]}
           />
         </div>
@@ -623,63 +724,86 @@ function UserLeaveManagement() {
           </button>
         </div>
 
-        <div className="leave-history">
+        <div className="leave-history leave-history--my-requests">
           <h3>My Leave Requests</h3>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Leave Type</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Reason</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
+          <div className="leave-history-table-scroll">
+            <table className="my-leave-requests-table">
+              <colgroup>
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "23%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "10%" }} />
+              </colgroup>
 
-            <tbody>
-              {leaveData.length === 0 ? (
+              <thead>
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center" }}>
-                    No Leave Requests
-                  </td>
+                  <th>Type</th>
+                  <th>Leave Type</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              ) : (
-                combinedHistory.map((leave) => (
-                  <tr key={leave.id}>
-                    <td>{leave.requestType}</td>
-                    <td>{formatLeaveType(leave.leaveType)}</td>
-                    <td>{formatDate(leave.fromDate)}</td>
-                    <td>{formatDate(leave.toDate)}</td>
-                    <td>{leave.reason}</td>
+              </thead>
 
-                    <td>
-                      <span className={`status ${leave.status?.toLowerCase()}`}>
-                        {leave.status}
-                      </span>
-                    </td>
-
-                    <td>
-                      {leave.status === "Pending" && (
-                        <button
-                          className="icon-delete-btn"
-                          onClick={() =>
-                            leave.requestType === "WFH"
-                              ? cancelWFH(leave.id)
-                              : deleteLeave(leave)
-                          }
-                        >
-                          <FaTrash />
-                        </button>
-                      )}
+              <tbody>
+                {combinedHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: "center" }}>
+                      No Leave Requests
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  combinedHistory.map((leave) => (
+                    <tr key={`${leave.requestType}-${leave.id}`}>
+                      <td>{leave.requestType}</td>
+                      <td>{formatLeaveType(leave.leaveType)}</td>
+                      <td>{formatDate(leave.fromDate)}</td>
+                      <td>{formatDate(leave.toDate)}</td>
+                      <td
+                        className="leave-reason-cell"
+                        title={leave.reason || "No reason provided"}
+                      >
+                        {leave.reason
+                          ? leave.reason.length > 20
+                            ? `${leave.reason.substring(0, 20)}...`
+                            : leave.reason
+                          : "-"}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`status ${leave.status?.toLowerCase()} leave-status-badge`}
+                        >
+                          {leave.status}
+                        </span>
+                      </td>
+
+                      <td>
+                        {leave.status === "Pending" && (
+                          <button
+                            className="icon-delete-btn leave-action-btn"
+                            onClick={() =>
+                              leave.requestType === "WFH"
+                                ? cancelWFH(leave.id)
+                                : deleteLeave(leave)
+                            }
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     )

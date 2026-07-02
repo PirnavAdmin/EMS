@@ -11,6 +11,10 @@ import {
 } from "../utils/date";
 import { getStoredIdentityParams } from "../utils/authStorage";
 import {
+  acquireReliableLocation,
+  getGeolocationErrorMessage,
+} from "./gpsLocation";
+import {
   FaSignInAlt,
   FaSignOutAlt,
   FaClock,
@@ -313,6 +317,54 @@ function UserAttendance() {
     fetchAttendanceHistory(viewType);
   }, [viewType]);
 
+  // --- SHARED: Resolve a reliable GPS location, or show the appropriate ---
+  // error/warning toast and return null when the location cannot be used.
+  // Returns the { latitude, longitude, accuracy } payload on success -
+  // this shape is intentionally identical to the original API contract.
+  const resolveAccurateLocation = async () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser.");
+      return null;
+    }
+
+    try {
+      const result = await acquireReliableLocation();
+
+      // > 200m accuracy -> reject submission entirely
+      if (!result.allowed) {
+        toast.error(result.warning);
+        return null;
+      }
+
+      // 100m < accuracy <= 200m -> accept, but warn the user
+      if (result.warning) {
+        toast.warning(result.warning);
+      }
+
+      const { latitude, longitude, accuracy } = result;
+
+      if (
+        latitude === null ||
+        latitude === undefined ||
+        longitude === null ||
+        longitude === undefined ||
+        Number.isNaN(latitude) ||
+        Number.isNaN(longitude)
+      ) {
+        toast.error("Latitude and Longitude are required for this action.");
+        return null;
+      }
+
+      // Payload kept identical to the existing API contract.
+      return { latitude, longitude, accuracy };
+    } catch (error) {
+      console.error("Geolocation Error:", error);
+      toast.error(getGeolocationErrorMessage(error));
+      return null;
+    }
+  };
+  // -------------------------------------------------------------------------
+
   const handleCheckIn = async () => {
 
     if (checkedIn) {
@@ -322,162 +374,104 @@ function UserAttendance() {
 
     setLoading(true);
 
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser.");
+    const payload = await resolveAccurateLocation();
+
+    if (!payload) {
       setLoading(false);
       return;
     }
-    
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
 
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        const accuracy = position.coords.accuracy;
+    console.log("CheckIn GPS:", payload);
 
-        if (
-          latitude === null ||
-          latitude === undefined ||
-          longitude === null ||
-          longitude === undefined ||
-          Number.isNaN(latitude) ||
-          Number.isNaN(longitude)
-        ) {
-          toast.error("Latitude and Longitude are required for Check In.");
-          setLoading(false);
-          return;
+    try {
+      await api.post(
+        API_ENDPOINTS.attendance.checkIn,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json"
+          }
         }
+      );
 
-        const payload = {
-          latitude,
-          longitude,
-          accuracy
-        };
+      toast.success("Checked in successfully");
 
-        console.log("CheckIn GPS:", payload);
+      setCheckedIn(true);
+      setCheckedOut(false);
 
-        try {
+      await fetchWeeklySummary();
+      await fetchAttendanceHistory(viewType);
 
-          await api.post(
-            API_ENDPOINTS.attendance.checkIn,
-            payload,
-            {
-              headers: {
-                Authorization: `Bearer ${getToken()}`,
-                "Content-Type": "application/json"
-              }
-            }
-          );
+    } catch (err) {
 
-          toast.success("Checked in successfully");
+      console.error(
+        err?.response?.data ||
+        err.message
+      );
 
-          setCheckedIn(true);
-          setCheckedOut(false);
+      toast.error(
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        "Check-in failed"
+      );
+    }
 
-          await fetchWeeklySummary();
-          await fetchAttendanceHistory(viewType);
-
-        } catch (err) {
-
-          console.error(
-            err?.response?.data ||
-            err.message
-          );
-
-          toast.error(
-            err?.response?.data?.message ||
-            err?.response?.data ||
-            "Check-in failed"
-          );
-        }
-
-        setLoading(false);
-
-      },
-      (error) => {
-
-        console.error("Geolocation Error:", error);
-
-        toast.error(
-          "Unable to retrieve location. Please allow location access."
-        );
-
-        setLoading(false);
-
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
+    setLoading(false);
   };
-  // --- MODIFIED HANDLE CHECKOUT WITH GEOLOCATION ---
+
+  // --- HANDLE CHECKOUT WITH RELIABLE GEOLOCATION ---
   const handleCheckOut = async () => {
     setLoading(true);
 
-    // Get current geolocation
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser.");
+    const payload = await resolveAccurateLocation();
+
+    if (!payload) {
       setLoading(false);
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const payload = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
-        };
+    console.log("CheckOut GPS:", payload);
 
-        try {
-          await api.post(
-            API_ENDPOINTS.attendance.checkOut,
-            payload,
-            {
-              headers: {
-                Authorization: `Bearer ${getToken()}`,
-                "Content-Type": "application/json"
-              }
-            }
-          );
-
-          toast.success("Checked out successfully");
-          setCheckedOut(true);
-          await refreshAttendanceState();
-        }
-        catch (err) {
-          const responseData =
-            err?.response?.data?.data ||
-            err?.response?.data ||
-            {};
-
-          const needsReason =
-            responseData?.requiresReason === true;
-
-          if (needsReason) {
-            setPendingCheckoutData(payload);
-            setShowReasonPopup(true);
-            return;
+    try {
+      await api.post(
+        API_ENDPOINTS.attendance.checkOut,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json"
           }
-
-          const errorMsg = responseData?.errors
-            ? Object.values(responseData.errors).flat().join(", ")
-            : responseData?.message || "Server error during check-out";
-
-          toast.error(errorMsg);
-        } finally {
-          setLoading(false);
         }
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
-        toast.error("Unable to retrieve location. Please enable GPS permissions.");
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+      );
+
+      toast.success("Checked out successfully");
+      setCheckedOut(true);
+      await refreshAttendanceState();
+    }
+    catch (err) {
+      const responseData =
+        err?.response?.data?.data ||
+        err?.response?.data ||
+        {};
+
+      const needsReason =
+        responseData?.requiresReason === true;
+
+      if (needsReason) {
+        setPendingCheckoutData(payload);
+        setShowReasonPopup(true);
+        return;
+      }
+
+      const errorMsg = responseData?.errors
+        ? Object.values(responseData.errors).flat().join(", ")
+        : responseData?.message || "Server error during check-out";
+
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
   };
   // ------------------------------------------------
 

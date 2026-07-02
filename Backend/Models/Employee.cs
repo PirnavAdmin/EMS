@@ -45,9 +45,9 @@ namespace EmployeeManagementSystem.Models
         [JsonIgnore]
         public EmployeeBankDetail BankDetails { get; set; }
 
-        //public ICollection<TeamMember>? TeamMembers { get; set; }
+        public ICollection<TeamMember>? TeamMembers { get; set; }
 
-        //public ICollection<Team>? ManagedTeams { get; set; }
+        public ICollection<Team>? ManagedTeams { get; set; }
     }
 
 }

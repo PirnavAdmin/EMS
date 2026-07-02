@@ -210,6 +210,25 @@ namespace EmployeeManagementSystem.Controllers
                 "application/pdf",
                 $"EmployeeProfile_{employeeId}.pdf");
         }
+        [HttpPost("bulk-upload")]
+
+        public async Task<IActionResult> BulkUploadEmployees(IFormFile file)
+
+        {
+
+            var result = await _employeeService.BulkUploadEmployees(file);
+
+            return Ok(result);
+
+        }
+
+
+        [HttpGet("upcoming-birthdays")]
+        public async Task<IActionResult> GetUpcomingBirthdays()
+        {
+            var result = await _employeeService.GetUpcomingBirthdays();
+            return Ok(result);
+        }
 
     }
 

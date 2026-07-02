@@ -21,11 +21,11 @@ import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { SERVER_URL } from "../../api/config";
 import CompactSearchableDropdown from "../../components/CompactSearchableDropdown";
+import DocumentPreviewModal from "./DocumentPreviewModal";
 import {
     extractDocumentRecords,
     areDocumentRecordsEquivalent,
     formatDocumentSize,
-    loadStoredDocuments,
     mergeDocumentRecords,
     normalizeDocumentRecord,
     normalizeDocumentTypeKey,
@@ -220,20 +220,6 @@ const buildLocalDocumentRecord = (file, documentType, employeeKey) =>
         employeeKey
     );
 
-const openBlobInNewTab = (blob) => {
-    const url = window.URL.createObjectURL(blob);
-    const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
-
-    if (!openedWindow) {
-        window.URL.revokeObjectURL(url);
-        return;
-    }
-
-    window.setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-    }, 2500);
-};
-
 const downloadBlob = (blob, fileName) => {
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -274,6 +260,7 @@ function Documents({
     const [successMsg, setSuccessMsg] = useState("");
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedDeleteDocument, setSelectedDeleteDocument] = useState(null);
+    const [previewDocument, setPreviewDocument] = useState(null);
 
     const fileInputRef = useRef(null);
     const isMountedRef = useRef(true);
@@ -335,28 +322,6 @@ function Documents({
             }),
         [uploadedDocumentTypes]
     );
-    const documentProgressSummary = useMemo(() => {
-        const totalTrackedTypes = documentProgressGroups.reduce(
-            (total, group) => total + group.totalCount,
-            0
-        );
-        const uploadedTrackedTypes = documentProgressGroups.reduce(
-            (total, group) => total + group.uploadedCount,
-            0
-        );
-
-        return {
-            totalTrackedTypes,
-            uploadedTrackedTypes,
-            remainingTrackedTypes: Math.max(
-                0,
-                totalTrackedTypes - uploadedTrackedTypes
-            ),
-            completionPercent: totalTrackedTypes
-                ? Math.round((uploadedTrackedTypes / totalTrackedTypes) * 100)
-                : 0,
-        };
-    }, [documentProgressGroups]);
     const selectedDocumentTypeKey = normalizeDocumentTypeKey(
         selectedDocumentType
     );
@@ -410,8 +375,6 @@ function Documents({
                 setLoadError("");
             }
 
-            let serverError = "";
-
             try {
                 const serverDocuments = await api
                     .get(API_ENDPOINTS.employeeDocuments.byEmployeeId(employeeKey))
@@ -425,15 +388,7 @@ function Documents({
                 }
 
                 setDocuments(serverDocuments);
-
-                if (serverError && mergedDocuments.length === 0) {
-                    setLoadError(serverError);
-                } else if (serverError && mergedDocuments.length > 0) {
-                    setLoadError("Showing cached documents while refreshing.");
-                    toast.info("Showing cached documents while refreshing.");
-                } else {
-                    setLoadError("");
-                }
+                setLoadError("");
             } catch (error) {
                 if (!isMountedRef.current) {
                     return;
@@ -664,25 +619,7 @@ function Documents({
             return;
         }
 
-        if (doc.blob instanceof Blob) {
-            openBlobInNewTab(doc.blob);
-            return;
-        }
-
-        if (doc.fileUrl) {
-            window.open(doc.fileUrl, "_blank", "noopener,noreferrer");
-            return;
-        }
-
-        const serverId = getDocumentServerId(doc);
-
-        if (!serverId) {
-            toast.error("Document ID missing");
-            return;
-        }
-
-        const url = `${SERVER_URL}/api/EmployeeDocuments/view/${serverId}`;
-        window.open(url, "_blank", "noopener,noreferrer");
+        setPreviewDocument(doc);
     };
 
     const handleDownload = (doc) => {
@@ -1168,6 +1105,12 @@ function Documents({
                     </div>
                 </div>
             )}
+
+            <DocumentPreviewModal
+                open={Boolean(previewDocument)}
+                document={previewDocument}
+                onClose={() => setPreviewDocument(null)}
+            />
 
             <div className="documents-footer">
                 <div className="progress-info">

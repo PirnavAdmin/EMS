@@ -129,16 +129,16 @@ namespace EmployeeManagementSystem.Data
         public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
         public DbSet<BreakLog> BreakLogs { get; set; }
         public DbSet<WorkFromHomeRequest> WorkFromHomeRequests { get; set; }
-        //public DbSet<Team> Teams { get; set; }
+        public DbSet<Team> Teams { get; set; }
 
-        //public DbSet<TeamMember> TeamMembers { get; set; }
+        public DbSet<TeamMember> TeamMembers { get; set; }
 
-        //public DbSet<TeamReportingDay> TeamReportingDays { get; set; }
+        public DbSet<TeamReportingDay> TeamReportingDays { get; set; }
 
-        //public DbSet<TeamMemberOverride> TeamMemberOverrides { get; set; }
+        public DbSet<TeamMemberOverride> TeamMemberOverrides { get; set; }
 
-        //public DbSet<TeamMemberReportingDay> TeamMemberReportingDays { get; set; }
-
+        public DbSet<TeamMemberReportingDay> TeamMemberReportingDays { get; set; }
+        public DbSet<EmployeeLocation> EmployeeLocations { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
         {
@@ -196,11 +196,11 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<Company>().ToTable("Company");
 
             modelBuilder.Entity<Module>().ToTable("modules");
-            //modelBuilder.Entity<Team>().ToTable("Teams");
-            //modelBuilder.Entity<TeamMember>().ToTable("teammembers");
-            //modelBuilder.Entity<TeamMemberOverride>().ToTable("teammemberoverrides");
-            //modelBuilder.Entity<TeamReportingDay>().ToTable("teamreportingdays");
-            //modelBuilder.Entity<TeamMemberReportingDay>().ToTable("teammemberreportingdays");
+            modelBuilder.Entity<Team>().ToTable("Teams");
+            modelBuilder.Entity<TeamMember>().ToTable("teammembers");
+            modelBuilder.Entity<TeamMemberOverride>().ToTable("teammemberoverrides");
+            modelBuilder.Entity<TeamReportingDay>().ToTable("teamreportingdays");
+            modelBuilder.Entity<TeamMemberReportingDay>().ToTable("teammemberreportingdays");
             modelBuilder.Entity<WorkFromHomeRequest>().ToTable("workfromhomerequests");
 
 
@@ -295,27 +295,27 @@ namespace EmployeeManagementSystem.Data
          .HasPrincipalKey<Employee>(e => e.Employee_Id);
 
 
-    //        base.OnModelCreating(modelBuilder);
+            base.OnModelCreating(modelBuilder);
 
-    //        modelBuilder.Entity<Employee>()
-    //            .HasIndex(x => x.Employee_Id)
-    //            .IsUnique();
+            modelBuilder.Entity<Employee>()
+                .HasIndex(x => x.Employee_Id)
+                .IsUnique();
 
-    //        modelBuilder.Entity<Team>()
-    //            .HasOne(x => x.ReportingManager)
-    //            .WithMany(x => x.ManagedTeams)
-    //            .HasForeignKey(x => x.ReportingManagerId)
-    //            .HasPrincipalKey(x => x.Employee_Id);
+            modelBuilder.Entity<Team>()
+                .HasOne(x => x.ReportingManager)
+                .WithMany(x => x.ManagedTeams)
+                .HasForeignKey(x => x.ReportingManagerId)
+                .HasPrincipalKey(x => x.Employee_Id);
 
-    //        modelBuilder.Entity<TeamMember>()
-    //            .HasOne(x => x.Employee)
-    //            .WithMany(x => x.TeamMembers)
-    //            .HasForeignKey(x => x.EmployeeId)
-    //            .HasPrincipalKey(x => x.Employee_Id);
-    //        modelBuilder.Entity<TeamMember>()
-    //.HasOne(t => t.TeamMemberOverride)
-    //.WithOne(o => o.TeamMember)
-    //.HasForeignKey<TeamMemberOverride>(o => o.TeamMemberId);
+            modelBuilder.Entity<TeamMember>()
+                .HasOne(x => x.Employee)
+                .WithMany(x => x.TeamMembers)
+                .HasForeignKey(x => x.EmployeeId)
+                .HasPrincipalKey(x => x.Employee_Id);
+            modelBuilder.Entity<TeamMember>()
+    .HasOne(t => t.TeamMemberOverride)
+    .WithOne(o => o.TeamMember)
+    .HasForeignKey<TeamMemberOverride>(o => o.TeamMemberId);
         }
 
 
