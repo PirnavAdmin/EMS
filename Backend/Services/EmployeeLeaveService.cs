@@ -1735,7 +1735,7 @@ style='border-collapse:collapse;'>
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                    Console.WriteLine($"Email failed for {mail}: {ex.Message}");
                 }
             }
 
@@ -1821,12 +1821,12 @@ style='border-collapse:collapse;'>
                 {
                     await _emailService.SendEmailAsync(
                         mail,
-                        "Work From Home Rejected",
+                        "Work From Home Approved",
                         body);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                    Console.WriteLine($"Email failed for {mail}: {ex.Message}");
                 }
             }
 

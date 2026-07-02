@@ -399,18 +399,17 @@ namespace EmployeeManagementSystem.Services
             att.CheckOutLatitude = dto.Latitude;
             att.CheckOutLongitude = dto.Longitude;
 
-          
+            await _context.SaveChangesAsync();
 
             return new OkObjectResult(new
             {
                 Message = "Check-out successful",
 
                 CheckOutTime = ConvertToIST(att.Check_Out.Value)
-          .ToString("hh:mm:ss tt"),
+                    .ToString("hh:mm:ss tt"),
 
                 CheckOutLatitude = att.CheckOutLatitude,
                 CheckOutLongitude = att.CheckOutLongitude,
-               
 
                 WorkingHours = FormatHours(att.WorkingMinutes),
 
@@ -418,8 +417,6 @@ namespace EmployeeManagementSystem.Services
 
                 Status = att.Status
             });
-        
-
         }
 
 
@@ -557,7 +554,13 @@ namespace EmployeeManagementSystem.Services
         : att.Check_In == null
             ? 0
             : att.Check_Out == null
-                ? (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes
+                ? Math.Max(
+                    0,
+                    Math.Min(
+                        (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes,
+                        720
+                    ) - att.TotalBreakMinutes
+                  )
                 : att.WorkingMinutes
 )
 
@@ -826,14 +829,16 @@ namespace EmployeeManagementSystem.Services
                     CheckIn = checkIn?.ToString("hh:mm tt"),
                     CheckOut = checkOut?.ToString("hh:mm tt"),
                     Hours = att != null
-                        ? FormatHours(
-                            att.Check_Out != null
-                                ? att.WorkingMinutes
-                                : Math.Max(
-                                    0,
-                                    (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes
-                                    - att.TotalBreakMinutes))
-                        : "0h 0m"
+    ? FormatHours(
+        att.Check_Out != null
+            ? att.WorkingMinutes
+            : Math.Max(
+                0,
+                Math.Min(
+                    (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes,
+                    720
+                ) - att.TotalBreakMinutes))
+    : "0h 0m"
                 });
             }
 
@@ -945,7 +950,10 @@ namespace EmployeeManagementSystem.Services
             ? att.WorkingMinutes
             : Math.Max(
                 0,
-                (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes
+               Math.Min(
+    (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes,
+    720
+)
                   - att.TotalBreakMinutes
               )
       )
@@ -3114,21 +3122,31 @@ namespace EmployeeManagementSystem.Services
 
             if (todayAttendance != null)
             {
+                int minutes = 0;
+
                 if (todayAttendance.Check_In.HasValue &&
                     !todayAttendance.Check_Out.HasValue)
                 {
                     var now = ConvertToIST(DateTime.UtcNow);
 
-                    var minutes = (int)(now - ConvertToIST(todayAttendance.Check_In.Value)).TotalMinutes;
+                    minutes = (int)(now - ConvertToIST(todayAttendance.Check_In.Value)).TotalMinutes;
 
-                    todayHours = FormatHours(minutes);
+                    // Stop after 12 hours
+                    minutes = Math.Min(minutes, 720);
+
+                    // Remove break time
+                    minutes -= todayAttendance.TotalBreakMinutes;
+
+                    // Prevent negative values
+                    minutes = Math.Max(minutes, 0);
                 }
                 else
                 {
-                    todayHours = FormatHours(todayAttendance.WorkingMinutes);
+                    minutes = todayAttendance.WorkingMinutes;
                 }
-            }
 
+                todayHours = FormatHours(minutes);
+            }
             // Current Week
             // Current Week
             int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
@@ -3207,8 +3225,11 @@ namespace EmployeeManagementSystem.Services
             ? att.WorkingMinutes
             : Math.Max(
                 0,
-                (int)(ConvertToIST(DateTime.UtcNow) - ConvertToIST(att.Check_In!.Value)).TotalMinutes
-                - att.TotalBreakMinutes))
+                Math.Min(
+                    (int)(ConvertToIST(DateTime.UtcNow) - ConvertToIST(att.Check_In!.Value)).TotalMinutes,
+                    720
+                ) - att.TotalBreakMinutes
+            ))
                 });
             }
 
