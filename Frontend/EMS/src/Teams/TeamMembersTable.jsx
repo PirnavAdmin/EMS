@@ -1,11 +1,7 @@
 import React from "react";
 import { FaPen, FaPlus, FaTrash } from "react-icons/fa";
 import { TEAM_DAY_OPTIONS, getComplementDays } from "./teamsData";
-
-const roleName = localStorage.getItem("roleName") || "";
-const isEmployee = roleName.toLowerCase() === "employee";
-const resolveDays = (primaryDays = [], fallbackDays = []) =>
-  primaryDays.length > 0 ? primaryDays : fallbackDays;
+import { isEmployee } from "../utils/authorization";
 
 function DayChips({ days, fallbackLabel = "-" }) {
   if (!days || days.length === 0) {
@@ -45,7 +41,7 @@ function TeamMembersTable({
           </p>
         </div>
 
-        {!isEmployee && (
+        {!isEmployee() && (
           <button
             className="teams-add-btn"
             onClick={onAddMember}
@@ -66,14 +62,14 @@ function TeamMembersTable({
               <th>Project / Engagement</th>
               <th>WFO Days</th>
               <th>WFH Days</th>
-              {!isEmployee && <th>ACTIONS</th>}
+              {!isEmployee() && <th>ACTIONS</th>}
             </tr>
           </thead>
 
           <tbody>
             {members.length === 0 ? (
               <tr>
-                <td colSpan={isEmployee ? 5 : 6} className="teams-empty-table-cell">
+                <td colSpan={isEmployee() ? 5 : 6} className="teams-empty-table-cell">
                   No team members
                 </td>
               </tr>
@@ -141,33 +137,29 @@ function TeamMembersTable({
                       <DayChips days={displayWfhDays} />
                     </td>
 
-                    <td>
+                    {!isEmployee() && (
+                      <td>
+                        <div className="team-member-actions">
 
-                      {!isEmployee && (
-                        <td>
-                          <div className="team-member-actions">
+                          <button
+                            className="team-action-btn secondary team-row-action-btn"
+                            onClick={() => onOverrideMember(member)}
+                          >
+                            <FaPen />
+                            Override
+                          </button>
 
-                            <button
-                              className="team-action-btn secondary team-row-action-btn"
-                              onClick={() => onOverrideMember(member)}
-                            >
-                              <FaPen />
-                              Override
-                            </button>
+                          <button
+                            className="team-action-btn danger team-row-action-btn"
+                            onClick={() => onRemoveMember(member)}
+                          >
+                            <FaTrash />
+                            Remove
+                          </button>
 
-                            <button
-                              className="team-action-btn danger team-row-action-btn"
-                              onClick={() => onRemoveMember(member)}
-                            >
-                              <FaTrash />
-                              Remove
-                            </button>
-
-                          </div>
-                        </td>
-                      )}
-
-                    </td>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })

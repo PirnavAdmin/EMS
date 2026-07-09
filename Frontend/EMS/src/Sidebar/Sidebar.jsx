@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   FaTachometerAlt,
   FaUsers,
@@ -15,17 +15,14 @@ import {
   FaMoneyBillWave,
   FaProjectDiagram,
   FaUserTie,
+  FaCog,
+  FaTicketAlt,
 } from "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import pirnavLogo from "../assets/pirnav.png";
-import { getStoredPermissions, getStoredRole } from "../utils/authStorage";
-
-const normalize = (name) =>
-  (name || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
-    .trim();
+import { getStoredPermissions } from "../utils/authStorage";
+import { getUserRole, hasRole, isAdmin } from "../utils/authorization";
 
 const EXPANDABLE_MENUS = [
   {
@@ -100,6 +97,29 @@ const EXPANDABLE_MENUS = [
         icon: FaBuilding,
         label: "Departments",
         permission: "Departments",
+      },
+    ],
+  },
+  {
+    key: "tickets",
+    label: "Ticket Management",
+    labelByRole: {
+      user: "My Tickets",
+      employee: "My Tickets",
+    },
+    icon: FaTicketAlt,
+    items: [
+      {
+        to: "/admin/tickets",
+        icon: FaList,
+        label: "All Tickets",
+        permission: "All Tickets",
+      },
+      {
+        to: "/employee/my-tickets",
+        icon: FaList,
+        label: "My Tickets",
+        permission: "My Tickets",
       },
     ],
   },
@@ -191,18 +211,6 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     permission: "User Leave Management",
   },
   {
-    to: "/tasks",
-    icon: FaList,
-    label: "Tasks",
-    permission: "Task Management",
-  },
-  {
-    to: "/user-tasks",
-    icon: FaList,
-    label: "My Tasks",
-    permission: "User Task Management",
-  },
-  {
     to: "/notifications",
     icon: FaBell,
     label: "Notifications",
@@ -213,6 +221,12 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     icon: FaBell,
     label: "My Notifications",
     permission: "User Notifications",
+  },
+  {
+    to: "/settings",
+    icon: FaCog,
+    label: "Settings",
+    adminOnly: true,
   },
 ];
 
@@ -231,11 +245,9 @@ const getSubmenuLinkClassName = ({ isActive }) =>
   `submenu-item ${isActive ? "active" : ""}`;
 
 const hasPermission = (module) => {
-  const role = getStoredRole();
   const permissions = getStoredPermissions();
-  const normalizedModule = normalize(module);
 
-  if (role === "admin") {
+  if (isAdmin()) {
     return true;
   }
 
@@ -243,13 +255,16 @@ const hasPermission = (module) => {
     return false;
   }
 
-  const allowedModules = permissions.map((permission) =>
-    normalize(permission.moduleName)
-  );
+  return permissions.some((permission) => {
+    if ((permission.canAccess ?? permission.CanAccess ?? true) !== true) {
+      return false;
+    }
 
-  return (
-    allowedModules.includes(normalizedModule) || allowedModules.includes("all")
-  );
+    return (
+      permission.moduleName?.trim().toLowerCase() ===
+      module.trim().toLowerCase()
+    );
+  });
 };
 
 function SidebarLink({ to, icon, label, compact, onClick }) {
@@ -259,6 +274,7 @@ function SidebarLink({ to, icon, label, compact, onClick }) {
       className={getMenuLinkClassName}
       onClick={onClick}
       data-title={label}
+      data-nav-target={to}
       title={compact ? label : undefined}
     >
       <span className="menu-item-icon">{React.createElement(icon)}</span>
@@ -274,6 +290,7 @@ function SubmenuLink({ to, icon, label, onClick }) {
       className={getSubmenuLinkClassName}
       onClick={onClick}
       data-title={label}
+      data-nav-target={to}
     >
       <span className="submenu-item-icon">{React.createElement(icon)}</span>
       <span className="submenu-item-label">{label}</span>
@@ -283,18 +300,99 @@ function SubmenuLink({ to, icon, label, onClick }) {
 
 function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
   const location = useLocation();
-  const roleName = getStoredRole();
+  const roleName = getUserRole();
   const isCompact = !isMobile && collapsed;
   const routeMenu = isCompact ? null : getMenuKeyFromPath(location.pathname);
   const [menuState, setMenuState] = useState(() => ({
     active: routeMenu,
     interactionPath: location.pathname,
   }));
+  const [submenuDirections, setSubmenuDirections] = useState({});
+  const menuButtonRefs = useRef({});
+  const submenuRefs = useRef({});
   const activeMenu = isCompact
     ? null
     : menuState.interactionPath === location.pathname
       ? menuState.active
       : routeMenu;
+
+  const setMenuButtonRef = (menuKey) => (node) => {
+    if (node) {
+      menuButtonRefs.current[menuKey] = node;
+      return;
+    }
+
+    delete menuButtonRefs.current[menuKey];
+  };
+
+  const setSubmenuRef = (menuKey) => (node) => {
+    if (node) {
+      submenuRefs.current[menuKey] = node;
+      return;
+    }
+
+    delete submenuRefs.current[menuKey];
+  };
+
+  const measureSubmenuDirection = (menuKey) => {
+    if (typeof window === "undefined") {
+      return "down";
+    }
+
+    const button = menuButtonRefs.current[menuKey];
+    const submenu = submenuRefs.current[menuKey];
+
+    if (!button || !submenu) {
+      return "down";
+    }
+
+    const rect = button.getBoundingClientRect();
+    const submenuHeight =
+      submenu.scrollHeight || submenu.offsetHeight || 0;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const buffer = 16;
+
+    if (spaceBelow >= submenuHeight + buffer) {
+      return "down";
+    }
+
+    if (spaceAbove >= submenuHeight + buffer) {
+      return "up";
+    }
+
+    return spaceAbove > spaceBelow ? "up" : "down";
+  };
+
+  const syncSubmenuDirection = (menuKey) => {
+    const nextDirection = measureSubmenuDirection(menuKey);
+
+    setSubmenuDirections((prev) => ({
+      ...prev,
+      [menuKey]: nextDirection,
+    }));
+
+    return nextDirection;
+  };
+
+  useEffect(() => {
+    if (isCompact || !menuState.active) {
+      return undefined;
+    }
+
+    const updateDirection = () => {
+      syncSubmenuDirection(menuState.active);
+    };
+
+    updateDirection();
+    window.addEventListener("resize", updateDirection);
+    window.addEventListener("orientationchange", updateDirection);
+
+    return () => {
+      window.removeEventListener("resize", updateDirection);
+      window.removeEventListener("orientationchange", updateDirection);
+    };
+  }, [isCompact, menuState.active]);
 
   useEffect(() => {
     if (!isMobile || !mobileOpen) {
@@ -322,8 +420,18 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
       return;
     }
 
+    if (activeMenu === menuKey) {
+      setMenuState({
+        active: null,
+        interactionPath: location.pathname,
+      });
+      return;
+    }
+
+    syncSubmenuDirection(menuKey);
+
     setMenuState({
-      active: activeMenu === menuKey ? null : menuKey,
+      active: menuKey,
       interactionPath: location.pathname,
     });
   };
@@ -356,11 +464,14 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
       "Employee Leave",
       "My Attendance",
       "Payslip",
-      "My Tasks",
       "My Notifications",
     ];
 
-    if (roleName === "admin" && adminHiddenMenus.includes(item.label)) {
+    if (item.adminOnly && !isAdmin()) {
+      return null;
+    }
+
+    if (isAdmin() && adminHiddenMenus.includes(item.label)) {
       return null;
     }
 
@@ -386,7 +497,7 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
   const renderExpandableMenu = (menu) => {
     const visibleItems = menu.items.filter((item) => {
       // Hide Add Details for Admin
-      if (roleName === "admin" && item.label === "Add Details") {
+      if (isAdmin() && item.label === "Add Details") {
         return false;
       }
 
@@ -397,12 +508,41 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
       return null;
     }
 
+    const submenuDirection = submenuDirections[menu.key] || "down";
+
+    if (
+      menu.key === "tickets" &&
+      hasRole("user", "employee") &&
+      visibleItems.length === 1
+    ) {
+      const item = visibleItems[0];
+
+      return (
+        <SidebarLink
+          key={menu.key}
+          to={item.to}
+          icon={menu.icon}
+          label={item.label}
+          compact={isCompact}
+          onClick={handleLinkClick}
+        />
+      );
+    }
+
     return (
-      <div className="menu-section" key={menu.key}>
+      <div
+        className={`menu-section ${
+          submenuDirection === "up"
+            ? "submenu-open-up"
+            : "submenu-open-down"
+        }`}
+        key={menu.key}
+      >
         <button
           type="button"
           className={`menu-item menu-toggle ${isMenuActive(menu.key) ? "active" : ""
             }`}
+          ref={setMenuButtonRef(menu.key)}
           onClick={() => toggleMenu(menu.key)}
           data-title={menu.label}
           aria-expanded={isMenuExpanded(menu.key)}
@@ -410,7 +550,9 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
         >
           <span className="menu-item-icon">{React.createElement(menu.icon)}</span>
 
-          <span className="menu-item-label">{menu.label}</span>
+          <span className="menu-item-label">
+            {menu.labelByRole?.[roleName] || menu.label}
+          </span>
           <span className="menu-arrow-wrap">
             <FaChevronDown
               className={`menu-arrow ${isMenuExpanded(menu.key) ? "rotated" : ""
@@ -420,7 +562,10 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
         </button>
 
         {!isCompact && (
-          <div className={`submenu-shell ${isMenuExpanded(menu.key) ? "open" : ""}`}>
+          <div
+            ref={setSubmenuRef(menu.key)}
+            className={`submenu-shell ${isMenuExpanded(menu.key) ? "open" : ""}`}
+          >
             <div className="submenu">
               {visibleItems.map((item) => (
                 <SubmenuLink

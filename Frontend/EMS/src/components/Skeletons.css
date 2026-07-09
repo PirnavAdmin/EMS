@@ -307,7 +307,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .skeleton-grid {
     grid-template-columns: 1fr;
   }
@@ -324,3 +324,5 @@
     min-height: 124px;
   }
 }
+
+

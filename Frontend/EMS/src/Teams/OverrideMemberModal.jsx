@@ -91,7 +91,7 @@ function OverrideMemberModal({
             p.name ??
             "Unknown Project"
         }));
-        
+
         setProjects(formatted);
 
         setProjects(formatted);
@@ -167,18 +167,24 @@ function OverrideMemberModal({
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) {
       return;
     }
 
-    onSave({
-      differentProject: form.differentProject,
-      projectId: form.projectId,
-      projectName: form.projectName,
-      customReportingDays: form.customReportingDays,
-      reportingDays: form.reportingDays
-    });
+    try {
+      await onSave({
+        differentProject: form.differentProject,
+        projectId: form.projectId,
+        projectName: form.projectName,
+        customReportingDays: form.customReportingDays,
+        reportingDays: form.reportingDays
+      });
+
+      onClose?.();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   if (!open || !member) {
@@ -242,13 +248,13 @@ function OverrideMemberModal({
                   disabled={!form.differentProject}
                   onChange={(e) => {
 
-                    const projectId = Number(e.target.value);
+                    const projectId = e.target.value
+                      ? Number(e.target.value)
+                      : "";
 
                     const selectedProject = projects.find(
                       p => p.id === projectId
                     );
-
-                    console.log("Selected Project:", selectedProject);
 
                     setForm(prev => ({
                       ...prev,
@@ -261,7 +267,7 @@ function OverrideMemberModal({
 
                   {projects.map(project => (
                     <option
-                      key={project.id}
+                      key={`${project.id}-${project.project_Name}`}
                       value={project.id}
                     >
                       {project.project_Name}

@@ -4,9 +4,32 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { clearAuthData, getAuthStorage } from "../../utils/authStorage";
+import {
+  normalizePermissionList,
+  normalizeRole,
+} from "../../utils/authorization";
 import { startSessionTimer } from "../../utils/sessionManager";
 import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
+
+const ROLE_NAME_CLAIM =
+  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+
+const toDisplayRoleName = (value) => {
+  const normalized = String(value ?? "").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  const lowered = normalized.toLowerCase();
+
+  if (lowered === "admin") return "Admin";
+  if (lowered === "user") return "User";
+  if (lowered === "employee") return "Employee";
+
+  return normalized;
+};
 
 export default function LoginLeft() {
   const navigate = useNavigate();
@@ -46,6 +69,65 @@ export default function LoginLeft() {
     }
 
     return "";
+  };
+
+  const authRequestOptions = {
+    skipAuth: true,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  const shouldFallbackToUserLogin = (error) => {
+    const status = error?.response?.status;
+
+    if ([400, 401, 403, 404].includes(status)) {
+      return true;
+    }
+
+    const message = String(
+      error?.response?.data?.message ||
+        error?.response?.data ||
+        error?.message ||
+        ""
+    ).toLowerCase();
+
+    return /invalid|unauthori[sz]ed|role|credential|account|not found|does not exist/.test(
+      message
+    );
+  };
+
+  const submitLoginRequest = async () => {
+    const payload = {
+      email: form.email,
+      password: form.password,
+    };
+
+    const endpoints = [
+      API_ENDPOINTS.auth.adminLogin,
+      API_ENDPOINTS.auth.userLogin,
+    ];
+
+    let lastError = null;
+
+    for (const endpoint of endpoints) {
+      try {
+        return await api.post(endpoint, payload, authRequestOptions);
+      } catch (error) {
+        lastError = error;
+
+        if (
+          endpoint === API_ENDPOINTS.auth.adminLogin &&
+          shouldFallbackToUserLogin(error)
+        ) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastError;
   };
 
   useEffect(() => {
@@ -103,37 +185,7 @@ export default function LoginLeft() {
     const storage = getAuthStorage(rememberMe);
 
     try {
-      let response;
-
-      if (form.email === "admin@ems.com") {
-        response = await api.post(
-          API_ENDPOINTS.auth.adminLogin,
-          {
-            email: form.email,
-            password: form.password,
-          },
-          {
-            skipAuth: true,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-      } else {
-        response = await api.post(
-          API_ENDPOINTS.auth.userLogin,
-          {
-            email: form.email,
-            password: form.password,
-          },
-          {
-            skipAuth: true,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-      }
+      const response = await submitLoginRequest();
 
       if (response.status !== 200 || !response.data?.token) {
         throw new Error(response.data?.message || `Login failed (${response.status})`);
@@ -141,6 +193,11 @@ export default function LoginLeft() {
 
       const token = response.data.token;
       const decoded = parseJwt(token);
+      const decodedRoleName =
+        decoded?.roleName ||
+        decoded?.[ROLE_NAME_CLAIM] ||
+        decoded?.role ||
+        "";
 
       const roleId =
         response.data.roleId ||
@@ -148,12 +205,13 @@ export default function LoginLeft() {
         decoded?.roleId ||
         null;
 
-      const roleName =
+      const roleName = toDisplayRoleName(
         response.data.roleName ||
-        decoded?.[
-        "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-        ] ||
-        "User";
+          decodedRoleName ||
+          response.data.role ||
+          decoded?.role ||
+          ""
+      );
 
       const employeeId = resolveIdentityValue(
         response.data.employeeId,
@@ -193,20 +251,69 @@ export default function LoginLeft() {
       const resolvedEmployeeId =
         employeeId || userId || attendanceId;
 
-      let role = response.data.role || decoded?.role || "user";
+      const role = normalizeRole(
+        response.data.role ||
+          decoded?.role ||
+          decoded?.[
+            ROLE_NAME_CLAIM
+          ] ||
+          roleName
+      );
 
-      if (form.email === "admin@ems.com") {
-        role = "admin";
-      } else {
-        role = role.trim().toLowerCase();
+      if (!token) {
+        throw new Error(
+          "Login failed: Login response is missing required authentication data."
+        );
+      }
+
+      if (!role) {
+        throw new Error(
+          "Login failed: Role information is missing from the authentication response."
+        );
+      }
+
+      if (!roleName) {
+        throw new Error(
+          "Login failed: Role name is missing from the authentication response."
+        );
+      }
+
+      let modules = normalizePermissionList(
+        response.data.permissions ||
+          response.data.modules ||
+          response.data.allowedModules
+      );
+
+      if (role === "admin") {
+        modules =
+          modules.length > 0
+            ? modules
+            : [{ moduleName: "all", canAccess: true }];
+      } else if (modules.length === 0) {
+        const modulesResponse = await api.get(
+          API_ENDPOINTS.rolePermission.allowedModules,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        modules = normalizePermissionList(modulesResponse.data);
+      }
+
+      if (!Array.isArray(modules) || modules.length === 0) {
+        throw new Error(
+          "Login failed: Role information is missing from the authentication response."
+        );
       }
 
       clearAuthData();
 
       storage.setItem("token", token);
-      localStorage.setItem("loginTime", Date.now());
+      localStorage.setItem("loginTime", String(Date.now()));
       storage.setItem("role", role);
-      storage.setItem("roleName", roleName || "");
+      storage.setItem("roleName", roleName);
       storage.setItem("roleId", roleId || "");
       storage.setItem("email", form.email);
 
@@ -220,40 +327,6 @@ export default function LoginLeft() {
 
       if (attendanceId) {
         storage.setItem("attendanceId", attendanceId);
-      }
-
-      let modules = [];
-
-      if (role === "admin") {
-        modules = [{ moduleName: "all", canAccess: true }];
-      } else {
-        try {
-          const modulesResponse = await api.get(
-            API_ENDPOINTS.rolePermission.allowedModules,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-          const moduleData =
-            modulesResponse.data?.data?.$values ||
-            modulesResponse.data?.data ||
-            modulesResponse.data?.$values ||
-            modulesResponse.data ||
-            [];
-
-          if (Array.isArray(moduleData)) {
-            modules = moduleData.map((module) => ({
-              moduleId: module.moduleId ?? module.ModuleId,
-              moduleName: module.moduleName ?? module.ModuleName,
-              canAccess: true,
-            })).filter((module) => module.moduleName);
-          }
-        } catch (moduleError) {
-          console.error("Modules API Error:", moduleError.message);
-        }
       }
 
       storage.setItem("modules", JSON.stringify(modules));
@@ -270,7 +343,11 @@ export default function LoginLeft() {
         replace: true,
       });
     } catch (requestError) {
-      const message = requestError.response?.data?.message || "";
+      const message =
+        requestError.response?.data?.message ||
+        requestError.response?.data?.error ||
+        requestError.message ||
+        "";
 
       if (message.includes("Email does not exist")) {
         setError("No employee record was found for this email address.");
@@ -278,6 +355,8 @@ export default function LoginLeft() {
         setError("This account is not assigned to a company yet.");
       } else if (requestError.response?.status === 401) {
         setError("Invalid email or password.");
+      } else if (requestError.response?.status === 403) {
+        setError("Your account does not have permission to access this application.");
       } else {
         setError(message || "Unable to sign in right now.");
       }

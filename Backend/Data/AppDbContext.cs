@@ -110,8 +110,8 @@ namespace EmployeeManagementSystem.Data
 
         public DbSet<ActivityLog> ActivityLogs { get; set; }
 
-        public DbSet<EmployeeLeaveBalance> EmployeeLeaveBalances { get; set; }
-
+        //public DbSet<EmployeeLeaveBalance> EmployeeLeaveBalances { get; set; }
+        public DbSet<EmployeeMonthlyLeaveBalance> EmployeeMonthlyLeaveBalances { get; set; }
         public DbSet<AdminNotification> AdminNotifications { get; set; }
 
         public DbSet<Role> Roles { get; set; }
@@ -124,7 +124,7 @@ namespace EmployeeManagementSystem.Data
         public DbSet<MonitoringSettings> MonitoringSettings { get; set; }
 
         public DbSet<EmployeeScreenshot> EmployeeScreenshots { get; set; }
-
+        public DbSet<ProjectTeamMember> ProjectTeamMembers { get; set; }
         public DbSet<MonitoringLog> MonitoringLogs { get; set; }
         public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
         public DbSet<BreakLog> BreakLogs { get; set; }
@@ -139,6 +139,19 @@ namespace EmployeeManagementSystem.Data
 
         public DbSet<TeamMemberReportingDay> TeamMemberReportingDays { get; set; }
         public DbSet<EmployeeLocation> EmployeeLocations { get; set; }
+        public DbSet<Ticket> Tickets { get; set; }
+      
+
+        public DbSet<TicketTimer> TicketTimers { get; set; }
+
+        public DbSet<SchedulerLog> SchedulerLogs { get; set; }
+
+        public DbSet<RoundRobinState> RoundRobinStates { get; set; }
+
+        public DbSet<SchedulerSetting> SchedulerSettings { get; set; }
+        public DbSet<TicketHistory> TicketHistory { get; set; }
+        public DbSet<TicketWorkLog> TicketWorkLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
         {
@@ -187,7 +200,7 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<ActivityLog>().ToTable("activitylogs");
 
-            modelBuilder.Entity<EmployeeLeaveBalance>().ToTable("employeeleavebalance");
+            //modelBuilder.Entity<EmployeeLeaveBalance>().ToTable("employeeleavebalance");
 
             modelBuilder.Entity<AdminNotification>().ToTable("adminnotifications");
 
@@ -316,7 +329,22 @@ namespace EmployeeManagementSystem.Data
     .HasOne(t => t.TeamMemberOverride)
     .WithOne(o => o.TeamMember)
     .HasForeignKey<TeamMemberOverride>(o => o.TeamMemberId);
+
+
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ProjectTeamMember>()
+                .HasOne(x => x.Project)
+                .WithMany(x => x.ProjectTeamMembers)
+                .HasForeignKey(x => x.ProjectId);
+
+            modelBuilder.Entity<ProjectTeamMember>()
+                .HasOne(x => x.Employee)
+                .WithMany(x => x.ProjectTeamMembers)
+                .HasForeignKey(x => x.EmployeeId)
+                .HasPrincipalKey(x => x.Employee_Id);
         }
+
 
 
     }

@@ -1,8 +1,7 @@
 import React from "react";
 import { FaBell, FaCheck, FaPen, FaTimes, FaEdit } from "react-icons/fa";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
-const roleName = localStorage.getItem("roleName") || "";
-const isEmployee = roleName.toLowerCase() === "employee";
+import { isEmployee } from "../utils/authorization";
 
 function TeamReportingDays({
   teamName,
@@ -48,7 +47,7 @@ function TeamReportingDays({
               </button>
             </>
          ) : (
-  !isEmployee && (
+  !isEmployee() && (
     <button
       type="button"
       className="team-action-btn secondary"

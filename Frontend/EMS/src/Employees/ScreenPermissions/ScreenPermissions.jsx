@@ -33,8 +33,8 @@ const MODULES = [
   { moduleId: 60, moduleName: "Leave Management" },
   { moduleId: 61, moduleName: "User Leave Management" },
 
-  { moduleId: 62, moduleName: "Task Management" },
-  { moduleId: 63, moduleName: "User Task Management" },
+  { moduleId: 72, moduleName: "All Tickets" },
+  { moduleId: 73, moduleName: "My Tickets" },
 
   { moduleId: 64, moduleName: "Payroll" },
   { moduleId: 65, moduleName: "User Payslip" },
@@ -42,7 +42,7 @@ const MODULES = [
   { moduleId: 66, moduleName: "Offer Letters" },
   { moduleId: 67, moduleName: "Reports" },
   { moduleId: 68, moduleName: "Notifications" },
-  { moduleId: 71, moduleName: "User Notifications"}
+  { moduleId: 71, moduleName: "User Notifications" }
 ];
 
 /* ================= GROUPING ================= */
@@ -64,8 +64,8 @@ const GROUPS = [
     modules: [58, 59, 60, 61]
   },
   {
-    title: "TASKS",
-    modules: [62, 63]
+    title: "TICKETS",
+    modules: [72, 73]
   },
   {
     title: "PAYROLL",

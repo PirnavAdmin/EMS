@@ -2,7 +2,8 @@ import axios from "axios";
 import { BASE_URL } from "./config";
 import { sortNestedCollectionsByRecency } from "../utils/collections";
 import { getStoredToken } from "../utils/authStorage";
- 
+import { isAuthenticationFailureResponse } from "../utils/authorization";
+
 import {
   handleAutoLogout,
   isSessionExpired,
@@ -136,38 +137,6 @@ api.get = (
 };
  
 // =========================
-// AUTH ERROR MESSAGE
-// =========================
-const getAuthErrorMessage = (
-  data
-) => {
- 
-  if (
-    typeof data === "string"
-  ) {
-    return data;
-  }
- 
-  return [
-    data?.message,
-    data?.error,
-    data?.title,
-    data?.detail,
-  ]
-    .filter(Boolean)
-    .join(" ");
-};
- 
-// =========================
-// TOKEN EXPIRED
-// =========================
-const hasExpiredTokenMessage =
-  (data) =>
-    /token\s+expired|session\s+expired|expired\s+token|jwt\s+expired/i.test(
-      getAuthErrorMessage(data)
-    );
- 
-// =========================
 // FORCE LOGOUT
 // =========================
 const shouldForceLogout = (
@@ -175,14 +144,10 @@ const shouldForceLogout = (
   status,
   data
 ) =>
- 
+
   !config?.skipAuth &&
   getStoredToken() &&
-  (
-    status === 401 ||
-    status === 403 ||
-    hasExpiredTokenMessage(data)
-  );
+  isAuthenticationFailureResponse(status, data);
  
 // =========================
 // REQUEST INTERCEPTOR
@@ -223,13 +188,14 @@ api.interceptors.request.use(
       if (
         isSessionExpired()
       ) {
- 
-        handleAutoLogout();
- 
         endPerformanceTimer(
           config.metadata
             .performanceLabel
         );
+
+        handleAutoLogout({
+          reason: "Session expired before API request",
+        });
  
         return Promise.reject(
           new axios.CanceledError(
@@ -281,12 +247,10 @@ api.interceptors.response.use(
         response?.data
       )
     ) {
- 
-      handleAutoLogout();
- 
-      window.location.href =
-        "/login";
- 
+      handleAutoLogout({
+        reason: "Authentication failure response",
+      });
+
       return Promise.reject(
         new axios.CanceledError(
           "Session expired"
@@ -320,10 +284,7 @@ api.interceptors.response.use(
       config?.metadata
         ?.performanceLabel
     );
- 
-    // =========================
-    // AUTO LOGOUT + LOGIN PAGE
-    // =========================
+
     if (
       shouldForceLogout(
         config,
@@ -331,8 +292,9 @@ api.interceptors.response.use(
         data
       )
     ) {
-
-      handleAutoLogout();
+      handleAutoLogout({
+        reason: `Auth failure response (${status || "unknown status"})`,
+      });
     }
 
     return Promise.reject(

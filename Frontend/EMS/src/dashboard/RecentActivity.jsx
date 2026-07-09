@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { FaUserPlus, FaCheckCircle, FaTasks, FaClock } from "react-icons/fa";
+import { FaUserPlus, FaCheckCircle, FaTicketAlt, FaClock } from "react-icons/fa";
 import { timeAgo } from "../utils/date";
 
 function RecentActivity({ activities = [] }) {
@@ -10,8 +10,9 @@ function RecentActivity({ activities = [] }) {
         return <FaUserPlus />;
       case "leave":
         return <FaCheckCircle />;
+      case "ticket":
       case "task":
-        return <FaTasks />;
+        return <FaTicketAlt />;
       default:
         return <FaClock />;
     }

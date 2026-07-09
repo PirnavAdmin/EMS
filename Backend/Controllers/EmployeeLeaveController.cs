@@ -77,15 +77,15 @@ public class EmployeeLeaveController : ControllerBase
 
     // Employee leave balance
 
-    [HttpGet("balance")]
+    //[HttpGet("balance")]
 
-    public async Task<IActionResult> GetBalance()
+    //public async Task<IActionResult> GetBalance()
 
-    {
+    //{
 
-        return await _service.GetBalance(User);
+    //    return await _service.GetBalance(User);
 
-    }
+    //}
 
     // Admin approves/rejects leave
 

@@ -1,90 +1,40 @@
 import { Navigate } from "react-router-dom";
-import { getStoredPermissions, getStoredRole } from "../utils/authStorage";
-import { PageSkeleton } from "../components/Skeletons";
+import { getStoredPermissions } from "../utils/authStorage";
+import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
+import { isAdmin } from "../utils/authorization";
 
-/* ✅ NORMALIZE */
-const normalize = (name) => {
-  return (name || "")
-    .toLowerCase()
-    .replace(/^user\s+/i, "") // remove "User"
-    .replace(/\s+/g, " ")
-    .trim();
-};
-
-/* ✅ UNIVERSAL MODULE MAP */
-const moduleMap = {
-  dashboard: "dashboard",
-
-  "task management": "task management",
-  "user task management": "task management",
-  tasks: "task management",
-
-  payroll: "payroll",
-  payslip: "payslip",
-  "user payslip": "payslip",
-
-  leave: "leave management",
-  "leave management": "leave management",
-  "user leave management": "leave management",
-
-  attendance: "attendance",
-  "user attendance": "attendance",
-
-  notifications: "notifications",
-};
-
-/* ✅ MAP FUNCTION */
-const mapModule = (name) => {
-  return moduleMap[normalize(name)] || normalize(name);
-};
-
-/* ✅ GET PERMISSIONS */
 const PermissionRoute = ({ children, module }) => {
-  const role = getStoredRole();
   const permissions = getStoredPermissions();
 
-  if (role === "admin") {
+  if (isAdmin()) {
     return children;
   }
 
-  /* ⏳ WAIT */
-  if (!Array.isArray(permissions)) {
-    return (
-      <div style={{ padding: "20px" }}>
-        <PageSkeleton variant="cards" cardCount={3} />
-      </div>
-    );
-  }
-
-  /* ✅ ROUTE MODULE */
-  const routeModule = mapModule(module);
-
-  /* ✅ CHECK ACCESS */
-  const hasAccess = permissions.some((p) => {
-    const moduleName =
-      typeof p === "string" ? p : p?.moduleName;
-
-    return (
-      (p?.canAccess ?? p?.CanAccess ?? true) === true &&
-      mapModule(moduleName) === routeModule
-    );
-  });
-
-  /* 🔍 DEBUG (keep for now) */
-  console.log("Route:", module, "→", routeModule);
-  console.log(
-    "Permissions:",
-    permissions.map((p) => mapModule(p.moduleName))
-  );
-  console.log("Access:", hasAccess);
-
-  /* ❌ BLOCK */
-  if (!hasAccess) {
+  if (!Array.isArray(permissions) || permissions.length === 0) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  /* ✅ ALLOW */
-  return children;
+  const hasAccess = permissions.some((permission) => {
+    if ((permission.canAccess ?? permission.CanAccess ?? true) !== true) {
+      return false;
+    }
+
+    const normalizedModuleName = String(permission.moduleName || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+    if (normalizedModuleName === "all") {
+      return true;
+    }
+
+    return ticketPermissionMatches(permission.moduleName, module);
+  });
+
+  if (hasAccess) {
+    return children;
+  }
+
+  return <Navigate to="/unauthorized" replace />;
 };
 
 export default PermissionRoute;

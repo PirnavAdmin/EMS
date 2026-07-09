@@ -7,7 +7,7 @@ import {
   FaProjectDiagram,
   FaRupeeSign,
   FaSpinner,
-  FaTasks,
+  FaTicketAlt,
   FaUserCheck,
   FaUserTimes,
   FaUsers,
@@ -124,13 +124,13 @@ function Reports() {
           },
 
           {
-            icon: <FaTasks />,
-            title: "Task Report",
-            desc: "Total active and tracked tasks",
-            meta: `${data.totalTasks || 0} tasks`,
-            path: "/tasks",
-            exportApi: "/api/TaskManagement/export",
-            fileName: "Tasks.xlsx",
+            icon: <FaTicketAlt />,
+            title: "Ticket Report",
+            desc: "Total active and tracked tickets",
+            meta: `${data.totalTickets || data.totalTasks || 0} tickets`,
+            path: "/admin/tickets",
+            exportApi: "/api/Ticket/Export",
+            fileName: "Tickets.xlsx",
           },
 
           {

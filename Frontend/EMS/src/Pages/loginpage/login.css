@@ -793,13 +793,13 @@ html[data-theme-mode="dark"] .auth-field-shell input.auth-field-input {
   transform: translateY(-1px);
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1199px) {
   .auth-shell {
     gap: 18px;
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 991px) {
   .auth-stage {
     align-items: flex-start;
   }
@@ -843,7 +843,7 @@ html[data-theme-mode="dark"] .auth-field-shell input.auth-field-input {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 576px) {
   .auth-page {
     --auth-topbar-height: 108px;
   }
@@ -876,7 +876,7 @@ html[data-theme-mode="dark"] .auth-field-shell input.auth-field-input {
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 576px) {
   .auth-page {
     --auth-page-pad: 12px;
   }
@@ -934,3 +934,4 @@ html[data-theme-mode="dark"] .auth-field-shell input.auth-field-input {
 .auth-field-input {
   border: none !important;
 }
+

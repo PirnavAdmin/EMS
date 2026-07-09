@@ -5,7 +5,7 @@
   --radius-lg: 16px;
   --surface-radius: 16px;
   --surface-shadow: 0 4px 12px rgba(4, 28, 50, 0.06);
-  --content-max: 1400px;
+  --content-max: 1700px;
   --space-page: clamp(16px, 2.5vw, 32px);
   --space-section: clamp(16px, 2vw, 24px);
   --space-card: clamp(16px, 1.6vw, 22px);
@@ -20,6 +20,7 @@
   --action-button-min-width: 110px;
   --action-button-height: 48px;
   --action-button-radius: 14px;
+  --table-scroll-min-width: 900px;
   --action-edit-bg: #e6f8f8;
   --action-edit-border: #0f8b8d;
   --action-edit-text: #0f8b8d;
@@ -89,7 +90,7 @@ html {
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   background: var(--bg-app);
   color: var(--text-body);
   font-family: var(--font-sans);
@@ -100,6 +101,7 @@ body {
 
 #root {
   width: 100%;
+  min-width: 0;
 }
 
 img,
@@ -812,11 +814,72 @@ button:disabled {
   .offer-list table,
   .recent-table table
 ) {
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .app-table-header-center th {
   text-align: center;
+}
+
+.page-shell :is(
+  .app-table-scroll,
+  .table-scroll,
+  .emp-table-wrapper,
+  .emp-table-container,
+  .projects-table-wrapper,
+  .holiday-table-wrapper,
+  .company-branch-table-wrap,
+  .teams-table-scroll,
+  .attendance-table-scroll,
+  .history-table-wrapper,
+  .leave-history-table-scroll,
+  .leave-table,
+  .leave-history,
+  .assets-table-wrap,
+  .roles-table-wrap,
+  .payslip-table-wrap,
+  .reports-table-wrap,
+  .ticket-table-scroll,
+  .recent-table,
+  .task-table,
+  .ems-task-data-table-outer-wrapper
+) {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--section-bg);
+}
+
+.page-shell :is(
+  .app-table-scroll,
+  .table-scroll,
+  .emp-table-wrapper,
+  .emp-table-container,
+  .projects-table-wrapper,
+  .holiday-table-wrapper,
+  .company-branch-table-wrap,
+  .teams-table-scroll,
+  .attendance-table-scroll,
+  .history-table-wrapper,
+  .leave-history-table-scroll,
+  .leave-table,
+  .leave-history,
+  .assets-table-wrap,
+  .roles-table-wrap,
+  .payslip-table-wrap,
+  .reports-table-wrap,
+  .ticket-table-scroll,
+  .recent-table,
+  .task-table,
+  .ems-task-data-table-outer-wrapper
+) table {
+  width: 100%;
+  min-width: var(--table-scroll-min-width);
+  border-collapse: separate;
+  table-layout: auto;
 }
 
 .app-table-scroll {
@@ -2259,7 +2322,7 @@ body.app-modal-open .sidebar-backdrop {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 576px) {
   .app-month-picker {
     width: 100%;
   }
@@ -2402,3 +2465,5 @@ body.app-modal-open .sidebar-backdrop {
     font-size: 0.95rem !important;
   }
 }
+
+

@@ -1,9 +1,10 @@
 .app-layout {
-  --layout-sidebar-width: 220px;
-  --layout-sidebar-collapsed-width: 72px;
-  --layout-gutter: 20px;
+  --layout-sidebar-width: clamp(220px, 17vw, 248px);
+  --layout-sidebar-collapsed-width: clamp(72px, 4.5vw, 80px);
+  --layout-gutter: clamp(16px, 1.75vw, 28px);
   --layout-transition-duration: 0.34s;
   --layout-transition-easing: cubic-bezier(0.22, 1, 0.36, 1);
+  --content-max: 1700px;
   min-height: 100vh;
   display: flex;
   background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
@@ -34,12 +35,14 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-top: 82px;
+  display: flex;
+  justify-content: center;
 }
 
 .page-shell {
-  width: 100%;
+  width: min(100%, var(--content-max));
   min-height: 100%;
-  margin: 0;
+  margin: 0 auto;
   padding: 16px var(--layout-gutter) 24px;
   overflow-x: hidden;
 }
@@ -101,8 +104,8 @@
 }
 
 .app-header-inner {
-  width: 100%;
-  margin: 0;
+  width: min(100%, var(--content-max));
+  margin: 0 auto;
   min-height: 72px;
   display: flex;
   align-items: center;
@@ -714,18 +717,19 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 991px) {
   .app-layout {
-    --layout-sidebar-width: 210px;
-    --layout-gutter: 16px;
+    --layout-gutter: clamp(14px, 1.5vw, 20px);
+  }
+
+  .app-main,
+  .app-main.is-collapsed {
+    width: 100%;
+    margin-left: 0;
   }
 }
 
-@media (max-width: 900px) {
-  .app-layout {
-    --layout-gutter: 14px;
-  }
-
+@media (max-width: 991px) {
   .app-header-inner {
     min-height: 76px;
     padding: 14px 0;
@@ -740,7 +744,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 576px) {
   .app-layout {
     --layout-gutter: 12px;
   }
@@ -847,7 +851,7 @@
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 576px) {
   .app-layout {
     --layout-gutter: 10px;
   }
@@ -905,7 +909,7 @@
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 360px) {
   .app-header-inner {
     gap: 8px;
   }
@@ -1138,3 +1142,4 @@
 .Toastify__toast--info .Toastify__progress-bar {
   background: var(--primary) !important;
 }
+

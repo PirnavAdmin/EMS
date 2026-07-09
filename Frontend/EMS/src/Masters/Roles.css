@@ -375,7 +375,7 @@
   z-index: 999999 !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .roles-page-container {
     padding: 16px;
   }
@@ -397,7 +397,7 @@
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 576px) {
   .roles-page-container {
     padding: 14px 12px;
   }
@@ -545,3 +545,5 @@
   --toast-text: var(--theme-info-strong);
   --toast-progress: var(--theme-info);
 }
+
+

@@ -25,6 +25,7 @@ public class ProjectDto
     // Actual members
     public List<ProjectMemberDto>? ProjectMembers { get; set; }
         = new();
+    public List<ProjectTeamMemberDto> TeamMemberTechnologies { get; set; }
 
     public string Status { get; set; }
         = string.Empty;

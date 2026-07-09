@@ -126,7 +126,7 @@
   min-width: 980px;
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .assets-table thead th {
@@ -555,7 +555,7 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 576px) {
   .assets-header {
     align-items: stretch;
   }
@@ -574,3 +574,5 @@
     width: 100%;
   }
 }
+
+

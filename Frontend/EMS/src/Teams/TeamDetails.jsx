@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaArrowLeft, FaUsers } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import "react-toastify/dist/ReactToastify.css";
 import "./Teams.css";
 import EmptyState from "../components/EmptyState";
@@ -15,33 +15,11 @@ import DeleteTeamModal from "./DeleteTeamModal";
 import RemoveMemberModal from "./RemoveMemberModal";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
-import {
-  TEAM_DAY_OPTIONS,
-  getComplementDays,
-} from "./teamsData";
-const roleName = localStorage.getItem("roleName") || "";
-const isEmployee = roleName.toLowerCase() === "employee";
-const cloneTeamRecord = (team) => {
-  if (!team) {
-    return null;
-  }
-
-  return {
-    ...team,
-    reportingDays: [...(team.reportingDays || TEAM_DAY_OPTIONS)],
-    members: (team.members || []).map((member) => ({
-      ...member,
-      wfoDays: [...(member.wfoDays || [])],
-      wfhDays: [...(member.wfhDays || [])],
-      overrideWfoDays: [...(member.overrideWfoDays || [])],
-      overrideWfhDays: [...(member.overrideWfhDays || [])],
-    })),
-  };
-};
+import { isEmployee } from "../utils/authorization";
+import { TEAM_DAY_OPTIONS } from "./teamsData";
 
 function TeamDetails() {
   const { teamId } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
 
   const [team, setTeam] = useState(null);
@@ -55,14 +33,15 @@ function TeamDetails() {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [removeMember, setRemoveMember] = useState(null);
 
-  const getToken = () =>
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("token");
+  const getToken = useCallback(
+    () =>
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token"),
+    []
+  );
 
-  const fetchTeam = async () => {
-
+  const fetchTeam = useCallback(async () => {
     try {
-
       setIsLoading(true);
 
       const res = await api.get(
@@ -86,18 +65,14 @@ function TeamDetails() {
         res.data.reportingDays || [...TEAM_DAY_OPTIONS]
       );
 
-    }
-    finally {
-
+    } finally {
       setIsLoading(false);
-
     }
-
-  }
+  }, [getToken, teamId]);
 
   useEffect(() => {
     fetchTeam();
-  }, [teamId]);
+  }, [fetchTeam]);
 
   const summary = useMemo(() => {
     if (!team) {
@@ -320,7 +295,7 @@ function TeamDetails() {
               </p>
             </div>
 
-            {!isEmployee && (
+            {!isEmployee() && (
               <div className="team-summary-actions">
 
                 <button
@@ -386,7 +361,7 @@ function TeamDetails() {
         </aside>
       </div>
 
-      {!isEmployee && (
+      {!isEmployee() && (
         <TeamReportingDays
           teamName={team.teamName}
           days={team.reportingDays}

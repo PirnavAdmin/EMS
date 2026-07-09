@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   FaCheckCircle,
   FaCloudUploadAlt,
+  FaDownload,
   FaExclamationTriangle,
   FaFileAlt,
   FaSpinner,
@@ -11,6 +12,9 @@ import "./BulkUploadModal.css";
 
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
+
+const EXCEL_MIME_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const ACCEPTED_EXTENSIONS = [".xlsx", ".xls"];
 
@@ -47,6 +51,7 @@ function BulkUploadModal({
 }) {
   const fileInputRef = useRef(null);
   const uploadLockRef = useRef(false);
+  const templateDownloadLockRef = useRef(false);
   const dragDepthRef = useRef(0);
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -55,6 +60,7 @@ function BulkUploadModal({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusType, setStatusType] = useState("idle");
   const [statusMessage, setStatusMessage] = useState("");
+  const [isTemplateDownloading, setIsTemplateDownloading] = useState(false);
 
   const resetState = () => {
     setSelectedFile(null);
@@ -63,6 +69,7 @@ function BulkUploadModal({
     setUploadProgress(0);
     setStatusType("idle");
     setStatusMessage("");
+    setIsTemplateDownloading(false);
     uploadLockRef.current = false;
     dragDepthRef.current = 0;
 
@@ -227,6 +234,50 @@ function BulkUploadModal({
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    if (templateDownloadLockRef.current || isTemplateDownloading) {
+      return;
+    }
+
+    templateDownloadLockRef.current = true;
+    setIsTemplateDownloading(true);
+
+    try {
+      const response = await api.get(
+        API_ENDPOINTS.employees.downloadEmployeeTemplate,
+        {
+          responseType: "blob",
+        }
+      );
+
+      const blob = new Blob([response.data], {
+        type: EXCEL_MIME_TYPE,
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "employee-bulk-upload-template.xlsx";
+
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setStatusType("success");
+      setStatusMessage("Employee template downloaded successfully.");
+    } catch (error) {
+      console.error("Employee template download error:", error);
+      setStatusType("error");
+      setStatusMessage("Failed to download employee template.");
+    } finally {
+      setIsTemplateDownloading(false);
+      templateDownloadLockRef.current = false;
+    }
+  };
+
   return (
     <div
       className="bulk-upload-overlay"
@@ -254,6 +305,27 @@ function BulkUploadModal({
             aria-label="Close bulk upload modal"
           >
             <FaTimes />
+          </button>
+        </div>
+
+        <div className="bulk-upload-template-actions">
+          <button
+            type="button"
+            className="bulk-upload-primary bulk-upload-template-btn"
+            onClick={handleDownloadTemplate}
+            disabled={isTemplateDownloading}
+          >
+            {isTemplateDownloading ? (
+              <>
+                <FaSpinner className="bulk-upload-spinner" aria-hidden="true" />
+                Downloading...
+              </>
+            ) : (
+              <>
+                <FaDownload aria-hidden="true" />
+                Download Template
+              </>
+            )}
           </button>
         </div>
 

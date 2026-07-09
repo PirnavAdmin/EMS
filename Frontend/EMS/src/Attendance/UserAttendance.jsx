@@ -154,7 +154,13 @@ function UserAttendance() {
       day: formatDayName(item),
       dateLabel: formatDateLabel(item),
       checkIn: formatTime(item.checkIn),
-      checkOut: formatTime(item.checkOut),
+      checkOut: formatTime(
+        item.checkOut ||
+        item.checkOutTime ||
+        item.checkoutTime ||
+        item.checkout ||
+        item.outTime
+      ),
       hours: item.hours || formatHoursFromMinutes(item.workingMinutes),
       status: normalizeStatus(item.status)
     }));
@@ -262,11 +268,22 @@ function UserAttendance() {
       });
 
       const data = res.data;
+
+      console.log("Weekly API Response:", data);
+      console.log(
+        "Today's Record:",
+        data.find(
+          x => getInputDateValue(x.date) === getInputDateValue(new Date())
+        )
+      );
+
       const mapped = mapApiData(data);
+
       updateTopStats(mapped);
       updateTodayAttendanceState(mapped);
+
     } catch (err) {
-      console.error("Weekly fetch failed:", err?.response?.data || err.message);
+      console.error(err);
     }
   };
 
@@ -537,12 +554,12 @@ function UserAttendance() {
       currentTime.getHours() === 8 &&
       currentTime.getMinutes() < 55
     );
-  const isAfter615 =
-    currentTime.getHours() > 18 ||
-    (
-      currentTime.getHours() === 18 &&
-      currentTime.getMinutes() >= 15
-    );
+  // const isAfter615 =
+  //   currentTime.getHours() > 18 ||
+  //   (
+  //     currentTime.getHours() === 18 &&
+  //     currentTime.getMinutes() >= 15
+  //   );
   const getStatusClass = (status) => {
     const value = normalizeStatus(status).toLowerCase().replace(/\s+/g, "");
 
@@ -677,22 +694,15 @@ function UserAttendance() {
               disabled={
                 !checkedIn ||
                 checkedOut ||
-                loading ||
-                isAfter615
+                loading
               }
-              title={
-                isAfter615
-                  ? "Checkout disabled after 6:15 PM"
-                  : ""
-              }
+              title=""
             >
               <FaSignOutAlt />
 
-              {isAfter615
-                ? "Checkout Closed"
-                : loading
-                  ? "Processing..."
-                  : "Check Out"}
+              {loading
+                ? "Processing..."
+                : "Check Out"}
             </button>
 
           </div>

@@ -100,9 +100,11 @@ body {
 
 /* ================= RESPONSIVE ================= */
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .form-row {
     flex-direction: column;
     gap: 15px;
   }
 }
+
+

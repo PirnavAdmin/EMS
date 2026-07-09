@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaPlus, FaSearch, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
@@ -11,16 +11,11 @@ import AddTeamModal from "./AddTeamModal";
 import TeamCard from "./TeamCard";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
-import {
-  TEAM_DAY_OPTIONS,
-  getComplementDays,
-} from "./teamsData";
-import { getEmployeeById } from "./employeeData";
+import { isEmployee } from "../utils/authorization";
+import { TEAM_DAY_OPTIONS } from "./teamsData";
 
 const TEAM_ACCENTS = ["teal", "blue", "amber", "violet"];
 const PAGE_SIZE = 6;
-const roleName = localStorage.getItem("roleName") || "";
-const isEmployee = roleName.toLowerCase() === "employee";
 
 const getNextTeamNumber = (teams = []) => {
   const highestNumber = teams.reduce((max, team) => {
@@ -36,29 +31,6 @@ const getNextTeamNumber = (teams = []) => {
   return `TM-${String(highestNumber + 1 || 1).padStart(2, "0")}`;
 };
 
-const buildMemberSeedsFromSelection = ({
-  memberIds = [],
-  projectName = "",
-  reportingDays = TEAM_DAY_OPTIONS,
-  engagementType = "Project",
-}) =>
-  memberIds.map((memberId) => {
-    const employee = getEmployeeById(memberId);
-
-    return {
-      employeeId: employee?.id || memberId,
-      userId: employee?.userId || "",
-      employeeName: employee?.name || memberId,
-      designation: employee?.designation || "Team Member",
-      department: employee?.department || "",
-      projectName,
-      engagementType,
-      wfoDays: [...reportingDays],
-      wfhDays: getComplementDays(reportingDays),
-      crossTeam: false,
-    };
-  });
-
 function Teams() {
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
@@ -67,13 +39,15 @@ function Teams() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
 
-  const getToken = () =>
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("token");
+  const getToken = useCallback(
+    () =>
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token"),
+    []
+  );
 
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     try {
-
       setIsLoading(true);
 
       const res = await api.get(
@@ -89,19 +63,15 @@ function Teams() {
       setTeams(res.data || []);
 
     } catch (err) {
-
       console.log(err);
-
     } finally {
-
       setIsLoading(false);
-
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     fetchTeams();
-  }, []);
+  }, [fetchTeams]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -172,10 +142,6 @@ function Teams() {
     }
   };
 
-  const handleAddTeam = () => {
-    setIsAddTeamOpen(true);
-  };
-
   if (isLoading) {
     return (
       <div className="teams-page">
@@ -221,7 +187,7 @@ function Teams() {
             {teams.length} {teams.length === 1 ? "Team" : "Teams"}
           </span>
 
-          {!isEmployee && (
+          {!isEmployee() && (
             <button
               className="teams-add-btn"
               onClick={() => setIsAddTeamOpen(true)}
@@ -298,4 +264,3 @@ function Teams() {
 }
 
 export default Teams;
-

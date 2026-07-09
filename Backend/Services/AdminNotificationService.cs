@@ -1,199 +1,146 @@
 ﻿using EmployeeManagementSystem.Data;
-
 using EmployeeManagementSystem.DTOs;
-
 using EmployeeManagementSystem.Interfaces;
-
 using EmployeeManagementSystem.Models;
-
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
-
 {
-
     public class AdminNotificationService : IAdminNotificationService
-
     {
-
         private readonly AppDbContext _context;
 
         public AdminNotificationService(AppDbContext context)
-
         {
-
             _context = context;
-
         }
 
-        //---------------------------------------
+        //-------------------------------------------------
+        // ADMIN VALIDATION
+        //-------------------------------------------------
 
-        // GET ONLY UNREAD NOTIFICATIONS
-
-        //---------------------------------------
-
-        public async Task<List<AdminNotificationDto>> GetNotifications()
-
+        private async Task<bool> IsAdmin(ClaimsPrincipal user)
         {
+            var email = user.FindFirst(ClaimTypes.Email)?.Value;
 
-            return await _context.AdminNotifications
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
 
+            return await _context.Admins
                 .AsNoTracking()
+                .AnyAsync(x => x.Email.ToLower() == email.ToLower());
+        }
 
-                .Where(x => x.IsRead == false)
+        //-------------------------------------------------
+        // GET NOTIFICATIONS
+        //-------------------------------------------------
 
+        public async Task<IActionResult> GetNotifications(ClaimsPrincipal user)
+        {
+            if (!await IsAdmin(user))
+                return new UnauthorizedObjectResult("Only Admins can access notifications.");
+
+            var notifications = await _context.AdminNotifications
+                .AsNoTracking()
+                .Where(x => !x.IsRead)
                 .OrderByDescending(x => x.CreatedAt)
-
                 .Take(10)
-
                 .Select(n => new AdminNotificationDto
-
                 {
-
                     Id = n.Id,
-
                     Title = n.Title,
-
                     Message = n.Message,
-
                     IsRead = n.IsRead,
-
                     CreatedAt = n.CreatedAt
-
                 })
-
                 .ToListAsync();
 
+            return new OkObjectResult(notifications);
         }
 
-        //---------------------------------------
+        //-------------------------------------------------
+        // UNREAD COUNT
+        //-------------------------------------------------
 
-        // GET UNREAD COUNT
-
-        //---------------------------------------
-
-        public async Task<int> GetUnreadCount()
-
+        public async Task<IActionResult> GetUnreadCount(ClaimsPrincipal user)
         {
+            if (!await IsAdmin(user))
+                return new UnauthorizedObjectResult("Only Admins can access notifications.");
 
-            return await _context.AdminNotifications
-
+            var count = await _context.AdminNotifications
                 .AsNoTracking()
+                .CountAsync(x => !x.IsRead);
 
-                .Where(x => x.IsRead == false)
-
-                .CountAsync();
-
+            return new OkObjectResult(count);
         }
 
-        //---------------------------------------
-
+        //-------------------------------------------------
         // MARK AS READ
+        //-------------------------------------------------
 
-        //---------------------------------------
-
-        public async Task<bool> MarkAsRead(int id)
-
+        public async Task<IActionResult> MarkAsRead(ClaimsPrincipal user, int id)
         {
+            if (!await IsAdmin(user))
+                return new UnauthorizedObjectResult("Only Admins can access notifications.");
 
             var notification = await _context.AdminNotifications
-
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (notification == null)
-
-            {
-
-                Console.WriteLine($"❌ Notification not found: {id}");
-
-                return false;
-
-            }
+                return new NotFoundObjectResult("Notification not found.");
 
             if (notification.IsRead)
-
-            {
-
-                Console.WriteLine($"⚠️ Already read: {id}");
-
-                return false;
-
-            }
+                return new OkObjectResult("Already marked as read.");
 
             notification.IsRead = true;
 
-            _context.AdminNotifications.Update(notification);
+            await _context.SaveChangesAsync();
 
-            var rows = await _context.SaveChangesAsync();
-
-            Console.WriteLine($"✅ Rows affected: {rows}");
-
-            Console.WriteLine($"✅ Marked as read in DB: {id}");
-
-            return rows > 0;
-
+            return new OkObjectResult("Notification marked as read.");
         }
 
-        //---------------------------------------
-
+        //-------------------------------------------------
         // MARK ALL AS READ
+        //-------------------------------------------------
 
-        //---------------------------------------
-
-        public async Task MarkAllAsRead()
-
+        public async Task<IActionResult> MarkAllAsRead(ClaimsPrincipal user)
         {
+            if (!await IsAdmin(user))
+                return new UnauthorizedObjectResult("Only Admins can access notifications.");
 
-            var unreadNotifications = await _context.AdminNotifications
-
-                .Where(x => x.IsRead == false)
-
+            var notifications = await _context.AdminNotifications
+                .Where(x => !x.IsRead)
                 .ToListAsync();
 
-            foreach (var notification in unreadNotifications)
-
+            foreach (var item in notifications)
             {
-
-                notification.IsRead = true;
-
+                item.IsRead = true;
             }
 
             await _context.SaveChangesAsync();
 
+            return new OkObjectResult("All notifications marked as read.");
         }
 
-        //---------------------------------------
-
+        //-------------------------------------------------
         // CREATE NOTIFICATION
-
-        //---------------------------------------
+        //-------------------------------------------------
 
         public async Task CreateNotification(string title, string message)
-
         {
-
             var notification = new AdminNotification
-
             {
-
                 Title = title,
-
                 Message = message,
-
-                UserRole = "Admin",
-
                 IsRead = false,
-
                 CreatedAt = DateTime.UtcNow
-
             };
 
             await _context.AdminNotifications.AddAsync(notification);
 
             await _context.SaveChangesAsync();
-
         }
-
     }
-
 }

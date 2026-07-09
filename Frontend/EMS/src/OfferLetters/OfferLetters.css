@@ -215,7 +215,7 @@ body {
   width: 100%;
   min-width: 900px;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
   background: var(--bg-page);
 }
  
@@ -347,7 +347,7 @@ body {
 }
  
 /* ================= RESPONSIVE ================= */
-@media (max-width: 900px) {
+@media (max-width: 991px) {
   .offer-container {
     padding: 16px;
   }
@@ -385,7 +385,7 @@ body {
   }
 }
  
-@media (max-width: 600px) {
+@media (max-width: 576px) {
   .offer-header h2 {
     font-size: 22px;
   }
@@ -493,7 +493,7 @@ input[type="number"] {
  
 /* ================= RESPONSIVE ================= */
  
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .comp-row {
     grid-template-columns: 1fr;
   }
@@ -600,3 +600,6 @@ html[data-theme-mode="dark"] .candidate-name-wrapper input.candidate-name-input 
   font-weight: 700;
   font-size: 15px;
 }
+
+
+

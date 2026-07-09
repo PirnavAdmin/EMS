@@ -54,8 +54,12 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<List<AdminEmployeeAttendanceDto>> GetAllEmployeeAttendance(int month, int year);
 
-        Task<IActionResult> AdminUpdateAttendance(string employeeId, DateTime date, DateTime? checkIn, DateTime? checkOut);
-
+        Task<IActionResult> AdminUpdateAttendance(
+            ClaimsPrincipal user,
+            string employeeId,
+            DateTime date,
+            DateTime? checkIn,
+            DateTime? checkOut);
         Task<AttendanceSummaryDto> GetMonthlyAttendanceSummary(string employeeId, int month, int year);
 
         //---------------------------------------

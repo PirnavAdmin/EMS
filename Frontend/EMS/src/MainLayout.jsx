@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar/Sidebar";
 import Header from "./dashboard/Header";
 import api from "./api/axiosInstance";
@@ -8,20 +8,19 @@ import { API_ENDPOINTS } from "./api/endpoints";
 import {
   getActiveAuthStorage,
   getStoredPermissions,
-  getStoredRole,
   getStoredRoleName,
   getStoredToken,
-  clearAuthData,
 } from "./utils/authStorage";
-import { clearSessionTimer } from "./utils/sessionManager";
+import { isAdmin, isAuthenticationFailureResponse } from "./utils/authorization";
+import {
+  handleAutoLogout,
+  isSessionExpired,
+  startSessionTimer,
+} from "./utils/sessionManager";
  
-const MOBILE_LAYOUT_QUERY = "(max-width: 767px)";
-const AUTO_LOGOUT_TIME = 105 * 60 * 1000;
- 
+const MOBILE_LAYOUT_QUERY = "(max-width: 991px)";
+
 function MainLayout() {
- 
-  const navigate = useNavigate();
- 
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
  
     if (
@@ -47,7 +46,7 @@ function MainLayout() {
     useState(false);
  
   // =========================
-  // MOBILE VIEWPORT
+  // NARROW VIEWPORT
   // =========================
   useEffect(() => {
  
@@ -90,7 +89,7 @@ function MainLayout() {
   }, []);
  
   // =========================
-  // MOBILE BODY SCROLL
+  // DRAWER BODY SCROLL
   // =========================
   useEffect(() => {
  
@@ -126,38 +125,24 @@ function MainLayout() {
   // AUTO LOGOUT
   // =========================
   useEffect(() => {
-    const performLogout = () => {
-      clearSessionTimer();
-      clearAuthData();
-      navigate("/login", { replace: true });
-    };
- 
-    const loginTime = Number(
-      localStorage.getItem("loginTime")
-    );
- 
-    if (!Number.isFinite(loginTime) || loginTime <= 0) {
-      performLogout();
+    const token = getStoredToken();
+
+    if (!token) {
       return undefined;
     }
- 
-    const currentTime = Date.now();
-    const elapsedTime = currentTime - loginTime;
-    const remainingTime = AUTO_LOGOUT_TIME - elapsedTime;
- 
-    if (remainingTime <= 0) {
-      performLogout();
+
+    if (isSessionExpired()) {
+      handleAutoLogout({
+        reason: "MainLayout detected an expired session during initialization",
+      });
       return undefined;
     }
- 
-    const logoutTimer = window.setTimeout(
-      performLogout,
-      remainingTime
-    );
- 
-    return () => window.clearTimeout(logoutTimer);
- 
-  }, [navigate]);
+
+    startSessionTimer();
+
+    return undefined;
+
+  }, []);
  
   // =========================
   // FETCH PERMISSIONS
@@ -231,9 +216,6 @@ function MainLayout() {
         const token =
           getStoredToken();
  
-        const role =
-          getStoredRole();
- 
         let roleName =
           getStoredRoleName();
  
@@ -245,7 +227,7 @@ function MainLayout() {
         }
  
         // ADMIN
-        if (role === "admin") {
+        if (isAdmin()) {
  
           setStoredPermissions([
             {
@@ -325,42 +307,19 @@ function MainLayout() {
  
       }
       catch (error) {
- 
-        console.error(
-          "Permission initialization error:",
-          error?.response?.data ||
-          error.message
+        const isAuthFailure = isAuthenticationFailureResponse(
+          error?.response?.status,
+          error?.response?.data
         );
-
-        const errorMessage = [
-          error?.response?.data?.message,
-          error?.response?.data?.error,
-          error?.response?.data?.title,
-          error?.response?.data?.detail,
-        ]
-          .filter(Boolean)
-          .join(" ");
-
-        const isAuthFailure =
-          error?.response?.status === 401 ||
-          error?.response?.status === 403 ||
-          /token\s+expired|session\s+expired|jwt\s+expired/i.test(
-            errorMessage
-          );
 
         // =========================
         // AUTO LOGOUT ON ERROR
         // =========================
         if (isAuthFailure) {
- 
-          clearSessionTimer();
- 
-          clearAuthData();
- 
-          navigate("/login", {
-            replace: true,
+          handleAutoLogout({
+            reason:
+              "MainLayout permission initialization returned an auth failure",
           });
- 
           return;
         }
  

@@ -3,6 +3,7 @@ using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
@@ -16,17 +17,17 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
     private readonly IAdminNotificationService _notificationService;
     private readonly IEmailService _emailService;
+    private readonly ILeaveBalanceService _leaveBalanceService;
     public EmployeeLeaveService(
-
-    AppDbContext context,
-
-   
-    IAdminNotificationService notificationService,
-    IEmailService emailService)
+     AppDbContext context,
+     IAdminNotificationService notificationService,
+     IEmailService emailService,
+     ILeaveBalanceService leaveBalanceService)
     {
         _context = context;
         _notificationService = notificationService;
         _emailService = emailService;
+        _leaveBalanceService = leaveBalanceService;
     }
 
     public async Task<IActionResult> ApplyLeave(EmployeeLeaveDto dto, ClaimsPrincipal user)
@@ -397,8 +398,68 @@ Employee Management System
         });
 
     }
-    
-     public async Task<IActionResult> UpdateStatus(
+
+
+    private async Task UpdateAttendanceForApprovedLeave(
+    EmployeeLeave leave,
+    int paidLeaveDays,
+    int lopDays)
+    {
+        var currentDate = leave.FromDate.Date;
+
+        while (currentDate <= leave.ToDate.Date)
+        {
+            // Skip weekends
+            if (currentDate.DayOfWeek == DayOfWeek.Saturday ||
+                currentDate.DayOfWeek == DayOfWeek.Sunday)
+            {
+                currentDate = currentDate.AddDays(1);
+                continue;
+            }
+
+            // Skip holidays
+            var isHoliday = await _context.Holidays
+                .AnyAsync(h => h.Holiday_Date.Date == currentDate);
+
+            if (isHoliday)
+            {
+                currentDate = currentDate.AddDays(1);
+                continue;
+            }
+
+            var attendance = await _context.Attendance
+                .FirstOrDefaultAsync(a =>
+                    a.Employee_Id == leave.EmployeeId &&
+                    a.Attendance_Date.Date == currentDate);
+
+            if (attendance == null)
+            {
+                attendance = new Attendance
+                {
+                    Employee_Id = leave.EmployeeId,
+                    Attendance_Date = currentDate
+                };
+
+                _context.Attendance.Add(attendance);
+            }
+
+            if (paidLeaveDays > 0)
+            {
+                attendance.Status = "OL";
+                paidLeaveDays--;
+            }
+            else if (lopDays > 0)
+            {
+                attendance.Status = "LOP";
+                lopDays--;
+            }
+
+            currentDate = currentDate.AddDays(1);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+    public async Task<IActionResult> UpdateStatus(
     int id,
     string status,
     ClaimsPrincipal user)
@@ -415,19 +476,19 @@ Employee Management System
             return new BadRequestObjectResult("Already approved");
         }
 
-        var balance = await _context.EmployeeLeaveBalances
-            .FirstOrDefaultAsync(b => b.Employee_Id == leave.EmployeeId);
+        //var balance = await _context.EmployeeLeaveBalances
+        //    .FirstOrDefaultAsync(b => b.Employee_Id == leave.EmployeeId);
 
-        if (balance == null)
-        {
-            balance = new EmployeeLeaveBalance
-            {
-                Employee_Id = leave.EmployeeId
-            };
+        //if (balance == null)
+        //{
+        //    balance = new EmployeeLeaveBalance
+        //    {
+        //        Employee_Id = leave.EmployeeId
+        //    };
 
-            _context.EmployeeLeaveBalances.Add(balance);
-            await _context.SaveChangesAsync();
-        }
+        //    _context.EmployeeLeaveBalances.Add(balance);
+        //    await _context.SaveChangesAsync();
+        //}
 
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
@@ -477,7 +538,14 @@ Employee Management System
         if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
         {
             leave.Status = $"Approved By {approverName}";
+            var result = await _leaveBalanceService.ApproveLeaveAsync(leave);
 
+            leave.PaidLeaveDays = result.PaidLeaves;
+            leave.LOPDays = result.LopDays;
+            await UpdateAttendanceForApprovedLeave(
+    leave,
+    result.PaidLeaves,
+    result.LopDays);
             _context.UserNotifications.Add(new UserNotification
             {
                 Employee_Id = leave.EmployeeId,
@@ -586,7 +654,7 @@ Employee Management System
                 }
             }
 
-            await RecalculateLeaveBalance(leave.EmployeeId);
+            //await RecalculateLeaveBalance(leave.EmployeeId);
 
             return new OkObjectResult($"Leave approved by {approverName}");
         }
@@ -609,7 +677,7 @@ Employee Management System
             var emailList = new List<string>
     {
         "hr.admin@pirnav.com",
-        "hr@pirnav.com",          // Replace with actual HR email
+        "hr@pirnav.com",          // Replace with actual HR emailCancel
         "kiana.paul@pirnav.com"
     };
 
@@ -761,99 +829,99 @@ Employee Management System
         return new OkObjectResult(leaves);
     }
 
-    public async Task<IActionResult> GetBalance(ClaimsPrincipal user)
+    //public async Task<IActionResult> GetBalance(ClaimsPrincipal user)
 
-    {
+    //{
 
-        // STEP 1: GET EMAIL FROM TOKEN
+    //    // STEP 1: GET EMAIL FROM TOKEN
 
-        var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+    //    var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
-        if (string.IsNullOrEmpty(email))
+    //    if (string.IsNullOrEmpty(email))
 
-            return new UnauthorizedObjectResult("Invalid token");
+    //        return new UnauthorizedObjectResult("Invalid token");
 
-        // STEP 2: GET EMPLOYEE
+    //    // STEP 2: GET EMPLOYEE
 
-        var employee = await _context.Employees
+    //    var employee = await _context.Employees
 
-        .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
+    //    .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null)
+    //    if (employee == null)
 
-            return new BadRequestObjectResult("Employee not found");
+    //        return new BadRequestObjectResult("Employee not found");
 
-        // STEP 3: GET LEAVE BALANCE
+    //    // STEP 3: GET LEAVE BALANCE
 
-        var balance = await _context.EmployeeLeaveBalances
+    //    var balance = await _context.EmployeeLeaveBalances
 
-            .FirstOrDefaultAsync(b => b.Employee_Id == employee.Employee_Id);
+    //        .FirstOrDefaultAsync(b => b.Employee_Id == employee.Employee_Id);
 
-        if (balance == null)
+    //    if (balance == null)
 
-        {
+    //    {
 
-            balance = new EmployeeLeaveBalance
+    //        balance = new EmployeeLeaveBalance
 
-            {
+    //        {
 
-                Employee_Id = employee.Employee_Id
+    //            Employee_Id = employee.Employee_Id
 
-                // totals will use DB default values
+    //            // totals will use DB default values
 
-            };
+    //        };
 
-            _context.EmployeeLeaveBalances.Add(balance);
+    //        _context.EmployeeLeaveBalances.Add(balance);
 
-            await _context.SaveChangesAsync();
+    //        await _context.SaveChangesAsync();
 
-        }
+    //    }
 
-        // STEP 4: RETURN DATA
+    //    // STEP 4: RETURN DATA
 
-        return new OkObjectResult(new
+    //    return new OkObjectResult(new
 
-        {
+    //    {
 
-            Earned = new
+    //        Earned = new
 
-            {
+    //        {
 
-                Total = balance.Earned_Total,
+    //            Total = balance.Earned_Total,
 
-                Used = balance.Earned_Used,
+    //            Used = balance.Earned_Used,
 
-                Remaining = balance.Earned_Total - balance.Earned_Used
+    //            Remaining = balance.Earned_Total - balance.Earned_Used
 
-            },
+    //        },
 
-            Casual = new
+    //        Casual = new
 
-            {
+    //        {
 
-                Total = balance.Casual_Total,
+    //            Total = balance.Casual_Total,
 
-                Used = balance.Casual_Used,
+    //            Used = balance.Casual_Used,
 
-                Remaining = balance.Casual_Total - balance.Casual_Used
+    //            Remaining = balance.Casual_Total - balance.Casual_Used
 
-            },
+    //        },
 
-            Sick = new
+    //        Sick = new
 
-            {
+    //        {
 
-                Total = balance.Sick_Total,
+    //            Total = balance.Sick_Total,
 
-                Used = balance.Sick_Used,
+    //            Used = balance.Sick_Used,
 
-                Remaining = balance.Sick_Total - balance.Sick_Used
+    //            Remaining = balance.Sick_Total - balance.Sick_Used
 
-            }
+    //        }
 
-        });
+    //    });
 
-    }
+    //}
 
     public async Task<IActionResult> GetEmployeeLeaveDetails(string employeeId)
     {
@@ -863,19 +931,19 @@ Employee Management System
         if (employee == null)
             return new NotFoundObjectResult("Employee not found");
 
-        var balance = await _context.EmployeeLeaveBalances
-            .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+        //var balance = await _context.EmployeeLeaveBalances
+        //    .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
-        if (balance == null)
-        {
-            balance = new EmployeeLeaveBalance
-            {
-                Employee_Id = employeeId
-            };
+        //if (balance == null)
+        //{
+        //    balance = new EmployeeLeaveBalance
+        //    {
+        //        Employee_Id = employeeId
+        //    };
 
-            _context.EmployeeLeaveBalances.Add(balance);
-            await _context.SaveChangesAsync();
-        }
+        //    _context.EmployeeLeaveBalances.Add(balance);
+        //    await _context.SaveChangesAsync();
+        //}
 
         var leaveHistory = await _context.EmployeeLeaves
             .Where(x => x.EmployeeId == employeeId)
@@ -901,29 +969,29 @@ Employee Management System
             Department = employee.Department,
             Email = employee.Email,
 
-            LeaveBalance = new
-            {
-                Earned = new
-                {
-                    Total = balance.Earned_Total,
-                    Used = balance.Earned_Used,
-                    Remaining = balance.Earned_Total - balance.Earned_Used
-                },
+            //LeaveBalance = new
+            //{
+            //    Earned = new
+            //    {
+            //        Total = balance.Earned_Total,
+            //        Used = balance.Earned_Used,
+            //        Remaining = balance.Earned_Total - balance.Earned_Used
+            //    },
 
-                Casual = new
-                {
-                    Total = balance.Casual_Total,
-                    Used = balance.Casual_Used,
-                    Remaining = balance.Casual_Total - balance.Casual_Used
-                },
+            //    Casual = new
+            //    {
+            //        Total = balance.Casual_Total,
+            //        Used = balance.Casual_Used,
+            //        Remaining = balance.Casual_Total - balance.Casual_Used
+            //    },
 
-                Sick = new
-                {
-                    Total = balance.Sick_Total,
-                    Used = balance.Sick_Used,
-                    Remaining = balance.Sick_Total - balance.Sick_Used
-                }
-            },
+            //    Sick = new
+            //    {
+            //        Total = balance.Sick_Total,
+            //        Used = balance.Sick_Used,
+            //        Remaining = balance.Sick_Total - balance.Sick_Used
+            //    }
+            //},
 
             TotalLeavesApplied = leaveHistory.Count,
 
@@ -994,47 +1062,57 @@ Employee Management System
         return new OkObjectResult("Leave deleted");
 
     }
-
     public async Task<IActionResult> CancelLeave(int id, ClaimsPrincipal user)
-
     {
-
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
         var employee = await _context.Employees
-
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
         if (employee == null)
-
             return new BadRequestObjectResult("Employee not found");
 
         var leave = await _context.EmployeeLeaves
-
-            .FirstOrDefaultAsync(l => l.Id == id && l.EmployeeId == employee.Employee_Id);
+            .FirstOrDefaultAsync(l => l.Id == id &&
+                                      l.EmployeeId == employee.Employee_Id);
 
         if (leave == null)
-
             return new NotFoundObjectResult("Leave not found");
 
-        if (leave.Status == "Rejected")
+        // Already cancelled
+        if (leave.Status != null &&
+            leave.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            return new BadRequestObjectResult("Leave is already cancelled.");
+        }
 
-            return new BadRequestObjectResult("Already rejected");
+        // Already rejected
+        if (leave.Status != null &&
+            leave.Status.StartsWith("Rejected", StringComparison.OrdinalIgnoreCase))
+        {
+            return new BadRequestObjectResult("Rejected leave cannot be cancelled.");
+        }
 
-        // 👉 If already approved → revert balance
+        // Already approved
+        if (leave.Status != null &&
+            leave.Status.StartsWith("Approved", StringComparison.OrdinalIgnoreCase))
+        {
+            return new BadRequestObjectResult("Approved leave cannot be cancelled.");
+        }
+
+        // Only pending leave can be cancelled
         leave.Status = "Cancelled";
+        leave.ManagerStatus = "Cancelled";
+        leave.HRStatus = "Cancelled";
+        leave.ApprovedBy = null;
+        leave.ApprovedOn = null;
+        leave.PaidLeaveDays = 0;
+        leave.LOPDays = 0;
 
         await _context.SaveChangesAsync();
 
-        await RecalculateLeaveBalance(employee.Employee_Id);
-
-        return new OkObjectResult("Leave cancelled successfully");
-       
-
-        
-
+        return new OkObjectResult("Leave cancelled successfully.");
     }
-
     private async Task<int> CalculateWorkingDays(DateTime fromDate, DateTime toDate)
     {
         int days = 0;
@@ -1154,50 +1232,50 @@ Employee Management System
 
         return leaveDays;
     }
-    private async Task RecalculateLeaveBalance(string employeeId)
-    {
-        var balance = await _context.EmployeeLeaveBalances
-            .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+    //private async Task RecalculateLeaveBalance(string employeeId)
+    //{
+    //    var balance = await _context.EmployeeLeaveBalances
+    //        .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
-        if (balance == null)
-            return;
+    //    if (balance == null)
+    //        return;
 
-        balance.Casual_Used = 0;
-        balance.Sick_Used = 0;
-        balance.Earned_Used = 0;
+    //    balance.Casual_Used = 0;
+    //    balance.Sick_Used = 0;
+    //    balance.Earned_Used = 0;
 
-        var approvedLeaves = await _context.EmployeeLeaves
-            .Where(x =>
-                x.EmployeeId == employeeId &&
-                x.Status.StartsWith("Approved"))
-            .ToListAsync();
+    //    var approvedLeaves = await _context.EmployeeLeaves
+    //        .Where(x =>
+    //            x.EmployeeId == employeeId &&
+    //            x.Status.StartsWith("Approved"))
+    //        .ToListAsync();
 
-        foreach (var leave in approvedLeaves)
-        {
-            int days = await CalculateSandwichLeaveDays(
-                employeeId,
-                leave.FromDate,
-                leave.ToDate);
+    //    foreach (var leave in approvedLeaves)
+    //    {
+    //        int days = await CalculateSandwichLeaveDays(
+    //            employeeId,
+    //            leave.FromDate,
+    //            leave.ToDate);
 
-            switch (leave.LeaveType?.Trim().ToLower())
-            {
-                case "casual":
-                    balance.Casual_Used += days;
-                    break;
+    //        switch (leave.LeaveType?.Trim().ToLower())
+    //        {
+    //            case "casual":
+    //                balance.Casual_Used += days;
+    //                break;
 
-                case "sick":
-                    balance.Sick_Used += days;
-                    break;
+    //            case "sick":
+    //                balance.Sick_Used += days;
+    //                break;
 
-                case "earned":
-                case "earned leave":
-                    balance.Earned_Used += days;
-                    break;
-            }
-        }
+    //            case "earned":
+    //            case "earned leave":
+    //                balance.Earned_Used += days;
+    //                break;
+    //        }
+    //    }
 
-        await _context.SaveChangesAsync();
-    }
+    //    await _context.SaveChangesAsync();
+    //}
     public async Task<IActionResult> ApplyWFH(
       WorkFromHomeDto dto,
       ClaimsPrincipal user)
@@ -1913,6 +1991,11 @@ style='border-collapse:collapse;'>
         {
 
             leave.Status = "Approved";
+
+            var result = await _leaveBalanceService.ApproveLeaveAsync(leave);
+
+            leave.PaidLeaveDays = result.PaidLeaves;
+            leave.LOPDays = result.LopDays;
 
         }
 

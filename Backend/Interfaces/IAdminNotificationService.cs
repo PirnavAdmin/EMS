@@ -1,24 +1,19 @@
 ﻿using EmployeeManagementSystem.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Interfaces
-
 {
-
     public interface IAdminNotificationService
-
     {
+        Task<IActionResult> GetNotifications(ClaimsPrincipal user);
 
-        Task<List<AdminNotificationDto>> GetNotifications();
+        Task<IActionResult> GetUnreadCount(ClaimsPrincipal user);
 
-        Task<int> GetUnreadCount();
+        Task<IActionResult> MarkAsRead(ClaimsPrincipal user, int id);
 
-        Task<bool> MarkAsRead(int id);
-
-        Task MarkAllAsRead();
+        Task<IActionResult> MarkAllAsRead(ClaimsPrincipal user);
 
         Task CreateNotification(string title, string message);
-
     }
-
 }

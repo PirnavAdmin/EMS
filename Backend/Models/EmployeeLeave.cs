@@ -36,4 +36,8 @@ public class EmployeeLeave
     public string? ApprovalToken { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public int PaidLeaveDays { get; set; }
+
+    public int LOPDays { get; set; }
 }

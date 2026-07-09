@@ -48,6 +48,8 @@ namespace EmployeeManagementSystem.Models
         public ICollection<TeamMember>? TeamMembers { get; set; }
 
         public ICollection<Team>? ManagedTeams { get; set; }
+        public virtual ICollection<ProjectTeamMember> ProjectTeamMembers { get; set; }
+    = new List<ProjectTeamMember>();
     }
 
 }

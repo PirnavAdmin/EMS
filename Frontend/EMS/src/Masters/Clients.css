@@ -610,13 +610,13 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 991px) {
   .clients-grid {
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 576px) {
   .clients-header {
     align-items: stretch;
   }
@@ -674,7 +674,7 @@
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 576px) {
   .client-name {
     font-size: 1rem;
   }
@@ -694,3 +694,4 @@
     min-width: 0;
   }
 }
+

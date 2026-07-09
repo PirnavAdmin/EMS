@@ -8,6 +8,10 @@
  *  - Retries automatically to avoid wildly inaccurate "city-swap" errors
  *    (e.g. Hyderabad being reported as Rajasthan due to a cold GPS fix,
  *    Wi-Fi/IP based fallback, or a stale cached position).
+ *  - Always runs every configured attempt (unless an unrecoverable error
+ *    occurs) and selects the single most accurate reading collected, since
+ *    users are frequently indoors / in basements / in weak-signal office
+ *    buildings where an early "good" fix can still be beaten by a later one.
  *  - Returns a single, predictable result shape so callers stay simple.
  * -------------------------------------------------------------------------
  */
@@ -16,7 +20,7 @@
 export const GPS_CONFIG = {
   EXCELLENT_ACCURACY_M: 50,   // <= 50m  -> excellent, submit immediately
   GOOD_ACCURACY_M: 100,       // <= 100m -> good, submit normally
-  ACCEPTABLE_ACCURACY_M: 200, // <= 200m -> accept with warning
+  ACCEPTABLE_ACCURACY_M: 500, // <= 500m -> acceptable, submit with warning
   MAX_ATTEMPTS: 3,
   RETRY_DELAY_MS: 2000,
   TIMEOUT_MS: 30000,
@@ -46,6 +50,11 @@ const getPositionOnce = () =>
 /**
  * Classifies an accuracy value (meters) into a validation tier.
  * Returns { tier, allowed, warning }.
+ *
+ *   <= 50m          -> excellent, allowed, no warning
+ *   <= 100m         -> good, allowed, no warning
+ *   101m - 500m     -> acceptable, allowed, warning shown
+ *   > 500m          -> poor, NOT allowed
  */
 export const classifyAccuracy = (accuracy) => {
   if (accuracy <= GPS_CONFIG.EXCELLENT_ACCURACY_M) {
@@ -94,13 +103,18 @@ export const getGeolocationErrorMessage = (error) => {
  *  - Requests position with enableHighAccuracy, timeout=30000, maximumAge=0.
  *  - Logs latitude, longitude, accuracy, timestamp, and attempt number for
  *    every attempt.
- *  - If accuracy > GOOD_ACCURACY_M (100m), retries automatically, up to
- *    MAX_ATTEMPTS (3), waiting RETRY_DELAY_MS (2000ms) between attempts.
+ *  - ALWAYS performs every configured attempt (MAX_ATTEMPTS = 3), waiting
+ *    RETRY_DELAY_MS (2000ms) between attempts. It does NOT stop early just
+ *    because a "good" reading was found - office buildings, basements, and
+ *    other weak-signal environments mean a later attempt can still be more
+ *    accurate than an earlier "good enough" one.
  *  - Tracks every reading and keeps the one with the lowest accuracy value
- *    (i.e. the most precise).
- *  - Stops early once a reading with accuracy <= GOOD_ACCURACY_M is found.
- *  - If all attempts are exhausted without hitting that threshold, the best
- *    reading collected is used and run through classifyAccuracy().
+ *    (i.e. the most precise) across all attempts.
+ *  - Only stops early for unrecoverable errors: permission denied, or
+ *    geolocation unsupported. Recoverable errors (timeout, position
+ *    unavailable) do not stop the retry loop.
+ *  - After all attempts (or an unrecoverable error), the best reading
+ *    collected is run through classifyAccuracy() and returned.
  *
  * Resolves with:
  *   {
@@ -131,18 +145,21 @@ export const acquireReliableLocation = async () => {
       // Required debug logging
       console.log(
         `[GPS] Attempt ${attempt}/${GPS_CONFIG.MAX_ATTEMPTS} -> ` +
-          `Latitude: ${latitude}, Longitude: ${longitude}, ` +
-          `Accuracy: ${accuracy}m, Timestamp: ${new Date(timestamp).toISOString()}`
+        `Latitude: ${latitude}, Longitude: ${longitude}, ` +
+        `Accuracy: ${accuracy}m, Timestamp: ${new Date(timestamp).toISOString()}`
       );
 
       if (!bestReading || accuracy < bestReading.accuracy) {
         bestReading = { latitude, longitude, accuracy, timestamp };
       }
 
-      // Good enough - no need to keep retrying and draining battery/GPS.
-      if (accuracy <= GPS_CONFIG.GOOD_ACCURACY_M) {
-        break;
-      }
+      // NOTE: We intentionally do NOT break early on a "good" reading.
+      // Enterprise HRMS usage includes basements, office buildings, and
+      // other weak-signal environments where an early reading can look
+      // acceptable but a later attempt is meaningfully more accurate.
+      // All configured attempts are always executed (unless an
+      // unrecoverable error occurs below), and the most accurate reading
+      // among all of them is selected once the loop finishes.
     } catch (error) {
       console.error(`[GPS] Attempt ${attempt} failed:`, error);
       lastError = error;

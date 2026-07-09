@@ -177,7 +177,7 @@
 }
 
 /* ================= RESPONSIVE ================= */
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .notifications-container {
     padding: 18px 16px;
   }
@@ -227,7 +227,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 576px) {
   .notifications-header h2 {
     font-size: 22px;
   }
@@ -254,3 +254,5 @@
     font-size: 12px;
   }
 }
+
+

@@ -43,19 +43,20 @@ export const isSessionExpired = () => {
   const expiryTime = getExpiryTime();
 
   if (!expiryTime) {
-    return true;
+    return false;
   }
 
   return Date.now() >= expiryTime;
 };
 
-export const handleAutoLogout = ({ redirect = true } = {}) => {
+export const handleAutoLogout = ({
+  redirect = true,
+} = {}) => {
   if (autoLogoutInProgress) {
     return;
   }
 
   autoLogoutInProgress = true;
-  console.log("Auto logout triggered");
 
   clearSessionTimer();
   clearAuthData();
@@ -85,8 +86,15 @@ export const startSessionTimer = () => {
 
   const expiryTime = getExpiryTime();
 
-  if (!expiryTime || Date.now() >= expiryTime) {
-    handleAutoLogout();
+  if (!expiryTime) {
+    clearSessionTimer();
+    return;
+  }
+
+  if (Date.now() >= expiryTime) {
+    handleAutoLogout({
+      reason: "Session timer expired",
+    });
     return;
   }
 
@@ -98,11 +106,10 @@ export const startSessionTimer = () => {
 
   const remainingTime = expiryTime - Date.now();
 
-  console.log("Session started");
-  console.log("Session expires at:", expiryTime);
-
   activeExpiryTime = expiryTime;
   sessionTimerId = window.setTimeout(() => {
-    handleAutoLogout();
+    handleAutoLogout({
+      reason: "Session timer expired",
+    });
   }, remainingTime);
 };

@@ -184,14 +184,20 @@ public async Task<IActionResult> GetAttendanceByDate(
         }
 
 
+        [Authorize]
         [HttpPost("admin/update-attendance")]
-
-        public async Task<IActionResult> AdminUpdateAttendance(string employeeId, DateTime date, DateTime? checkIn, DateTime? checkOut)
-
+        public async Task<IActionResult> AdminUpdateAttendance(
+     string employeeId,
+     DateTime date,
+     DateTime? checkIn,
+     DateTime? checkOut)
         {
-
-            return await _attendanceService.AdminUpdateAttendance(employeeId, date, checkIn, checkOut);
-
+            return await _attendanceService.AdminUpdateAttendance(
+                User,
+                employeeId,
+                date,
+                checkIn,
+                checkOut);
         }
 
         //---------------------------------------

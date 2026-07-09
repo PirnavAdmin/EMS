@@ -320,13 +320,13 @@
   word-break: break-word;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 991px) {
   .company-info {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .company-modal-overlay {
     padding: 12px;
     align-items: flex-end;
@@ -357,7 +357,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 576px) {
   .company-info {
     grid-template-columns: 1fr;
   }
@@ -413,3 +413,4 @@
     filter: none !important;
     transform: none !important;
 }
+

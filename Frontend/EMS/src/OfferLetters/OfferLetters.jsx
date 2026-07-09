@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import "./OfferLetters.css";
 import {
   FaFileAlt,
@@ -16,7 +16,11 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AppDatePicker from "../components/AppDatePicker";
 import { sortByNewestIdFirst } from "../utils/collections";
-import { isValidEmail } from "../utils/validation";
+
+const redirectToLogin = () => {
+  window.location.replace("/login");
+  return true;
+};
 
 function OfferLetters() {
   const [formData, setFormData] = useState({
@@ -109,170 +113,6 @@ function OfferLetters() {
         .replace(/\D/g, "")
         .slice(0, 8);
       const annualCTC = Number(numericValue);
-
-      const handleChange = async (e) => {
-        const { name, value } = e.target;
-
-        // remove error while typing
-        setErrors((prev) => ({
-          ...prev,
-          [name]: "",
-        }));
-
-        /* ================= CTC AUTO CALCULATION ================= */
-        if (name === "ctc_Annual") {
-
-          // existing ctc code here
-
-          return;
-        }
-
-        /* ================= FORMAT SALARY INPUTS ================= */
-        if (
-          [
-            "basic",
-            "hra",
-            "conveyance",
-            "medicalAllowance",
-            "otherAllowance",
-          ].includes(name)
-        ) {
-
-          // existing salary code here
-
-          return;
-        }
-
-        /* ================= ADD VALIDATIONS HERE ================= */
-
-        /* ================= CANDIDATE NAME ================= */
-        if (name === "candidate_Name") {
-
-          // remove starting spaces
-          let filteredValue = value
-            .replace(/^\s+/g, "")
-            .replace(/\s{2,}/g, " ");
-
-          // allow only alphabets and spaces
-          filteredValue = filteredValue.replace(
-            /[^A-Za-z\s]/g,
-            ""
-          );
-
-          if (filteredValue.length > 50) {
-            return;
-          }
-
-          setFormData((prev) => ({
-            ...prev,
-            [name]: filteredValue,
-          }));
-
-          return;
-        }
-
-        /* ================= EMAIL ================= */
-        if (name === "email") {
-
-          let filteredValue = value
-            .toLowerCase()
-            .replace(/\s/g, "")
-            .replace(/[^a-z0-9@.]/g, "");
-
-          // first character must be alphabet
-          if (
-            filteredValue.length === 1 &&
-            !/[a-z]/.test(filteredValue)
-          ) {
-            return;
-          }
-
-          // allow only one @
-          const atCount =
-            (filteredValue.match(/@/g) || []).length;
-
-          if (atCount > 1) {
-            return;
-          }
-
-          // prevent multiple .com
-          const comCount =
-            (filteredValue.match(/\.com/g) || []).length;
-
-          if (comCount > 1) {
-            return;
-          }
-
-          // prevent consecutive dots
-          if (filteredValue.includes("..")) {
-            return;
-          }
-
-          if (filteredValue.length > 40) {
-            return;
-          }
-
-          setFormData((prev) => ({
-            ...prev,
-            [name]: filteredValue,
-          }));
-
-          return;
-        }
-
-        /* ================= ADDRESS ================= */
-        if (name === "address") {
-
-          let filteredValue = value
-            .replace(/^\s+/g, "")
-            .replace(/\s{2,}/g, " ")
-            .replace(/[^A-Za-z0-9\s-]/g, "");
-
-          const hyphenCount =
-            (filteredValue.match(/-/g) || []).length;
-
-          if (hyphenCount > 2) {
-            return;
-          }
-
-          if (filteredValue.length > 150) {
-            return;
-          }
-
-          setFormData((prev) => ({
-            ...prev,
-            [name]: filteredValue,
-          }));
-
-          return;
-        }
-
-        /* ================= POSITION ================= */
-        if (name === "position") {
-
-          let filteredValue = value
-            .replace(/^\s+/g, "")
-            .replace(/\s{2,}/g, " ")
-            .replace(/[^A-Za-z\s]/g, "");
-
-          if (filteredValue.length > 35) {
-            return;
-          }
-
-          setFormData((prev) => ({
-            ...prev,
-            [name]: filteredValue,
-          }));
-
-          return;
-        }
-
-        /* ================= NORMAL INPUTS ================= */
-        setFormData((prev) => ({
-          ...prev,
-          [name]: value,
-        }));
-      };
 
       setFormData((prev) => ({
         ...prev,
@@ -375,14 +215,14 @@ function OfferLetters() {
   };
 
   /* ================= FETCH OFFER LETTERS ================= */
-  const fetchOfferLetters = async () => {
+  const fetchOfferLetters = useCallback(async () => {
     try {
       const token = getToken();
 
       if (!token) {
         toast.error("Session expired. Please login again.");
         setTimeout(() => {
-          window.location.href = "/login";
+          redirectToLogin();
         }, 1200);
         return;
       }
@@ -410,11 +250,11 @@ function OfferLetters() {
       console.error("Fetch Error:", error);
       toast.error("Failed to fetch offer letters");
     }
-  };
+  }, [currentPage, lettersPerPage]);
 
   useEffect(() => {
     fetchOfferLetters();
-  }, []);
+  }, [fetchOfferLetters]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -574,7 +414,7 @@ function OfferLetters() {
         toast.error("Session expired. Please login again.");
 
         setTimeout(() => {
-          window.location.href = "/login";
+          redirectToLogin();
         }, 1200);
 
         return;
@@ -694,7 +534,7 @@ function OfferLetters() {
         );
 
         setTimeout(() => {
-          window.location.href = "/login";
+          redirectToLogin();
         }, 1200);
       } else {
         toast.error(
@@ -715,7 +555,7 @@ function OfferLetters() {
         toast.error("Session expired. Please login again.");
 
         setTimeout(() => {
-          window.location.href = "/login";
+          redirectToLogin();
         }, 1200);
 
         return;

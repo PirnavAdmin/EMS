@@ -614,7 +614,7 @@
   background: var(--surface-danger-soft);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 991px) {
   .salary-structure-ctc-controls {
     grid-template-columns: 1fr;
   }
@@ -632,7 +632,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 576px) {
   .salary-structure-card {
     padding: 18px;
     border-radius: 16px;
@@ -657,4 +657,6 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
 

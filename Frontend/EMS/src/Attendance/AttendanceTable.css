@@ -9,18 +9,25 @@
 .monthly-legend-top {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 14px;           /* Reduce from 22px */
   flex-wrap: wrap;
-  padding-left: 10px;
+  padding: 4px 10px;   /* Reduce vertical padding */
 }
 
 .monthly-legend-top span {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--attendance-muted);
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 0;      /* Reduce item height */
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
 
@@ -1665,7 +1672,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .attendance-page {
     padding: 12px;
   }
@@ -2231,7 +2238,7 @@
   background: var(--attendance-summary);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
 
   .attendance-details-modal.compact-modal {
     max-width: 100%;
@@ -2373,7 +2380,7 @@
   width: 100%;
   min-width: 1040px;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
   background: var(--attendance-card);
 }
 
@@ -2921,7 +2928,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .location-modal {
     width: 95vw;
     max-width: 95vw;
@@ -2956,3 +2963,6 @@
     min-height: 220px;
   }
 }
+
+
+

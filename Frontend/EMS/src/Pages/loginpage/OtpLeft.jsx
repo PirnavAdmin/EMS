@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
-import { API_ENDPOINTS, getAuthRoleForEmail } from "../../api/endpoints";
+import { API_ENDPOINTS } from "../../api/endpoints";
+import { resolveAuthRole } from "../../utils/authorization";
 
 const OTP_LENGTH = 6;
 
@@ -10,7 +11,7 @@ export default function OtpLeft() {
   const location = useLocation();
   const inputRefs = useRef([]);
   const email = location.state?.email;
-  const role = location.state?.role || getAuthRoleForEmail(email);
+  const role = resolveAuthRole(location.state?.role, "user");
 
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const [error, setError] = useState("");

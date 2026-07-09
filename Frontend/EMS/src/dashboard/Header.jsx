@@ -14,11 +14,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import {
-  clearAuthData,
   getStoredAuthValue,
   getStoredRole,
 } from "../utils/authStorage";
-import { clearSessionTimer } from "../utils/sessionManager";
+import { isAdmin } from "../utils/authorization";
+import { handleAutoLogout } from "../utils/sessionManager";
 import useTheme from "../theme/useTheme";
 import ChangePasswordModal from "./ChangePasswordModal";
 
@@ -56,6 +56,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
   const [greetingMeta, setGreetingMeta] = useState(getGreetingMeta());
 
   const role = getStoredRole();
+  const isAdminUser = isAdmin();
   const email = getStoredAuthValue("email", "No Email");
 
   const profileLabel = useMemo(() => {
@@ -74,7 +75,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
     const fetchNotificationStatus = async () => {
       try {
         const apiUrl =
-          role.toLowerCase() === "admin"
+          isAdminUser
             ? API_ENDPOINTS.notifications.admin
             : API_ENDPOINTS.notifications.user;
 
@@ -117,7 +118,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
         handleNotificationsUpdated
       );
     };
-  }, [role]);
+  }, [isAdminUser]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -146,23 +147,20 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
   const unreadCount = notifications.filter(
     (notification) => !notification.isRead
   ).length;
+  const notificationTarget =
+    isAdminUser ? "/notifications" : "/user-notifications";
   const headerOffset = collapsed
     ? "var(--layout-sidebar-collapsed-width)"
     : "var(--layout-sidebar-width)";
 
   const handleLogout = () => {
-    clearSessionTimer();
-    clearAuthData();
-    navigate("/login");
+    handleAutoLogout({
+      reason: "Header logout button clicked",
+    });
   };
 
   const handleNotificationClick = () => {
-    if (role.toLowerCase() === "admin") {
-      navigate("/notifications");
-      return;
-    }
-
-    navigate("/user-notifications");
+    navigate(notificationTarget);
   };
 
   const handleProfileClick = () => {
@@ -216,6 +214,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
               className="header-icon-button"
               onClick={handleNotificationClick}
               aria-label="Open notifications"
+              data-nav-target={notificationTarget}
             >
               <span className="header-icon-glyph">
                 <FaBell />
@@ -253,11 +252,12 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
                   <strong>{profileLabel}</strong>
                   <span>{email}</span>
                 </div>
-                {role?.toLowerCase() !== "admin" && (
+                {!isAdminUser && (
                   <button
                     type="button"
                     className="profile-item"
                     onClick={handleProfileClick}
+                    data-nav-target="/add-employee"
                   >
                     <span className="profile-item-icon">
                       <FaUser />
@@ -322,6 +322,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
                   type="button"
                   className="profile-item danger"
                   onClick={handleLogout}
+                  data-nav-target="/login"
                 >
                   <span className="profile-item-icon">
                     <FaSignOutAlt />

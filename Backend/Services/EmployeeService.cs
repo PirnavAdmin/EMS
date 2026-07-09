@@ -71,16 +71,16 @@ namespace EmployeeManagementSystem.Services
                     employee.Name
                         );
             // ✅ STEP 2: NOW ADD LEAVE BALANCE (AFTER EMPLOYEE EXISTS)
-            _context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
-            {
-                Employee_Id = employee.Employee_Id,
-                Earned_Total = 4,
-                Earned_Used = 0,
-                Casual_Total = 4,
-                Casual_Used = 0,
-                Sick_Total = 4,
-                Sick_Used = 0
-            });
+            //_context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
+            //{
+            //    Employee_Id = employee.Employee_Id,
+            //    Earned_Total = 4,
+            //    Earned_Used = 0,
+            //    Casual_Total = 4,
+            //    Casual_Used = 0,
+            //    Sick_Total = 4,
+            //    Sick_Used = 0
+            //});
 
             // 5. Department count
             var dept = await _context.Departments
@@ -235,29 +235,47 @@ namespace EmployeeManagementSystem.Services
             var today = DateTime.Today;
 
             var birthdays = await
-(
-    from emp in _context.Employees.AsNoTracking()
-    join personal in _context.EmployeePersonalInfos.AsNoTracking()
-        on emp.Employee_Id equals personal.Employee_Id
-    where personal.DateOfBirth != DateTime.MinValue
-    select new
-    {
-        emp.Employee_Id,
-        emp.Name,
-        personal.DateOfBirth
-    }
-).ToListAsync();
+            (
+                from emp in _context.Employees.AsNoTracking()
+                join personal in _context.EmployeePersonalInfos.AsNoTracking()
+                    on emp.Employee_Id equals personal.Employee_Id
+                where personal.DateOfBirth != DateTime.MinValue
+                select new
+                {
+                    emp.Employee_Id,
+                    emp.Name,
+                    personal.DateOfBirth
+                }
+            ).ToListAsync();
 
             var result = birthdays
                 .Select(x =>
                 {
-                    var nextBirthday = new DateTime(
-                        today.Year,
-                        x.DateOfBirth.Month,
-                        x.DateOfBirth.Day);
+                    int month = x.DateOfBirth.Month;
+                    int day = x.DateOfBirth.Day;
+                    int year = today.Year;
+
+                    // Handle 29-Feb birthdays in non-leap years
+                    if (month == 2 && day == 29 && !DateTime.IsLeapYear(year))
+                    {
+                        day = 28;
+                    }
+
+                    var nextBirthday = new DateTime(year, month, day);
 
                     if (nextBirthday < today)
-                        nextBirthday = nextBirthday.AddYears(1);
+                    {
+                        year++;
+
+                        day = x.DateOfBirth.Day;
+
+                        if (month == 2 && day == 29 && !DateTime.IsLeapYear(year))
+                        {
+                            day = 28;
+                        }
+
+                        nextBirthday = new DateTime(year, month, day);
+                    }
 
                     return new UpcomingBirthdayDto
                     {
@@ -273,7 +291,6 @@ namespace EmployeeManagementSystem.Services
 
             return result;
         }
-
         public async Task<object> BulkUploadEmployees(IFormFile file)
 
         {
@@ -414,25 +431,25 @@ namespace EmployeeManagementSystem.Services
 
                         await _context.SaveChangesAsync();
 
-                        _context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
+                        //_context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
 
-                        {
+                        //{
 
-                            Employee_Id = newEmployee.Employee_Id,
+                        //    Employee_Id = newEmployee.Employee_Id,
 
-                            Earned_Total = 10,
+                        //    Earned_Total = 10,
 
-                            Earned_Used = 0,
+                        //    Earned_Used = 0,
 
-                            Casual_Total = 12,
+                        //    Casual_Total = 12,
 
-                            Casual_Used = 0,
+                        //    Casual_Used = 0,
 
-                            Sick_Total = 10,
+                        //    Sick_Total = 10,
 
-                            Sick_Used = 0
+                        //    Sick_Used = 0
 
-                        });
+                        //});
 
                         var dept = await _context.Departments
 
@@ -504,7 +521,42 @@ https://hrms.pirnav.com
             };
 
         }
-        
+
+        public async Task<byte[]> DownloadEmployeeUploadTemplate()
+        {
+            using var workbook = new XLWorkbook();
+
+            var worksheet = workbook.Worksheets.Add("Employee Upload");
+
+            // Headers
+            worksheet.Cell(1, 1).Value = "Employee_Id";
+            worksheet.Cell(1, 2).Value = "Name";
+            worksheet.Cell(1, 3).Value = "Email";
+            worksheet.Cell(1, 4).Value = "Department";
+            worksheet.Cell(1, 5).Value = "RoleName";
+            worksheet.Cell(1, 6).Value = "Status";
+            worksheet.Cell(1, 7).Value = "JoiningDate";
+            worksheet.Cell(1, 8).Value = "CTC";
+
+            // Header Style
+            var header = worksheet.Range("A1:H1");
+            header.Style.Font.Bold = true;
+            header.Style.Fill.BackgroundColor = XLColor.LightBlue;
+            header.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            header.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            header.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+
+            // Date format for JoiningDate column
+            worksheet.Column(7).Style.DateFormat.Format = "yyyy-MM-dd";
+
+            // Auto fit columns
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+
+            return await Task.FromResult(stream.ToArray());
+        }
 
 
         public async Task<Employee?> GetEmployeeByEmployeeId(string employeeId)
@@ -559,68 +611,38 @@ https://hrms.pirnav.com
             // Sheet 1 - Employee Master
             // =========================
 
-            var masterSheet = workbook.Worksheets.Add("Employee Master");
-            masterSheet.Cell(1, 1).Value = "Employee Master";
+            // =========================
+            // Sheet 1 - Employee Master
+            // =========================
 
+            var masterSheet = workbook.Worksheets.Add("Employee Master");
+
+            // Title
+            masterSheet.Cell(1, 1).Value = "Employee Master";
             masterSheet.Cell(1, 1).Style.Font.Bold = true;
             masterSheet.Cell(1, 1).Style.Font.FontSize = 16;
 
-            masterSheet.Cell(2, 1).Value =
-                $"Total Employees : {employees.Count}";
+            // Headers
+            masterSheet.Cell(2, 1).Value = "Employee ID";
+            masterSheet.Cell(2, 2).Value = "Employee Name";
+            masterSheet.Cell(2, 3).Value = "Email";
+            masterSheet.Cell(2, 4).Value = "Department";
+            masterSheet.Cell(2, 5).Value = "Role";
+            masterSheet.Cell(2, 6).Value = "Status";
+            masterSheet.Cell(2, 7).Value = "Joining Date";
+            masterSheet.Cell(2, 8).Value = "CTC";
+            masterSheet.Cell(2, 9).Value = "Document Status";
+            masterSheet.Cell(2, 10).Value = "Documents Verified";
 
-            masterSheet.Cell(2, 1).Style.Font.Bold = true;
-            masterSheet.Cell(2, 4).Value =
-    $"Active Employees : {employees.Count(x => x.Status == "Active")}";
-
-            masterSheet.Cell(2, 4).Style.Font.Bold = true;
-
-            masterSheet.Cell(2, 7).Value =
-    $"Inactive Employees : {employees.Count(x => x.Status != "Active")}";
-
-            var employeesWithDocuments = employeeDocuments
-    .Select(x => x.Employee_Id)
-    .Distinct()
-    .Count();
-
-            masterSheet.Cell(2, 9).Value =
-                $"Documents Started : {employeesWithDocuments}";
-
-            var pendingVerification = employeeDocuments
-    .Count(x => x.Verification_Status == "Pending");
-
-            masterSheet.Cell(2, 10).Value =
-                $"Pending Verification : {pendingVerification}";
-
-            masterSheet.Cell(2, 10).Style.Font.Bold = true;
-            masterSheet.Cell(2, 10).Style.Font.FontColor = XLColor.DarkGreen;
-
-            masterSheet.Cell(2, 7).Style.Font.Bold = true;
-
-            masterSheet.Cell(3, 1).Value = "Employee ID";
-            masterSheet.Cell(3, 2).Value = "Name";
-            masterSheet.Cell(3, 3).Value = "Email";
-            masterSheet.Cell(3, 4).Value = "Department";
-            masterSheet.Cell(3, 5).Value = "Role";
-            masterSheet.Cell(3, 6).Value = "Status";
-            masterSheet.Cell(3, 7).Value = "Joining Date";
-            masterSheet.Cell(3, 8).Value = "CTC";
-            masterSheet.Cell(3, 9).Value = "Document Status";
-            masterSheet.Cell(3, 10).Value = "Documents Verified";
-
-            var masterHeader =
-    masterSheet.Range(3, 1, 3, 10);
+            var masterHeader = masterSheet.Range(2, 1, 2, 10);
             masterHeader.Style.Font.Bold = true;
             masterHeader.Style.Fill.BackgroundColor = XLColor.DarkBlue;
             masterHeader.Style.Font.FontColor = XLColor.White;
-            masterSheet.Cell(2, 1).Style.Font.Bold = true;
+            masterHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            masterHeader.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            masterHeader.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
-            masterSheet.Cell(2, 4).Style.Font.Bold = true;
-            masterSheet.Cell(2, 4).Style.Font.FontColor = XLColor.Green;
-
-            masterSheet.Cell(2, 7).Style.Font.Bold = true;
-            masterSheet.Cell(2, 7).Style.Font.FontColor = XLColor.Red;
-
-            int masterRow = 4;
+            int masterRow = 3;
 
             foreach (var emp in employees)
             {
@@ -630,11 +652,17 @@ https://hrms.pirnav.com
                 masterSheet.Cell(masterRow, 4).Value = emp.Department;
                 masterSheet.Cell(masterRow, 5).Value = emp.RoleName;
                 masterSheet.Cell(masterRow, 6).Value = emp.Status;
-                masterSheet.Cell(masterRow, 7).Value = emp.JoiningDate.ToString("dd-MMM-yyyy");
+
+                masterSheet.Cell(masterRow, 7).Value = emp.JoiningDate;
+                masterSheet.Cell(masterRow, 7).Style.DateFormat.Format = "dd-MMM-yyyy";
+
                 masterSheet.Cell(masterRow, 8).Value = emp.CTC;
 
-                var uploadedDocs = employeeDocuments
-    .Count(x => x.Employee_Id == emp.Employee_Id);
+                var uploadedDocs = employeeDocuments.Count(x => x.Employee_Id == emp.Employee_Id);
+
+                var verifiedDocs = employeeDocuments.Count(x =>
+                    x.Employee_Id == emp.Employee_Id &&
+                    x.Verification_Status == "Approved");
 
                 string documentStatus;
 
@@ -651,109 +679,90 @@ https://hrms.pirnav.com
                     documentStatus = $"{uploadedDocs}/13 Uploaded";
                 }
 
-                masterSheet.Cell(masterRow, 9).Value =
-                    documentStatus;
+                masterSheet.Cell(masterRow, 9).Value = documentStatus;
+                masterSheet.Cell(masterRow, 10).Value = $"{verifiedDocs}/{uploadedDocs} Verified";
 
-                var verifiedDocs = employeeDocuments
-    .Count(x =>
-        x.Employee_Id == emp.Employee_Id &&
-        x.Verification_Status == "Approved");
-
-                masterSheet.Cell(masterRow, 10).Value =
-                    $"{verifiedDocs}/{uploadedDocs} Verified";
-
-                masterSheet.Cell(masterRow, 10).Value =
-    $"{verifiedDocs}/{uploadedDocs} Verified";
-
-                if (uploadedDocs > 0 &&
-    verifiedDocs == uploadedDocs)
-                {
-                    masterSheet.Cell(masterRow, 10)
-                        .Style.Font.FontColor = XLColor.Green;
-                }
-                else if (verifiedDocs == 0)
-                {
-                    masterSheet.Cell(masterRow, 10)
-                        .Style.Font.FontColor = XLColor.Red;
-                }
-                else
-                {
-                    masterSheet.Cell(masterRow, 10)
-                        .Style.Font.FontColor = XLColor.DarkOrange;
-                }
-
+                // Document Status Color
                 if (documentStatus == "Complete")
                 {
-                    masterSheet.Cell(masterRow, 9)
-                        .Style.Font.FontColor = XLColor.Green;
+                    masterSheet.Cell(masterRow, 9).Style.Font.FontColor = XLColor.Green;
                 }
                 else if (documentStatus == "Not Started")
                 {
-                    masterSheet.Cell(masterRow, 9)
-                        .Style.Font.FontColor = XLColor.Red;
+                    masterSheet.Cell(masterRow, 9).Style.Font.FontColor = XLColor.Red;
                 }
                 else
                 {
-                    masterSheet.Cell(masterRow, 9)
-                        .Style.Font.FontColor = XLColor.DarkOrange;
+                    masterSheet.Cell(masterRow, 9).Style.Font.FontColor = XLColor.DarkOrange;
+                }
+
+                // Verification Status Color
+                if (uploadedDocs > 0 && uploadedDocs == verifiedDocs)
+                {
+                    masterSheet.Cell(masterRow, 10).Style.Font.FontColor = XLColor.Green;
+                }
+                else if (verifiedDocs == 0)
+                {
+                    masterSheet.Cell(masterRow, 10).Style.Font.FontColor = XLColor.Red;
+                }
+                else
+                {
+                    masterSheet.Cell(masterRow, 10).Style.Font.FontColor = XLColor.DarkOrange;
                 }
 
                 masterRow++;
             }
 
+            // Freeze Header Row
+            masterSheet.SheetView.FreezeRows(2);
+
+            // Auto Fit Columns
+            masterSheet.Columns().AdjustToContents();
+
+
+
             // =========================
             // Sheet 2 - Personal Info
             // =========================
 
+            // =========================
+            // Sheet 2 - Personal Information
+            // =========================
+
             var personalSheet = workbook.Worksheets.Add("Personal Information");
-            var totalEmployees = employees.Count;
 
-            var filledPersonal = personalInfos
-                .Select(x => x.Employee_Id)
-                .Distinct()
-                .Count();
-
-            var pendingPersonal = totalEmployees - filledPersonal;
-
+            // Title
             personalSheet.Cell(1, 1).Value = "Personal Information";
             personalSheet.Cell(1, 1).Style.Font.Bold = true;
             personalSheet.Cell(1, 1).Style.Font.FontSize = 16;
 
-            personalSheet.Cell(2, 1).Value =
-                $"Total Employees : {totalEmployees}";
+            // Headers
+            personalSheet.Cell(2, 1).Value = "Employee ID";
+            personalSheet.Cell(2, 2).Value = "Employee Name";
+            personalSheet.Cell(2, 3).Value = "First Name";
+            personalSheet.Cell(2, 4).Value = "Last Name";
+            personalSheet.Cell(2, 5).Value = "Phone Number";
+            personalSheet.Cell(2, 6).Value = "Email";
+            personalSheet.Cell(2, 7).Value = "Gender";
+            personalSheet.Cell(2, 8).Value = "DOB";
+            personalSheet.Cell(2, 9).Value = "Aadhaar";
+            personalSheet.Cell(2, 10).Value = "PAN";
+            personalSheet.Cell(2, 11).Value = "Address";
 
-            personalSheet.Cell(2, 4).Value =
-                $"Filled : {filledPersonal}";
-
-            personalSheet.Cell(2, 7).Value =
-                $"Pending : {pendingPersonal}";
-
-            personalSheet.Cell(2, 1).Style.Font.Bold = true;
-            personalSheet.Cell(2, 4).Style.Font.Bold = true;
-            personalSheet.Cell(2, 7).Style.Font.Bold = true;
-
-            personalSheet.Cell(4, 1).Value = "Employee ID";
-            personalSheet.Cell(4, 2).Value = "Employee Name";
-            personalSheet.Cell(4, 3).Value = "First Name";
-            personalSheet.Cell(4, 4).Value = "Last Name";
-            personalSheet.Cell(4, 5).Value = "Phone Number";
-            personalSheet.Cell(4, 6).Value = "Email";
-            personalSheet.Cell(4, 7).Value = "Gender";
-            personalSheet.Cell(4, 8).Value = "DOB";
-            personalSheet.Cell(4, 9).Value = "Aadhaar";
-            personalSheet.Cell(4, 10).Value = "PAN";
-            personalSheet.Cell(4, 11).Value = "Address";
-
-            var personalHeader = personalSheet.Range(4, 1, 4, 11);
+            var personalHeader = personalSheet.Range(2, 1, 2, 11);
             personalHeader.Style.Font.Bold = true;
             personalHeader.Style.Fill.BackgroundColor = XLColor.DarkGreen;
             personalHeader.Style.Font.FontColor = XLColor.White;
+            personalHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            personalHeader.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            personalHeader.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
-            int personalRow = 5;
+            int personalRow = 3;
 
             foreach (var p in personalInfos)
             {
                 personalSheet.Cell(personalRow, 1).Value = p.Employee_Id;
+
                 personalSheet.Cell(personalRow, 2).Value =
                     employeeLookup.ContainsKey(p.Employee_Id)
                         ? employeeLookup[p.Employee_Id]
@@ -764,115 +773,133 @@ https://hrms.pirnav.com
                 personalSheet.Cell(personalRow, 5).Value = p.PhoneNumber;
                 personalSheet.Cell(personalRow, 6).Value = p.Email;
                 personalSheet.Cell(personalRow, 7).Value = p.Gender;
-                personalSheet.Cell(personalRow, 8).Value = p.DateOfBirth.ToString("dd-MMM-yyyy");
+
+                if (p.DateOfBirth != DateTime.MinValue)
+                {
+                    personalSheet.Cell(personalRow, 8).Value = p.DateOfBirth;
+                    personalSheet.Cell(personalRow, 8).Style.DateFormat.Format = "dd-MMM-yyyy";
+                }
+
                 personalSheet.Cell(personalRow, 9).Value = p.AadhaarNumber;
                 personalSheet.Cell(personalRow, 10).Value = p.PanNumber;
-                var address =
-    $"{p.HouseNo}, {p.Street}, {p.City}, {p.District}, {p.State}, {p.Country} - {p.Pincode}";
 
-                personalSheet.Cell(personalRow, 11).Value =
-                    address;
+                var address =
+                    $"{p.HouseNo}, {p.Street}, {p.City}, {p.District}, {p.State}, {p.Country} - {p.Pincode}";
+
+                personalSheet.Cell(personalRow, 11).Value = address;
 
                 personalRow++;
             }
+
+            // =========================
+            // Pending Employees
+            // =========================
 
             var employeesWithoutPersonalInfo = employees
-    .Where(e => !personalInfos
-        .Any(p => p.Employee_Id == e.Employee_Id))
-    .ToList();
+                .Where(e => !personalInfos.Any(p => p.Employee_Id == e.Employee_Id))
+                .OrderBy(e => e.Employee_Id)
+                .ToList();
 
-            personalRow += 2;
-
-            personalSheet.Cell(personalRow, 1).Value =
-                "PENDING EMPLOYEES";
-
-            personalSheet.Range(personalRow, 1, personalRow, 3)
-                .Merge();
-
-            personalSheet.Cell(personalRow, 1)
-                .Style.Font.Bold = true;
-
-            personalSheet.Cell(personalRow, 1)
-                .Style.Fill.BackgroundColor =
-                    XLColor.Red;
-
-            personalSheet.Cell(personalRow, 1)
-                .Style.Font.FontColor =
-                    XLColor.White;
-
-            personalRow++;
-
-            personalSheet.Cell(personalRow, 1).Value =
-    "Employee ID";
-
-            personalSheet.Cell(personalRow, 2).Value =
-                "Employee Name";
-
-            personalRow++;
-
-            foreach (var emp in employeesWithoutPersonalInfo)
+            if (employeesWithoutPersonalInfo.Any())
             {
-                personalSheet.Cell(personalRow, 1).Value =
-                    emp.Employee_Id;
+                personalRow += 2;
 
-                personalSheet.Cell(personalRow, 2).Value =
-                    emp.Name;
+                personalSheet.Cell(personalRow, 1).Value = "PENDING EMPLOYEES";
+
+                personalSheet.Range(personalRow, 1, personalRow, 2).Merge();
+
+                personalSheet.Cell(personalRow, 1).Style.Font.Bold = true;
+                personalSheet.Cell(personalRow, 1).Style.Font.FontColor = XLColor.White;
+                personalSheet.Cell(personalRow, 1).Style.Fill.BackgroundColor = XLColor.Red;
+                personalSheet.Cell(personalRow, 1).Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
 
                 personalRow++;
+
+                personalSheet.Cell(personalRow, 1).Value = "Employee ID";
+                personalSheet.Cell(personalRow, 2).Value = "Employee Name";
+
+                var pendingHeader = personalSheet.Range(personalRow, 1, personalRow, 2);
+
+                pendingHeader.Style.Font.Bold = true;
+                pendingHeader.Style.Font.FontColor = XLColor.White;
+                pendingHeader.Style.Fill.BackgroundColor = XLColor.DarkRed;
+                pendingHeader.Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+                pendingHeader.Style.Border.OutsideBorder =
+                    XLBorderStyleValues.Thin;
+                pendingHeader.Style.Border.InsideBorder =
+                    XLBorderStyleValues.Thin;
+
+                personalRow++;
+
+                foreach (var emp in employeesWithoutPersonalInfo)
+                {
+                    personalSheet.Cell(personalRow, 1).Value = emp.Employee_Id;
+                    personalSheet.Cell(personalRow, 2).Value = emp.Name;
+
+                    personalRow++;
+                }
             }
+
+            // Freeze Header
+            personalSheet.SheetView.FreezeRows(2);
+
+            // Auto Fit
+            personalSheet.Columns().AdjustToContents();
+
+
+            // =========================
+            // Sheet 3 - Bank Details
+            // =========================
 
             // =========================
             // Sheet 3 - Bank Details
             // =========================
 
             var bankSheet = workbook.Worksheets.Add("Bank Details");
-            var filledBank = bankDetails
-    .Select(x => x.Employee_Id)
-    .Distinct()
-    .Count();
 
-            var pendingBank =
-                totalEmployees - filledBank;
+            // Title
             bankSheet.Cell(1, 1).Value = "Bank Details";
             bankSheet.Cell(1, 1).Style.Font.Bold = true;
             bankSheet.Cell(1, 1).Style.Font.FontSize = 16;
 
-            bankSheet.Cell(2, 1).Value =
-                $"Total Employees : {totalEmployees}";
+            // Headers
+            bankSheet.Cell(2, 1).Value = "Employee ID";
+            bankSheet.Cell(2, 2).Value = "Employee Name";
+            bankSheet.Cell(2, 3).Value = "Bank Name";
+            bankSheet.Cell(2, 4).Value = "Account Holder";
+            bankSheet.Cell(2, 5).Value = "Account Number";
+            bankSheet.Cell(2, 6).Value = "IFSC";
+            bankSheet.Cell(2, 7).Value = "Branch";
+            bankSheet.Cell(2, 8).Value = "UAN";
+            bankSheet.Cell(2, 9).Value = "PF Account";
 
-            bankSheet.Cell(2, 4).Value =
-                $"Filled : {filledBank}";
+            var bankHeader = bankSheet.Range(2, 1, 2, 9);
 
-            bankSheet.Cell(2, 7).Value =
-                $"Pending : {pendingBank}";
-
-            bankSheet.Cell(2, 1).Style.Font.Bold = true;
-            bankSheet.Cell(2, 4).Style.Font.Bold = true;
-            bankSheet.Cell(2, 7).Style.Font.Bold = true;
-
-            bankSheet.Cell(4, 1).Value = "Employee ID";
-            bankSheet.Cell(4, 2).Value = "Employee Name";
-            bankSheet.Cell(4, 3).Value = "Bank Name";
-            bankSheet.Cell(4, 4).Value = "Account Holder";
-            bankSheet.Cell(4, 5).Value = "Account Number";
-            bankSheet.Cell(4, 6).Value = "IFSC";
-            bankSheet.Cell(4, 7).Value = "Branch";
-            bankSheet.Cell(4, 8).Value = "UAN";
-            bankSheet.Cell(4, 9).Value = "PF Account";
-
-            var bankHeader = bankSheet.Range(4, 1, 4, 9);
             bankHeader.Style.Font.Bold = true;
-            bankHeader.Style.Fill.BackgroundColor = XLColor.DarkRed;
             bankHeader.Style.Font.FontColor = XLColor.White;
+            bankHeader.Style.Fill.BackgroundColor = XLColor.DarkRed;
+            bankHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            bankHeader.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            bankHeader.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
-            int bankRow = 5;
+            int bankRow = 3;
 
-            foreach (var bank in bankDetails)
+            // Remove duplicate bank records (one record per employee)
+            var uniqueBankDetails = bankDetails
+                .GroupBy(x => x.Employee_Id)
+                .Select(g => g.First())
+                .OrderBy(x => x.Employee_Id)
+                .ToList();
+
+            foreach (var bank in uniqueBankDetails)
             {
                 bankSheet.Cell(bankRow, 1).Value = bank.Employee_Id;
+
                 bankSheet.Cell(bankRow, 2).Value =
-                    employeeLookup.ContainsKey(bank.Employee_Id)
-                        ? employeeLookup[bank.Employee_Id]
+                    employeeLookup.TryGetValue(bank.Employee_Id, out var empName)
+                        ? empName
                         : "";
 
                 bankSheet.Cell(bankRow, 3).Value = bank.Bank_Name;
@@ -886,50 +913,70 @@ https://hrms.pirnav.com
                 bankRow++;
             }
 
+            // =========================
+            // Pending Employees
+            // =========================
+
             var employeesWithoutBank = employees
-    .Where(e => !bankDetails
-        .Any(b => b.Employee_Id == e.Employee_Id))
-    .ToList();
+                .Where(e => !uniqueBankDetails.Any(b => b.Employee_Id == e.Employee_Id))
+                .OrderBy(e => e.Employee_Id)
+                .ToList();
 
-            bankRow += 2;
-
-            bankSheet.Cell(bankRow, 1).Value =
-                "PENDING EMPLOYEES";
-
-            bankSheet.Range(bankRow, 1, bankRow, 3)
-                .Merge();
-
-            bankSheet.Cell(bankRow, 1)
-                .Style.Font.Bold = true;
-
-            bankSheet.Cell(bankRow, 1)
-                .Style.Fill.BackgroundColor =
-                    XLColor.Red;
-
-            bankSheet.Cell(bankRow, 1)
-                .Style.Font.FontColor =
-                    XLColor.White;
-
-            bankRow++;
-
-            bankSheet.Cell(bankRow, 1).Value =
-    "Employee ID";
-
-            bankSheet.Cell(bankRow, 2).Value =
-                "Employee Name";
-
-            bankRow++;
-
-            foreach (var emp in employeesWithoutBank)
+            if (employeesWithoutBank.Any())
             {
-                bankSheet.Cell(bankRow, 1).Value =
-                    emp.Employee_Id;
+                bankRow += 2;
 
-                bankSheet.Cell(bankRow, 2).Value =
-                    emp.Name;
+                bankSheet.Cell(bankRow, 1).Value = "PENDING EMPLOYEES";
+
+                bankSheet.Range(bankRow, 1, bankRow, 2).Merge();
+
+                bankSheet.Cell(bankRow, 1).Style.Font.Bold = true;
+                bankSheet.Cell(bankRow, 1).Style.Font.FontColor = XLColor.White;
+                bankSheet.Cell(bankRow, 1).Style.Fill.BackgroundColor = XLColor.Red;
+                bankSheet.Cell(bankRow, 1).Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
 
                 bankRow++;
+
+                bankSheet.Cell(bankRow, 1).Value = "Employee ID";
+                bankSheet.Cell(bankRow, 2).Value = "Employee Name";
+
+                var pendingHeader = bankSheet.Range(bankRow, 1, bankRow, 2);
+
+                pendingHeader.Style.Font.Bold = true;
+                pendingHeader.Style.Font.FontColor = XLColor.White;
+                pendingHeader.Style.Fill.BackgroundColor = XLColor.DarkRed;
+                pendingHeader.Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+                pendingHeader.Style.Border.OutsideBorder =
+                    XLBorderStyleValues.Thin;
+                pendingHeader.Style.Border.InsideBorder =
+                    XLBorderStyleValues.Thin;
+
+                bankRow++;
+
+                foreach (var emp in employeesWithoutBank)
+                {
+                    bankSheet.Cell(bankRow, 1).Value = emp.Employee_Id;
+                    bankSheet.Cell(bankRow, 2).Value = emp.Name;
+
+                    bankRow++;
+                }
             }
+
+            // Freeze Header
+            bankSheet.SheetView.FreezeRows(2);
+
+            // Auto Fit
+            bankSheet.Columns().AdjustToContents();
+
+            // =========================
+            // Sheet 4 - Education
+            // =========================
+
+            // =========================
+            // Sheet 4 - Education
+            // =========================
 
             // =========================
             // Sheet 4 - Education
@@ -937,100 +984,145 @@ https://hrms.pirnav.com
 
             var educationSheet = workbook.Worksheets.Add("Education");
 
-            var filledEducation = educations
-    .Select(x => x.Employee_Id)
-    .Distinct()
-    .Count();
-
-            var pendingEducation =
-                totalEmployees - filledEducation;
+            // Title
             educationSheet.Cell(1, 1).Value = "Education";
             educationSheet.Cell(1, 1).Style.Font.Bold = true;
             educationSheet.Cell(1, 1).Style.Font.FontSize = 16;
 
-            educationSheet.Cell(2, 1).Value =
-                $"Total Employees : {totalEmployees}";
+            // Employee Details
+            educationSheet.Cell(2, 1).Value = "Employee ID";
+            educationSheet.Cell(2, 2).Value = "Employee Name";
 
-            educationSheet.Cell(2, 4).Value =
-                $"Filled : {filledEducation}";
+            // --------------------
+            // Education 1
+            // --------------------
 
-            educationSheet.Cell(2, 7).Value =
-                $"Pending : {pendingEducation}";
+            educationSheet.Cell(2, 3).Value = "Degree 1";
+            educationSheet.Cell(2, 4).Value = "University 1";
+            educationSheet.Cell(2, 5).Value = "Year 1";
+            educationSheet.Cell(2, 6).Value = "Percentage/CGPA 1";
+            educationSheet.Cell(2, 7).Value = "Specialization 1";
 
-            educationSheet.Cell(2, 1).Style.Font.Bold = true;
-            educationSheet.Cell(2, 4).Style.Font.Bold = true;
-            educationSheet.Cell(2, 7).Style.Font.Bold = true;
+            // Blank Gap
+            educationSheet.Column(8).Width = 4;
 
-            educationSheet.Cell(4, 1).Value = "Employee ID";
-            educationSheet.Cell(4, 2).Value = "Employee Name";
-            educationSheet.Cell(4, 3).Value = "Degree";
-            educationSheet.Cell(4, 4).Value = "University";
-            educationSheet.Cell(4, 5).Value = "Year Of Passing";
-            educationSheet.Cell(4, 6).Value = "Percentage/CGPA";
-            educationSheet.Cell(4, 7).Value = "Specialization";
+            // --------------------
+            // Education 2
+            // --------------------
 
-            var educationHeader = educationSheet.Range(4, 1, 4, 7);
+            educationSheet.Cell(2, 9).Value = "Degree 2";
+            educationSheet.Cell(2, 10).Value = "University 2";
+            educationSheet.Cell(2, 11).Value = "Year 2";
+            educationSheet.Cell(2, 12).Value = "Percentage/CGPA 2";
+            educationSheet.Cell(2, 13).Value = "Specialization 2";
+
+            // Blank Gap
+            educationSheet.Column(14).Width = 4;
+
+            // --------------------
+            // Education 3
+            // --------------------
+
+            educationSheet.Cell(2, 15).Value = "Degree 3";
+            educationSheet.Cell(2, 16).Value = "University 3";
+            educationSheet.Cell(2, 17).Value = "Year 3";
+            educationSheet.Cell(2, 18).Value = "Percentage/CGPA 3";
+            educationSheet.Cell(2, 19).Value = "Specialization 3";
+
+            // Blank Gap
+            educationSheet.Column(20).Width = 4;
+
+            // --------------------
+            // Education 4
+            // --------------------
+
+            educationSheet.Cell(2, 21).Value = "Degree 4";
+            educationSheet.Cell(2, 22).Value = "University 4";
+            educationSheet.Cell(2, 23).Value = "Year 4";
+            educationSheet.Cell(2, 24).Value = "Percentage/CGPA 4";
+            educationSheet.Cell(2, 25).Value = "Specialization 4";
+
+            var educationHeader = educationSheet.Range(2, 1, 2, 25);
+
             educationHeader.Style.Font.Bold = true;
             educationHeader.Style.Fill.BackgroundColor = XLColor.DarkOrange;
             educationHeader.Style.Font.FontColor = XLColor.White;
+            educationHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            educationHeader.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            educationHeader.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
-            int educationRow = 5;
+            int educationRow = 3;
 
-            foreach (var edu in educations)
+            var groupedEducation = educations
+                .GroupBy(x => x.Employee_Id)
+                .OrderBy(x => x.Key);
+
+            foreach (var group in groupedEducation)
             {
-                educationSheet.Cell(educationRow, 1).Value = edu.Employee_Id;
+                educationSheet.Cell(educationRow, 1).Value = group.Key;
+
                 educationSheet.Cell(educationRow, 2).Value =
-                    employeeLookup.ContainsKey(edu.Employee_Id)
-                        ? employeeLookup[edu.Employee_Id]
+                    employeeLookup.ContainsKey(group.Key)
+                        ? employeeLookup[group.Key]
                         : "";
 
-                educationSheet.Cell(educationRow, 3).Value = edu.Degree;
-                educationSheet.Cell(educationRow, 4).Value = edu.UniversityBoard;
-                educationSheet.Cell(educationRow, 5).Value = edu.YearOfPassing;
-                educationSheet.Cell(educationRow, 6).Value = edu.PercentageCGPA;
-                educationSheet.Cell(educationRow, 7).Value = edu.Specialization;
+                int startColumn = 3;
+
+                foreach (var edu in group.Take(4))
+                {
+                    educationSheet.Cell(educationRow, startColumn).Value = edu.Degree;
+                    educationSheet.Cell(educationRow, startColumn + 1).Value = edu.UniversityBoard;
+                    educationSheet.Cell(educationRow, startColumn + 2).Value = edu.YearOfPassing;
+                    educationSheet.Cell(educationRow, startColumn + 3).Value = edu.PercentageCGPA;
+                    educationSheet.Cell(educationRow, startColumn + 4).Value = edu.Specialization;
+
+                    // Skip one blank column
+                    startColumn += 6;
+                }
 
                 educationRow++;
             }
 
-            var employeesWithoutEducation = employees
-    .Where(e => !educations
-        .Any(ed => ed.Employee_Id == e.Employee_Id))
-    .ToList();
+            // =========================
+            // Pending Employees
+            // =========================
 
-            educationRow += 2;
 
-            educationSheet.Cell(educationRow, 1).Value =
-                "PENDING EMPLOYEES";
 
-            educationSheet.Range(
-                educationRow, 1,
-                educationRow, 3)
-                .Merge();
+            // Freeze Header
+            educationSheet.SheetView.FreezeRows(2);
 
-            educationSheet.Cell(educationRow, 1)
-                .Style.Font.Bold = true;
+            // Auto Fit Columns
+            educationSheet.Columns().AdjustToContents();
 
-            educationSheet.Cell(educationRow, 1)
-                .Style.Fill.BackgroundColor =
-                    XLColor.Red;
+            // Keep separator columns blank
+            educationSheet.Column(8).Width = 4;
+            educationSheet.Column(14).Width = 4;
+            educationSheet.Column(20).Width = 4;
 
-            educationSheet.Cell(educationRow, 1)
-                .Style.Font.FontColor =
-                    XLColor.White;
+            // Borders for Data
+            var lastDataRow = educationSheet.LastRowUsed().RowNumber();
 
-            educationRow++;
+            var dataRange = educationSheet.Range(2, 1, lastDataRow, 25);
 
-            foreach (var emp in employeesWithoutEducation)
-            {
-                educationSheet.Cell(educationRow, 1).Value =
-                    emp.Employee_Id;
+            dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
-                educationSheet.Cell(educationRow, 2).Value =
-                    emp.Name;
+            // Vertical Alignment
+            dataRange.Style.Alignment.Vertical =
+                XLAlignmentVerticalValues.Center;
 
-                educationRow++;
-            }
+            // Wrap Text
+            dataRange.Style.Alignment.WrapText = true;
+
+
+            // =========================
+            // Sheet 5 - Experience
+            // =========================
+
+            // =========================
+            // Sheet 5 - Experience
+            // =========================
 
             // =========================
             // Sheet 5 - Experience
@@ -1038,109 +1130,212 @@ https://hrms.pirnav.com
 
             var experienceSheet = workbook.Worksheets.Add("Experience");
 
-            var filledExperience = experiences
-    .Select(x => x.Employee_Id)
-    .Distinct()
-    .Count();
-
-            var pendingExperience =
-                totalEmployees - filledExperience;
-
+            // Title
             experienceSheet.Cell(1, 1).Value = "Experience";
             experienceSheet.Cell(1, 1).Style.Font.Bold = true;
             experienceSheet.Cell(1, 1).Style.Font.FontSize = 16;
 
-            experienceSheet.Cell(2, 1).Value =
-                $"Total Employees : {totalEmployees}";
+            // Employee Details
 
-            experienceSheet.Cell(2, 4).Value =
-                $"Filled : {filledExperience}";
+            experienceSheet.Cell(2, 1).Value = "Employee ID";
+            experienceSheet.Cell(2, 2).Value = "Employee Name";
 
-            experienceSheet.Cell(2, 7).Value =
-                $"Pending : {pendingExperience}";
+            // =====================
+            // Experience 1
+            // =====================
 
-            experienceSheet.Cell(2, 1).Style.Font.Bold = true;
-            experienceSheet.Cell(2, 4).Style.Font.Bold = true;
-            experienceSheet.Cell(2, 7).Style.Font.Bold = true;
+            experienceSheet.Cell(2, 3).Value = "Company 1";
+            experienceSheet.Cell(2, 4).Value = "Designation 1";
+            experienceSheet.Cell(2, 5).Value = "From Date 1";
+            experienceSheet.Cell(2, 6).Value = "To Date 1";
+            experienceSheet.Cell(2, 7).Value = "Reason For Leaving 1";
 
-            experienceSheet.Cell(4, 1).Value = "Employee ID";
-            experienceSheet.Cell(4, 2).Value = "Employee Name";
-            experienceSheet.Cell(4, 3).Value = "Company Name";
-            experienceSheet.Cell(4, 4).Value = "Designation";
-            experienceSheet.Cell(4, 5).Value = "From Date";
-            experienceSheet.Cell(4, 6).Value = "To Date";
-            experienceSheet.Cell(4, 7).Value = "Reason For Leaving";
+            // Gap
+            experienceSheet.Column(8).Width = 4;
 
-            var experienceHeader = experienceSheet.Range(4, 1, 4, 7);
+            // =====================
+            // Experience 2
+            // =====================
+
+            experienceSheet.Cell(2, 9).Value = "Company 2";
+            experienceSheet.Cell(2, 10).Value = "Designation 2";
+            experienceSheet.Cell(2, 11).Value = "From Date 2";
+            experienceSheet.Cell(2, 12).Value = "To Date 2";
+            experienceSheet.Cell(2, 13).Value = "Reason For Leaving 2";
+
+            // Gap
+            experienceSheet.Column(14).Width = 4;
+
+            // =====================
+            // Experience 3
+            // =====================
+
+            experienceSheet.Cell(2, 15).Value = "Company 3";
+            experienceSheet.Cell(2, 16).Value = "Designation 3";
+            experienceSheet.Cell(2, 17).Value = "From Date 3";
+            experienceSheet.Cell(2, 18).Value = "To Date 3";
+            experienceSheet.Cell(2, 19).Value = "Reason For Leaving 3";
+
+            // Gap
+            experienceSheet.Column(20).Width = 4;
+
+            // =====================
+            // Experience 4
+            // =====================
+
+            experienceSheet.Cell(2, 21).Value = "Company 4";
+            experienceSheet.Cell(2, 22).Value = "Designation 4";
+            experienceSheet.Cell(2, 23).Value = "From Date 4";
+            experienceSheet.Cell(2, 24).Value = "To Date 4";
+            experienceSheet.Cell(2, 25).Value = "Reason For Leaving 4";
+
+            var experienceHeader = experienceSheet.Range(2, 1, 2, 25);
+
             experienceHeader.Style.Font.Bold = true;
             experienceHeader.Style.Fill.BackgroundColor = XLColor.Purple;
             experienceHeader.Style.Font.FontColor = XLColor.White;
+            experienceHeader.Style.Alignment.Horizontal =
+                XLAlignmentHorizontalValues.Center;
 
-            int experienceRow = 5;
+            experienceHeader.Style.Border.OutsideBorder =
+                XLBorderStyleValues.Thin;
 
-            foreach (var exp in experiences)
+            experienceHeader.Style.Border.InsideBorder =
+                XLBorderStyleValues.Thin;
+
+            int experienceRow = 3;
+
+            var groupedExperience = experiences
+                .GroupBy(x => x.Employee_Id)
+                .OrderBy(x => x.Key);
+
+            foreach (var group in groupedExperience)
             {
-                experienceSheet.Cell(experienceRow, 1).Value = exp.Employee_Id;
+                experienceSheet.Cell(experienceRow, 1).Value = group.Key;
+
                 experienceSheet.Cell(experienceRow, 2).Value =
-                    employeeLookup.ContainsKey(exp.Employee_Id)
-                        ? employeeLookup[exp.Employee_Id]
+                    employeeLookup.ContainsKey(group.Key)
+                        ? employeeLookup[group.Key]
                         : "";
 
-                experienceSheet.Cell(experienceRow, 3).Value = exp.CompanyName;
-                experienceSheet.Cell(experienceRow, 4).Value = exp.Designation;
-                experienceSheet.Cell(experienceRow, 5).Value = exp.FromDate?.ToString("dd-MMM-yyyy");
-                experienceSheet.Cell(experienceRow, 6).Value = exp.ToDate?.ToString("dd-MMM-yyyy");
-                experienceSheet.Cell(experienceRow, 7).Value = exp.ReasonForLeaving;
+                int startColumn = 3;
+
+                foreach (var exp in group.Take(4))
+                {
+                    experienceSheet.Cell(experienceRow, startColumn).Value = exp.CompanyName;
+
+                    experienceSheet.Cell(experienceRow, startColumn + 1).Value = exp.Designation;
+
+                    if (exp.FromDate.HasValue)
+                    {
+                        experienceSheet.Cell(experienceRow, startColumn + 2).Value = exp.FromDate.Value;
+                        experienceSheet.Cell(experienceRow, startColumn + 2)
+                            .Style.DateFormat.Format = "dd-MMM-yyyy";
+                    }
+
+                    if (exp.ToDate.HasValue)
+                    {
+                        experienceSheet.Cell(experienceRow, startColumn + 3).Value = exp.ToDate.Value;
+                        experienceSheet.Cell(experienceRow, startColumn + 3)
+                            .Style.DateFormat.Format = "dd-MMM-yyyy";
+                    }
+
+                    experienceSheet.Cell(experienceRow, startColumn + 4).Value = exp.ReasonForLeaving;
+
+                    // Skip one blank column
+                    startColumn += 6;
+                }
 
                 experienceRow++;
             }
+
+            // =========================
+            // Pending Employees
+            // =========================
+
+            // =========================
+            // Pending Employees
+            // =========================
 
             var employeesWithoutExperience = employees
-    .Where(e => !experiences
-        .Any(ex => ex.Employee_Id == e.Employee_Id))
-    .ToList();
+                .Where(e => !experiences.Any(x => x.Employee_Id == e.Employee_Id))
+                .OrderBy(e => e.Employee_Id)
+                .ToList();
 
-            experienceRow += 2;
-
-            experienceSheet.Cell(experienceRow, 1).Value =
-                "PENDING EMPLOYEES";
-
-            experienceSheet.Range(
-                experienceRow, 1,
-                experienceRow, 3)
-                .Merge();
-
-            experienceSheet.Cell(experienceRow, 1)
-                .Style.Font.Bold = true;
-
-            experienceSheet.Cell(experienceRow, 1)
-                .Style.Fill.BackgroundColor =
-                    XLColor.Red;
-
-            experienceSheet.Cell(experienceRow, 1)
-                .Style.Font.FontColor =
-                    XLColor.White;
-
-            experienceRow++;
-
-            experienceSheet.Cell(experienceRow, 1).Value =
-    "Employee ID";
-
-            experienceSheet.Cell(experienceRow, 2).Value =
-                "Employee Name";
-
-            experienceRow++;
-
-            foreach (var emp in employeesWithoutExperience)
+            if (employeesWithoutExperience.Any())
             {
-                experienceSheet.Cell(experienceRow, 1).Value =
-                    emp.Employee_Id;
+                experienceRow += 2;
 
-                experienceSheet.Cell(experienceRow, 2).Value =
-                    emp.Name;
+                experienceSheet.Cell(experienceRow, 1).Value =
+                    "PENDING EMPLOYEES";
+
+                experienceSheet.Range(experienceRow, 1, experienceRow, 2).Merge();
+
+                experienceSheet.Cell(experienceRow, 1).Style.Font.Bold = true;
+                experienceSheet.Cell(experienceRow, 1).Style.Font.FontColor = XLColor.White;
+                experienceSheet.Cell(experienceRow, 1).Style.Fill.BackgroundColor = XLColor.Red;
+                experienceSheet.Cell(experienceRow, 1).Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
 
                 experienceRow++;
+
+                experienceSheet.Cell(experienceRow, 1).Value = "Employee ID";
+                experienceSheet.Cell(experienceRow, 2).Value = "Employee Name";
+
+                var pendingHeader =
+                    experienceSheet.Range(experienceRow, 1, experienceRow, 2);
+
+                pendingHeader.Style.Font.Bold = true;
+                pendingHeader.Style.Fill.BackgroundColor = XLColor.DarkRed;
+                pendingHeader.Style.Font.FontColor = XLColor.White;
+                pendingHeader.Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+
+                pendingHeader.Style.Border.OutsideBorder =
+                    XLBorderStyleValues.Thin;
+
+                pendingHeader.Style.Border.InsideBorder =
+                    XLBorderStyleValues.Thin;
+
+                experienceRow++;
+
+                foreach (var emp in employeesWithoutExperience)
+                {
+                    experienceSheet.Cell(experienceRow, 1).Value = emp.Employee_Id;
+                    experienceSheet.Cell(experienceRow, 2).Value = emp.Name;
+
+                    experienceRow++;
+                }
             }
+
+            // Freeze Header
+            experienceSheet.SheetView.FreezeRows(2);
+
+            // Auto Fit
+            experienceSheet.Columns().AdjustToContents();
+
+            // Keep Gap Columns
+            experienceSheet.Column(8).Width = 4;
+            experienceSheet.Column(14).Width = 4;
+            experienceSheet.Column(20).Width = 4;
+
+            // Borders
+            var lastRow = experienceSheet.LastRowUsed().RowNumber();
+
+            var range = experienceSheet.Range(2, 1, lastRow, 25);
+
+            range.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            range.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+
+            range.Style.Alignment.Vertical =
+                XLAlignmentVerticalValues.Center;
+
+            range.Style.Alignment.WrapText = true;
+
+            //--------------------------------
+
+            //------------------------------------
+
 
             var documentSheet =
     workbook.Worksheets.Add("Document Summary");

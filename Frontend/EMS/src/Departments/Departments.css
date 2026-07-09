@@ -535,7 +535,7 @@ body {
   text-align: center;
 }
  
-@media (max-width: 600px) {
+@media (max-width: 576px) {
   .dept-page {
     padding: 20px 16px;
   }
@@ -610,3 +610,4 @@ body {
   box-shadow: none !important;
   filter: none !important;
 }
+

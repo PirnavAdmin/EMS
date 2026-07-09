@@ -21,7 +21,7 @@ import {
   FaClock,
   FaPlaneDeparture,
   FaRedo,
-  FaTasks,
+  FaTicketAlt,
   FaTimesCircle,
   FaUsers,
 } from "react-icons/fa";
@@ -366,26 +366,25 @@ const normalizeDashboardData = (payload = {}) => {
   console.log("Dashboard API Response:", source);
 
   return {
-    myTasks: normalizeNumber(
-      source?.myTasks ??
-      source?.tasks ??
-      source?.totalTasks ??
-      source?.taskCount ??
+    myTickets: normalizeNumber(
+      source?.myTickets ??
+      source?.totalTickets ??
+      source?.ticketCount ??
       0
     ),
 
-    completedTasks: normalizeNumber(
-      source?.completedTasks ??
+    completedTickets: normalizeNumber(
+      source?.completedTickets ??
       source?.completed ??
-      source?.completedTaskCount ??
+      source?.completedTicketCount ??
       source?.completedCount ??
       0
     ),
 
-    pendingTasks: normalizeNumber(
-      source?.pendingTasks ??
+    pendingTickets: normalizeNumber(
+      source?.pendingTickets ??
       source?.pending ??
-      source?.pendingTaskCount ??
+      source?.pendingTicketCount ??
       source?.pendingCount ??
       0
     ),
@@ -981,24 +980,24 @@ function UserDashboard() {
       </div>
 
       <div className="udb-top-cards">
-        <div className="udb-top-card">
+          <div className="udb-top-card">
           <div className="udb-top-card-content">
-            <h3>My Tasks</h3>
-            <h2>{dashboardData?.myTasks || 0}</h2>
+            <h3>My Tickets</h3>
+            <h2>{dashboardData?.myTickets || 0}</h2>
             <span>
-              {dashboardData?.pendingTasks || 0} pending
+              {dashboardData?.pendingTickets || 0} pending
             </span>
           </div>
 
-          <div className="udb-top-card-icon tasks">
-            <FaTasks />
+          <div className="udb-top-card-icon tickets">
+            <FaTicketAlt />
           </div>
         </div>
 
         <div className="udb-top-card">
           <div className="udb-top-card-content">
-            <h3>Completed Tasks</h3>
-            <h2>{dashboardData?.completedTasks || 0}</h2>
+            <h3>Completed Tickets</h3>
+            <h2>{dashboardData?.completedTickets || 0}</h2>
             <span>Completed</span>
           </div>
 
@@ -1009,8 +1008,8 @@ function UserDashboard() {
 
         <div className="udb-top-card">
           <div className="udb-top-card-content">
-            <h3>Pending Tasks</h3>
-            <h2>{dashboardData?.pendingTasks || 0}</h2>
+            <h3>Pending Tickets</h3>
+            <h2>{dashboardData?.pendingTickets || 0}</h2>
             <span>Need attention</span>
           </div>
 
@@ -1080,8 +1079,8 @@ function UserDashboard() {
               </div>
             ) : (
               <div className="udb-empty-state">
-                <div className="udb-empty-icon">
-                  <FaTasks aria-hidden="true" />
+              <div className="udb-empty-icon">
+                  <FaTicketAlt aria-hidden="true" />
                 </div>
                 <strong>No recent activities</strong>
                 <p>Your recent actions will appear here once they are logged.</p>
@@ -1155,9 +1154,9 @@ function UserDashboard() {
           Mark Attendance
         </button>
 
-        <button className="udb-action-btn" onClick={() => navigate("/user-tasks")}>
-          <FaTasks />
-          View Tasks
+        <button className="udb-action-btn" onClick={() => navigate("/employee/my-tickets")}>
+          <FaTicketAlt />
+          View Tickets
         </button>
 
         <button className="udb-action-btn" onClick={() => navigate("/notifications")}>

@@ -852,14 +852,14 @@
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 991px) {
   .udb-feature-grid,
   .udb-main {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 991px) {
   .udb-attendance-top {
     grid-template-columns: 1fr;
   }
@@ -869,7 +869,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .udb-section {
     padding: 18px;
     border-radius: 20px;
@@ -925,7 +925,7 @@
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 576px) {
   .udb-title {
     font-size: 26px;
   }
@@ -949,7 +949,7 @@
 
 .udb-top-cards {
   display: grid;
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px;
   margin-bottom: 3px;
 }
@@ -1018,7 +1018,7 @@
 }
 
 /* Card Colors */
-.udb-top-card-icon.tasks {
+.udb-top-card-icon.tickets {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
@@ -1038,13 +1038,7 @@
    RESPONSIVE
 ================================ */
 
-@media (max-width: 1200px) {
-  .udb-top-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .udb-top-cards {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -1074,3 +1068,4 @@
     font-size: 18px;
   }
 }
+

@@ -1,30 +1,20 @@
-﻿using EmployeeManagementSystem.Controllers;
-
+﻿using EmployeeManagementSystem.BackgroundServices;
+using EmployeeManagementSystem.Controllers;
 using EmployeeManagementSystem.Data;
-
 using EmployeeManagementSystem.Helpers;
-
+using EmployeeManagementSystem.HostedServices;
 using EmployeeManagementSystem.Interfaces;
-
 using EmployeeManagementSystem.Services;
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-
-using Microsoft.EntityFrameworkCore;
-
-using Microsoft.IdentityModel.Tokens;
-
-using Microsoft.OpenApi.Models;
-
-using System.IdentityModel.Tokens.Jwt;
-
-using System.Security.Claims;
-
-using System.Text;
 using Microsoft.AspNetCore.HttpOverrides;
-using QuestPDF.Infrastructure;
-
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
+using QuestPDF.Infrastructure;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,7 +80,13 @@ builder.Services.AddScoped<ModuleSearchService>();
 builder.Services.AddScoped<
     IEmployeeDocumentService,
     EmployeeDocumentService>();
+builder.Services.AddScoped<ILeaveBalanceService, LeaveBalanceService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
 
+//builder.Services.AddHostedService<TicketAssignmentHostedService>();
+builder.Services.AddScoped<ITicketAssignmentEngine, TicketAssignmentEngine>();
+builder.Services.AddScoped<ITicketOverdueService, TicketOverdueService>();
+builder.Services.AddHostedService<TicketOverdueBackgroundService>();
 // ================= CORS =================
 
 var configuredCorsOrigins = builder.Configuration

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   FaDownload,
   FaEye,
@@ -13,7 +13,8 @@ import {
 import "./UserPayslip.css";
 import api from "../api/axiosInstance";
 import { extractCollection } from "../utils/collections";
-import { getStoredRole, getStoredToken } from "../utils/authStorage";
+import { getStoredToken } from "../utils/authStorage";
+import { isAdmin } from "../utils/authorization";
 import { PageSkeleton } from "../components/Skeletons";
 
 import {
@@ -26,16 +27,12 @@ function UserPayslip() {
   const [loading, setLoading] = useState(true);
 
   const token = getStoredToken();
-  const role = getStoredRole();
+  const isAdminUser = isAdmin();
 
-  useEffect(() => {
-    fetchPayslips();
-  }, []);
-
-  const fetchPayslips = async () => {
+  const fetchPayslips = useCallback(async () => {
     try {
       const endpoint =
-        role === "admin"
+        isAdminUser
           ? API_ENDPOINTS.payroll.recent
           : API_ENDPOINTS.payroll.myPayslips;
 
@@ -54,7 +51,11 @@ function UserPayslip() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdminUser, token]);
+
+  useEffect(() => {
+    fetchPayslips();
+  }, [fetchPayslips]);
 
   const formatCurrency = (amount) => {
     return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
@@ -219,7 +220,7 @@ function UserPayslip() {
 
         {payslips.length > 1 ? (
           (
-            role === "admin"
+            isAdminUser
               ? payslips.slice(1, 6)
               : payslips.slice(1)
           ).map((p, i) => {
@@ -249,7 +250,7 @@ function UserPayslip() {
                     <h4>
                       {formatMonth(p.month)}
 
-                      {role === "admin" && (
+                      {isAdminUser && (
                         <span
                           style={{
                             color: "var(--primary)",

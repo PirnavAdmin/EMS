@@ -17,7 +17,9 @@ function LeaveManagement() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeHistoryLoading, setEmployeeHistoryLoading] = useState(false);
   const [wfhData, setWfhData] = useState([]);
+  const [searchQuery, setSearchQuery] = useState(""); // ✅ NEW: Search state
   const ROWS_PER_PAGE = 30;
+  const FILTER_OPTIONS = ["All", "Pending", "Approved", "Rejected"];
 
   const getToken = () =>
     localStorage.getItem("token") || sessionStorage.getItem("token");
@@ -258,6 +260,15 @@ function LeaveManagement() {
   const filteredLeaves =
     combinedData.filter(item => {
 
+      // ✅ NEW: Apply search filter
+      const matchesSearch = !searchQuery || 
+        item.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.employeeId?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.leaveType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.reason?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
       if (filter === "Leave")
         return item.requestType === "Leave";
 
@@ -305,11 +316,13 @@ function LeaveManagement() {
           </div>
         </div>
 
-        <div className="tabs">
-          {["All", "Leave", "WFH", "Pending", "Approved", "Rejected"].map((tab) => (
+        <div className="leave-filter-tabs" aria-label="Leave request filters">
+          {FILTER_OPTIONS.map((tab) => (
             <button
               key={tab}
-              className={filter === tab ? "tab active" : "tab"}
+              type="button"
+              className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
+              aria-pressed={filter === tab}
               disabled
             >
               {tab}
@@ -344,17 +357,41 @@ function LeaveManagement() {
         </div>
       </div>
 
-      {/* FILTERS */}
-      <div className="tabs">
-        {["All", "Pending", "Approved", "Rejected"].map((tab) => (
+      {/* ✅ NEW: SEARCH BAR */}
+      <div className="leave-toolbar" aria-label="Leave search and filters">
+        <div className="search-bar-container">
+        <input
+          type="text"
+          placeholder="Search by name, ID, type, or reason..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="search-input"
+        />
+        {searchQuery && (
+          <button
+            className="clear-search-btn"
+            onClick={() => setSearchQuery("")}
+          >
+            ✕
+          </button>
+        )}
+        </div>
+
+        {/* FILTERS */}
+        <div className="leave-filter-tabs" aria-label="Leave request filters">
+        {FILTER_OPTIONS.map((tab) => (
           <button
             key={tab}
-            className={filter === tab ? "tab active" : "tab"}
+            type="button"
+            className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
             onClick={() => setFilter(tab)}
+            aria-pressed={filter === tab}
           >
             {tab}
           </button>
         ))}
+        </div>
+
       </div>
 
       {/* TABLE */}
@@ -378,7 +415,7 @@ function LeaveManagement() {
               {filteredLeaves.length === 0 ? (
                 <tr>
                   <td colSpan="8" style={{ textAlign: "center", padding: "20px" }}>
-                    No leave records found
+                    {searchQuery ? "No matching records found" : "No leave records found"}
                   </td>
                 </tr>
               ) : (
@@ -836,4 +873,3 @@ function LeaveManagement() {
 }
 
 export default LeaveManagement;
-

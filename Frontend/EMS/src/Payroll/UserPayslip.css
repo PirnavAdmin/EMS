@@ -341,7 +341,7 @@
 }
 
 /* RESPONSIVE */
-@media (max-width: 992px) {
+@media (max-width: 991px) {
   .salary-cards {
     flex-direction: column;
   }
@@ -352,7 +352,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .payslip-container {
     padding: 16px;
   }
@@ -400,7 +400,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 576px) {
   .main-title {
     font-size: 19px;
   }
@@ -425,3 +425,5 @@
     font-size: 17px;
   }
 }
+
+

@@ -23,6 +23,10 @@
 
 
 .emp-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: var(--surface-info-soft);
   color: var(--theme-info);
   border: 1px solid var(--surface-info-soft);
@@ -350,7 +354,7 @@
   border-collapse: separate;
   border-spacing: 0;
 
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 /* =========================================
@@ -925,7 +929,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 991px) {
   .emp-modal-box.salary-modal {
     width: min(760px, 100%);
   }
@@ -945,7 +949,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .emp-header-actions {
     width: 100%;
   }
@@ -1142,3 +1146,6 @@ button.emp-save-btn,
 button.emp-close-btn {
   background-clip: padding-box !important;
 }
+
+
+

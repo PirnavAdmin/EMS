@@ -196,7 +196,7 @@ html[data-theme-mode="dark"] .date-box input.date-picker-input {
 }
 
 /* RESPONSIVE */
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .attendance-table-header,
   .attendance-row {
     grid-template-columns: 1.5fr 1fr 1fr;
@@ -208,7 +208,7 @@ html[data-theme-mode="dark"] .date-box input.date-picker-input {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 576px) {
   .attendance-header {
     flex-direction: column;
     align-items: flex-start;
@@ -219,3 +219,5 @@ html[data-theme-mode="dark"] .date-box input.date-picker-input {
     width: 100%;
   }
 }
+
+

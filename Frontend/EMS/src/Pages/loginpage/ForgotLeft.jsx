@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { FaEnvelope } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
-import { API_ENDPOINTS, getAuthRoleForEmail } from "../../api/endpoints";
+import { API_ENDPOINTS } from "../../api/endpoints";
+import { resolveAuthRole } from "../../utils/authorization";
 import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
 
@@ -12,6 +13,69 @@ export default function ForgotLeft() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const authRequestOptions = {
+    skipAuth: true,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  const shouldFallbackToUserFlow = (error) => {
+    const status = error?.response?.status;
+
+    if ([400, 401, 403, 404].includes(status)) {
+      return true;
+    }
+
+    const message = String(
+      error?.response?.data?.message ||
+        error?.response?.data ||
+        error?.message ||
+        ""
+    ).toLowerCase();
+
+    return /invalid|unauthori[sz]ed|role|credential|account|not found|does not exist/.test(
+      message
+    );
+  };
+
+  const requestOtp = async () => {
+    const payload = { email };
+    const authFlows = ["admin", "user"];
+    let lastError = null;
+
+    for (const flowRole of authFlows) {
+      try {
+        const response = await api.post(
+          API_ENDPOINTS.auth.forgotPasswordByRole(flowRole),
+          payload,
+          authRequestOptions
+        );
+
+        return {
+          response,
+          role:
+            resolveAuthRole(
+              response.data?.role ||
+                response.data?.roleName ||
+                flowRole,
+              flowRole
+            ) || flowRole,
+        };
+      } catch (error) {
+        lastError = error;
+
+        if (flowRole === "admin" && shouldFallbackToUserFlow(error)) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastError;
+  };
 
   const handleChange = (event) => {
     const value = event.target.value.toLowerCase();
@@ -47,18 +111,7 @@ export default function ForgotLeft() {
     setLoading(true);
 
     try {
-      const role = getAuthRoleForEmail(email);
-
-      await api.post(
-        API_ENDPOINTS.auth.forgotPasswordByRole(role),
-        { email },
-        {
-          skipAuth: true,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const { role } = await requestOtp();
 
       setSuccess("OTP sent successfully. Redirecting to verification...");
 

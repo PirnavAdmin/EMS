@@ -5,8 +5,6 @@ const normalizePath = (path) =>
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/{2,}/g, "/");
-const ADMIN_EMAIL = "admin@ems.com";
- 
 export const API = {
   // ================= AUTH =================
   AUTH: {
@@ -121,6 +119,7 @@ export const API = {
     UPDATE: (id) => `/Employees/${id}`,
     DELETE: (id) => `/Employees/${id}`,
     DOWNLOAD_FULL_MASTER: "/Employees/download-full-master",
+    DOWNLOAD_EMPLOYEE_TEMPLATE: "/Employees/download-employee-template",
     BULK_UPLOAD: "/Employees/bulk-upload",
     UPCOMING_BIRTHDAYS: "/Employees/upcoming-birthdays",
     EXPORT_PROFILE_PDF: (employeeId) =>
@@ -215,6 +214,19 @@ export const API = {
     UPDATE_STATUS: (id) => `/EmployeeLeave/update-wfh-status/${id}`,
     CANCEL: (id) => `/EmployeeLeave/cancel-wfh/${id}`,
   },
+
+  // ================= SETTINGS =================
+  SETTINGS: {
+    EMAIL: "/Settings/email",
+    ATTENDANCE: "/Settings/attendance",
+    LEAVE: "/Settings/leave",
+    COMPANY: "/Settings/company",
+    NOTIFICATION: "/Settings/notification",
+    GENERAL: "/Settings/general",
+    POLICIES: "/Settings/policies",
+    POLICY: (type) => `/Settings/policy/${type}`,
+    UPDATE_POLICY: "/Settings/policy",
+  },
  
   // ================= TEAM =================
   TEAM: {
@@ -256,19 +268,21 @@ export const API = {
     UPDATE: (id) => `/Projects/${id}`,
     DELETE: (id) => `/Projects/${id}`,
   },
- 
-  // ================= TASK MANAGEMENT =================
-  TASKS: {
-    LIST: "/TaskManagement",
-    CREATE: "/TaskManagement",
-    GET_BY_EMP: (id) => `/TaskManagement/employee/${id}`,
-    UPDATE: (id) => `/TaskManagement/${id}`,
-    DELETE: (id) => `/TaskManagement/${id}`,
-    UPDATE_STATUS: (id) => `/TaskManagement/${id}/status`,
-    USER_UPDATE: (id) => `/TaskManagement/user/update-status/${id}`,
-    MY_TASKS: "/TaskManagement/my-tasks",
+
+  // ================= TICKETS =================
+  TICKETS: {
+    LIST: "/Ticket/GetAll",
+    CREATE: "/Ticket/Create",
+    GET_BY_ID: (id) => `/Ticket/${id}`,
+    UPDATE: (id) => `/Ticket/Update/${id}`,
+    DELETE: (id) => `/Ticket/${id}`,
+    UPDATE_STATUS: (id) => `/Ticket/UpdateStatus/${id}`,
+    MY_TICKETS: "/Ticket/MyTickets",
+    EXPORT: "/Ticket/Export",
+    DOWNLOAD_TEMPLATE: "/Ticket/DownloadTemplate",
+    BULK_UPLOAD: "/Ticket/BulkUpload",
   },
- 
+
   // ================= ROLES =================
   ROLES: {
     LIST: "/Roles",
@@ -378,6 +392,7 @@ export const API_ENDPOINTS = {
     list: API.EMPLOYEES.LIST,
     byId: API.EMPLOYEES.UPDATE,
     downloadFullMaster: API.EMPLOYEES.DOWNLOAD_FULL_MASTER,
+    downloadEmployeeTemplate: API.EMPLOYEES.DOWNLOAD_EMPLOYEE_TEMPLATE,
     bulkUpload: API.EMPLOYEES.BULK_UPLOAD,
     upcomingBirthdays: API.EMPLOYEES.UPCOMING_BIRTHDAYS,
     exportProfilePdf: API.EMPLOYEES.EXPORT_PROFILE_PDF,
@@ -486,6 +501,17 @@ export const API_ENDPOINTS = {
     updateStatus: API.WFH.UPDATE_STATUS,
     cancel: API.WFH.CANCEL,
   },
+  settings: {
+    email: API.SETTINGS.EMAIL,
+    attendance: API.SETTINGS.ATTENDANCE,
+    leave: API.SETTINGS.LEAVE,
+    company: API.SETTINGS.COMPANY,
+    notification: API.SETTINGS.NOTIFICATION,
+    general: API.SETTINGS.GENERAL,
+    policies: API.SETTINGS.POLICIES,
+    policy: API.SETTINGS.POLICY,
+    updatePolicy: API.SETTINGS.UPDATE_POLICY,
+  },
   team: {
     list: API.TEAM.LIST,
     create: API.TEAM.CREATE,
@@ -502,11 +528,17 @@ export const API_ENDPOINTS = {
       list: API.PROJECTS.LIST,}
  
   },
-  tasks: {
-    list: API.TASKS.LIST,
-    byId: API.TASKS.UPDATE,
-    myTasks: API.TASKS.MY_TASKS,
-    updateUserStatus: API.TASKS.USER_UPDATE,
+  tickets: {
+    list: API.TICKETS.LIST,
+    create: API.TICKETS.CREATE,
+    byId: API.TICKETS.GET_BY_ID,
+    update: API.TICKETS.UPDATE,
+    delete: API.TICKETS.DELETE,
+    updateStatus: API.TICKETS.UPDATE_STATUS,
+    myTickets: API.TICKETS.MY_TICKETS,
+    export: API.TICKETS.EXPORT,
+    downloadTemplate: API.TICKETS.DOWNLOAD_TEMPLATE,
+    bulkUpload: API.TICKETS.BULK_UPLOAD,
   },
   notifications: {
     admin: API.ADMIN_NOTIFICATION.LIST,
@@ -555,8 +587,4 @@ export const buildServerUrl = (path) =>
  
     return `${SERVER_URL}/${normalizePath(rawPath)}`;
   })();
- 
-export const getAuthRoleForEmail = (email = "") =>
-  String(email).trim().toLowerCase() === ADMIN_EMAIL ? "admin" : "user";
- 
  

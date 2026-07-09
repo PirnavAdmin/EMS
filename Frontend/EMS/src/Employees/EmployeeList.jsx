@@ -34,6 +34,9 @@ const initialEmployeeForm = {
   joined: "",
 };
 
+const EXCEL_MIME_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 const normalizeRoleOptions = (response) =>
   extractCollection(response).map((role) => ({
     roleId: role.roleId ?? role.id ?? role.role_Id ?? "",
@@ -128,6 +131,57 @@ function EmployeeList() {
   });
 
   const isEditMode = Boolean(empForm.originalId);
+
+  const downloadEmployeeExcelFile = async ({
+    endpoint,
+    filename,
+    successMessage,
+    errorMessage,
+    setLoadingState,
+    consoleLabel,
+  }) => {
+    try {
+      setLoadingState(true);
+
+      const response = await api.get(endpoint, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([response.data], {
+        type: EXCEL_MIME_TYPE,
+      });
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setMessage(successMessage);
+      setMessageType("success");
+    } catch (error) {
+      console.error(`${consoleLabel} error:`, error);
+      setMessage(errorMessage);
+      setMessageType("error");
+    } finally {
+      setLoadingState(false);
+    }
+  };
+
+  const handleDownloadExcel = () =>
+    downloadEmployeeExcelFile({
+      endpoint: API_ENDPOINTS.employees.downloadFullMaster,
+      filename: "employee-full-master.xlsx",
+      successMessage: "Download completed successfully.",
+      errorMessage: "Failed to download Employee Excel.",
+      setLoadingState: setIsDownloading,
+      consoleLabel: "Employee Excel download",
+    });
 
   useEffect(() => {
     const loadData = async () => {
@@ -681,44 +735,7 @@ function EmployeeList() {
           <button
             className="emp-download-btn"
             disabled={isDownloading}
-            onClick={async () => {
-              try {
-                setIsDownloading(true);
-
-                const response = await api.get(
-                  API_ENDPOINTS.employees.downloadFullMaster,
-                  {
-                    responseType: "blob",
-                  }
-                );
-
-                const blob = new Blob([response.data], {
-                  type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                });
-
-                const downloadUrl = window.URL.createObjectURL(blob);
-
-                const link = document.createElement("a");
-                link.href = downloadUrl;
-                link.download = "employee-full-master.xlsx";
-
-                document.body.appendChild(link);
-                link.click();
-
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(downloadUrl);
-
-                setMessage("Download completed successfully.");
-                setMessageType("success");
-              } catch (error) {
-                console.error("Download error:", error);
-
-                setMessage("Failed to download Employee Excel.");
-                setMessageType("error");
-              } finally {
-                setIsDownloading(false);
-              }
-            }}
+            onClick={handleDownloadExcel}
           >
             {isDownloading ? "Downloading..." : "Download Excel"}
           </button>

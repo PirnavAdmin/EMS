@@ -221,7 +221,16 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(result);
 
         }
+        [HttpGet("download-employee-template")]
+        public async Task<IActionResult> DownloadEmployeeTemplate()
+        {
+            var fileBytes = await _employeeService.DownloadEmployeeUploadTemplate();
 
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Employee_Upload_Template.xlsx");
+        }
 
         [HttpGet("upcoming-birthdays")]
         public async Task<IActionResult> GetUpcomingBirthdays()

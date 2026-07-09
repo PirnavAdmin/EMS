@@ -13,7 +13,7 @@ namespace EmployeeManagementSystem.Services
 
         Task<string> DeleteEmployee(string employeeId);
         Task<byte[]> ExportFullEmployeeMaster();
-
+        Task<byte[]> DownloadEmployeeUploadTemplate();
         Task<Employee?> GetEmployeeByEmployeeId(string employeeId);
         Task SaveChanges();
         Task<byte[]> ExportEmployeeProfilePdf(string employeeId);

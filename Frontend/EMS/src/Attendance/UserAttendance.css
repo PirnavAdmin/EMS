@@ -474,7 +474,7 @@ button:hover::after {
 }
  
 /* Mobile */
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .attendance-page {
     padding: 16px;
   }
@@ -775,3 +775,5 @@ button:hover::after {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+

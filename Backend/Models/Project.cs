@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using EmployeeManagementSystem.Models;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("Projects")]
@@ -25,6 +26,10 @@ public class Project
     public DateTime? End_Date { get; set; }
 
     public string? Team_Members { get; set; }
+    [Required]
+    public string ProjectCode { get; set; } = string.Empty;
+    public ICollection<ProjectTeamMember> ProjectTeamMembers { get; set; }
+     = new List<ProjectTeamMember>();
 
     [Required]
     public string Status { get; set; } = string.Empty;

@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
-import { API_ENDPOINTS, getAuthRoleForEmail } from "../../api/endpoints";
+import { API_ENDPOINTS } from "../../api/endpoints";
+import { resolveAuthRole } from "../../utils/authorization";
 import AuthField from "./AuthField";
 import AuthLayout from "./AuthLayout";
 import LoginRight from "./LoginRight";
@@ -18,7 +19,7 @@ export default function ResetPassword() {
   const location = useLocation();
   const email = location.state?.email;
   const otp = location.state?.otp;
-  const role = location.state?.role || getAuthRoleForEmail(email);
+  const role = resolveAuthRole(location.state?.role, "user");
 
   const [formData, setFormData] = useState({
     password: "",

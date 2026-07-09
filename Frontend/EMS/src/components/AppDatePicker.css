@@ -1,1 +1,240 @@
-/* Shared date-picker styling lives in src/index.css now. */
+/* =========================================
+   DATE PICKER POPPER
+========================================= */
+
+.app-date-popper {
+  z-index: 99999 !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+/* =========================================
+   MAIN CALENDAR
+========================================= */
+
+.app-date-calendar {
+  width: 250px !important;
+  min-width: 250px !important;
+  background: #2b2f38 !important;
+  border: 1px solid #404857 !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+.react-datepicker__month-container {
+  width: 100% !important;
+}
+
+/* =========================================
+   HEADER
+========================================= */
+
+.app-date-calendar .react-datepicker__header {
+  background: #2b2f38 !important;
+  border-bottom: 1px solid #404857 !important;
+  padding: 8px !important;
+}
+
+.app-calendar-header {
+  width: 100%;
+}
+
+.app-calendar-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.app-calendar-current-month {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+}
+
+/* =========================================
+   NAVIGATION BUTTONS
+========================================= */
+
+.app-calendar-nav-button {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  border: none;
+  border-radius: 50%;
+  background: #343945;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.app-calendar-nav-button:hover {
+  background: #404857;
+}
+
+.app-calendar-nav-button span {
+  width: 5px;
+  height: 5px;
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  transform: rotate(-45deg);
+}
+
+.app-calendar-nav-button-next span {
+  transform: rotate(135deg);
+}
+
+/* =========================================
+   MONTH & YEAR DROPDOWNS
+========================================= */
+
+.app-calendar-dropdown-row {
+  display: flex;
+  gap: 8px;
+}
+
+.app-calendar-dropdown {
+  flex: 1;
+  position: relative;
+}
+
+.app-calendar-dropdown-button {
+  width: 100%;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #4b5563;
+  background: #343945;
+  color: #ffffff;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.app-calendar-dropdown-chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(45deg);
+}
+
+/* =========================================
+   DROPDOWN MENU
+========================================= */
+
+.app-calendar-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #343945;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 1000;
+}
+
+.app-calendar-dropdown-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+}
+
+.app-calendar-dropdown-option:hover {
+  background: #404857;
+}
+
+.app-calendar-dropdown-option.is-selected {
+  background: #3b82f6;
+}
+
+/* =========================================
+   WEEK HEADER
+========================================= */
+
+.app-date-calendar .react-datepicker__day-names {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+.app-date-calendar .react-datepicker__day-name {
+  width: 26px !important;
+  height: 26px !important;
+  line-height: 26px !important;
+  margin: 0 1px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #9ca3af !important;
+  text-align: center;
+}
+
+/* =========================================
+   DAYS
+========================================= */
+
+.app-date-calendar .react-datepicker__month {
+  margin: 4px !important;
+}
+
+.app-date-calendar .react-datepicker__week {
+  display: flex !important;
+  justify-content: center !important;
+  margin: 1px 0 !important;
+}
+
+.app-date-calendar .react-datepicker__day {
+  width: 26px !important;
+  height: 26px !important;
+  line-height: 26px !important;
+  margin: 0 1px !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.app-date-calendar .react-datepicker__day:hover {
+  background: rgba(59, 130, 246, 0.2) !important;
+}
+
+.app-date-calendar .react-datepicker__day--selected,
+.app-date-calendar .react-datepicker__day--keyboard-selected {
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+.app-date-calendar .react-datepicker__day--today {
+  font-weight: 700;
+}
+
+.app-date-calendar .react-datepicker__day--outside-month {
+  color: #6b7280 !important;
+}
+
+.app-date-calendar .react-datepicker__day--disabled {
+  color: #6b7280 !important;
+}

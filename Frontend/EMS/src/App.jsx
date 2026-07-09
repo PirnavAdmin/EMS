@@ -1,4 +1,4 @@
-import React, { lazy, memo, Suspense, useEffect, useMemo } from "react";
+import React, { lazy, memo, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -7,13 +7,15 @@ import {
   useLocation,
 } from "react-router-dom";
 import "./App.css";
+import AdminRoute from "./routes/AdminRoute";
 
 import GlobalUiController from "./components/GlobalUiController";
 import {
   getStoredPermissions,
-  getStoredRole,
   getStoredToken,
 } from "./utils/authStorage";
+import { hasRole, isAdmin } from "./utils/authorization";
+import { ticketPermissionMatches } from "./TicketManagement/ticketConfig";
 import {
   clearSessionTimer,
   handleAutoLogout,
@@ -29,14 +31,6 @@ import "./theme/theme-overrides.css";
 import { PageSkeleton } from "./components/Skeletons";
 
 /* ================= HELPERS ================= */
-
-const normalize = (name) =>
-  (name || "")
-    .toLowerCase()
-    .replace(/^user\s+/i, "")
-    .replace(/^admin\s+/i, "")
-    .replace(/[^a-z0-9]/g, "")
-    .trim();
 
 const PUBLIC_ROUTES = new Set([
   "/login",
@@ -90,6 +84,7 @@ const ScreenPermissions = lazyRoute("screen-permissions", () => import("./Employ
 const Departments = lazyRoute("departments", () => import("./Departments/Departments"));
 const CompanyDetails = lazyRoute("company", () => import("./Company/CompanyDetails"));
 const Projects = lazyRoute("projects", () => import("./Company/Projects"));
+const ProjectDetails = lazyRoute("project-details", () => import("./Company/ProjectDetails"));
 const Holidays = lazyRoute("holidays", () => import("./Company/Holidays"));
 const UserHolidays = lazyRoute("user-holidays", () => import("./Company/UserHolidays"));
 
@@ -105,8 +100,8 @@ const UserLeaveManagement = lazyRoute("user-leave-management", () => import("./L
 const Teams = lazyRoute("teams", () => import("./Teams/Teams"));
 const TeamDetails = lazyRoute("team-details", () => import("./Teams/TeamDetails"));
 
-const TaskManagement = lazyRoute("tasks", () => import("./TaskManagement/TaskManagement"));
-const UserTaskManagement = lazyRoute("user-tasks", () => import("./TaskManagement/UserTaskManagement"));
+const TicketManagement = lazyRoute("ticket-management", () => import("./TicketManagement/TicketManagement"));
+const MyTickets = lazyRoute("my-tickets", () => import("./TicketManagement/MyTickets"));
 
 const Notifications = lazyRoute("notifications", () => import("./Notifications/Notifications"));
 const UserNotifications = lazyRoute("user-notifications", () => import("./Notifications/UserNotifications"));
@@ -116,6 +111,8 @@ const UserPayslip = lazyRoute("user-payslip", () => import("./Payroll/UserPaysli
 
 const OfferLetters = lazyRoute("offer-letters", () => import("./OfferLetters/OfferLetters"));
 const Reports = lazyRoute("reports", () => import("./Reports/Reports"));
+const SettingsPage = lazyRoute("settings", () => import("./Pages/Settings/SettingsPage"));
+const AccessDenied = lazyRoute("access-denied", () => import("./Pages/AccessDenied"));
 
 const MainLayout = lazyRoute("main-layout", () => import("./MainLayout"));
 
@@ -129,7 +126,10 @@ const PrivateRoute = ({ children }) => {
   }
 
   if (isSessionExpired()) {
-    handleAutoLogout({ redirect: false });
+    handleAutoLogout({
+      reason: "PrivateRoute detected an expired session.",
+    });
+
     return <Navigate to="/login" replace />;
   }
 
@@ -142,11 +142,14 @@ const SessionController = () => {
   useEffect(() => {
     if (!getStoredToken()) {
       clearSessionTimer();
+      redirectToLoginIfNeeded();
       return;
     }
 
     if (isSessionExpired()) {
-      handleAutoLogout();
+      handleAutoLogout({
+        reason: "SessionController detected an expired session",
+      });
       return;
     }
 
@@ -162,7 +165,9 @@ const SessionController = () => {
       }
 
       if (isSessionExpired()) {
-        handleAutoLogout();
+        handleAutoLogout({
+          reason: "SessionController detected an expired session",
+        });
         return;
       }
 
@@ -204,30 +209,39 @@ const SessionController = () => {
 /* ================= PERMISSION ================= */
 
 const PermissionRoute = ({ module, children }) => {
-  const role = getStoredRole();
   const modules = getStoredPermissions();
 
-  // Optimization: normalize permission names once per route render instead of during every lookup.
-  const allowedModules = useMemo(
-    () =>
-      (modules || [])
-        .filter((m) => (m.canAccess ?? m.CanAccess ?? true) === true)
-        .map((m) => normalize(m.moduleName)),
-    [modules]
-  );
-
   // ADMIN -> full access
-  if (role === "admin") return children;
+  if (isAdmin()) return children;
 
   // NO DEFAULT MODULES
   if (!modules || modules.length === 0) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  const normalizedModule = normalize(module);
-  const hasAccess = allowedModules.includes(normalizedModule);
+  const hasAccess = (modules || []).some(
+    (item) => {
+      if ((item.canAccess ?? item.CanAccess ?? true) !== true) {
+        return false;
+      }
 
-  return hasAccess ? children : <Navigate to="/unauthorized" replace />;
+      const normalizedModuleName = String(item.moduleName || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+      if (normalizedModuleName === "all") {
+        return true;
+      }
+
+      return ticketPermissionMatches(item.moduleName, module);
+    }
+  );
+
+  if (hasAccess) {
+    return children;
+  }
+
+  return <Navigate to="/unauthorized" replace />;
 };
 
 /* ================= APP ================= */
@@ -245,6 +259,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/otp" element={<OtpVerification />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/access-denied" element={<AccessDenied />} />
 
           <Route
             element={
@@ -289,7 +304,7 @@ function App() {
             <Route
               path="/add-employee"
               element={
-                getStoredRole() === "user" ? (
+                hasRole("user", "employee") ? (
                   <AddEmployee />
                 ) : (
                   <PermissionRoute module="Add Employee">
@@ -333,6 +348,15 @@ function App() {
               element={
                 <PermissionRoute module="Projects">
                   <Projects />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/projects/:projectId"
+              element={
+                <PermissionRoute module="Projects">
+                  <ProjectDetails />
                 </PermissionRoute>
               }
             />
@@ -425,21 +449,21 @@ function App() {
               }
             />
 
-            {/* TASKS */}
+            {/* TICKETS */}
             <Route
-              path="/tasks"
+              path="/admin/tickets"
               element={
-                <PermissionRoute module="Task Management">
-                  <TaskManagement />
+                <PermissionRoute module="All Tickets">
+                  <TicketManagement />
                 </PermissionRoute>
               }
             />
 
             <Route
-              path="/user-tasks"
+              path="/employee/my-tickets"
               element={
-                <PermissionRoute module="User Task Management">
-                  <UserTaskManagement />
+                <PermissionRoute module="My Tickets">
+                  <MyTickets />
                 </PermissionRoute>
               }
             />
@@ -499,9 +523,21 @@ function App() {
                 </PermissionRoute>
               }
             />
+
+            <Route
+              path="/settings"
+              element={
+                <AdminRoute>
+                  <SettingsPage />
+                </AdminRoute>
+              }
+            />
           </Route>
 
-          <Route path="/unauthorized" element={<h2>No Access ðŸš«</h2>} />
+          <Route
+            path="/unauthorized"
+            element={<Navigate to="/access-denied" replace />}
+          />
         </Routes>
       </Suspense>
     </BrowserRouter>

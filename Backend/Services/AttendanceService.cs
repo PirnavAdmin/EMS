@@ -82,7 +82,7 @@ namespace EmployeeManagementSystem.Services
 
         }
 
-       
+
 
         private async Task<Employee?> GetEmployee(ClaimsPrincipal user)
 
@@ -103,7 +103,7 @@ namespace EmployeeManagementSystem.Services
      ClaimsPrincipal user,
      CheckInLocationDto dto)
         {
-           
+
             var emp = await GetEmployee(user);
 
             if (emp == null)
@@ -133,7 +133,7 @@ namespace EmployeeManagementSystem.Services
             var now = DateTime.UtcNow;
             var ist = ConvertToIST(now);
 
-            
+
 
             var checkInStartTime = new TimeSpan(8, 55, 0);
 
@@ -186,7 +186,7 @@ namespace EmployeeManagementSystem.Services
                 existing.CheckInLongitude = dto.Longitude;
 
                 existing.LastActivityTime = DateTime.UtcNow;
-              
+
                 _context.ActivityLogs.Add(new ActivityLog
                 {
                     Activity = $"{employeeName} checked in (GPS Test)",
@@ -211,7 +211,7 @@ namespace EmployeeManagementSystem.Services
                 WorkingMinutes = 0,
                 CheckInLatitude = dto.Latitude,
                 CheckInLongitude = dto.Longitude,
-             
+
                 LastActivityTime = DateTime.UtcNow
             });
 
@@ -269,10 +269,10 @@ namespace EmployeeManagementSystem.Services
 
                 return new BadRequestObjectResult("Check-in not found");
 
-            
-            
-   
-           
+
+
+
+
             var now = DateTime.UtcNow;
 
             att.Check_Out = now;
@@ -295,14 +295,14 @@ namespace EmployeeManagementSystem.Services
                 {
                     att.Status = "Present";
                 }
-            
-        }
+
+            }
             else
                 att.Status = "Absent";
             // Store checkout location
             att.CheckOutLatitude = dto.Latitude;
             att.CheckOutLongitude = dto.Longitude;
-          
+
             if (dto == null)
             {
                 return new BadRequestObjectResult("Checkout payload is null");
@@ -326,9 +326,11 @@ namespace EmployeeManagementSystem.Services
                 att.CheckOutLatitude = dto.Latitude;
                 att.CheckOutLongitude = dto.Longitude;
 
+                // Stores KM (rename column later if possible)
                 att.DistanceMeters = (decimal)distance;
 
-                if (distance <= 500)
+                // Valid within 1 KM
+                if (distance <= 1)
                 {
                     att.LocationStatus = "VALID";
                     att.IsLocationMismatch = false;
@@ -336,29 +338,25 @@ namespace EmployeeManagementSystem.Services
                 }
                 else
                 {
-                    // Reason mandatory
                     if (string.IsNullOrWhiteSpace(dto.LocationChangeReason))
                     {
                         return new BadRequestObjectResult(new
                         {
                             requiresReason = true,
-                            message = "Reason is required when checkout location is more than 500 meters away."
+                            message = "Reason is required when checkout location is more than 1 KM away."
                         });
                     }
 
                     att.LocationStatus = "MISMATCH";
-
                     att.IsLocationMismatch = true;
+                    att.LocationChangeReason = dto.LocationChangeReason.Trim();
 
-                    att.LocationChangeReason =
-                        dto.LocationChangeReason.Trim();
-                    // Get HR, HR Admin and Manager email addresses
                     var allowedRoles = new[]
-  {
-    "HR",
-    "HR Admin",
-    "Manager"
-};
+                    {
+            "HR",
+            "HR Admin",
+            "Manager"
+        };
 
                     var recipients = await (
                         from u in _context.Users
@@ -368,17 +366,14 @@ namespace EmployeeManagementSystem.Services
                               allowedRoles.Contains(r.Name)
                         select u.Email
                     ).ToListAsync();
-                    // Add additional email addresses
+
                     recipients.Add("hr.admin@pirnav.com");
-                    
                     recipients.Add("hr@pirnav.com");
 
-                    // Remove duplicate email addresses
                     recipients = recipients
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
 
-                    // Send email to everyone
                     foreach (var email in recipients)
                     {
                         await _emailService.SendLocationMismatchEmail(
@@ -390,7 +385,7 @@ namespace EmployeeManagementSystem.Services
                             att.CheckInLongitude.Value,
                             (decimal)dto.Latitude,
                             (decimal)dto.Longitude,
-                            (decimal)distance,
+                            (decimal)distance,   // Distance in KM
                             dto.LocationChangeReason
                         );
                     }
@@ -406,10 +401,13 @@ namespace EmployeeManagementSystem.Services
                 Message = "Check-out successful",
 
                 CheckOutTime = ConvertToIST(att.Check_Out.Value)
-                    .ToString("hh:mm:ss tt"),
+         .ToString("hh:mm:ss tt"),
 
                 CheckOutLatitude = att.CheckOutLatitude,
                 CheckOutLongitude = att.CheckOutLongitude,
+
+                Distance = Math.Round((double)att.DistanceMeters, 2),
+                DistanceUnit = "KM",
 
                 WorkingHours = FormatHours(att.WorkingMinutes),
 
@@ -461,13 +459,20 @@ namespace EmployeeManagementSystem.Services
             date = date.Date;
 
             var employees = await _context.Employees
-                .AsNoTracking()
-                .ToListAsync();
+    .AsNoTracking()
+    .OrderBy(e => e.Employee_Id)
+    .ToListAsync();
 
             var attendanceList = await _context.Attendance
                 .AsNoTracking()
                 .Where(x => x.Attendance_Date.Date == date)
                 .ToListAsync();
+            var leaves = await _context.EmployeeLeaves
+    .AsNoTracking()
+    .Where(x =>
+        x.Status != null &&
+        x.Status.StartsWith("Approved"))
+    .ToListAsync();
 
             var result = new List<object>();
 
@@ -475,10 +480,25 @@ namespace EmployeeManagementSystem.Services
             {
                 var att = attendanceList
                     .FirstOrDefault(x => x.Employee_Id == emp.Employee_Id);
+                bool isOnLeave = leaves.Any(l =>
+                    l.EmployeeId == emp.Employee_Id &&
+                    date >= l.FromDate.Date &&
+                    date <= l.ToDate.Date);
 
-                string finalStatus = att != null
-                    ? MapStatus(att.Status)
-                    : "Absent";
+                string finalStatus;
+
+                if (att != null)
+                {
+                    finalStatus = MapStatus(att.Status);
+                }
+                else if (isOnLeave)
+                {
+                    finalStatus = "On Leave";   // or "OL" if that's what your UI expects
+                }
+                else
+                {
+                    finalStatus = "Absent";
+                }
 
                 if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(finalStatus, status, StringComparison.OrdinalIgnoreCase))
@@ -579,25 +599,28 @@ namespace EmployeeManagementSystem.Services
         public async Task<List<AdminEmployeeAttendanceDto>> GetAllEmployeeAttendance(int month, int year)
         {
             await CheckMissingCheckouts();
-            var employees = await _context.Employees
-                .AsNoTracking()
-                .AsNoTracking().ToListAsync();
 
-            // ✅ Preload data (MAIN OPTIMIZATION)
+            var employees = await _context.Employees
+    .AsNoTracking()
+    .OrderBy(e => e.Employee_Id)
+    .ToListAsync();
+
             var attendanceData = await _context.Attendance
                 .AsNoTracking()
-                .Where(x => x.Attendance_Date.Month == month && x.Attendance_Date.Year == year)
-                .AsNoTracking().ToListAsync();
+                .Where(x => x.Attendance_Date.Month == month &&
+                            x.Attendance_Date.Year == year)
+                .ToListAsync();
 
             var holidays = await _context.Holidays
                 .AsNoTracking()
-                .Where(h => h.Holiday_Date.Month == month && h.Holiday_Date.Year == year)
-                .AsNoTracking().ToListAsync();
+                .Where(h => h.Holiday_Date.Month == month &&
+                            h.Holiday_Date.Year == year)
+                .ToListAsync();
 
             var leaves = await _context.EmployeeLeaves
-    .AsNoTracking()
-    .Where(l => l.Status.StartsWith("Approved"))
-    .ToListAsync();
+                .AsNoTracking()
+                .Where(l => l.Status.StartsWith("Approved"))
+                .ToListAsync();
 
             var result = new List<AdminEmployeeAttendanceDto>();
 
@@ -607,10 +630,11 @@ namespace EmployeeManagementSystem.Services
 
                 for (int d = 1; d <= DateTime.DaysInMonth(year, month); d++)
                 {
-                    var date = new DateTime(year, month, d, 0, 0, 0, DateTimeKind.Utc);
+                    var date = new DateTime(year, month, d);
 
                     // Weekend
-                    if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                    if (date.DayOfWeek == DayOfWeek.Saturday ||
+                        date.DayOfWeek == DayOfWeek.Sunday)
                     {
                         days.Add(new AdminAttendanceDayDto
                         {
@@ -621,7 +645,9 @@ namespace EmployeeManagementSystem.Services
                     }
 
                     // Holiday
-                    var holiday = holidays.FirstOrDefault(h => h.Holiday_Date.Date == date.Date);
+                    var holiday = holidays.FirstOrDefault(h =>
+                        h.Holiday_Date.Date == date.Date);
+
                     if (holiday != null)
                     {
                         days.Add(new AdminAttendanceDayDto
@@ -632,11 +658,43 @@ namespace EmployeeManagementSystem.Services
                         continue;
                     }
 
-                    // Leave
+                    // ==========================
+                    // ATTENDANCE (FIRST PRIORITY)
+                    // ==========================
+                    var att = attendanceData.FirstOrDefault(x =>
+                        x.Employee_Id == emp.Employee_Id &&
+                        x.Attendance_Date.Date == date.Date);
+
+                    if (att != null)
+                    {
+                        days.Add(new AdminAttendanceDayDto
+                        {
+                            Day = d,
+                            Status = date.Date > DateTime.UtcNow.Date
+                                ? "-"
+                                : MapStatus(att.Status),
+
+                            CheckIn = att.Check_In != null
+                                ? ConvertToIST(att.Check_In.Value)
+                                : null,
+
+                            CheckOut = att.Check_Out != null
+                                ? ConvertToIST(att.Check_Out.Value)
+                                : null,
+
+                            WorkingMinutes = att.WorkingMinutes
+                        });
+
+                        continue;
+                    }
+
+                    // ==========================
+                    // FALLBACK FOR OLD LEAVES
+                    // ==========================
                     var leave = leaves.FirstOrDefault(l =>
                         l.EmployeeId == emp.Employee_Id &&
-                        date >= l.FromDate &&
-                        date <= l.ToDate);
+                        date.Date >= l.FromDate.Date &&
+                        date.Date <= l.ToDate.Date);
 
                     if (leave != null)
                     {
@@ -645,23 +703,23 @@ namespace EmployeeManagementSystem.Services
                             Day = d,
                             Status = "OL"
                         });
+
                         continue;
                     }
 
-                    // Attendance
-                    var att = attendanceData.FirstOrDefault(x =>
-                        x.Employee_Id == emp.Employee_Id &&
-                        x.Attendance_Date.Date == date.Date);
-
+                    // ==========================
+                    // NO ATTENDANCE
+                    // ==========================
                     days.Add(new AdminAttendanceDayDto
                     {
                         Day = d,
                         Status = date.Date > DateTime.UtcNow.Date
-    ? "-"
-    : (att != null ? MapStatus(att.Status) : "Absent"),
-                        CheckIn = att?.Check_In != null ? ConvertToIST(att.Check_In.Value) : null,
-                        CheckOut = att?.Check_Out != null ? ConvertToIST(att.Check_Out.Value) : null,
-                        WorkingMinutes = att?.WorkingMinutes ?? 0
+                            ? "-"
+                            : "Absent",
+
+                        CheckIn = null,
+                        CheckOut = null,
+                        WorkingMinutes = 0
                     });
                 }
 
@@ -893,7 +951,7 @@ namespace EmployeeManagementSystem.Services
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
                         Hours = "0h 0m"
-                       
+
                     });
                     continue;
                 }
@@ -913,7 +971,7 @@ namespace EmployeeManagementSystem.Services
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
                         Hours = "0h 0m"
-                      
+
                     });
 
                     continue;
@@ -960,7 +1018,7 @@ namespace EmployeeManagementSystem.Services
     : "0h 0m"
 
                 });
-            
+
             }
 
             return new OkObjectResult(result);
@@ -1031,7 +1089,7 @@ namespace EmployeeManagementSystem.Services
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
                         Hours = "0h 0m"
-                      
+
                     });
                     continue;
 
@@ -1073,7 +1131,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = date.Day,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "L",
+                        Status = "On Leave",
                         LeaveType = leave.LeaveType, // ✅ ADD THIS
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
@@ -1118,7 +1176,7 @@ namespace EmployeeManagementSystem.Services
            ? FormatHours(att.WorkingMinutes)
            : "0h 0m"
 
-                   
+
                 });
 
             }
@@ -1222,7 +1280,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = date.Day,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "L",
+                        Status = "On Leave",
                         LeaveType = leave.LeaveType, // ✅ ADD THIS
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
@@ -1257,7 +1315,7 @@ namespace EmployeeManagementSystem.Services
             ? FormatHours(att.WorkingMinutes)
             : "0h 0m",
 
-                   
+
                 });
             }
 
@@ -1398,10 +1456,10 @@ namespace EmployeeManagementSystem.Services
 
                 // ✅ LEAVE
                 var leave = await _context.EmployeeLeaves
-                    .FirstOrDefaultAsync(l => l.EmployeeId == employeeId &&
-                                             l.Status == "Approved" &&
-                                             date >= l.FromDate &&
-                                             date <= l.ToDate);
+      .FirstOrDefaultAsync(l => l.EmployeeId == employeeId &&
+                                l.Status.StartsWith("Approved") &&
+                                date >= l.FromDate &&
+                                date <= l.ToDate);
 
                 if (leave != null)
                 {
@@ -1409,7 +1467,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = i,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "L",
+                        Status = "On Leave",
                         HolidayName = (string?)null,
                         LeaveType = leave.LeaveType,
                         CheckIn = (string?)null,
@@ -1496,14 +1554,30 @@ namespace EmployeeManagementSystem.Services
         }
 
         public async Task<IActionResult> AdminUpdateAttendance(
-            string employeeId,
-            DateTime date,
-            DateTime? checkIn,
-            DateTime? checkOut)
+       ClaimsPrincipal user,
+       string employeeId,
+       DateTime date,
+       DateTime? checkIn,
+       DateTime? checkOut)
         {
+            // Check whether logged-in user is an Admin
+            var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+
+            if (string.IsNullOrWhiteSpace(email))
+                return new UnauthorizedObjectResult("Invalid user.");
+
+            var admin = await _context.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
+
+            if (admin == null)
+                return new UnauthorizedObjectResult("Only Admins can update attendance.");
+
+            // Future date validation
             if (date.Date > DateTime.UtcNow.Date)
                 return new BadRequestObjectResult("Cannot mark future attendance");
 
+            // Weekend validation
             if (date.DayOfWeek == DayOfWeek.Saturday ||
                 date.DayOfWeek == DayOfWeek.Sunday)
             {
@@ -1513,14 +1587,12 @@ namespace EmployeeManagementSystem.Services
 
             var utcDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
 
-            // Holiday check
+            // Holiday validation
             var isHoliday = await _context.Holidays
                 .AnyAsync(h => h.Holiday_Date.Date == utcDate.Date);
 
             if (isHoliday)
-            {
                 return new BadRequestObjectResult("Holiday attendance cannot be updated");
-            }
 
             var attendance = await _context.Attendance
                 .FirstOrDefaultAsync(a =>
@@ -1610,9 +1682,8 @@ namespace EmployeeManagementSystem.Services
 
             await _context.SaveChangesAsync();
 
-            return new OkObjectResult("Attendance updated by admin");
+            return new OkObjectResult("Attendance updated successfully.");
         }
-
         //ATTENDANCE SUMMARY
 
         public async Task<AttendanceSummaryDto> GetMonthlyAttendanceSummary(string employeeId, int month, int year)
@@ -1631,7 +1702,7 @@ namespace EmployeeManagementSystem.Services
                 .AsNoTracking()
 
                 .Where(a =>
-                
+
                     a.Employee_Id == employeeId &&
 
                     a.Attendance_Date >= start &&
@@ -1773,14 +1844,14 @@ namespace EmployeeManagementSystem.Services
                 }
             }
 
-                return new AttendanceSummaryDto
-                {
-                    PresentDays = present,
-                    AbsentDays = absent,
-                    LopDays = lopDays
-                };
+            return new AttendanceSummaryDto
+            {
+                PresentDays = present,
+                AbsentDays = absent,
+                LopDays = lopDays
+            };
 
-            }
+        }
 
 
         public async Task<string> UploadMonthlyAttendance(
@@ -2149,7 +2220,14 @@ namespace EmployeeManagementSystem.Services
         public async Task<byte[]> ExportMonthlyAttendance(int month, int year)
         {
             await CheckMissingCheckouts();
+
             var attendance = await GetAllEmployeeAttendance(month, year);
+
+            // Sort Employee Id in Ascending Order (P001, P002, P003...)
+            attendance = attendance
+                .OrderBy(x => x.EmployeeId)
+                .ToList();
+
             var monthName = new DateTime(year, month, 1).ToString("MMMM");
 
             using var workbook = new XLWorkbook();
@@ -2158,13 +2236,13 @@ namespace EmployeeManagementSystem.Services
             worksheet.Cell(1, 1).Value = "Employee Id";
             worksheet.Cell(1, 2).Value = "Employee Name";
 
-
             int totalDays = DateTime.DaysInMonth(year, month);
 
             for (int day = 1; day <= totalDays; day++)
             {
                 worksheet.Cell(1, day + 2).Value = day;
             }
+
             worksheet.Cell(1, totalDays + 3).Value = "P";
             worksheet.Cell(1, totalDays + 4).Value = "A";
             worksheet.Cell(1, totalDays + 5).Value = "OL";
@@ -2172,7 +2250,9 @@ namespace EmployeeManagementSystem.Services
             worksheet.Cell(1, totalDays + 7).Value = "W";
             worksheet.Cell(1, totalDays + 8).Value = "HD";
             worksheet.Cell(1, totalDays + 9).Value = "H";
-            var header = worksheet.Range(1, 1, 1, totalDays + 2);
+            worksheet.Cell(1, totalDays + 10).Value = "LOP";
+
+            var header = worksheet.Range(1, 1, 1, totalDays + 10);
 
             header.Style.Font.Bold = true;
             header.Style.Fill.BackgroundColor = XLColor.FromHtml("#1F2937");
@@ -2192,12 +2272,14 @@ namespace EmployeeManagementSystem.Services
                 int halfDayCount = 0;
                 int holidayCount = 0;
                 int lopCount = 0;
+
                 worksheet.Cell(row, 1).Value = emp.EmployeeId;
                 worksheet.Cell(row, 2).Value = emp.EmployeeName;
 
                 for (int i = 0; i < emp.Days.Count; i++)
                 {
                     var status = emp.Days[i].Status;
+
                     switch (status)
                     {
                         case "Present":
@@ -2212,15 +2294,19 @@ namespace EmployeeManagementSystem.Services
 
                         case "L":
                         case "On Leave":
+                        case "OL":
                             leaveCount++;
                             break;
 
                         case "Late":
                         case "LT":
+                        case "Late & Missed Checkout":
+                        case "LMC":
                             lateCount++;
                             break;
 
                         case "W":
+                        case "Weekend":
                             weekendCount++;
                             break;
 
@@ -2230,6 +2316,7 @@ namespace EmployeeManagementSystem.Services
                             break;
 
                         case "H":
+                        case "Holiday":
                             holidayCount++;
                             break;
 
@@ -2237,14 +2324,34 @@ namespace EmployeeManagementSystem.Services
                         case "Loss Of Pay":
                             lopCount++;
                             break;
-                    }
 
+                        case "Missed Checkout":
+                        case "MC":
+                            // Optional: Add a separate MC count if required.
+                            break;
+                    }
+                    // Convert long status names to short codes for Excel
+                    string displayStatus = status switch
+                    {
+                        "Present" => "P",
+                        "Absent" => "A",
+                        "On Leave" => "OL",
+                        "Late" => "LT",
+                        "Half Day" => "HD",
+                        "Holiday" => "H",
+                        "Weekend" => "W",
+                        "Loss Of Pay" => "LOP",
+                        "Missed Checkout" => "MC",
+                        "Late & Missed Checkout" => "LMC",
+                        _ => status
+                    };
 
                     var cell = worksheet.Cell(row, i + 3);
-                    cell.Value = status;
+                    cell.Value = displayStatus;
 
-                    ApplyStatusColor(cell, status);
+                    ApplyStatusColor(cell, displayStatus);
                 }
+
                 worksheet.Cell(row, totalDays + 3).Value = presentCount;
                 worksheet.Cell(row, totalDays + 4).Value = absentCount;
                 worksheet.Cell(row, totalDays + 5).Value = leaveCount;
@@ -2252,15 +2359,12 @@ namespace EmployeeManagementSystem.Services
                 worksheet.Cell(row, totalDays + 7).Value = weekendCount;
                 worksheet.Cell(row, totalDays + 8).Value = halfDayCount;
                 worksheet.Cell(row, totalDays + 9).Value = holidayCount;
-                worksheet.Cell(1, totalDays + 10).Value = "LOP";
-
                 worksheet.Cell(row, totalDays + 10).Value = lopCount;
 
                 row++;
             }
 
             worksheet.Rows().Height = 24;
-
             worksheet.Columns().AdjustToContents();
 
             using var stream = new MemoryStream();
@@ -2268,7 +2372,6 @@ namespace EmployeeManagementSystem.Services
 
             return stream.ToArray();
         }
-
         public async Task<byte[]> ExportAbsentEmployees(DateTime date)
         {
             await CheckMissingCheckouts();
@@ -2284,8 +2387,12 @@ namespace EmployeeManagementSystem.Services
                 .ToListAsync();
 
             var absentEmployees = employees
-                .Where(emp => !attendance.Any(a => a.Employee_Id == emp.Employee_Id))
-                .ToList();
+    .Where(emp => !attendance.Any(a => a.Employee_Id == emp.Employee_Id))
+    .OrderBy(emp => int.TryParse(
+        new string(emp.Employee_Id.Where(char.IsDigit).ToArray()),
+        out var id) ? id : int.MaxValue)
+    .ThenBy(emp => emp.Employee_Id)
+    .ToList();
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Absent Employees");
@@ -2321,12 +2428,17 @@ namespace EmployeeManagementSystem.Services
             await CheckMissingCheckouts();
             date = date.Date;
 
-            var attendance = await _context.Attendance
-                .AsNoTracking()
-                .Where(a =>
-                    a.Attendance_Date.Date == date &&
-                    (a.Status == "Present" || a.Status == "Late"))
-                .ToListAsync();
+            var attendance = (await _context.Attendance
+    .AsNoTracking()
+    .Where(a =>
+        a.Attendance_Date.Date == date &&
+        (a.Status == "Present" || a.Status == "Late"))
+    .ToListAsync())
+    .OrderBy(a => int.TryParse(
+        new string(a.Employee_Id.Where(char.IsDigit).ToArray()),
+        out var id) ? id : int.MaxValue)
+    .ThenBy(a => a.Employee_Id)
+    .ToList();
 
             var employees = await _context.Employees
                 .AsNoTracking()
@@ -3088,6 +3200,8 @@ namespace EmployeeManagementSystem.Services
                 {
                     case "Present":
                     case "Late":
+                    case "MC":
+                    case "LMC":
                         present++;
                         break;
 
@@ -3097,8 +3211,6 @@ namespace EmployeeManagementSystem.Services
 
                     case "LOP":
                     case "Absent":
-                    case "MC":
-                    case "LMC":
                         absent++;
                         break;
                 }
@@ -3184,7 +3296,7 @@ namespace EmployeeManagementSystem.Services
                 {
                     status = "-";
                 }
-              
+
                 else if (weekHolidays.Contains(date.Date))
                 {
                     status = "Holiday";
@@ -3268,7 +3380,7 @@ namespace EmployeeManagementSystem.Services
                 .OrderByDescending(x => x.Id)
                 .Select(x => new EmployeeLocationDto
                 {
-                    Id=x.Id,
+                    Id = x.Id,
                     Latitude = x.Latitude,
                     Longitude = x.Longitude
                 })
@@ -3288,14 +3400,30 @@ namespace EmployeeManagementSystem.Services
             cell.Style.Border.OutsideBorderColor = XLColor.LightGray;
 
             cell.Style.Font.FontColor = XLColor.Black;
-
             switch (status)
             {
                 case "Present":
                 case "P":
-                case "Late":
                     cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#DFF6DD");
                     cell.Value = "P";
+                    break;
+
+                case "Late":
+                case "LT":
+                    cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#DFF6DD");
+                    cell.Value = "LT";
+                    break;
+
+                case "Late & Missed Checkout":
+                case "LMC":
+                    cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#DFF6DD");
+                    cell.Value = "LMC";
+                    break;
+
+                case "Missed Checkout":
+                case "MC":
+                    cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FFE699"); // Light Orange
+                    cell.Value = "MC";
                     break;
 
                 case "Absent":
@@ -3325,7 +3453,7 @@ namespace EmployeeManagementSystem.Services
                 case "L":
                 case "On Leave":
                     cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#E9D5FF");
-                    cell.Value = "L";
+                    cell.Value = "OL";
                     break;
 
                 case "LOP":

@@ -108,6 +108,14 @@
   border: 1px solid var(--border-soft);
 }
 
+.bulk-upload-template-actions {
+  align-self: flex-start;
+}
+
+.bulk-upload-template-btn {
+  min-width: 190px;
+}
+
 .bulk-upload-dropzone {
   position: relative;
   display: grid;
@@ -381,7 +389,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .bulk-upload-overlay {
     padding: 12px;
   }
@@ -407,6 +415,7 @@
 
   .bulk-upload-primary,
   .bulk-upload-secondary,
+  .bulk-upload-template-btn,
   .bulk-upload-choose-btn {
     width: 100%;
   }
@@ -419,3 +428,5 @@
     font-size: 16px;
   }
 }
+
+
