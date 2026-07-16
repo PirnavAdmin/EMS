@@ -5,6 +5,28 @@ const normalizePath = (path) =>
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/{2,}/g, "/");
+
+const isUnsafeLocalPath = (value) => {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return false;
+  }
+
+  if (/^file:/i.test(normalizedValue)) {
+    return true;
+  }
+
+  if (/^[a-zA-Z]:[\\/]/.test(normalizedValue)) {
+    return true;
+  }
+
+  if (/^\\\\/.test(normalizedValue)) {
+    return true;
+  }
+
+  return false;
+};
 export const API = {
   // ================= AUTH =================
   AUTH: {
@@ -190,6 +212,20 @@ export const API = {
     CHECKLIST: (employeeId) =>
       `/EmployeeDocuments/checklist/${employeeId}`,
   },
+  //================== EMPLOYEE AGREEMENTS =================
+AGREEMENTS: {
+    UPLOAD: "/Agreement/upload",
+    SIGN: "/Agreement/sign",
+    ADMIN_STATUS: "/Agreement/GetAllAgreements",
+    MY_AGREEMENTS: "/Agreement/myagreements",
+    VIEW_AGREEMENT: (id) => `/Agreement/view/${id}`,
+    VIEW_SIGNED: (id) => `/Agreement/ViewSigned/${id}`,
+    DOWNLOAD_SIGNED: (id) => `/Agreement/DownloadSigned/${id}`,
+    PENDING: (employeeId) => `/Agreement/Pending/${employeeId}`,
+    SIGNED: (employeeId) => `/Agreement/Signed/${employeeId}`,
+    DOWNLOAD: (id) => `/Agreement/download/${id}`,
+    FILE_PATH: (id) => `/Agreement/filepath/${id}`,
+},
   // ================= LEAVE =================
   LEAVE: {
     CREATE: "/EmployeeLeave",
@@ -274,10 +310,14 @@ export const API = {
     LIST: "/Ticket/GetAll",
     CREATE: "/Ticket/Create",
     GET_BY_ID: (id) => `/Ticket/${id}`,
+    BY_EMPLOYEE: (employeeId) => `/Ticket/employee/${employeeId}`,
     UPDATE: (id) => `/Ticket/Update/${id}`,
     DELETE: (id) => `/Ticket/${id}`,
     UPDATE_STATUS: (id) => `/Ticket/UpdateStatus/${id}`,
     MY_TICKETS: "/Ticket/MyTickets",
+    START_WORK: "/Ticket/start-work",
+    STOP_WORK: "/Ticket/stop-work",
+    AUTO_ASSIGN: "/Ticket/auto-assign",
     EXPORT: "/Ticket/Export",
     DOWNLOAD_TEMPLATE: "/Ticket/DownloadTemplate",
     BULK_UPLOAD: "/Ticket/BulkUpload",
@@ -427,6 +467,24 @@ export const API_ENDPOINTS = {
     reject: API.EMPLOYEE_DOCUMENTS.REJECT,
     checklist: API.EMPLOYEE_DOCUMENTS.CHECKLIST,
   },
+  agreements: {
+    upload: API.AGREEMENTS.UPLOAD,
+    sign: API.AGREEMENTS.SIGN,
+
+    getAll: API.AGREEMENTS.ADMIN_STATUS,
+
+    myAgreements: API.AGREEMENTS.MY_AGREEMENTS,
+
+    pending: API.AGREEMENTS.PENDING,
+    signed: API.AGREEMENTS.SIGNED,
+
+    viewAgreement: API.AGREEMENTS.VIEW_AGREEMENT,
+    viewSigned: API.AGREEMENTS.VIEW_SIGNED,
+    downloadSigned: API.AGREEMENTS.DOWNLOAD_SIGNED,
+
+    download: API.AGREEMENTS.DOWNLOAD,
+    filePath: API.AGREEMENTS.FILE_PATH,
+},
   company: {
     // 🔥 ADD THIS (MAIN COMPANY APIs)
     create: "/Company",
@@ -532,9 +590,13 @@ export const API_ENDPOINTS = {
     list: API.TICKETS.LIST,
     create: API.TICKETS.CREATE,
     byId: API.TICKETS.GET_BY_ID,
+    byEmployee: API.TICKETS.BY_EMPLOYEE,
     update: API.TICKETS.UPDATE,
     delete: API.TICKETS.DELETE,
     updateStatus: API.TICKETS.UPDATE_STATUS,
+    startWork: API.TICKETS.START_WORK,
+    stopWork: API.TICKETS.STOP_WORK,
+    autoAssign: API.TICKETS.AUTO_ASSIGN,
     myTickets: API.TICKETS.MY_TICKETS,
     export: API.TICKETS.EXPORT,
     downloadTemplate: API.TICKETS.DOWNLOAD_TEMPLATE,
@@ -576,15 +638,18 @@ export const buildApiUrl = (path) =>
 export const buildServerUrl = (path) =>
   (() => {
     const rawPath = String(path || "").trim();
- 
+
     if (!rawPath) {
       return "";
     }
- 
+
     if (/^(https?:|blob:|data:)/i.test(rawPath)) {
       return rawPath;
     }
- 
+
+    if (isUnsafeLocalPath(rawPath)) {
+      return "";
+    }
+
     return `${SERVER_URL}/${normalizePath(rawPath)}`;
   })();
- 

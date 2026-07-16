@@ -13,7 +13,7 @@ namespace EmployeeManagementSystem.Models
 
         public string Message { get; set; }
 
-        public string UserRole { get; set; }
+        public string? UserRole { get; set; }
 
         public bool IsRead { get; set; }
 

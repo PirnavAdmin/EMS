@@ -13,6 +13,8 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
 {
 
+
+
     private readonly AppDbContext _context;
 
     private readonly IAdminNotificationService _notificationService;
@@ -28,6 +30,30 @@ public class EmployeeLeaveService : IEmployeeLeaveService
         _notificationService = notificationService;
         _emailService = emailService;
         _leaveBalanceService = leaveBalanceService;
+    }
+
+    private LeaveSettings GetLeaveSettings()
+    {
+        var settings = _context.LeaveSettings
+            .AsNoTracking()
+            .FirstOrDefault();
+
+        if (settings == null)
+            throw new Exception("Leave Settings not configured.");
+
+        return settings;
+    }
+
+    private NotificationSettings GetNotificationSettings()
+    {
+        var settings = _context.NotificationSettings
+            .AsNoTracking()
+            .FirstOrDefault();
+
+        if (settings == null)
+            throw new Exception("Notification Settings not configured.");
+
+        return settings;
     }
 
     public async Task<IActionResult> ApplyLeave(EmployeeLeaveDto dto, ClaimsPrincipal user)
@@ -147,23 +173,18 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
         await _context.SaveChangesAsync();
 
+        var leaveSettings = GetLeaveSettings();
+
+        var approvalRoles = leaveSettings.ApprovalRoles
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim().ToLower())
+            .ToList();
+
         var approvers = await _context.Employees
-
-        .Where(x =>
-
-            x.RoleName != null &&
-
-            (
-
-                x.RoleName.ToLower() == "manager" ||
-
-                x.RoleName.ToLower() == "hr" ||
-
-                x.RoleName.ToLower() == "hradmin"
-
-            ))
-
-        .ToListAsync();
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                approvalRoles.Contains(x.RoleName.ToLower()))
+            .ToListAsync();
 
         var internalEmails = approvers
 
@@ -175,19 +196,35 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
     .ToList();
 
-        var externalEmails = new List<string>
-
-{
-
-    "hr.admin@pirnav.com",
-
-    "kiana.paul@pirnav.com",
-
-    "hr@pirnav.com"
-
-};
+        var externalEmails = leaveSettings.ExternalEmails?
+            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
 
         string baseUrl = "https://hrms.pirnav.com";
+
+        var notification = GetNotificationSettings();
+
+        if (!notification.EnableEmailNotifications ||
+            !notification.EnableLeaveEmails)
+        {
+            _context.AdminNotifications.Add(new AdminNotification
+            {
+                Title = "Leave Request",
+                Message = $"{employee.Name} applied for leave",
+                UserRole = "Manager",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            return new OkObjectResult(new
+            {
+                message = "Leave applied successfully"
+            });
+        }
 
         foreach (var approver in approvers)
 
@@ -558,23 +595,25 @@ Employee Management System
             await _context.SaveChangesAsync();
 
             // Fixed email addresses
-            var emailList = new List<string>
-    {
-        "hr.admin@pirnav.com",
-        "hr@pirnav.com",          // Replace with actual HR email
-        "kiana.paul@pirnav.com"
-    };
+            var leaveSettings = GetLeaveSettings();
+
+            var emailList = leaveSettings.ExternalEmails?
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new List<string>();
 
             // Fetch all HR, HRAdmin and Manager emails from database
+            var approvalRoles = leaveSettings.ApprovalRoles
+    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+    .Select(x => x.Trim().ToLower())
+    .ToList();
+
             var roleEmails = await _context.Employees
                 .Where(x =>
                     !string.IsNullOrWhiteSpace(x.Email) &&
-                    x.RoleName != null &&
-                    (
-                        x.RoleName.Equals("HR") ||
-                        x.RoleName.Equals("HRAdmin") ||
-                        x.RoleName.Equals("Manager")
-                    ))
+                    !string.IsNullOrWhiteSpace(x.RoleName) &&
+                    approvalRoles.Contains(x.RoleName.ToLower()))
                 .Select(x => x.Email)
                 .ToListAsync();
 
@@ -639,18 +678,26 @@ Employee Management System
 <p>Regards,<br/>EMS Team</p>";
 
             // Send email to everyone
-            foreach (var mail in emailList)
+
+            var notification = GetNotificationSettings();
+
+            if (notification.EnableEmailNotifications &&
+                notification.EnableLeaveEmails)
             {
-                try
+
+                foreach (var mail in emailList)
                 {
-                    await _emailService.SendEmailAsync(
-                        mail,
-                        "Leave Approved",
-                        body);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                    try
+                    {
+                        await _emailService.SendEmailAsync(
+                            mail,
+                            "Leave Approved",
+                            body);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                    }
                 }
             }
 
@@ -674,23 +721,25 @@ Employee Management System
             await _context.SaveChangesAsync();
 
             // Fixed email addresses
-            var emailList = new List<string>
-    {
-        "hr.admin@pirnav.com",
-        "hr@pirnav.com",          // Replace with actual HR emailCancel
-        "kiana.paul@pirnav.com"
-    };
+            var leaveSettings = GetLeaveSettings();
+
+            var emailList = leaveSettings.ExternalEmails?
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new List<string>();
 
             // Fetch all HR, HRAdmin and Manager emails from database
+            var approvalRoles = leaveSettings.ApprovalRoles
+    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+    .Select(x => x.Trim().ToLower())
+    .ToList();
+
             var roleEmails = await _context.Employees
                 .Where(x =>
                     !string.IsNullOrWhiteSpace(x.Email) &&
-                    x.RoleName != null &&
-                    (
-                        x.RoleName.Equals("HR") ||
-                        x.RoleName.Equals("HRAdmin") ||
-                        x.RoleName.Equals("Manager")
-                    ))
+                    !string.IsNullOrWhiteSpace(x.RoleName) &&
+                    approvalRoles.Contains(x.RoleName.ToLower()))
                 .Select(x => x.Email)
                 .ToListAsync();
 
@@ -755,18 +804,24 @@ Employee Management System
 <p>Regards,<br/>EMS Team</p>";
 
             // Send email to everyone
-            foreach (var mail in emailList)
+            var notification = GetNotificationSettings();
+
+            if (notification.EnableEmailNotifications &&
+                notification.EnableLeaveEmails)
             {
-                try
+                foreach (var mail in emailList)
                 {
-                    await _emailService.SendEmailAsync(
-                        mail,
-                        "Leave Rejected",
-                        body);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                    try
+                    {
+                        await _emailService.SendEmailAsync(
+                            mail,
+                            "Leave Rejected",
+                            body);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                    }
                 }
             }
 
@@ -793,7 +848,7 @@ Employee Management System
                 x.ToDate,
                 x.Reason,
                 x.Status,
-                
+
                 x.ApprovedBy,
 
                 AppliedDate = x.CreatedAt,
@@ -1350,17 +1405,20 @@ Employee Management System
         await _context.SaveChangesAsync();
 
         //==========================================================
-        // Get Managers & HR
+        // Dynamic Leave Settings
         //==========================================================
+
+        var leaveSettings = GetLeaveSettings();
+
+        var approvalRoles = leaveSettings.ApprovalRoles
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim().ToLower())
+            .ToList();
 
         var approvers = await _context.Employees
             .Where(x =>
-                x.RoleName != null &&
-                (
-                    x.RoleName.ToLower() == "manager" ||
-                    x.RoleName.ToLower() == "hr" ||
-                    x.RoleName.ToLower() == "hradmin"
-                ))
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                approvalRoles.Contains(x.RoleName.ToLower()))
             .ToListAsync();
 
         var internalEmails = approvers
@@ -1369,15 +1427,36 @@ Employee Management System
             .Distinct()
             .ToList();
 
-        var externalEmails = new List<string>
-    {
-        "hr.admin@pirnav.com",
-        "kiana.paul@pirnav.com",
-        "hr@pirnav.com"
-    };
+        var externalEmails = leaveSettings.ExternalEmails?
+            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
 
         string baseUrl = "https://hrms.pirnav.com";
 
+        var notification = GetNotificationSettings();
+
+        if (!notification.EnableEmailNotifications ||
+            !notification.EnableWFHEmails)
+        {
+            _context.AdminNotifications.Add(new AdminNotification
+            {
+                Title = "WFH Request",
+                Message = $"{employee.Name} applied for Work From Home",
+                UserRole = "Manager",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            return new OkObjectResult(new
+            {
+                message = "Work From Home applied successfully."
+            });
+        }
         //==========================================================
         // Internal Mail
         //==========================================================
@@ -1597,7 +1676,7 @@ Employee Management System
                 Message = ex.Message,
                 StackTrace = ex.StackTrace
             });
-           
+
         }
     }
     public async Task<IActionResult> GetMyWFH(ClaimsPrincipal user)
@@ -1674,7 +1753,7 @@ Employee Management System
 
         if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
-            !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase) )
+            !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
 
         {
             return new BadRequestObjectResult(
@@ -1701,22 +1780,25 @@ Employee Management System
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
 
-        var emailList = new List<string>
-    {
-        "hr.admin@pirnav.com",
-        "hr@pirnav.com",
-        "kiana.paul@pirnav.com"
-    };
+        var leaveSettings = GetLeaveSettings();
+
+        var emailList = leaveSettings.ExternalEmails?
+            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+
+        var approvalRoles = leaveSettings.ApprovalRoles
+     .Split(',', StringSplitOptions.RemoveEmptyEntries)
+     .Select(x => x.Trim().ToLower())
+     .ToList();
 
         var roleEmails = await _context.Employees
             .Where(x =>
                 !string.IsNullOrWhiteSpace(x.Email) &&
-                x.RoleName != null &&
-                (
-                    x.RoleName.Equals("HR") ||
-                    x.RoleName.Equals("HRAdmin") ||
-                    x.RoleName.Equals("Manager")
-                ))
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                approvalRoles.Contains(x.RoleName.ToLower()))
             .Select(x => x.Email)
             .ToListAsync();
 
@@ -1802,18 +1884,25 @@ style='border-collapse:collapse;'>
 
 <p>Regards,<br/>EMS Team</p>";
 
-            foreach (var mail in emailList)
+            var notification = GetNotificationSettings();
+
+            if (notification.EnableEmailNotifications &&
+                notification.EnableWFHEmails)
             {
-                try
+
+                foreach (var mail in emailList)
                 {
-                    await _emailService.SendEmailAsync(
-                        mail,
-                        "Work From Home Approved",
-                        body);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Email failed for {mail}: {ex.Message}");
+                    try
+                    {
+                        await _emailService.SendEmailAsync(
+                            mail,
+                            "Work From Home Approved",
+                            body);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Email failed for {mail}: {ex.Message}");
+                    }
                 }
             }
 
@@ -1893,18 +1982,24 @@ style='border-collapse:collapse;'>
 
 <p>Regards,<br/>EMS Team</p>";
 
-            foreach (var mail in emailList)
+            var notification = GetNotificationSettings();
+
+            if (notification.EnableEmailNotifications &&
+                notification.EnableWFHEmails)
             {
-                try
+                foreach (var mail in emailList)
                 {
-                    await _emailService.SendEmailAsync(
-                        mail,
-                        "Work From Home Approved",
-                        body);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Email failed for {mail}: {ex.Message}");
+                    try
+                    {
+                        await _emailService.SendEmailAsync(
+                            mail,
+                            "Work From Home Rejected",
+                            body);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Email failed for {mail}: {ex.Message}");
+                    }
                 }
             }
 

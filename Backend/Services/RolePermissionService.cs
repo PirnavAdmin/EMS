@@ -36,7 +36,8 @@ namespace EmployeeManagementSystem.Services
             {
                 RoleId = role.RoleId,
                 ModuleId = m.ModuleId,
-                CanAccess = m.CanAccess
+                CanAccess = m.CanAccess,
+                AccessType = m.CanAccess ? m.AccessType : null
             });
 
             await _context.RolePermissions.AddRangeAsync(newPermissions);
@@ -65,7 +66,10 @@ namespace EmployeeManagementSystem.Services
                 ModuleName = m.ModuleName,
                 Type = m.Type,
                 CanAccess = permissions
-                    .FirstOrDefault(p => p.ModuleId == m.ModuleId)?.CanAccess ?? false
+         .FirstOrDefault(p => p.ModuleId == m.ModuleId)?.CanAccess ?? false,
+
+                AccessType = permissions
+         .FirstOrDefault(p => p.ModuleId == m.ModuleId)?.AccessType
             }).ToList();
 
             return result;
@@ -81,7 +85,8 @@ namespace EmployeeManagementSystem.Services
                 {
                     rp.Module.ModuleId,
                     rp.Module.ModuleName,
-                    rp.Module.Type
+                    rp.Module.Type,
+                    rp.AccessType
                 })
                 .ToListAsync();
 

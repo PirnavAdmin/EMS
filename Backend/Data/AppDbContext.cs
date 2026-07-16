@@ -152,6 +152,17 @@ namespace EmployeeManagementSystem.Data
         public DbSet<TicketHistory> TicketHistory { get; set; }
         public DbSet<TicketWorkLog> TicketWorkLogs { get; set; }
 
+        public DbSet<EmailSettings> EmailSettings { get; set; }
+        public DbSet<AttendanceSettings> AttendanceSettings { get; set; }
+        public DbSet<LeaveSettings> LeaveSettings { get; set; }
+        public DbSet<CompanySettings> CompanySettings { get; set; }
+        public DbSet<NotificationSettings> NotificationSettings { get; set; }
+        public DbSet<GeneralSettings> GeneralSettings { get; set; }
+        public DbSet<PolicySettings> PolicySettings { get; set; }
+        public DbSet<AgreementMaster> AgreementMasters { get; set; }
+        public DbSet<EmployeeAgreement> EmployeeAgreements { get; set; }
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
         {
@@ -205,6 +216,8 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<AdminNotification>().ToTable("adminnotifications");
 
             modelBuilder.Entity<Role>().ToTable("roles");
+            modelBuilder.Entity<AgreementMaster>()
+    .ToTable("agreementmaster");
 
             modelBuilder.Entity<Company>().ToTable("Company");
 
@@ -215,8 +228,19 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<TeamReportingDay>().ToTable("teamreportingdays");
             modelBuilder.Entity<TeamMemberReportingDay>().ToTable("teammemberreportingdays");
             modelBuilder.Entity<WorkFromHomeRequest>().ToTable("workfromhomerequests");
+            modelBuilder.Entity<AttendanceSettings>()
+    .ToTable("attendancesettings");
+            modelBuilder.Entity<EmployeeAgreement>()
+        .ToTable("employeeagreement");
+            modelBuilder.Entity<Ticket>().ToTable("tickets");
+            modelBuilder.Entity<TicketTimer>().ToTable("tickettimer");
+            modelBuilder.Entity<TicketHistory>().ToTable("tickethistory");
+            modelBuilder.Entity<TicketWorkLog>().ToTable("ticketworklogs");
 
+            modelBuilder.Entity<SchedulerLog>().ToTable("schedulerlog");
+            modelBuilder.Entity<SchedulerSetting>().ToTable("schedulersettings");
 
+            modelBuilder.Entity<ProjectTeamMember>().ToTable("projectteammembers");
             modelBuilder.Entity<RolePermission>().ToTable("rolepermissions");
             modelBuilder.Entity<Admin>().ToTable("admins");
             modelBuilder.Entity<MonitoringSettings>()

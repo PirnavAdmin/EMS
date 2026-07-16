@@ -6,6 +6,7 @@ using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OpenXmlPowerTools;
 using System.IO;
 using System.Security.Claims;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -94,6 +95,18 @@ namespace EmployeeManagementSystem.Services
 
         }
 
+        private AttendanceSettings GetAttendanceSettings()
+        {
+            var settings = _context.AttendanceSettings
+                .AsNoTracking()
+                .FirstOrDefault();
+
+            if (settings == null)
+                throw new Exception("Attendance Settings not configured.");
+
+            return settings;
+        }
+
         //---------------------------------------
 
         // CHECK IN (FIXED ONLY HERE)
@@ -133,14 +146,12 @@ namespace EmployeeManagementSystem.Services
             var now = DateTime.UtcNow;
             var ist = ConvertToIST(now);
 
+            var settings = GetAttendanceSettings();
 
-
-            var checkInStartTime = new TimeSpan(8, 55, 0);
-
-            if (ist.TimeOfDay < checkInStartTime)
+            if (ist.TimeOfDay < settings.CheckInStartTime)
             {
                 return new BadRequestObjectResult(
-                    "Check-in is allowed only after 08:55 AM");
+                    $"Check-in is allowed only after {settings.CheckInStartTime}");
             }
 
             string status = "Present";
@@ -150,7 +161,7 @@ namespace EmployeeManagementSystem.Services
             {
                 status = "LOP";
             }
-            else if (ist.TimeOfDay > new TimeSpan(9, 15, 0))
+            else if (ist.TimeOfDay > settings.LateAfterTime)
             {
                 var lateCount = await _context.Attendance
                     .CountAsync(a =>
@@ -274,31 +285,46 @@ namespace EmployeeManagementSystem.Services
 
 
             var now = DateTime.UtcNow;
+            // Restrict checkout after 6:15 PM IST
+            var istNow = ConvertToIST(DateTime.UtcNow);
+
+            var cutoffTime = istNow.Date.AddHours(18).AddMinutes(15); // 6:15 PM
+
+            if (istNow > cutoffTime)
+            {
+                return new BadRequestObjectResult(new
+                {
+                    Message = "Checkout is allowed only until 6:15 PM."
+                });
+            }
 
             att.Check_Out = now;
 
-            var totalMinutes =
-     (int)(now - att.Check_In.Value).TotalMinutes;
 
-            att.WorkingMinutes =
-                totalMinutes - att.TotalBreakMinutes;
+            var settings = GetAttendanceSettings();
 
-            var hours = att.WorkingMinutes / 60.0;
+            var minutes = (int)(now - att.Check_In.Value).TotalMinutes;
 
-            if (hours >= 3 && hours < 4)
-                att.Status = "Half Day";
-            else if (hours >= 4)
+            att.WorkingMinutes = minutes;
+
+            var hours = minutes / 60.0;
+
+            // Half Day = HalfDayHours - 1  (e.g. if HalfDayHours = 4, Half Day starts at 3)
+            if (hours >= settings.HalfDayHours - 1 &&
+                hours < settings.HalfDayHours)
             {
-                if (att.Status != "Late" &&
-                    att.Status != "LOP" &&
-                    att.Status != "Half Day")
-                {
+                att.Status = "Half Day";
+            }
+            else if (hours >= settings.HalfDayHours)
+            {
+                if (att.Status != "Late")
                     att.Status = "Present";
-                }
-
             }
             else
+            {
                 att.Status = "Absent";
+            }
+
             // Store checkout location
             att.CheckOutLatitude = dto.Latitude;
             att.CheckOutLongitude = dto.Longitude;
@@ -1131,7 +1157,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = date.Day,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "On Leave",
+                        Status = "L",
                         LeaveType = leave.LeaveType, // ✅ ADD THIS
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
@@ -1280,7 +1306,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = date.Day,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "On Leave",
+                        Status = "L",
                         LeaveType = leave.LeaveType, // ✅ ADD THIS
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
@@ -1347,7 +1373,9 @@ namespace EmployeeManagementSystem.Services
             {
                 var istCheckIn = ConvertToIST(record.Check_In.Value);
 
-                if (istCheckIn.TimeOfDay > new TimeSpan(9, 15, 0))
+                var settings = GetAttendanceSettings();
+
+                if (istCheckIn.TimeOfDay > settings.LateAfterTime)
                 {
                     record.Status = "LMC";
                 }
@@ -1456,10 +1484,10 @@ namespace EmployeeManagementSystem.Services
 
                 // ✅ LEAVE
                 var leave = await _context.EmployeeLeaves
-      .FirstOrDefaultAsync(l => l.EmployeeId == employeeId &&
-                                l.Status.StartsWith("Approved") &&
-                                date >= l.FromDate &&
-                                date <= l.ToDate);
+                    .FirstOrDefaultAsync(l => l.EmployeeId == employeeId &&
+                                             l.Status == "Approved" &&
+                                             date >= l.FromDate &&
+                                             date <= l.ToDate);
 
                 if (leave != null)
                 {
@@ -1467,7 +1495,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = i,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "On Leave",
+                        Status = "L",
                         HolidayName = (string?)null,
                         LeaveType = leave.LeaveType,
                         CheckIn = (string?)null,
@@ -1654,11 +1682,14 @@ namespace EmployeeManagementSystem.Services
 
                 var hours = minutes / 60.0;
 
-                if (hours >= 3 && hours < 4)
+                var settings = GetAttendanceSettings();
+
+                if (hours >= settings.HalfDayHours - 1 &&
+                    hours < settings.HalfDayHours)
                 {
                     attendance.Status = "Half Day";
                 }
-                else if (hours >= 4)
+                else if (hours >= settings.HalfDayHours)
                 {
                     if (attendance.Status != "Late")
                         attendance.Status = "Present";
@@ -2684,12 +2715,16 @@ namespace EmployeeManagementSystem.Services
                 .Where(x => x.Attendance == null)
                 .ToList();
 
+            var settings = GetAttendanceSettings();
+
+
             var lateEmployees = reportData
                 .Where(x =>
                     x.Attendance?.Check_In != null &&
                     ConvertToIST(x.Attendance.Check_In.Value)
-                        .TimeOfDay > new TimeSpan(9, 15, 0))
+                        .TimeOfDay > settings.LateAfterTime)
                 .ToList();
+
             var lopEmployees = reportData
     .Where(x =>
         x.Attendance != null &&

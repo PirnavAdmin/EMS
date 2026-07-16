@@ -6,6 +6,7 @@ import {
   mergeDocumentRecords,
 } from "./documentStore";
 import DocumentPreviewModal from "./DocumentPreviewModal";
+import { isSafeWebUrl } from "./documentPreview";
 import "./AddEmployee.css";
 
 const getDisplayValue = (value, fallback = "-") => {
@@ -226,8 +227,6 @@ function ReviewSubmit({
   const [documentsLoading, setDocumentsLoading] = useState(Boolean(employeeId));
   const [previewDocument, setPreviewDocument] = useState(null);
 
-  const serverDocuments = Array.isArray(data?.documents) ? data.documents : [];
-
   useEffect(() => {
     let active = true;
 
@@ -268,8 +267,12 @@ function ReviewSubmit({
   }, [employeeId]);
 
   const documents = useMemo(
-    () => mergeDocumentRecords(serverDocuments, cachedDocuments),
-    [cachedDocuments, serverDocuments]
+    () =>
+      mergeDocumentRecords(
+        Array.isArray(data?.documents) ? data.documents : [],
+        cachedDocuments
+      ),
+    [cachedDocuments, data]
   );
 
   return (
@@ -445,7 +448,13 @@ function ReviewSubmit({
 
                       <span className="review-value">
                         <a
-                          href={doc.fileUrl || doc.downloadUrl || "#"}
+                          href={
+                            isSafeWebUrl(doc.fileUrl)
+                              ? doc.fileUrl
+                              : isSafeWebUrl(doc.downloadUrl)
+                                ? doc.downloadUrl
+                                : "#"
+                          }
                           target="_blank"
                           rel="noreferrer"
                           className="document-link"

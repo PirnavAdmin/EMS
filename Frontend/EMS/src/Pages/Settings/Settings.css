@@ -815,6 +815,58 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
   gap: 8px;
 }
 
+.agreement-settings-card-inner {
+  padding: 24px;
+  box-shadow: none;
+}
+
+.agreement-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.agreement-settings-actions .app-button-primary,
+.agreement-settings-table .app-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agreement-settings-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.agreement-settings-table-wrap {
+  width: 100%;
+}
+
+.agreement-settings-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.agreement-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--surface-success-soft);
+  color: var(--theme-success-strong);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.agreement-status-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
 .settings-save-btn,
 .settings-reset-btn {
   min-width: 160px;

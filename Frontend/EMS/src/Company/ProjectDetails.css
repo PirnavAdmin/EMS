@@ -570,6 +570,212 @@
   background: var(--bg-soft);
 }
 
+.project-details-card-header--stack {
+  align-items: flex-start;
+}
+
+.project-details-card--tickets {
+  gap: 16px;
+}
+
+.project-details-ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-details-ticket-actions .ticket-button {
+  min-height: 42px;
+}
+
+/* ============================================
+   COMPACT TICKET TABLE STYLES
+   ============================================ */
+
+/* Compact ticket table layout */
+.project-details-ticket-table.ticket-table,
+.project-details-employee-ticket-table.ticket-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+/* Reduce padding for ticket table headers and cells */
+.project-details-ticket-table.ticket-table th,
+.project-details-ticket-table.ticket-table td,
+.project-details-employee-ticket-table.ticket-table th,
+.project-details-employee-ticket-table.ticket-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-details-ticket-table.ticket-table th,
+.project-details-employee-ticket-table.ticket-table th {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+}
+
+/* Project ticket table column widths */
+.project-details-ticket-table.ticket-table th:nth-child(1),
+.project-details-ticket-table.ticket-table td:nth-child(1) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(2),
+.project-details-ticket-table.ticket-table td:nth-child(2) {
+  width: auto;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(3),
+.project-details-ticket-table.ticket-table td:nth-child(3) {
+  width: auto;
+  min-width: 100px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(4),
+.project-details-ticket-table.ticket-table td:nth-child(4) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(5),
+.project-details-ticket-table.ticket-table td:nth-child(5) {
+  width: auto;
+  min-width: 110px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(6),
+.project-details-ticket-table.ticket-table td:nth-child(6) {
+  width: auto;
+  min-width: 130px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(7),
+.project-details-ticket-table.ticket-table td:nth-child(7),
+.project-details-ticket-table.ticket-table th:nth-child(8),
+.project-details-ticket-table.ticket-table td:nth-child(8) {
+  width: auto;
+  min-width: 100px;
+}
+
+/* Employee ticket table column widths */
+.project-details-employee-ticket-table.ticket-table th:nth-child(1),
+.project-details-employee-ticket-table.ticket-table td:nth-child(1) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(2),
+.project-details-employee-ticket-table.ticket-table td:nth-child(2) {
+  width: auto;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(3),
+.project-details-employee-ticket-table.ticket-table td:nth-child(3) {
+  width: auto;
+  min-width: 180px;
+  max-width: 300px;
+  white-space: normal;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(4),
+.project-details-employee-ticket-table.ticket-table td:nth-child(4),
+.project-details-employee-ticket-table.ticket-table th:nth-child(5),
+.project-details-employee-ticket-table.ticket-table td:nth-child(5) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(6),
+.project-details-employee-ticket-table.ticket-table td:nth-child(6) {
+  width: auto;
+  min-width: 110px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(7),
+.project-details-employee-ticket-table.ticket-table td:nth-child(7),
+.project-details-employee-ticket-table.ticket-table th:nth-child(8),
+.project-details-employee-ticket-table.ticket-table td:nth-child(8),
+.project-details-employee-ticket-table.ticket-table th:nth-child(9),
+.project-details-employee-ticket-table.ticket-table td:nth-child(9),
+.project-details-employee-ticket-table.ticket-table th:nth-child(10),
+.project-details-employee-ticket-table.ticket-table td:nth-child(10) {
+  width: auto;
+  min-width: 100px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(11),
+.project-details-employee-ticket-table.ticket-table td:nth-child(11) {
+  width: auto;
+  min-width: 90px;
+}
+
+/* Keep Actions column sticky on the right if it exists */
+.project-details-ticket-table.ticket-table th:last-child,
+.project-details-ticket-table.ticket-table td:last-child,
+.project-details-employee-ticket-table.ticket-table th:last-child,
+.project-details-employee-ticket-table.ticket-table td:last-child {
+  position: sticky;
+  right: 0;
+  background: var(--bg-page);
+  z-index: 1;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.project-details-ticket-table.ticket-table thead th:last-child,
+.project-details-employee-ticket-table.ticket-table thead th:last-child {
+  background: var(--bg-muted);
+  z-index: 2;
+}
+
+/* Ensure consistent row spacing */
+.project-details-ticket-table.ticket-table tbody tr,
+.project-details-employee-ticket-table.ticket-table tbody tr {
+  height: auto;
+}
+
+/* Maintain hover effect */
+.project-details-ticket-table.ticket-table tbody tr:hover td,
+.project-details-employee-ticket-table.ticket-table tbody tr:hover td {
+  background: var(--bg-soft);
+}
+
+/* Adjust pill sizes for compact layout */
+.project-details-ticket-table.ticket-table .ticket-pill,
+.project-details-employee-ticket-table.ticket-table .ticket-pill {
+  padding: 4px 10px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+/* Update the existing min-width values to be more flexible */
+.project-details-ticket-table.ticket-table {
+  min-width: 900px;
+}
+
+.project-details-employee-ticket-table.ticket-table {
+  min-width: 1200px;
+}
+
+/* ============================================
+   END COMPACT TICKET TABLE STYLES
+   ============================================ */
+
 .project-details-member-name-wrap {
   display: flex;
   align-items: center;
@@ -597,12 +803,51 @@
   min-width: 0;
 }
 
+.project-details-member-name-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.project-details-member-name-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.project-details-member-name-btn:hover .project-details-member-name,
+.project-details-member-name-btn:focus-visible .project-details-member-name {
+  color: var(--primary);
+}
+
 .project-details-member-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
-  word-break: break-word;
+  word-break: normal;
+}
+
+.project-details-table-value {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-details-activity-badge {
@@ -706,9 +951,34 @@
     grid-template-columns: 1fr;
   }
 
+  .project-details-ticket-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .project-details-ticket-actions .ticket-button {
+    flex: 1 1 220px;
+  }
+
   .project-details-table th,
   .project-details-table td {
     padding: 14px 16px;
+  }
+
+  /* Responsive adjustments for compact ticket tables */
+  .project-details-ticket-table.ticket-table th,
+  .project-details-ticket-table.ticket-table td,
+  .project-details-employee-ticket-table.ticket-table th,
+  .project-details-employee-ticket-table.ticket-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .project-details-ticket-table.ticket-table .ticket-pill,
+  .project-details-employee-ticket-table.ticket-table .ticket-pill {
+    padding: 3px 8px;
+    font-size: 11px;
+    min-height: 26px;
   }
 }
 
@@ -723,6 +993,11 @@
 
   .project-details-card-header {
     flex-direction: column;
+  }
+
+  .project-details-ticket-actions .ticket-button {
+    width: 100%;
+    flex: 1 1 100%;
   }
 
   .project-details-status-filters {

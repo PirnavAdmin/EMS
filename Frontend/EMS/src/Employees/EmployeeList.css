@@ -348,13 +348,13 @@
 ========================================= */
 
 .emp-table {
-  width: 100%;
-  min-width: 1450px;
+  width: max-content;
+  min-width: 1570px;
 
   border-collapse: separate;
   border-spacing: 0;
 
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 /* =========================================
@@ -371,6 +371,10 @@
   border-bottom: 1px solid var(--border-soft);
   font-size: 14px;
   vertical-align: middle;
+  overflow-wrap: normal;
+  word-break: normal;
+  box-sizing: border-box;
+  line-height: 1.25;
 }
 
 .emp-table th {
@@ -384,21 +388,26 @@
   font-weight: 700;
 
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: left;
 }
 
-/* centered columns */
-
-.emp-table th:nth-child(2),
-.emp-table th:nth-child(5),
-.emp-table th:nth-child(7),
-.emp-table th:nth-child(8),
-.emp-table th:nth-child(9),
-.emp-table td:nth-child(2),
-.emp-table td:nth-child(5),
-.emp-table td:nth-child(7),
-.emp-table td:nth-child(8) {
+.emp-table th.emp-col-center,
+.emp-table td.emp-cell--center {
   text-align: center;
+}
+
+.emp-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emp-cell--truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* =========================================
@@ -435,6 +444,8 @@
 .emp-name-col,
 .emp-id-col {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .emp-name {
@@ -480,9 +491,9 @@
 ========================================= */
 
 .emp-cell-truncate {
-  display: inline-block;
-
-  max-width: 220px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
 
   overflow: hidden;
   text-overflow: ellipsis;
@@ -492,30 +503,42 @@
 }
 
 /* =========================================
-   JOINED COLUMN
-========================================= */
-
-.emp-table td:nth-child(8),
-.emp-table th:nth-child(8) {
-  white-space: nowrap;
-}
-
-/* =========================================
    ACTION COLUMN
 ========================================= */
 
 .emp-action-col {
   position: sticky;
   right: 0;
+  left: auto;
 
   z-index: 3;
 
   width: 220px;
   min-width: 220px;
+  padding: 16px 12px;
 
   text-align: center !important;
   border-left: 1px solid var(--border-soft);
   background: var(--card-bg);
+  background-clip: padding-box;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.emp-table th.emp-action-col {
+  top: 0;
+  z-index: 5;
+  background: var(--table-header-bg);
+  box-shadow:
+    inset 1px 0 0 var(--border-soft),
+    -10px 0 14px -16px var(--shadow-color);
+}
+
+.emp-table td.emp-action-col {
+  background: var(--card-bg);
+  box-shadow:
+    inset 1px 0 0 var(--border-soft),
+    -10px 0 14px -16px var(--shadow-color);
 }
 
 .emp-action-buttons {
@@ -534,6 +557,11 @@
 
 .emp-row-click:nth-child(even) .emp-action-col {
   background: var(--bg-soft);
+}
+
+.emp-row-click:hover .emp-action-col,
+.emp-row-click:hover .emp-action-col .emp-action-btn {
+  background-clip: padding-box;
 }
 
 /* =========================================
@@ -557,7 +585,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
 }
 

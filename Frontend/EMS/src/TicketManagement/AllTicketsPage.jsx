@@ -65,6 +65,7 @@ import {
   normalizeTicketStatus,
   TICKET_FORM_LIMITS,
   TICKET_PRIORITY_OPTIONS,
+  truncateTicketText,
 } from "./ticketConfig";
 import {
   createTicket,
@@ -83,13 +84,13 @@ const PAGE_SIZE = 10;
 
 const TABLE_COLUMNS = [
   { key: "ticketId", label: "Ticket ID", width: "130px" },
-  { key: "title", label: "Title", width: "minmax(220px, 1.5fr)" },
-  { key: "description", label: "Description", width: "minmax(260px, 1.6fr)" },
+  { key: "title", label: "Title", width: "240px" },
+  { key: "description", label: "Description", width: "280px" },
   { key: "category", label: "Category", width: "150px" },
   { key: "priority", label: "Priority", width: "120px" },
   { key: "status", label: "Status", width: "140px" },
-  { key: "createdBy", label: "Created By", width: "minmax(160px, 1fr)" },
-  { key: "assignedTo", label: "Assigned To", width: "minmax(160px, 1fr)" },
+  { key: "createdBy", label: "Created By", width: "180px" },
+  { key: "assignedTo", label: "Assigned To", width: "180px" },
   { key: "createdDate", label: "Created Date", width: "130px" },
   { key: "updatedDate", label: "Updated Date", width: "130px" },
   { key: "actions", label: "Actions", width: "340px" },
@@ -2017,13 +2018,22 @@ function AllTicketsPage() {
 
       <div className="ticket-table-card">
         <div className="ticket-table-scroll">
+          {/* Title and Description cells use a fixed 20-character display cap with full-value tooltips. */}
           <table className="ticket-table">
             <thead>
               <tr>
                 {TABLE_COLUMNS.map((column) => {
                   if (column.key === "actions") {
                     return (
-                      <th key={column.key} style={{ minWidth: column.width }}>
+                      <th
+                        key={column.key}
+                        className="ticket-table-actions-cell"
+                        style={{
+                          width: column.width,
+                          minWidth: column.width,
+                          maxWidth: column.width,
+                        }}
+                      >
                         <div className="ticket-table-head-actions">
                           <span>{column.label}</span>
                         </div>
@@ -2031,10 +2041,15 @@ function AllTicketsPage() {
                     );
                   }
 
-                  const isActive = sortConfig.key === column.key;
-
                   return (
-                    <th key={column.key} style={{ minWidth: column.width }}>
+                    <th
+                      key={column.key}
+                      style={{
+                        width: column.width,
+                        minWidth: column.width,
+                        maxWidth: column.width,
+                      }}
+                    >
                       {column.label}
                     </th>
                   );
@@ -2064,22 +2079,23 @@ function AllTicketsPage() {
                         <button
                           type="button"
                           className="ticket-inline-link"
+                          title={ticket.title || ""}
                           onClick={() =>
                             setDetailsState({
                               open: true,
                               ticketId: ticket.ticketId,
                             })
                           }
-                          title="View ticket"
                         >
-                          {ticket.title || "-"}
+                          <span className="ticket-table-text-truncate">
+                            {truncateTicketText(ticket.title, 20)}
+                          </span>
                         </button>
                       </td>
-                      <td
-                        className="ticket-description-cell"
-                        title={ticket.description || ""}
-                      >
-                        {ticket.description || "-"}
+                      <td className="ticket-description-cell" title={ticket.description || ""}>
+                        <span className="ticket-table-text-truncate">
+                          {truncateTicketText(ticket.description, 20)}
+                        </span>
                       </td>
                       <td>{ticket.category || "-"}</td>
                       <td>
@@ -2092,7 +2108,7 @@ function AllTicketsPage() {
                       <td>{ticket.assignedTo || "-"}</td>
                       <td>{formatDate(ticket.createdDate)}</td>
                       <td>{formatDate(ticket.updatedDate)}</td>
-                      <td>
+                      <td className="ticket-table-actions-cell">
                         <div className="ticket-row-actions">
                           <button
                             type="button"

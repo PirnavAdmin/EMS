@@ -22,7 +22,7 @@ namespace EmployeeManagementSystem.Services
                     t.IsActive &&
                     t.Status == "In Progress" &&
                     t.Deadline.HasValue &&
-                    t.Deadline.Value <= now)
+                    t.Deadline.Value.AddHours(1) <= now) // 1-hour grace period
                 .ToListAsync();
 
             if (!overdueTickets.Any())
@@ -32,6 +32,15 @@ namespace EmployeeManagementSystem.Services
             {
                 ticket.Status = "Overdue";
                 ticket.SLAStatus = "Breached";
+
+                if (ticket.OverdueDate == null)
+                {
+                    ticket.OverdueDate = now;
+                }
+
+                // Delay calculated after grace period
+                ticket.DelayMinutes = (int)(now - ticket.Deadline.Value.AddHours(1)).TotalMinutes;
+
                 ticket.UpdatedAt = now;
             }
 

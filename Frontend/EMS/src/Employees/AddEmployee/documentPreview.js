@@ -2,6 +2,11 @@ const ZIP_EOCD_SIGNATURE = 0x06054b50;
 const ZIP_CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 const ZIP_LOCAL_FILE_SIGNATURE = 0x04034b50;
 const DOCX_TARGET_ENTRY = "word/document.xml";
+const DOCX_MIME_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const DOC_MIME_TYPE = "application/msword";
+const PDF_MIME_TYPE = "application/pdf";
+const OLE2_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
 const textDecoder = new TextDecoder("utf-8");
 
@@ -23,18 +28,256 @@ const getExtension = (fileName = "") => {
   return parts.length > 1 ? parts.pop() : "";
 };
 
+const MIME_BY_EXTENSION = {
+  pdf: PDF_MIME_TYPE,
+  docx: DOCX_MIME_TYPE,
+  doc: DOC_MIME_TYPE,
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  csv: "text/csv",
+  zip: "application/zip",
+};
+
+const GENERIC_MIME_TYPES = new Set([
+  "application/octet-stream",
+  "binary/octet-stream",
+  "application/binary",
+]);
+
+const normalizeMimeTypeValue = (value) => {
+  const normalizedValue = toLowerString(value);
+
+  if (!normalizedValue || GENERIC_MIME_TYPES.has(normalizedValue)) {
+    return "";
+  }
+
+  const mimeType = normalizedValue.split(";")[0].trim();
+
+  if (mimeType.includes("/")) {
+    return mimeType;
+  }
+
+  const extension = mimeType.startsWith(".") ? mimeType.slice(1) : mimeType;
+
+  return MIME_BY_EXTENSION[extension] || "";
+};
+
+const getMimeTypeFromExtension = (fileName = "") => {
+  const extension = getExtension(fileName);
+  return MIME_BY_EXTENSION[extension] || "";
+};
+
+const SAFE_WEB_URL_PATTERN = /^(https?:|blob:|data:|\/|\.{1,2}\/)/i;
+
+export const isSafeWebUrl = (value = "") => {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return false;
+  }
+
+  if (/^file:/i.test(normalizedValue)) {
+    return false;
+  }
+
+  if (/^[a-zA-Z]:[\\/]/.test(normalizedValue) || /^\\\\/.test(normalizedValue)) {
+    return false;
+  }
+
+  return SAFE_WEB_URL_PATTERN.test(normalizedValue);
+};
+
+export const normalizeDocumentMimeType = (value, fileName = "") =>
+  normalizeMimeTypeValue(value) || getMimeTypeFromExtension(fileName);
+
+export const getDocumentFileName = (document) =>
+  getFileName(document);
+
+export const getDocumentMimeType = (document = {}) => {
+  const fileName = getFileName(document);
+
+  return normalizeDocumentMimeType(
+    document?.mimeType ||
+      document?.contentType ||
+      document?.fileType ||
+      document?.fileMimeType ||
+      document?.blob?.type,
+    fileName
+  );
+};
+
+export const resolveDocumentMimeType = async ({
+  blob = null,
+  fileName = "",
+  headerMimeType = "",
+  documentMimeType = "",
+} = {}) => {
+  const detectedMimeType = blob
+    ? await detectBlobMimeType(blob, fileName)
+    : "";
+
+  return (
+    detectedMimeType ||
+    normalizeDocumentMimeType(documentMimeType, fileName) ||
+    normalizeDocumentMimeType(headerMimeType, fileName) ||
+    normalizeDocumentMimeType(blob?.type, fileName) ||
+    getMimeTypeFromExtension(fileName) ||
+    ""
+  );
+};
+
+const startsWithSignature = (bytes, signature) =>
+  signature.every((byte, index) => bytes[index] === byte);
+
+const getBlobBytes = async (source) => {
+  if (source instanceof Blob) {
+    return new Uint8Array(await source.arrayBuffer());
+  }
+
+  if (source instanceof ArrayBuffer) {
+    return new Uint8Array(source);
+  }
+
+  if (ArrayBuffer.isView(source)) {
+    return new Uint8Array(
+      source.buffer.slice(
+        source.byteOffset,
+        source.byteOffset + source.byteLength
+      )
+    );
+  }
+
+  return null;
+};
+
+export const detectBlobMimeType = async (source, fileName = "") => {
+  const bytes = await getBlobBytes(source);
+  const extensionMimeType = getMimeTypeFromExtension(fileName);
+
+  if (!bytes || bytes.length === 0) {
+    return extensionMimeType;
+  }
+
+  if (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  ) {
+    return PDF_MIME_TYPE;
+  }
+
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  if (
+    bytes.length >= 6 &&
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x38 &&
+    (bytes[4] === 0x37 || bytes[4] === 0x39) &&
+    bytes[5] === 0x61
+  ) {
+    return "image/gif";
+  }
+
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+
+  if (bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4d) {
+    return "image/bmp";
+  }
+
+  if (startsWithSignature(bytes, OLE2_SIGNATURE)) {
+    return DOC_MIME_TYPE;
+  }
+
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x50 &&
+    bytes[1] === 0x4b &&
+    (bytes[2] === 0x03 ||
+      bytes[2] === 0x05 ||
+      bytes[2] === 0x07) &&
+    (bytes[3] === 0x04 ||
+      bytes[3] === 0x06 ||
+      bytes[3] === 0x08)
+  ) {
+    try {
+      const entries = getZipEntries(bytes);
+
+      if (entries.has(DOCX_TARGET_ENTRY)) {
+        return DOCX_MIME_TYPE;
+      }
+    } catch {
+      // Fall back to extension-based detection below.
+    }
+
+    return extensionMimeType || "application/zip";
+  }
+
+  return extensionMimeType;
+};
+
+export const buildOfficeViewerUrl = (sourceUrl = "") => {
+  const normalizedSourceUrl = String(sourceUrl || "").trim();
+
+  if (!/^https?:\/\//i.test(normalizedSourceUrl)) {
+    return "";
+  }
+
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+    normalizedSourceUrl
+  )}`;
+};
+
 export const getDocumentPreviewKind = (document) => {
   const fileName = getFileName(document);
   const extension = getExtension(fileName);
-  const mimeType = toLowerString(
-    document?.fileType ||
-      document?.mimeType ||
-      document?.contentType ||
-      document?.fileMimeType ||
-      document?.blob?.type
-  );
+  const mimeType = getDocumentMimeType(document);
 
-  if (mimeType.includes("pdf") || extension === "pdf") {
+  if (mimeType === PDF_MIME_TYPE || extension === "pdf") {
     return "pdf";
   }
 
@@ -50,6 +293,10 @@ export const getDocumentPreviewKind = (document) => {
     extension === "docx"
   ) {
     return "docx";
+  }
+
+  if (mimeType.includes("msword") || extension === "doc") {
+    return "doc";
   }
 
   if (!fileName) {

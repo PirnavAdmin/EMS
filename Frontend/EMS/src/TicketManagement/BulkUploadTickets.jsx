@@ -33,24 +33,24 @@ const isExcelFile = (file) => {
 const normalizeSummary = (payload = {}) => ({
   total: Number(
     payload.totalRecords ??
-      payload.total ??
-      payload.records ??
-      payload.rowCount ??
-      0
+    payload.total ??
+    payload.records ??
+    payload.rowCount ??
+    0
   ),
   success: Number(
     payload.successCount ??
-      payload.insertedCount ??
-      payload.createdCount ??
-      payload.succeeded ??
-      0
+    payload.insertedCount ??
+    payload.createdCount ??
+    payload.succeeded ??
+    0
   ),
   failed: Number(
     payload.failedCount ??
-      payload.failureCount ??
-      payload.invalidCount ??
-      payload.rejectedCount ??
-      0
+    payload.failureCount ??
+    payload.invalidCount ??
+    payload.rejectedCount ??
+    0
   ),
   skipped: Number(payload.skippedCount ?? payload.ignoredCount ?? 0),
 });
@@ -133,7 +133,7 @@ function BulkUploadTickets() {
 
     const formData = new FormData();
     formData.append("file", selectedFile);
-    formData.append("uploadFile", selectedFile);
+
 
     try {
       setUploading(true);
@@ -142,6 +142,12 @@ function BulkUploadTickets() {
 
       const response = await uploadTicketBulkFile(formData);
       const data = response?.data?.data || response?.data || {};
+      console.log("Parsed Data:", data);
+
+      console.log("Total:", data.totalRecords);
+      console.log("Success:", data.successCount);
+      console.log("Failed:", data.failedCount);
+      console.log("Errors:", data.errors);
 
       setSummary(normalizeSummary(data.summary || data.result || data));
 

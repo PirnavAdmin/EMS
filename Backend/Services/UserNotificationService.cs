@@ -76,7 +76,7 @@ namespace EmployeeManagementSystem.Services
 
                 notifications.ForEach(n =>
                 {
-                    n.CreatedAt = EnsureUtc(n.CreatedAt);
+                    n.CreatedAt = ConvertToIST(n.CreatedAt);
                 });
 
                 Console.WriteLine($"📦 Notifications fetched: {notifications.Count}");
@@ -132,11 +132,8 @@ namespace EmployeeManagementSystem.Services
                     .ToListAsync();
 
                 foreach (var item in notifications)
-
                 {
-
-                    item.CreatedAt = EnsureUtc(item.CreatedAt);
-
+                    item.CreatedAt = ConvertToIST(item.CreatedAt);
                 }
 
                 Console.WriteLine($"📦 Notifications fetched: {notifications.Count}");
@@ -157,6 +154,23 @@ namespace EmployeeManagementSystem.Services
 
             }
 
+        }
+        private DateTime ConvertToIST(DateTime utcDateTime)
+        {
+            utcDateTime = EnsureUtc(utcDateTime);
+
+            TimeZoneInfo istZone;
+
+            if (OperatingSystem.IsWindows())
+            {
+                istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+            }
+            else
+            {
+                istZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+            }
+
+            return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, istZone);
         }
 
         //---------------------------------------

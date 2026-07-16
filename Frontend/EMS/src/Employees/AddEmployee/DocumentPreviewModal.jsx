@@ -11,8 +11,13 @@ import {
 } from "react-icons/fa";
 import { formatDateTime } from "../../utils/date";
 import {
-  extractDocxText,
+  buildOfficeViewerUrl,
+  getDocumentFileName,
+  getDocumentMimeType,
   getDocumentPreviewKind,
+  isSafeWebUrl,
+  normalizeDocumentMimeType,
+  resolveDocumentMimeType,
 } from "./documentPreview";
 
 const PREVIEW_UNAVAILABLE_MESSAGE = "Document preview unavailable.";
@@ -20,22 +25,17 @@ const PREVIEW_UNAVAILABLE_MESSAGE = "Document preview unavailable.";
 const createPreviewState = (overrides = {}) => ({
   status: "idle",
   previewUrl: "",
-  previewText: "",
   error: "",
   sourceUrl: "",
   objectUrl: "",
+  previewKind: "unknown",
+  previewMimeType: "",
+  officeViewerUrl: "",
+  blob: null,
+  contentType: "",
+  contentLength: 0,
   ...overrides,
 });
-
-const getDocumentFileName = (document) =>
-  String(
-    document?.fileName ||
-      document?.file_Name ||
-      document?.name ||
-      document?.originalFileName ||
-      document?.originalName ||
-      "Document"
-  ).trim();
 
 const getDocumentSizeLabel = (document) => {
   const sizeValue = Number(document?.size || document?.fileSize || 0);
@@ -58,12 +58,12 @@ const getDocumentSizeLabel = (document) => {
 const getPreviewIcon = (kind) => {
   if (kind === "pdf") return FaFilePdf;
   if (kind === "image") return FaFileImage;
-  if (kind === "docx") return FaFileWord;
+  if (kind === "docx" || kind === "doc") return FaFileWord;
   return FaFileAlt;
 };
 
 const openWindow = (url) => {
-  if (!url) return;
+  if (!isSafeWebUrl(url)) return;
 
   window.open(url, "_blank", "noopener,noreferrer");
 };
@@ -78,7 +78,7 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
   );
   const [state, setState] = useState(() => createPreviewState());
 
-  const previewKind = useMemo(
+  const initialPreviewKind = useMemo(
     () => (hasDocument ? getDocumentPreviewKind(document) : "unknown"),
     [document, hasDocument]
   );
@@ -99,11 +99,19 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
       return undefined;
     }
 
-    if (previewKind === "unknown") {
+    const sourceUrl =
+      document?.fileUrl ||
+      document?.downloadUrl ||
+      document?.url ||
+      document?.fileURL ||
+      "";
+    const safeSourceUrl = isSafeWebUrl(sourceUrl) ? sourceUrl : "";
+
+    if (!safeSourceUrl && !(document?.blob instanceof Blob)) {
       setState(
         createPreviewState({
-          status: "empty",
-          error: PREVIEW_UNAVAILABLE_MESSAGE,
+          status: document?.errorMessage ? "error" : "empty",
+          error: document?.errorMessage || PREVIEW_UNAVAILABLE_MESSAGE,
         })
       );
       return undefined;
@@ -112,104 +120,189 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
     let active = true;
     let objectUrl = "";
 
-    const sourceUrl =
-      document?.fileUrl ||
-      document?.downloadUrl ||
-      document?.url ||
-      document?.fileURL ||
-      "";
-
     const loadPreview = async () => {
       try {
         setState(
           createPreviewState({
             status: "loading",
-            sourceUrl,
+            sourceUrl: safeSourceUrl,
           })
         );
 
-        if (previewKind === "pdf" || previewKind === "image") {
-          if (document?.blob instanceof Blob) {
-            objectUrl = window.URL.createObjectURL(document.blob);
+        let previewBlob = document?.blob instanceof Blob ? document.blob : null;
+        let responseContentType = "";
+        let responseContentLength = 0;
 
-            if (!active) {
-              window.URL.revokeObjectURL(objectUrl);
-              return;
-            }
+        if (!previewBlob && safeSourceUrl) {
+          const response = await fetch(safeSourceUrl, {
+            credentials: "include",
+          });
 
-            setState(
-              createPreviewState({
-                status: "ready",
-                previewUrl: objectUrl,
-                sourceUrl,
-                objectUrl,
-              })
-            );
-            return;
+          if (!response.ok) {
+            throw new Error("Unable to load document preview.");
           }
 
-          if (sourceUrl) {
-            setState(
-              createPreviewState({
-                status: "ready",
-                previewUrl: sourceUrl,
-                sourceUrl,
-              })
-            );
-            return;
-          }
+          responseContentType = response.headers.get("content-type") || "";
+          responseContentLength =
+            Number(response.headers.get("content-length")) || 0;
+          previewBlob = await response.blob();
+        }
 
+        if (!previewBlob) {
           throw new Error("Preview source not available");
         }
 
-        if (previewKind === "docx") {
-          const docxSource =
-            document?.blob instanceof Blob
-              ? document.blob
-              : sourceUrl
-                ? await fetch(sourceUrl, {
-                  credentials: "include",
-                }).then((response) => {
-                  if (!response.ok) {
-                    throw new Error("Unable to load DOCX file");
-                  }
+        const fileName = getDocumentFileName(document);
+        const headerMimeType = normalizeDocumentMimeType(
+          responseContentType,
+          fileName
+        );
+        const documentMimeType = getDocumentMimeType(document);
+        const resolvedMimeType = await resolveDocumentMimeType({
+          blob: previewBlob,
+          fileName,
+          headerMimeType,
+          documentMimeType,
+        });
 
-                  return response.blob();
-                })
-                : null;
+        const resolvedKind = getDocumentPreviewKind({
+          ...document,
+          fileName,
+          fileType: resolvedMimeType,
+          mimeType: resolvedMimeType,
+          contentType: resolvedMimeType,
+          fileMimeType: resolvedMimeType,
+          blob: previewBlob,
+        });
 
-          if (!docxSource) {
-            throw new Error("Preview source not available");
-          }
+        const blobSize = previewBlob.size || 0;
+        const blobType = previewBlob.type || resolvedMimeType || "";
 
-          const text = await extractDocxText(docxSource);
+        console.info("[DocumentPreview] Loaded preview source", {
+          fileName,
+          contentType: resolvedMimeType || responseContentType || "",
+          contentLength: responseContentLength || blobSize,
+          blobSize,
+          blobType,
+          previewKind: resolvedKind,
+        });
+
+        if (!active) {
+          return;
+        }
+
+        if (resolvedKind === "pdf" || resolvedKind === "image") {
+          objectUrl = window.URL.createObjectURL(previewBlob);
+          console.info("[DocumentPreview] Object URL", objectUrl);
 
           if (!active) {
+            window.URL.revokeObjectURL(objectUrl);
             return;
           }
 
           setState(
             createPreviewState({
               status: "ready",
-              previewText:
-                text || "No text could be extracted from this document.",
+              previewUrl: objectUrl,
               sourceUrl,
+              objectUrl,
+              previewKind: resolvedKind,
+              previewMimeType: resolvedMimeType || blobType,
+              blob: previewBlob,
+              contentType: resolvedMimeType || responseContentType || blobType,
+              contentLength: responseContentLength || blobSize,
             })
           );
           return;
         }
 
-        throw new Error("This document type cannot be previewed.");
+        if (resolvedKind === "docx" || resolvedKind === "doc") {
+          const officeViewerUrl = buildOfficeViewerUrl(sourceUrl);
+
+          console.info("[DocumentPreview] Word document detected", {
+            officeViewerUrl: officeViewerUrl || "",
+            previewKind: resolvedKind,
+            contentType: resolvedMimeType || responseContentType || blobType,
+            contentLength: responseContentLength || blobSize,
+            blobSize,
+            blobType,
+          });
+
+          setState(
+            createPreviewState({
+              status: "ready",
+              sourceUrl,
+              previewKind: resolvedKind,
+              previewMimeType: resolvedMimeType || blobType,
+              officeViewerUrl,
+              blob: previewBlob,
+              contentType: resolvedMimeType || responseContentType || blobType,
+              contentLength: responseContentLength || blobSize,
+            })
+          );
+          return;
+        }
+
+        setState(
+          createPreviewState({
+            status: "ready",
+            sourceUrl,
+            previewKind: resolvedKind,
+            previewMimeType: resolvedMimeType || blobType,
+            blob: previewBlob,
+            contentType: resolvedMimeType || responseContentType || blobType,
+            contentLength: responseContentLength || blobSize,
+          })
+        );
       } catch (error) {
         if (!active) {
+          return;
+        }
+
+        const fallbackMimeType = getDocumentMimeType(document);
+
+        if (
+          safeSourceUrl &&
+          (initialPreviewKind === "pdf" || initialPreviewKind === "image")
+        ) {
+          setState(
+            createPreviewState({
+              status: "ready",
+              previewUrl: safeSourceUrl,
+              sourceUrl: safeSourceUrl,
+              previewKind: initialPreviewKind,
+              previewMimeType: fallbackMimeType,
+              contentType: fallbackMimeType,
+              contentLength: Number(document?.size || document?.fileSize || 0) || 0,
+              blob: document?.blob instanceof Blob ? document.blob : null,
+            })
+          );
+          return;
+        }
+
+        if (safeSourceUrl && (initialPreviewKind === "docx" || initialPreviewKind === "doc")) {
+          const officeViewerUrl = buildOfficeViewerUrl(safeSourceUrl);
+
+          setState(
+            createPreviewState({
+              status: "ready",
+              sourceUrl: safeSourceUrl,
+              previewKind: initialPreviewKind,
+              previewMimeType: fallbackMimeType,
+              officeViewerUrl,
+              contentType: fallbackMimeType,
+              contentLength: Number(document?.size || document?.fileSize || 0) || 0,
+              blob: document?.blob instanceof Blob ? document.blob : null,
+            })
+          );
           return;
         }
 
         setState(
           createPreviewState({
             status: "error",
-            error: error?.message || PREVIEW_UNAVAILABLE_MESSAGE,
-            sourceUrl,
+            error: error?.message || document?.errorMessage || PREVIEW_UNAVAILABLE_MESSAGE,
+            sourceUrl: safeSourceUrl,
           })
         );
       }
@@ -224,7 +317,7 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
         window.URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [document, hasDocument, open, previewKind]);
+  }, [document, hasDocument, open, initialPreviewKind]);
 
   useEffect(() => {
     if (!open) {
@@ -246,12 +339,17 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
     return null;
   }
 
+  const previewKind =
+    state.previewKind !== "unknown"
+      ? state.previewKind
+      : initialPreviewKind;
   const PreviewIcon = hasDocument ? getPreviewIcon(previewKind) : FaFileAlt;
   const fileName = hasDocument
     ? getDocumentFileName(document)
     : PREVIEW_UNAVAILABLE_MESSAGE;
   const fileType = hasDocument
     ? String(
+        state.previewMimeType ||
         document?.fileType ||
           document?.mimeType ||
           document?.contentType ||
@@ -270,13 +368,25 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
       document?.fileURL ||
       ""
     : "";
-  const canOpenSource = hasDocument && Boolean(sourceUrl);
+  const safeSourceUrl = isSafeWebUrl(sourceUrl) ? sourceUrl : "";
+  const canOpenSource = hasDocument && Boolean(safeSourceUrl);
+  const canOpenOfficeViewer =
+    hasDocument && Boolean(state.officeViewerUrl);
   const canDownload =
-    hasDocument && (Boolean(sourceUrl) || document?.blob instanceof Blob);
+    hasDocument &&
+    (state.blob instanceof Blob ||
+      document?.blob instanceof Blob ||
+      Boolean(safeSourceUrl));
 
   const handleDownload = () => {
-    if (document?.blob instanceof Blob) {
-      const objectUrl = window.URL.createObjectURL(document.blob);
+    const blob = state.blob instanceof Blob
+      ? state.blob
+      : document?.blob instanceof Blob
+        ? document.blob
+        : null;
+
+    if (blob) {
+      const objectUrl = window.URL.createObjectURL(blob);
       const anchor = window.document.createElement("a");
 
       anchor.href = objectUrl;
@@ -290,10 +400,10 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
       return;
     }
 
-    if (sourceUrl) {
+    if (safeSourceUrl) {
       const anchor = window.document.createElement("a");
 
-      anchor.href = sourceUrl;
+      anchor.href = safeSourceUrl;
       anchor.download = fileName || "document";
       window.document.body.appendChild(anchor);
       anchor.click();
@@ -365,7 +475,7 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
           {state.status === "error" && (
             <div className="document-preview-error">
               <strong>Preview unavailable</strong>
-              <p>{state.error}</p>
+              <p>{state.error || document?.errorMessage || PREVIEW_UNAVAILABLE_MESSAGE}</p>
             </div>
           )}
 
@@ -387,9 +497,14 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
             </div>
           )}
 
-          {state.status === "ready" && previewKind === "docx" && (
+          {state.status === "ready" &&
+            (previewKind === "docx" || previewKind === "doc") && (
             <div className="document-preview-docx">
-              <pre>{state.previewText || "No text available."}</pre>
+              <strong>Word document detected</strong>
+              <p>
+                This file cannot be rendered in the PDF viewer. Open it in
+                Microsoft Office Online or download it instead.
+              </p>
             </div>
           )}
 
@@ -412,11 +527,22 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
             Close
           </button>
 
-          {canOpenSource && (
+          {canOpenOfficeViewer && (
             <button
               type="button"
               className="document-preview-secondary-btn"
-              onClick={() => openWindow(sourceUrl)}
+              onClick={() => openWindow(state.officeViewerUrl)}
+            >
+              <FaExternalLinkAlt aria-hidden="true" />
+              Open in Office Viewer
+            </button>
+          )}
+
+          {canOpenSource && !canOpenOfficeViewer && (
+            <button
+              type="button"
+              className="document-preview-secondary-btn"
+              onClick={() => openWindow(safeSourceUrl)}
             >
               <FaExternalLinkAlt aria-hidden="true" />
               Open Source

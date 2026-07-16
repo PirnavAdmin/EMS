@@ -78,6 +78,261 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "GetAgreementStatus",
+    "RelativePath": "api/Agreement/admin/status",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "AdminReport",
+    "RelativePath": "api/Agreement/AdminReport",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "DownloadAgreement",
+    "RelativePath": "api/Agreement/download",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "agreementCode",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "DownloadAgreement",
+    "RelativePath": "api/Agreement/download/{agreementId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "agreementId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "DownloadSigned",
+    "RelativePath": "api/Agreement/DownloadSigned/{employeeAgreementId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeAgreementId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "GetAgreementFilePath",
+    "RelativePath": "api/Agreement/filepath/{agreementId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "agreementId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "GetAllAgreements",
+    "RelativePath": "api/Agreement/GetAllAgreements",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "GetMyAgreements",
+    "RelativePath": "api/Agreement/myagreements",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "Pending",
+    "RelativePath": "api/Agreement/Pending/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "SignAgreement",
+    "RelativePath": "api/Agreement/sign",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "EmployeeId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AgreementCode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SignatureName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SignedLocation",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "SignatureImage",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "Signed",
+    "RelativePath": "api/Agreement/Signed/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "UploadAgreement",
+    "RelativePath": "api/Agreement/upload",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "AgreementCode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AgreementName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Description",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsMandatory",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "AssignToExistingEmployees",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "IsActive",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "File",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "ViewAgreement",
+    "RelativePath": "api/Agreement/view/{employeeAgreementId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeAgreementId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AgreementController",
+    "Method": "ViewSigned",
+    "RelativePath": "api/Agreement/ViewSigned/{employeeAgreementId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeAgreementId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "EmployeeManagementSystem.Controllers.AssetsController",
     "Method": "GetAll",
     "RelativePath": "api/Assets",
@@ -2562,6 +2817,204 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetAttendanceSettings",
+    "RelativePath": "api/Settings/attendance",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "UpdateAttendanceSettings",
+    "RelativePath": "api/Settings/attendance",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "EmployeeManagementSystem.Models.AttendanceSettings",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetCompanySettings",
+    "RelativePath": "api/Settings/company",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "UpdateCompanySettings",
+    "RelativePath": "api/Settings/company",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "EmployeeManagementSystem.Models.CompanySettings",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetEmailSettings",
+    "RelativePath": "api/Settings/email",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "UpdateEmailSettings",
+    "RelativePath": "api/Settings/email",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "EmployeeManagementSystem.Models.EmailSettings",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetGeneralSettings",
+    "RelativePath": "api/Settings/general",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "UpdateGeneralSettings",
+    "RelativePath": "api/Settings/general",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "EmployeeManagementSystem.Models.GeneralSettings",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetLeaveSettings",
+    "RelativePath": "api/Settings/leave",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "UpdateLeaveSettings",
+    "RelativePath": "api/Settings/leave",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "EmployeeManagementSystem.Models.LeaveSettings",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetNotificationSettings",
+    "RelativePath": "api/Settings/notification",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "UpdateNotificationSettings",
+    "RelativePath": "api/Settings/notification",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "EmployeeManagementSystem.Models.NotificationSettings",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetPolicies",
+    "RelativePath": "api/Settings/policies",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "UpdatePolicy",
+    "RelativePath": "api/Settings/policy",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "EmployeeManagementSystem.Models.PolicySettings",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.SettingsController",
+    "Method": "GetPolicy",
+    "RelativePath": "api/Settings/policy/{type}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "type",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "TaskManagementController",
     "Method": "Create",
     "RelativePath": "api/TaskManagement",
@@ -2941,8 +3394,8 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.TicketController",
-    "Method": "GetTicketHistory",
-    "RelativePath": "api/Ticket/{ticketId}/history",
+    "Method": "GetFreeEmployees",
+    "RelativePath": "api/Ticket/{ticketId}/free-employees",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -2957,8 +3410,8 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.TicketController",
-    "Method": "GetLeastWorkloadEmployees",
-    "RelativePath": "api/Ticket/{ticketId}/least-workload",
+    "Method": "GetTicketHistory",
+    "RelativePath": "api/Ticket/{ticketId}/history",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -3101,6 +3554,22 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.TicketController",
+    "Method": "GetTicketsByEmployeeId",
+    "RelativePath": "api/Ticket/employee/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -3288,9 +3757,9 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "dto",
-        "Type": "EmployeeManagementSystem.DTOs.ForgotPasswordDto",
-        "IsRequired": true
+        "Name": "email",
+        "Type": "System.String",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []

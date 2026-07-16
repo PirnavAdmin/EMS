@@ -11,5 +11,6 @@
     {
         public int ModuleId { get; set; }
         public bool CanAccess { get; set; }
+        public string? AccessType { get; set; }
     }
 }

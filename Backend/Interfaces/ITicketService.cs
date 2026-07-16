@@ -26,5 +26,6 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<bool> StopWorkAsync(StopWorkDto dto);
         Task<List<TicketWorkLog>> GetWorkLogsAsync(int ticketId);
+        Task<List<TicketResponseDto>> GetTicketsByEmployeeIdAsync(string employeeId);
     }
 }

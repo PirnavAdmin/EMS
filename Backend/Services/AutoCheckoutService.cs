@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 public class AutoCheckoutService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-
+    
     public AutoCheckoutService(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;

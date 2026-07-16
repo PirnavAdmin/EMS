@@ -120,6 +120,10 @@ namespace EmployeeManagementSystem.Services
             var outputPath = Path.Combine(outputFolder, fileName);
 
             File.Copy(templatePath, outputPath, true);
+            string deductionLabel =
+    string.IsNullOrWhiteSpace(dto.DeductionLabel)
+    ? "Other Deductions"
+    : dto.DeductionLabel;
 
 
             //--------------------------------
@@ -193,7 +197,15 @@ namespace EmployeeManagementSystem.Services
                 // TOTALS
                 //--------------------------------
                 ReplaceBookmark(wordDoc, "TotalEarnings", totalEarnings.ToString(   "N2"));
-                ReplaceBookmark(wordDoc, "OtherDeduction", dto.OtherDeductions.ToString("N2"));
+                ReplaceBookmark(
+     wordDoc,
+     "DeductionType",
+     deductionLabel);
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "OtherDeduction",
+                    dto.OtherDeductions.ToString("N2"));
                 ReplaceBookmark(wordDoc, "TotalDeduction", totalDeductions.ToString("N2"));
                 ReplaceBookmark(wordDoc, "NetSalary", netSalary.ToString("N2"));
 

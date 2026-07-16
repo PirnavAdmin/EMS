@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { shift } from "@floating-ui/react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import "./AppDatePicker.css";
 
 import { getInputDateValue, parseDate } from "../utils/date";
 

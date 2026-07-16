@@ -249,29 +249,33 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(present);
         }
-        [HttpGet("{ticketId}/least-workload")]
-        public async Task<IActionResult> GetLeastWorkloadEmployees(int ticketId)
+        [HttpGet("{ticketId}/free-employees")]
+        public async Task<IActionResult> GetFreeEmployees(int ticketId)
         {
-            var ticket = await _context.Tickets.FindAsync(ticketId);
+            var ticket = await _context.Tickets
+                .FindAsync(ticketId);
 
             if (ticket == null)
-                return NotFound();
+            {
+                return NotFound("Ticket not found.");
+            }
 
-            var eligible =
-                await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
+            var eligibleEmployees =
+                await _ticketAssignmentEngine
+                    .GetEligibleEmployeesAsync(ticket);
 
-            eligible =
-                await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligible);
+            var presentEmployees =
+                await _ticketAssignmentEngine
+                    .GetPresentEmployeesAsync(
+                        eligibleEmployees);
 
-            eligible =
-                await _ticketAssignmentEngine.FilterEmployeesByCapacityAsync(eligible);
+            var freeEmployees =
+                await _ticketAssignmentEngine
+                    .FilterFreeEmployeesAsync(
+                        presentEmployees);
 
-            var result =
-                await _ticketAssignmentEngine.FindLeastWorkloadEmployeesAsync(eligible);
-
-            return Ok(result);
+            return Ok(freeEmployees);
         }
-
         [HttpGet("{ticketId}/module-owner")]
         public async Task<IActionResult> GetModuleOwner(int ticketId)
         {
@@ -293,29 +297,47 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(employee);
         }
-
         [HttpGet("{ticketId}/round-robin")]
-        public async Task<IActionResult> GetRoundRobinEmployee(int ticketId)
+        public async Task<IActionResult> GetRoundRobinEmployee(
+    int ticketId)
         {
-            var ticket = await _context.Tickets.FindAsync(ticketId);
+            var ticket = await _context.Tickets
+                .FindAsync(ticketId);
 
             if (ticket == null)
-                return NotFound();
+            {
+                return NotFound("Ticket not found.");
+            }
 
-            var eligible =
-                await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
+            var eligibleEmployees =
+                await _ticketAssignmentEngine
+                    .GetEligibleEmployeesAsync(ticket);
 
-            eligible =
-                await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligible);
+            var presentEmployees =
+                await _ticketAssignmentEngine
+                    .GetPresentEmployeesAsync(
+                        eligibleEmployees);
 
-            eligible =
-                await _ticketAssignmentEngine.FilterEmployeesByCapacityAsync(eligible);
+            var freeEmployees =
+                await _ticketAssignmentEngine
+                    .FilterFreeEmployeesAsync(
+                        presentEmployees);
 
-            var least =
-                await _ticketAssignmentEngine.FindLeastWorkloadEmployeesAsync(eligible);
+            if (!freeEmployees.Any())
+            {
+                return Ok(new
+                {
+                    Success = false,
+                    Message =
+                        "No free employee is currently available."
+                });
+            }
 
             var employee =
-                await _ticketAssignmentEngine.FindRoundRobinEmployeeAsync(ticket, least);
+                await _ticketAssignmentEngine
+                    .FindRoundRobinEmployeeAsync(
+                        ticket,
+                        freeEmployees);
 
             return Ok(employee);
         }
@@ -369,6 +391,17 @@ namespace EmployeeManagementSystem.Controllers
             var logs = await _ticketService.GetWorkLogsAsync(ticketId);
 
             return Ok(logs);
+        }
+
+        [HttpGet("employee/{employeeId}")]
+        public async Task<IActionResult> GetTicketsByEmployeeId(string employeeId)
+        {
+            var result = await _ticketService.GetTicketsByEmployeeIdAsync(employeeId);
+
+            if (!result.Any())
+                return NotFound("No tickets found for this employee.");
+
+            return Ok(result);
         }
     }
 }

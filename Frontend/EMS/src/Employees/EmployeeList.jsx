@@ -826,27 +826,29 @@ function EmployeeList() {
         <div className="emp-table-container">
           <table className="emp-table">
             <colgroup>
-              <col style={{ width: "270px" }} />
-              <col style={{ width: "130px" }} />
-              <col style={{ width: "240px" }} />
-              <col style={{ width: "150px" }} />
-              <col style={{ width: "130px" }} />
+              <col style={{ width: "260px" }} />
+              <col style={{ width: "160px" }} />
+              <col style={{ width: "300px" }} />
+              <col style={{ width: "140px" }} />
+              <col style={{ width: "140px" }} />
+              <col style={{ width: "180px" }} />
+              <col style={{ width: "120px" }} />
               <col style={{ width: "150px" }} />
               <col style={{ width: "220px" }} />
-              <col style={{ width: "110px" }} />
-              <col style={{ width: "165px" }} />
             </colgroup>
             <thead>
               <tr>
-                <th>Employee Name</th>
-                <th>Employee ID</th>
-                <th style={{ textAlign: "center" }}>Email</th>
-                <th style={{ textAlign: "center" }}>Department</th>
-                <th>CTC</th>
-                <th style={{ textAlign: "center" }}>Role</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th className="emp-action-col">Action</th>
+                <th scope="col" className="emp-name-col">Employee Name</th>
+                <th scope="col" className="emp-id-col emp-col-center">Employee ID</th>
+                <th scope="col" className="emp-email-col emp-col-center">Email</th>
+                <th scope="col" className="emp-dept-col emp-col-center">Department</th>
+                <th scope="col" className="emp-ctc-col emp-col-center">CTC</th>
+                <th scope="col" className="emp-role-col emp-col-center">Role</th>
+                <th scope="col" className="emp-status-col emp-col-center">Status</th>
+                <th scope="col" className="emp-joined-col emp-col-center">Joined</th>
+                <th scope="col" className="emp-action-col emp-col-center">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -863,7 +865,7 @@ function EmployeeList() {
                     className="emp-row-click"
                     onClick={() => navigate(`/add-employee/${emp.id}`)}
                   >
-                    <td className="emp-name-col">
+                    <td className="emp-name-col emp-cell emp-cell--truncate">
                       <TruncatedText
                         as="div"
                         className="emp-name"
@@ -877,19 +879,19 @@ function EmployeeList() {
                       </TruncatedText>
                     </td>
 
-                    <td className="emp-id-col">
+                    <td className="emp-id-col emp-cell emp-cell--center emp-cell--truncate">
                       <TruncatedText as="div" className="emp-id-code" value={emp.id} />
                     </td>
 
-                    <td style={{ textAlign: "center" }}>
+                    <td className="emp-email-col emp-cell emp-cell--center emp-cell--truncate">
                       <TruncatedText className="emp-cell-truncate" value={emp.email} />
                     </td>
 
-                    <td style={{ textAlign: "center" }}>{emp.dept}</td>
-                    <td>{emp.ctc}</td>
-                    <td style={{ textAlign: "center" }}>{emp.role}</td>
-                    <td>{emp.status}</td>
-                    <td>{emp.joined}</td>
+                    <td className="emp-dept-col emp-cell emp-cell--center emp-cell--truncate">{emp.dept}</td>
+                    <td className="emp-ctc-col emp-cell emp-cell--center emp-cell--truncate">{emp.ctc}</td>
+                    <td className="emp-role-col emp-cell emp-cell--center emp-cell--truncate">{emp.role}</td>
+                    <td className="emp-status-col emp-cell emp-cell--center emp-cell--truncate">{emp.status}</td>
+                    <td className="emp-joined-col emp-cell emp-cell--center emp-cell--truncate">{emp.joined}</td>
 
                     <td className="emp-action-col">
                       <div className="emp-action-buttons">

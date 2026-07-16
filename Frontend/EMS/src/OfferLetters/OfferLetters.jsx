@@ -16,6 +16,10 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AppDatePicker from "../components/AppDatePicker";
 import { sortByNewestIdFirst } from "../utils/collections";
+import { extractDownloadFileName } from "../utils/downloadUtils";
+import {
+  resolveDocumentMimeType,
+} from "../Employees/AddEmployee/documentPreview";
 
 const redirectToLogin = () => {
   window.location.replace("/login");
@@ -96,6 +100,12 @@ function OfferLetters() {
       sessionStorage.getItem("token")
     );
   };
+
+  const getResponseHeaderValue = (headers, key) =>
+    headers?.[key] ||
+    headers?.[key.toLowerCase()] ||
+    headers?.[key.toUpperCase()] ||
+    "";
 
   /* ================= HANDLE INPUT ================= */
   const handleChange = async (e) => {
@@ -573,9 +583,36 @@ function OfferLetters() {
         }
       );
 
-      const file = new Blob([response.data], {
-        type: "application/pdf",
+      const rawContentType = getResponseHeaderValue(
+        response.headers,
+        "content-type"
+      );
+      const initialFileName = extractDownloadFileName(
+        response.headers,
+        `OfferLetter_${id}`,
+        rawContentType
+      );
+      const blob = response.data instanceof Blob
+        ? response.data
+        : new Blob([response.data], {
+            type: rawContentType || "",
+          });
+      const contentType = await resolveDocumentMimeType({
+        blob,
+        fileName: initialFileName,
+        headerMimeType: rawContentType,
       });
+      const fileName = extractDownloadFileName(
+        response.headers,
+        `OfferLetter_${id}`,
+        contentType
+      );
+      const file =
+        blob.type === contentType
+          ? blob
+          : new Blob([blob], {
+              type: contentType || "",
+            });
 
       const url =
         window.URL.createObjectURL(file);
@@ -583,7 +620,7 @@ function OfferLetters() {
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = `OfferLetter_${id}.pdf`;
+      link.download = fileName;
 
       document.body.appendChild(link);
 
@@ -591,7 +628,7 @@ function OfferLetters() {
 
       link.remove();
 
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
       toast.success("Offer Letter Downloaded");
     } catch (error) {

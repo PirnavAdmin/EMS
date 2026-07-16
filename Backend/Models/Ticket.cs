@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
 {
-    [Table("Tickets")]
+    [Table("tickets")]
     public class Ticket
     {
         [Key]
@@ -79,7 +79,8 @@ namespace EmployeeManagementSystem.Models
 
         public DateTime? UpdatedAt { get; set; }
         public DateTime? AssignedAt { get; set; }
-
+        public DateTime? OverdueDate { get; set; }
+        public int DelayMinutes { get; set; }
         public bool IsActive { get; set; } = true;
 
         [ForeignKey(nameof(ProjectId))]

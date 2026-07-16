@@ -52,22 +52,21 @@ namespace EmployeeManagementSystem.Services
                 throw new Exception("Invalid Project.");
 
             // Validate Assigned Employee
-            var assignedEmployee = await _context.Employees
-                .FirstOrDefaultAsync(e =>
-                    e.Employee_Id == dto.AssignedTo &&
-                    e.Status == "Active");
+            // Validate Assigned Employee only when manually assigned
+            Employee? assignedEmployee = null;
 
-            if (assignedEmployee == null)
-                throw new Exception("Assigned employee not found.");
-
-            // Validate Dates
-            if (dto.StartDate.HasValue &&
-                dto.DueDate.HasValue &&
-                dto.DueDate.Value.Date < dto.StartDate.Value.Date)
+            if (!string.IsNullOrWhiteSpace(dto.AssignedTo))
             {
-                throw new Exception("Due Date cannot be earlier than Start Date.");
-            }
+                assignedEmployee = await _context.Employees
+                    .FirstOrDefaultAsync(e =>
+                        e.Employee_Id == dto.AssignedTo &&
+                        e.Status == "Active");
 
+                if (assignedEmployee == null)
+                {
+                    throw new Exception("Assigned employee not found.");
+                }
+            }
             // Validate Estimated Hours
             if (dto.EstimatedHours.HasValue &&
                 dto.EstimatedHours <= 0)
@@ -88,8 +87,10 @@ namespace EmployeeManagementSystem.Services
             command.Parameters.AddWithValue("@p_Description", (object?)dto.Description ?? DBNull.Value);
             command.Parameters.AddWithValue("@p_Technology", dto.Technology);
             command.Parameters.AddWithValue("@p_Priority", dto.Priority);
-            command.Parameters.AddWithValue("@p_AssignedTo", dto.AssignedTo);
-
+            var assignedToParameter = command.Parameters.Add(
+     "@p_AssignedTo",
+     MySqlDbType.VarChar,
+     50);
             // Ticket creator (logged-in employee)
             command.Parameters.AddWithValue("@p_AssignedBy", loggedInEmployee.Employee_Id);
 
@@ -104,11 +105,24 @@ namespace EmployeeManagementSystem.Services
             if (await reader.ReadAsync())
             {
                 response.Success = true;
-                response.TicketId = Convert.ToInt32(reader["TicketId"]);
-                response.TicketNumber = reader["TicketNumber"].ToString()!;
-                response.Message = reader["Message"].ToString()!;
-            }
 
+                response.TicketId =
+                    Convert.ToInt32(reader["TicketId"]);
+
+                response.TicketNumber =
+                    reader["TicketNumber"]?.ToString()
+                    ?? string.Empty;
+
+                response.Message =
+                    "Ticket created successfully.";
+            }
+            else
+            {
+                response.Success = false;
+
+                response.Message =
+                    "Ticket creation failed.";
+            }
             await reader.CloseAsync();
 
             var createdTicket = await _context.Tickets
@@ -562,36 +576,51 @@ EMS Team
             return stream.ToArray();
         }
 
-        public async Task<BulkUploadResultDto> BulkUploadTickets(IFormFile file, ClaimsPrincipal user)
+        public async Task<BulkUploadResultDto> BulkUploadTickets(
+     IFormFile file,
+     ClaimsPrincipal user)
         {
             var result = new BulkUploadResultDto();
 
-            var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            var email = user.FindFirst(ClaimTypes.Email)?
+                .Value?
+                .Trim()
+                .ToLower();
 
             var manager = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() == email);
 
             if (manager == null)
+            {
                 throw new Exception("Manager not found.");
+            }
+
+            if (file == null || file.Length == 0)
+            {
+                throw new Exception("Please select an Excel file.");
+            }
 
             using var stream = new MemoryStream();
 
             await file.CopyToAsync(stream);
 
-            // IMPORTANT
             stream.Position = 0;
 
             using var workbook = new XLWorkbook(stream);
 
             var worksheet = workbook.Worksheet(1);
 
-            var rows = worksheet.RowsUsed().Skip(1);
+            var rows = worksheet
+                .RowsUsed()
+                .Skip(1);
 
             foreach (var row in rows)
             {
-                // Skip completely empty rows
                 if (row.Cells(1, 9).All(c => c.IsEmpty()))
+                {
                     continue;
+                }
 
                 result.TotalRecords++;
 
@@ -599,27 +628,103 @@ EMS Team
                 {
                     var dto = new CreateTicketDto
                     {
-                        ProjectId = row.Cell(1).GetValue<int>(),
-                        Title = row.Cell(2).GetString().Trim(),
-                        Description = row.Cell(3).GetString().Trim(),
-                        Technology = row.Cell(4).GetString().Trim(),
-                        Priority = row.Cell(5).GetString().Trim(),
-                        AssignedTo = row.Cell(6).GetString().Trim(),
-                        StartDate = row.Cell(7).GetValue<DateTime>(),
-                        DueDate = row.Cell(8).GetValue<DateTime>(),
-                        EstimatedHours = row.Cell(9).GetValue<decimal>()
+                        ProjectId = row.Cell(1)
+                            .GetValue<int>(),
+
+                        Title = row.Cell(2)
+                            .GetString()
+                            .Trim(),
+
+                        Description = row.Cell(3)
+                            .GetString()
+                            .Trim(),
+
+                        Technology = row.Cell(4)
+                            .GetString()
+                            .Trim(),
+
+                        Priority = row.Cell(5)
+                            .GetString()
+                            .Trim(),
+
+                        AssignedTo = null,
+
+                        StartDate = ParseExcelDate(
+                            row.Cell(7)),
+
+                        DueDate = ParseExcelDate(
+                            row.Cell(8)),
+
+                        EstimatedHours = ParseExcelDecimal(
+                            row.Cell(9))
                     };
 
-                    var response = await CreateTicket(dto, user);
+                    if (string.IsNullOrWhiteSpace(dto.Title))
+                    {
+                        throw new Exception(
+                            "Title is required.");
+                    }
 
+                    if (string.IsNullOrWhiteSpace(dto.Technology))
+                    {
+                        throw new Exception(
+                            "Technology is required.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(dto.Priority))
+                    {
+                        throw new Exception(
+                            "Priority is required.");
+                    }
+
+                    if (dto.StartDate.HasValue &&
+                        dto.DueDate.HasValue &&
+                        dto.DueDate.Value.Date <
+                        dto.StartDate.Value.Date)
+                    {
+                        throw new Exception(
+                            "Due Date cannot be earlier than Start Date.");
+                    }
+
+                    if (dto.EstimatedHours.HasValue &&
+                        dto.EstimatedHours.Value <= 0)
+                    {
+                        throw new Exception(
+                            "Estimated Hours must be greater than zero.");
+                    }
+
+                    var response = await CreateTicket(
+                        dto,
+                        user);
+                    var duplicateTicket = await _context.Tickets
+    .AsNoTracking()
+    .AnyAsync(t =>
+        t.ProjectId == dto.ProjectId &&
+        t.Title.ToLower() == dto.Title.ToLower() &&
+        t.Technology.ToLower() == dto.Technology.ToLower() &&
+        t.IsActive);
+
+                    if (duplicateTicket)
+                    {
+                        throw new Exception(
+                            $"Ticket already exists for ProjectId " +
+                            $"{dto.ProjectId}, Title '{dto.Title}' " +
+                            $"and Technology '{dto.Technology}'.");
+                    }
                     if (response.Success)
                     {
+                        await _assignmentEngine
+                            .AssignTicketAsync(
+                                response.TicketId);
+
                         result.SuccessCount++;
                     }
                     else
                     {
                         result.FailedCount++;
-                        result.Errors.Add($"Row {row.RowNumber()} : {response.Message}");
+
+                        result.Errors.Add(
+                            $"Row {row.RowNumber()} : {response.Message}");
                     }
                 }
                 catch (Exception ex)
@@ -627,13 +732,13 @@ EMS Team
                     result.FailedCount++;
 
                     result.Errors.Add(
-                        $"Row {row.RowNumber()} : {ex.GetBaseException().Message}");
+                        $"Row {row.RowNumber()} : " +
+                        $"{ex.GetBaseException().Message}");
                 }
             }
 
             return result;
         }
-        
 
         public async Task<bool> AcceptTicketAsync(
     AcceptTicketDto dto)
@@ -757,53 +862,81 @@ EMS Team
             if (workLog == null)
                 return false;
 
-            // Stop current work log
+            var ticket = await _context.Tickets
+                .FirstOrDefaultAsync(x =>
+                    x.Id == dto.TicketId &&
+                    x.AssignedTo == dto.EmployeeId &&
+                    x.IsActive);
+
+            if (ticket == null)
+                return false;
+
+            if (ticket.Status != "In Progress")
+                return false;
+
             workLog.EndTime = DateTime.UtcNow;
             workLog.IsRunning = false;
             workLog.Remarks = dto.Remarks;
 
             workLog.WorkedMinutes =
-                (int)(workLog.EndTime.Value - workLog.StartTime).TotalMinutes;
+                (int)(workLog.EndTime.Value - workLog.StartTime)
+                .TotalMinutes;
 
-            // Get Ticket
-            var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(x => x.Id == dto.TicketId);
+            // Calculate total worked minutes for this ticket
+            var previousWorkedMinutes =
+                await _context.TicketWorkLogs
+                    .Where(x =>
+                        x.TicketId == dto.TicketId &&
+                        x.Id != workLog.Id &&
+                        !x.IsRunning)
+                    .SumAsync(x => (int?)x.WorkedMinutes)
+                ?? 0;
 
-            if (ticket == null)
-                return false;
+            var totalWorkedMinutes =
+                previousWorkedMinutes +
+                workLog.WorkedMinutes;
 
-            // Calculate actual hours
-            ticket.ActualHours = Math.Round(workLog.WorkedMinutes / 60m, 2);
+            ticket.ActualHours =
+                Math.Round(totalWorkedMinutes / 60m, 2);
 
-            // Calculate remaining hours
             if (ticket.EstimatedHours.HasValue)
             {
                 ticket.RemainingHours = Math.Max(
                     0,
-                    ticket.EstimatedHours.Value - ticket.ActualHours);
+                    ticket.EstimatedHours.Value -
+                    ticket.ActualHours);
             }
 
-            // Check SLA
             ticket.CompletedDate = DateTime.UtcNow;
 
             if (ticket.Deadline.HasValue &&
-                ticket.CompletedDate > ticket.Deadline.Value)
+                ticket.CompletedDate.Value > ticket.Deadline.Value)
             {
-                ticket.Status = "Completed";
                 ticket.SLAStatus = "Breached";
             }
             else
             {
-                ticket.Status = "Completed";
                 ticket.SLAStatus = "Completed";
             }
-            ticket.CompletedDate = DateTime.UtcNow;
+
+            ticket.Status = "Completed";
             ticket.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
-            // Automatically assign the next pending ticket
-            await _assignmentEngine.AssignNextTicketForEmployeeAsync(dto.EmployeeId);
+            await _assignmentEngine.SaveHistoryAsync(
+                ticket.Id,
+                "Completed",
+                "In Progress",
+                "Completed",
+                dto.EmployeeId,
+                "Ticket work completed by employee");
+
+            // Employee is now free.
+            // Immediately assign next eligible ticket.
+            await _assignmentEngine
+                .AssignNextTicketForEmployeeAsync(
+                    dto.EmployeeId);
 
             return true;
         }
@@ -814,6 +947,154 @@ EMS Team
                 .OrderByDescending(x => x.StartTime)
                 .ToListAsync();
         }
+        public async Task<List<TicketResponseDto>> GetTicketsByEmployeeIdAsync(string employeeId)
+        {
+            return await (
+                from t in _context.Tickets
+
+                join p in _context.Projects
+                    on t.ProjectId equals p.Id
+
+                join e in _context.Employees
+                    on t.AssignedTo equals e.Employee_Id
+
+                where t.AssignedTo == employeeId
+                      && t.IsActive
+
+                orderby t.CreatedAt descending
+
+                select new TicketResponseDto
+                {
+                    Id = t.Id,
+                    TicketNumber = t.TicketNumber,
+                    ProjectId = t.ProjectId,
+                    ProjectName = p.Project_Name,
+
+                    Title = t.Title,
+                    Description = t.Description,
+
+                    Technology = t.Technology,
+                    Module = t.Module,
+
+                    Priority = t.Priority,
+                    Status = t.Status,
+
+                    AssignedTo = t.AssignedTo,
+                    AssignedToName = e.Name,
+
+                    AssignedBy = t.AssignedBy,
+
+                    AssignedDate = t.AssignedDate,
+                    OpenedDate = t.OpenedDate,
+                    CompletedDate = t.CompletedDate,
+
+                    StartDate = t.StartDate,
+                    DueDate = t.DueDate,
+                    Deadline = t.Deadline,
+
+                    EstimatedHours = t.EstimatedHours,
+                    ActualHours = t.ActualHours,
+                    RemainingHours = t.RemainingHours,
+
+                    SLAStatus = t.SLAStatus,
+
+                    CreatedAt = t.CreatedAt,
+                    UpdatedAt = t.UpdatedAt
+                }
+            ).ToListAsync();
+        }
+
         // Helper Methods
+
+                // Helper Methods
+
+        private DateTime? ParseExcelDate(IXLCell cell)
+        {
+            if (cell == null || cell.IsEmpty())
+            {
+                return null;
+            }
+
+            if (cell.TryGetValue<DateTime>(out var excelDate))
+            {
+                return excelDate;
+            }
+
+            var value = cell.GetFormattedString().Trim();
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            string[] dateFormats =
+            {
+                "dd-MM-yyyy",
+                "dd/MM/yyyy",
+                "yyyy-MM-dd",
+                "MM/dd/yyyy",
+                "M/d/yyyy",
+                "d/M/yyyy",
+                "dd-MM-yyyy HH:mm:ss",
+                "dd/MM/yyyy HH:mm:ss",
+                "yyyy-MM-dd HH:mm:ss"
+            };
+
+            if (DateTime.TryParseExact(
+                value,
+                dateFormats,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var exactDate))
+            {
+                return exactDate;
+            }
+
+            if (DateTime.TryParse(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var parsedDate))
+            {
+                return parsedDate;
+            }
+
+            throw new Exception(
+                $"Invalid date '{value}'. Please use dd-MM-yyyy format.");
+        }
+
+
+        private decimal? ParseExcelDecimal(IXLCell cell)
+        {
+            if (cell == null || cell.IsEmpty())
+            {
+                return null;
+            }
+
+            if (cell.TryGetValue<decimal>(out var decimalValue))
+            {
+                return decimalValue;
+            }
+
+            var value = cell.GetFormattedString().Trim();
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            if (decimal.TryParse(
+                value,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsedValue))
+            {
+                return parsedValue;
+            }
+
+            throw new Exception(
+                $"Invalid estimated hours '{value}'. Please enter a numeric value.");
+        }
     }
 }
+    

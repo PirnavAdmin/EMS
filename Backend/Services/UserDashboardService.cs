@@ -39,17 +39,21 @@ namespace EmployeeManagementSystem.Services
             //---------------------------------------
             // TASKS
             //---------------------------------------
-
-            var myTasks = await _context.TaskManagement
+            // Total tickets assigned to the employee
+            var myTickets = await _context.Tickets
                 .Where(t => t.AssignedTo == employeeId)
                 .CountAsync();
 
-            var completedTasks = await _context.TaskManagement
-                .Where(t => t.AssignedTo == employeeId && t.Status == "Completed")
+            // Completed tickets
+            var completedTickets = await _context.Tickets
+                .Where(t => t.AssignedTo == employeeId &&
+                            t.Status == "Completed")
                 .CountAsync();
 
-            var pendingTasks = await _context.TaskManagement
-                .Where(t => t.AssignedTo == employeeId && t.Status != "Completed")
+            // Pending/In Progress tickets (anything not completed)
+            var pendingTickets = await _context.Tickets
+                .Where(t => t.AssignedTo == employeeId &&
+                            t.Status != "Completed")
                 .CountAsync();
 
             //---------------------------------------
@@ -121,9 +125,9 @@ namespace EmployeeManagementSystem.Services
 
             return new UserDashboardResponseDto
             {
-                MyTasks = myTasks,
-                CompletedTasks = completedTasks,
-                PendingTasks = pendingTasks,
+                MyTickets = myTickets,
+                CompletedTickets = completedTickets,
+                PendingTickets = pendingTickets,
                 Attendance = Math.Round(attendancePercentage, 2),
                 RecentActivities = activities,
                 UpcomingHolidays = holidays

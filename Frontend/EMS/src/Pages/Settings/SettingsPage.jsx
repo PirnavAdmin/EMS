@@ -8,6 +8,7 @@ import {
   FaBuilding,
   FaClock,
   FaFileAlt,
+  FaFileSignature,
   FaEnvelope,
   FaCog,
   FaRedo,
@@ -51,6 +52,7 @@ import CompanySettings from "./CompanySettings";
 import NotificationSettings from "./NotificationSettings";
 import GeneralSettings from "./GeneralSettings";
 import PolicySettings from "./PolicySettings";
+import AgreementSettings from "./AgreementSettings";
 import {
   validateEmailSettings,
   validateAttendanceSettings,
@@ -154,6 +156,20 @@ const TAB_DEFINITIONS = [
     defaults: { ...POLICY_SETTINGS_DEFAULTS, __policyOptions: [] },
     successMessage: "Settings updated successfully.",
     loadErrorMessage: "We could not load the policy configuration.",
+  },
+  {
+    key: "agreements",
+    label: "Agreement Settings",
+    description: "Employee contracts and compliance documents",
+    icon: FaFileSignature,
+    component: AgreementSettings,
+    fetchSettings: async () => ({ values: {}, lastUpdated: "" }),
+    saveSettings: async () => ({ values: {}, lastUpdated: "" }),
+    validateSettings: () => ({}),
+    defaults: {},
+    successMessage: "Settings updated successfully.",
+    loadErrorMessage: "We could not load the agreement configuration.",
+    hideFooter: true,
   },
 ];
 
@@ -704,6 +720,7 @@ function SettingsPage() {
             disabled={currentSectionSaving || currentSectionLoading}
           />
 
+          {!activeDefinition.hideFooter && (
           <div className="settings-footer app-surface">
             <div className="settings-footer-copy">
               <strong>
@@ -742,6 +759,7 @@ function SettingsPage() {
               </button>
             </div>
           </div>
+          )}
         </section>
       </div>
     </div>

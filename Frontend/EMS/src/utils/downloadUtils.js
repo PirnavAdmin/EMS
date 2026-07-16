@@ -5,6 +5,17 @@ const EXCEL_MIME_TYPE =
 
 const CONTENT_TYPE_EXTENSION_MAP = [
   {
+    pattern: /wordprocessingml\.document/i,
+    extension: ".docx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  },
+  {
+    pattern: /msword/i,
+    extension: ".doc",
+    mimeType: "application/msword",
+  },
+  {
     pattern: /spreadsheetml\.sheet/i,
     extension: ".xlsx",
     mimeType: EXCEL_MIME_TYPE,
@@ -23,6 +34,36 @@ const CONTENT_TYPE_EXTENSION_MAP = [
     pattern: /pdf/i,
     extension: ".pdf",
     mimeType: "application/pdf",
+  },
+  {
+    pattern: /image\/png/i,
+    extension: ".png",
+    mimeType: "image/png",
+  },
+  {
+    pattern: /image\/jpeg|image\/jpg/i,
+    extension: ".jpg",
+    mimeType: "image/jpeg",
+  },
+  {
+    pattern: /image\/gif/i,
+    extension: ".gif",
+    mimeType: "image/gif",
+  },
+  {
+    pattern: /image\/webp/i,
+    extension: ".webp",
+    mimeType: "image/webp",
+  },
+  {
+    pattern: /image\/bmp/i,
+    extension: ".bmp",
+    mimeType: "image/bmp",
+  },
+  {
+    pattern: /image\/svg\+xml/i,
+    extension: ".svg",
+    mimeType: "image/svg+xml",
   },
   {
     pattern: /zip/i,

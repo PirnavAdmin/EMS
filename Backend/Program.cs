@@ -23,6 +23,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 
+
+
+
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options => {
+        options.SuppressModelStateInvalidFilter = true;
+    });
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -87,6 +95,10 @@ builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<ITicketAssignmentEngine, TicketAssignmentEngine>();
 builder.Services.AddScoped<ITicketOverdueService, TicketOverdueService>();
 builder.Services.AddHostedService<TicketOverdueBackgroundService>();
+
+builder.Services.AddScoped<IAgreementService, AgreementService>();
+builder.Services.AddScoped<IAgreementTemplateService, AgreementTemplateService>();
+
 // ================= CORS =================
 
 var configuredCorsOrigins = builder.Configuration
@@ -100,7 +112,10 @@ var allowedCorsOrigins = configuredCorsOrigins is { Length: > 0 }
         "https://hrms.pirnav.com",
         "http://localhost:3000",
         "http://localhost:4200",
-        "http://localhost:5173"
+        "http://localhost:5173",
+         "http://localhost:5174",
+        "https://test.hrms.pirnav.com",
+         "https://www.test.hrms.pirnav.com"
     };
 
 builder.Services.AddCors(options =>

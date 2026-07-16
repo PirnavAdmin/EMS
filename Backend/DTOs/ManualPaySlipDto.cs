@@ -9,7 +9,8 @@
 
         public int TotalWorkingDays { get; set; }
         public int LOPDays { get; set; }
-
+        public string? DeductionLabel { get; set; }
         public decimal OtherDeductions { get; set; }
+
     }
 }

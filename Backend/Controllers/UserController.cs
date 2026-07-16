@@ -181,48 +181,35 @@ namespace EmployeeManagementSystem.Controllers
 
         [HttpPost("forgot-password")]
 
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
-
+        public async Task<object> ForgotPassword(string email)
         {
-
-            var user = await _context.Users
-
-                .FirstOrDefaultAsync(x => x.Email == dto.Email);
+            var user = await _context.Employees
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() == email.ToLower());
 
             if (user == null)
-
-                return NotFound("Email not registered");
-
-            var otp = new Random().Next(100000, 999999).ToString();
-
-            user.OtpCode = otp;
-
-            user.OtpExpiry = DateTime.UtcNow.AddMinutes(5);
-
-            user.IsOtpVerified = false;
-
-            await _context.SaveChangesAsync();
-
-            try
-
             {
-
-                _emailService.SendOtp(user.Email, otp);
-
+                return new
+                {
+                    Status = false,
+                    Message = "Employee not found."
+                };
             }
 
-            catch (Exception ex)
+            var otp = Random.Shared.Next(100000, 999999).ToString();
 
+            // Save OTP logic here
+
+            await _emailService.SendOtpAsync(
+                user.Email,
+                otp);
+
+            return new
             {
-
-                return StatusCode(500, "Email sending failed: " + ex.Message);
-
-            }
-
-            return Ok("OTP sent successfully");
-
+                Status = true,
+                Message = "OTP sent successfully."
+            };
         }
-
 
         // ================= VERIFY OTP =================
 

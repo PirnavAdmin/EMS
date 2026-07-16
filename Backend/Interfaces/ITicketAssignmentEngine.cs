@@ -10,25 +10,23 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<List<Ticket>> GetPendingTicketsAsync();
 
-        Task<List<Employee>> GetEligibleEmployeesAsync(Ticket ticket);
+        Task<List<Employee>> GetEligibleEmployeesAsync(
+            Ticket ticket);
 
-        Task<List<Employee>> GetPresentEmployeesAsync(List<Employee> employees);
+        Task<List<Employee>> GetPresentEmployeesAsync(
+            List<Employee> employees);
+
+        Task<List<Employee>> FilterFreeEmployeesAsync(
+            List<Employee> employees);
 
         Task<Employee?> FindModuleContinuationEmployeeAsync(
             Ticket ticket,
             List<Employee> employees);
 
-        Task<List<Employee>> FindLeastWorkloadEmployeesAsync(
-     List<Employee> employees);
-
         Task<Employee?> FindRoundRobinEmployeeAsync(
             Ticket ticket,
             List<Employee> employees);
-       
 
-        Task<List<Employee>> FilterEmployeesByCapacityAsync(
-            List<Employee> employees,
-            int maxActiveTickets = 10);
         Task SaveAssignmentAsync(
             Ticket ticket,
             Employee employee,
@@ -41,10 +39,8 @@ namespace EmployeeManagementSystem.Interfaces
             string? newStatus,
             string employeeId,
             string remarks);
-        Task AssignNextTicketForEmployeeAsync(string employeeId);
+
         Task AssignNextTicketForEmployeeAsync(
-    string employeeId,
-    int projectId,
-    string technology);
+            string employeeId);
     }
 }

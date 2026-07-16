@@ -2,7 +2,10 @@ import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { downloadBinaryFile, getDownloadErrorMessage } from "../utils/downloadUtils";
-import { getStoredToken } from "../utils/authStorage";
+import {
+  getStoredToken,
+  getStoredEmployeeId,
+} from "../utils/authStorage";
 import {
   normalizeTicketRecord,
   normalizeTicketStatus,
@@ -89,6 +92,26 @@ export const fetchMyTickets = async () => {
   return normalizeTicketCollection(response.data);
 };
 
+export const fetchProjectTickets = async (projectId) => {
+  const tickets = await fetchTickets();
+  const targetId = String(projectId || "").trim().toLowerCase();
+
+  if (!targetId) {
+    return [];
+  }
+
+  return tickets.filter((ticket) =>
+    String(ticket.projectId || ticket.raw?.projectId || ticket.raw?.ProjectId || "")
+      .trim()
+      .toLowerCase() === targetId
+  );
+};
+
+export const fetchEmployeeTickets = async (employeeId) => {
+  const response = await api.get(API_ENDPOINTS.tickets.byEmployee(employeeId));
+  return normalizeTicketCollection(response.data);
+};
+
 export const fetchTicketById = async (ticketId) => {
   const response = await api.get(API_ENDPOINTS.tickets.byId(ticketId));
   return normalizeTicketDetails(response.data);
@@ -128,6 +151,35 @@ export const updateTicketStatus = (ticketId, status) =>
     )}`
   );
 
+const buildActionPayload = (ticket = {}) => {
+  const employeeId =
+    ticket.assignedToId ||
+    ticket.raw?.assignedToId ||
+    ticket.raw?.AssignedToId ||
+    getStoredEmployeeId();
+
+  return {
+    ticketId: Number(ticket.ticketId || ticket.id || 0),
+    employeeId: String(employeeId || ""),
+  };
+};
+
+export const startTicketWork = (ticket) => {
+  const payload = buildActionPayload(ticket);
+
+  console.log("========== START WORK ==========");
+  console.log("Ticket Object:", ticket);
+  console.log("Payload:", payload);
+
+  return api.post(API_ENDPOINTS.tickets.startWork, payload);
+};
+
+export const stopTicketWork = (ticket) =>
+  api.post(API_ENDPOINTS.tickets.stopWork, buildActionPayload(ticket));
+
+export const autoAssignTickets = (payload = {}) =>
+  api.post(API_ENDPOINTS.tickets.autoAssign, payload);
+
 export const exportTickets = async (params = {}) => {
   const token = getStoredToken();
 
@@ -161,4 +213,3 @@ export const uploadTicketBulkFile = (formData) =>
   api.post(API_ENDPOINTS.tickets.bulkUpload, formData);
 
 export { getDownloadErrorMessage };
-

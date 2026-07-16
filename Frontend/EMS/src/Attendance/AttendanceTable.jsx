@@ -9,7 +9,7 @@ import {
   downloadMonthlyAttendanceReport,
   downloadWeeklyAttendanceReport,
   getDownloadErrorMessage,
-} from "./attendanceDownloads";
+} from "./attendanceReports";
 import {
   formatMonthYear,
   formatDate,

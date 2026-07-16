@@ -266,6 +266,21 @@ export const createEmptyTicketForm = (role = "admin") => ({
 
 export const normalizeTicketFieldText = (value) => normalizeSpace(value);
 
+export const truncateTicketText = (value, maxLength = 20, fallback = "-") => {
+  const text = normalizeTicketFieldText(value);
+
+  if (!text) {
+    return fallback;
+  }
+
+  const characters = Array.from(text);
+  if (characters.length <= maxLength) {
+    return text;
+  }
+
+  return `${characters.slice(0, maxLength).join("")}...`;
+};
+
 export const buildTicketPayload = (formData = {}, options = {}) => {
   const normalized = {
     title: normalizeTicketFieldText(formData.title),
@@ -477,6 +492,44 @@ export const normalizeTicketRecord = (ticket = {}) => {
     ticket.DueOn ??
     "";
 
+  const assignedDate =
+    ticket.assignedDate ??
+    ticket.AssignedDate ??
+    ticket.assignedAt ??
+    ticket.AssignedAt ??
+    ticket.assignedOn ??
+    ticket.AssignedOn ??
+    "";
+
+  const startedDate =
+    ticket.startedDate ??
+    ticket.StartedDate ??
+    ticket.startedAt ??
+    ticket.StartedAt ??
+    ticket.workStartedAt ??
+    ticket.WorkStartedAt ??
+    "";
+
+  const completedDate =
+    ticket.completedDate ??
+    ticket.CompletedDate ??
+    ticket.completedAt ??
+    ticket.CompletedAt ??
+    ticket.workCompletedAt ??
+    ticket.WorkCompletedAt ??
+    "";
+
+  const spentHours =
+    ticket.spentHours ??
+    ticket.SpentHours ??
+    ticket.timeSpent ??
+    ticket.TimeSpent ??
+    ticket.actualHours ??
+    ticket.ActualHours ??
+    ticket.workHours ??
+    ticket.WorkHours ??
+    "";
+
   const notes =
     ticket.notes ??
     ticket.Notes ??
@@ -526,6 +579,10 @@ export const normalizeTicketRecord = (ticket = {}) => {
     createdDate,
     updatedDate,
     dueDate,
+    assignedDate,
+    startedDate,
+    completedDate,
+    spentHours,
     notes: normalizeSpace(notes),
     remarks: normalizeSpace(notes),
     comments: Array.isArray(ticket.comments)

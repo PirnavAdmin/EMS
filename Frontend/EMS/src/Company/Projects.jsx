@@ -228,6 +228,85 @@ const sanitizeProjectName = (value) => String(value).replace(/[^A-Za-z\s]/g, "")
 const sanitizeProjectId = (value) => String(value).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 const formatDisplayDate = (value) => formatDate(value);
 
+const normalizeProjectClientId = (value) => {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return "";
+  }
+
+  if (/^-?\d+$/.test(text)) {
+    const numericValue = Number(text);
+    if (Number.isFinite(numericValue)) {
+      return numericValue;
+    }
+  }
+
+  return text;
+};
+
+const PROJECT_ERROR_FIELD_MAP = {
+  projectname: "name",
+  project_name: "name",
+  name: "name",
+  projectid: "id",
+  project_id: "id",
+  id: "id",
+  client: "client",
+  clientid: "client",
+  client_id: "client",
+  clientname: "client",
+  client_name: "client",
+  startdate: "startDate",
+  start_date: "startDate",
+  enddate: "endDate",
+  end_date: "endDate",
+  status: "status",
+  projectstatus: "status",
+  project_status: "status",
+};
+
+const toValidationMessage = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => String(entry ?? "").trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return String(value ?? "").trim();
+};
+
+const mapProjectValidationErrors = (errors = {}) => {
+  const mappedErrors = {};
+  const generalErrors = [];
+
+  Object.entries(errors || {}).forEach(([rawKey, rawValue]) => {
+    const message = toValidationMessage(rawValue);
+
+    if (!message) {
+      return;
+    }
+
+    const normalizedKey = String(rawKey)
+      .replace(/[^A-Za-z0-9_]/g, "")
+      .toLowerCase();
+
+    const fieldName = PROJECT_ERROR_FIELD_MAP[normalizedKey];
+
+    if (fieldName) {
+      mappedErrors[fieldName] = message;
+      return;
+    }
+
+    generalErrors.push(`${rawKey}: ${message}`);
+  });
+
+  return {
+    mappedErrors,
+    generalErrors,
+  };
+};
+
 const getStatusClassName = (status) => {
   const normalized = String(status).toLowerCase();
   if (normalized.includes("progress")) return "progress";
@@ -568,14 +647,31 @@ function Projects() {
     }
 
     // Prepare Payload
-    const selectedClient = clients.find((client) => String(client.id) === String(trimmedForm.client));
+    const selectedClient =
+      clients.find((client) => String(client.id) === String(trimmedForm.client)) ||
+      clients.find((client) => String(client.name).toLowerCase() === String(trimmedForm.client).toLowerCase());
 
     // Transform selectedTeamMembers object to array for payload
-    const teamMembersPayload = Object.values(selectedTeamMembers).map(member => ({
-      employee_Id: member.employee.employee_Id,
-      name: member.employee.employeeName,
-      role: member.role === "Other" ? member.customRole : member.role
-    }));
+    const teamMembersPayload = Object.values(selectedTeamMembers).map((member) => {
+      const employeeId = String(member?.employee?.employee_Id ?? "").trim();
+      const employeeName = String(
+        member?.employee?.employeeName ??
+        member?.employee?.name ??
+        member?.employee?.fullName ??
+        ""
+      ).trim();
+      const role = String(
+        member?.role === "Other" ? member?.customRole : member?.role ?? ""
+      ).trim();
+
+      return {
+        employee_Id: employeeId,
+        employeeId,
+        name: employeeName,
+        employeeName,
+        role,
+      };
+    });
 
     const payload = {
       project_Name: trimmedForm.name,
@@ -587,12 +683,13 @@ function Projects() {
         ? toIsoDateString(trimmedForm.endDate)
         : null,
 
-      projectMembers: teamMembersPayload.map(m => ({
+      projectMembers: teamMembersPayload.map((m) => ({
         employee_Id: m.employee_Id,
         name: m.name,
       })),
 
-      teamMemberTechnologies: teamMembersPayload.map(m => ({
+      teamMemberTechnologies: teamMembersPayload.map((m) => ({
+        employee_Id: m.employee_Id,
         employeeId: m.employee_Id,
         technology: m.role,
       })),
@@ -606,7 +703,41 @@ function Projects() {
       setIsSubmitting(true);
       setApiError("");
       if (projectsEditMode) {
-        await api.put(API_ENDPOINTS.company.projects.byId(trimmedForm.originalId || trimmedForm.id), payload, { headers: { "Content-Type": "application/json" } });
+        const projectRouteId = String(trimmedForm.originalId || trimmedForm.id || "").trim();
+
+        if (!projectRouteId) {
+          setApiError("Project identifier is missing.");
+          toast.error("Unable to save project.");
+          return;
+        }
+
+        const updateUrl = API_ENDPOINTS.company.projects.byId(encodeURIComponent(projectRouteId));
+        const updatePayload = {
+          ...payload,
+          client: String(selectedClient?.name || trimmedForm.client || "").trim(),
+          clientId: normalizeProjectClientId(selectedClient?.id ?? trimmedForm.client),
+          client_Id: normalizeProjectClientId(selectedClient?.id ?? trimmedForm.client),
+          projectId: trimmedForm.id,
+          projectMembers: teamMembersPayload.map((m) => ({
+            employee_Id: m.employee_Id,
+            employeeId: m.employeeId,
+            name: m.name,
+            employeeName: m.employeeName,
+            technology: m.role,
+          })),
+          teamMemberTechnologies: teamMembersPayload.map((m) => ({
+            employee_Id: m.employee_Id,
+            employeeId: m.employeeId,
+            technology: m.role,
+          })),
+        };
+
+        console.log("Update URL:", updateUrl);
+        console.log("Update Payload:", updatePayload);
+
+        await api.put(updateUrl, updatePayload, {
+          headers: { "Content-Type": "application/json" },
+        });
       } else {
         await api.post(API_ENDPOINTS.company.projects.list, payload, { headers: { "Content-Type": "application/json" } });
       }
@@ -615,7 +746,47 @@ function Projects() {
       closeProjectModal(true);
     } catch (error) {
       console.error("Project save failed:", error);
-      const backendMessage = error.response?.data?.message || error.response?.data?.error || error.response?.data || error.message || "Something went wrong while saving the project.";
+      console.log("Backend Status:", error.response?.status);
+
+      console.log(
+        "Backend Response:",
+        JSON.stringify(error.response?.data, null, 2)
+      );
+
+      console.log(
+        "Validation Errors:",
+        JSON.stringify(error.response?.data?.errors, null, 2)
+      );
+
+      console.log("Payload Sent:", payload);
+
+      const validationErrors = error.response?.data?.errors;
+      if (validationErrors && typeof validationErrors === "object") {
+        const { mappedErrors, generalErrors } = mapProjectValidationErrors(validationErrors);
+
+        if (Object.keys(mappedErrors).length > 0) {
+          setFormErrors((prev) => ({
+            ...prev,
+            ...mappedErrors,
+          }));
+        }
+
+        if (generalErrors.length > 0) {
+          setApiError(generalErrors.join(" | "));
+        } else {
+          setApiError("Please fix the highlighted fields and try again.");
+        }
+
+        toast.error("Please fix the highlighted fields.");
+        return;
+      }
+
+      const backendMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.response?.data ||
+        error.message ||
+        "Something went wrong while saving the project.";
       const normalizedMessage = String(backendMessage).toLowerCase();
       if (normalizedMessage.includes("duplicate") || normalizedMessage.includes("already exists")) {
         setFormErrors((prev) => ({ ...prev, id: "Project ID already exists" }));
@@ -672,7 +843,9 @@ function Projects() {
       name: project.name || "",
       id: project.id || "",
       originalId: project.id || "",
-      client: matchedClient ? String(matchedClient.id) : "",
+      client: matchedClient
+        ? String(matchedClient.id)
+        : String(project.clientId || project.client || ""),
       startDate: project.startDate || "",
       endDate: project.endDate || "",
       status: project.status || "",
@@ -748,7 +921,7 @@ function Projects() {
   // Helper to check if form is valid for submission
   const isFormValid = useMemo(() => {
     // Basic fields valid?
-    const basicValid = !formErrors.name && !formErrors.id && !formErrors.client && !formErrors.startDate && !formErrors.status;
+    const basicValid = !formErrors.name && !formErrors.id && !formErrors.client && !formErrors.startDate && !formErrors.endDate && !formErrors.status;
     if (!basicValid) return false;
 
     // Team members valid?
