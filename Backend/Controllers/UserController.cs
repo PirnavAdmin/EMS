@@ -109,6 +109,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         /// ================= LOGIN =================
+        // ================= LOGIN =================
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
@@ -118,12 +119,20 @@ namespace EmployeeManagementSystem.Controllers
             if (user == null ||
                 !BCrypt.Net.BCrypt.Verify(dto.Password, user.Password))
             {
-                return Unauthorized("Invalid credentials");
+                return Unauthorized(new
+                {
+                    Status = false,
+                    Message = "Invalid credentials."
+                });
             }
 
             if (user.RoleId == null)
             {
-                return Unauthorized("Role not assigned");
+                return Unauthorized(new
+                {
+                    Status = false,
+                    Message = "Role not assigned."
+                });
             }
 
             var role = await _context.Roles
@@ -131,7 +140,11 @@ namespace EmployeeManagementSystem.Controllers
 
             if (role == null)
             {
-                return Unauthorized("Role not found");
+                return Unauthorized(new
+                {
+                    Status = false,
+                    Message = "Role not found."
+                });
             }
 
             var employee = await _context.Employees
@@ -139,23 +152,34 @@ namespace EmployeeManagementSystem.Controllers
 
             if (employee == null)
             {
-                return Unauthorized("Employee not found");
+                return Unauthorized(new
+                {
+                    Status = false,
+                    Message = "Employee not found."
+                });
             }
 
-            var employeeName = employee.Name;
-
-            if (string.IsNullOrWhiteSpace(employeeName))
+            // ✅ Check Employee Status
+            if (string.Equals(employee.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
             {
-                employeeName = employee.Email;
+                return Unauthorized(new
+                {
+                    Status = false,
+                    Message = "Your account is inactive. Please contact the administrator."
+                });
             }
+
+            var employeeName = string.IsNullOrWhiteSpace(employee.Name)
+                ? employee.Email
+                : employee.Name;
 
             _context.ActivityLogs.Add(new ActivityLog
             {
                 Activity = $"{employeeName} logged in",
                 CreatedAt = DateTime.UtcNow
             });
-            await _context.SaveChangesAsync();
 
+            await _context.SaveChangesAsync();
 
             var token = _jwtHelper.GenerateToken(
                 user,
@@ -165,16 +189,13 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(new
             {
-                token,
-
+                Status = true,
+                Message = "Login successful.",
+                token = token,
                 email = user.Email,
-
                 userId = user.Id,
-
                 employeeId = employee.Employee_Id,
-
                 roleId = user.RoleId,
-
                 roleName = role.Name
             });
         } // ================= FORGOT PASSWORD =================

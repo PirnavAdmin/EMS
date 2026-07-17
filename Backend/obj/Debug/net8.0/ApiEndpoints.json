@@ -567,8 +567,8 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
-    "Method": "UploadMonthlyAttendance",
-    "RelativePath": "api/Attendance/admin/upload-monthly",
+    "Method": "UploadAttendance",
+    "RelativePath": "api/Attendance/bulk-upload",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
@@ -1846,6 +1846,37 @@
       },
       {
         "Name": "status",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeLeaveController",
+    "Method": "WFHMailAction",
+    "RelativePath": "api/EmployeeLeave/wfh-mail-action",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "requestId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "action",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "token",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "approverEmail",
         "Type": "System.String",
         "IsRequired": false
       }

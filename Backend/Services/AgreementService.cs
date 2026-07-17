@@ -241,7 +241,7 @@ namespace EmployeeManagementSystem.Services
             {
 
                 Status = true,
-
+                
                 Message = "Agreement uploaded successfully."
 
             };
@@ -333,147 +333,126 @@ namespace EmployeeManagementSystem.Services
         }
 
         public async Task<object> SignAgreement(SignAgreementDto dto)
-
         {
-
             // Find agreement using AgreementCode
-
             var agreement = await _context.AgreementMasters
-
                 .FirstOrDefaultAsync(x => x.AgreementCode == dto.AgreementCode);
 
             if (agreement == null)
-
             {
-
                 return new
-
                 {
-
                     Status = false,
-
                     Message = "Invalid Agreement Code."
-
                 };
-
             }
 
             // Find employee agreement using AgreementId
-
             var employeeAgreement = await _context.EmployeeAgreements
-
                 .FirstOrDefaultAsync(x =>
-
                     x.Employee_Id == dto.EmployeeId &&
-
                     x.AgreementId == agreement.AgreementId);
 
             if (employeeAgreement == null)
-
             {
-
                 return new
-
                 {
-
                     Status = false,
-
                     Message = "Agreement not assigned to employee."
-
                 };
-
             }
 
             // Get employee
-
             var employee = await _context.Employees
-
                 .FirstOrDefaultAsync(x => x.Employee_Id == dto.EmployeeId);
 
             if (employee == null)
-
             {
-
                 return new
-
                 {
-
                     Status = false,
-
                     Message = "Employee not found."
-
                 };
-
             }
 
             // Get personal info
-
             var personalInfo = await _context.EmployeePersonalInfos
-
                 .FirstOrDefaultAsync(x => x.Employee_Id == dto.EmployeeId);
 
             if (personalInfo == null)
-
             {
-
                 return new
-
                 {
-
                     Status = false,
-
                     Message = "Employee personal information not found."
-
                 };
-
             }
 
-            // Update agreement
+            // Validate Signature Image
+            if (dto.SignatureImage == null || dto.SignatureImage.Length == 0)
+            {
+                return new
+                {
+                    Status = false,
+                    Message = "Please upload a signature image."
+                };
+            }
 
+            // Allowed image extensions
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp" };
+
+            var extension = Path.GetExtension(dto.SignatureImage.FileName).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+            {
+                return new
+                {
+                    Status = false,
+                    Message = "Only image files (.jpg, .jpeg, .png, .bmp, .gif, .webp) are allowed."
+                };
+            }
+
+            // Validate MIME Type
+            if (string.IsNullOrWhiteSpace(dto.SignatureImage.ContentType) ||
+                !dto.SignatureImage.ContentType.StartsWith("image/"))
+            {
+                return new
+                {
+                    Status = false,
+                    Message = "Invalid file type. Please upload a valid image."
+                };
+            }
+
+            // Update agreement details
             employeeAgreement.SignatureName = dto.SignatureName;
-
             employeeAgreement.SignedLocation = dto.SignedLocation;
-
             employeeAgreement.SignedOn = DateTime.Now;
-
             employeeAgreement.Status = "Signed";
 
+            // Create Signatures folder if it doesn't exist
             var signatureFolder = Path.Combine(_environment.WebRootPath, "Signatures");
 
             if (!Directory.Exists(signatureFolder))
-
             {
-
                 Directory.CreateDirectory(signatureFolder);
-
             }
 
-            var extension = Path.GetExtension(dto.SignatureImage.FileName);
-
+            // Save signature image
             var fileName = $"{dto.EmployeeId}_{dto.AgreementCode}{extension}";
-
             var filePath = Path.Combine(signatureFolder, fileName);
 
             using (var stream = new FileStream(filePath, FileMode.Create))
-
             {
-
                 await dto.SignatureImage.CopyToAsync(stream);
-
             }
 
             employeeAgreement.SignatureImagePath = "/Signatures/" + fileName;
 
-            // Generate document
-
+            // Generate signed agreement PDF
             var generatedDoc = await _agreementTemplateService.GenerateAgreementAsync(
-
                 agreement,
-
                 employeeAgreement,
-
                 employee,
-
                 personalInfo);
 
             employeeAgreement.SignedPdfPath = generatedDoc;
@@ -481,19 +460,11 @@ namespace EmployeeManagementSystem.Services
             await _context.SaveChangesAsync();
 
             return new
-
             {
-
                 Status = true,
-
                 Message = "Agreement signed successfully."
-
             };
-
-
-
         }
-
         public async Task<List<AgreementStatusDto>> GetAgreementStatus()
 
         {

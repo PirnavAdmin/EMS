@@ -407,29 +407,24 @@ public async Task<IActionResult> GetAttendanceByDate(
                 .UpdateActivity(User);
         }
 
-        [HttpPost("admin/upload-monthly")]
-
-        public async Task<IActionResult> UploadMonthlyAttendance(
-
-IFormFile file,
-
-int month,
-
-int year)
-
+        [HttpPost("bulk-upload")]
+        public async Task<IActionResult> UploadAttendance(
+    IFormFile file,
+    int month,
+    int year)
         {
-
-            var result = await _attendanceService
-
-                .UploadMonthlyAttendance(file, month, year);
+            var result = await _attendanceService.UploadMonthlyAttendance(
+                User,
+                file,
+                month,
+                year);
 
             return Ok(result);
-
         }
 
-       
 
-        }
+
+    }
 
 
 

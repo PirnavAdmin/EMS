@@ -1886,18 +1886,31 @@ namespace EmployeeManagementSystem.Services
 
 
         public async Task<string> UploadMonthlyAttendance(
-
-      IFormFile file,
-
-      int month,
-
-      int year)
+     ClaimsPrincipal user,
+     IFormFile file,
+     int month,
+     int year)
 
         {
 
             try
 
             {
+                var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    return "Unauthorized.";
+                }
+
+                var admin = await _context.Admins
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
+
+                if (admin == null)
+                {
+                    return "Only Admins can upload attendance.";
+                }
 
                 if (file == null || file.Length == 0)
 

@@ -225,5 +225,18 @@ string approverEmail)
             token,
             approverEmail);
     }
+    [HttpGet("wfh-mail-action")]
+    public async Task<IActionResult> WFHMailAction(
+        int requestId,
+        string action,
+        string token,
+        string approverEmail)
+    {
+        return await _service.WFHMailAction(
+            requestId,
+            action,
+            token,
+            approverEmail);
+    }
 
 }

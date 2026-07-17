@@ -46,5 +46,10 @@ string approverEmail);
     int id,
     ClaimsPrincipal user);
 
+    Task<IActionResult> WFHMailAction(
+       int requestId,
+       string action,
+       string token,
+       string approverEmail);
 
 }

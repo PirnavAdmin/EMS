@@ -47,7 +47,7 @@ namespace EmployeeManagementSystem.Controllers
 
         {
 
-            var result = await _employeeService.AddEmployee(dto);
+            var result = await _employeeService.AddEmployee(User, dto);
 
             return Ok(new
 
@@ -83,7 +83,7 @@ namespace EmployeeManagementSystem.Controllers
 
         {
 
-            var employee = await _employeeService.UpdateEmployee(employeeId, dto);
+            var employee = await _employeeService.UpdateEmployee(User, employeeId, dto);
 
             if (employee == null)
 
@@ -101,7 +101,7 @@ namespace EmployeeManagementSystem.Controllers
 
         {
 
-            var result = await _employeeService.DeleteEmployee(employeeId);
+            var result = await _employeeService.DeleteEmployee(User, employeeId);
 
             if (result == "Employee not found")
 
@@ -216,7 +216,7 @@ namespace EmployeeManagementSystem.Controllers
 
         {
 
-            var result = await _employeeService.BulkUploadEmployees(file);
+            var result = await _employeeService.BulkUploadEmployees(User, file);
 
             return Ok(result);
 

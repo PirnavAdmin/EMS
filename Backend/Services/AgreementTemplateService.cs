@@ -452,16 +452,17 @@ namespace EmployeeManagementSystem.Services
                 var image =
                     new PdfImage(imageData);
 
-                image.ScaleToFit(
-                    120,
-                    50);
+                image.ScaleToFit(100, 40);
 
                 image.SetFixedPosition(
                     lastPage,
-                    pageSize.GetWidth() - 220,
-                    90);
+                    60,
+                    180   // increase until it aligns below "Place"
+                );
 
                 document.Add(image);
+
+                
             }
 
             File.Delete(pdfPath);

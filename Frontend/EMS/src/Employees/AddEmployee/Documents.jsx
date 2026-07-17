@@ -761,6 +761,30 @@ function Documents({
         [selectedAgreement]
     );
 
+    const isAgreementSelected = !!selectedAgreementDetails;
+
+    const isAgreementSigned =
+        String(selectedAgreementDetails?.status || "").toLowerCase() === "signed";
+
+    const isSignatureFormValid =
+        signatureName.trim() !== "" &&
+        signedLocation.trim() !== "" &&
+        signatureImage;
+
+    const canViewAgreement = isAgreementSelected;
+
+    const canSubmitAgreement =
+        isAgreementSelected &&
+        !isAgreementSigned &&
+        isSignatureFormValid;
+
+    // Enable ONLY after agreement is signed
+    const canViewSigned =
+        isAgreementSelected && isAgreementSigned;
+
+    const canDownloadSigned =
+        isAgreementSelected && isAgreementSigned;
+
     useEffect(
         () => () => {
             isMountedRef.current = false;
@@ -2133,12 +2157,17 @@ function Documents({
                                     </div>
 
                                     <div className="premium-input-group">
-                                        <label>Signature Name</label>
+                                        <label>
+                                            Signature Name <span className="required">*</span>
+                                        </label>
+
                                         <input
                                             className="premium-input"
                                             value={signatureName}
+                                            required
                                             onChange={(event) => setSignatureName(event.target.value)}
                                             disabled={
+                                                !selectedAgreementDetails ||
                                                 signingAgreement ||
                                                 String(selectedAgreementDetails?.status).toLowerCase() === "signed"
                                             }
@@ -2147,12 +2176,17 @@ function Documents({
                                     </div>
 
                                     <div className="premium-input-group">
-                                        <label>Signed Location</label>
+                                        <label>
+                                            Signed Location <span className="required">*</span>
+                                        </label>
+
                                         <input
                                             className="premium-input"
                                             value={signedLocation}
+                                            required
                                             onChange={(event) => setSignedLocation(event.target.value)}
                                             disabled={
+                                                !selectedAgreementDetails ||
                                                 signingAgreement ||
                                                 String(selectedAgreementDetails?.status).toLowerCase() === "signed"
                                             }
@@ -2161,14 +2195,19 @@ function Documents({
                                     </div>
 
                                     <div className="premium-input-group">
-                                        <label>Upload Signature Image</label>
+                                        <label>
+                                            Upload Signature Image <span className="required">*</span>
+                                        </label>
+
                                         <input
                                             ref={signatureImageInputRef}
                                             type="file"
                                             accept="image/*"
+                                            required
                                             className="premium-input premium-file-input"
                                             onChange={handleSignatureImageChange}
                                             disabled={
+                                                !selectedAgreementDetails ||
                                                 signingAgreement ||
                                                 String(selectedAgreementDetails?.status).toLowerCase() === "signed"
                                             }
@@ -2192,8 +2231,8 @@ function Documents({
                                     <button
                                         type="button"
                                         className="document-action-btn view-btn"
+                                        disabled={!canViewAgreement}
                                         onClick={() => handleViewAgreement(selectedAgreementDetails)}
-                                        disabled={!selectedAgreementDetails}
                                     >
                                         {agreementActionLoading === `view-${selectedAgreementDetails?.agreementId}` ? (
                                             <FaSpinner className="documents-button-spinner" aria-hidden="true" />
@@ -2206,8 +2245,8 @@ function Documents({
                                     <button
                                         type="button"
                                         className="document-action-btn view-btn"
+                                        disabled={!canViewSigned}
                                         onClick={() => handleViewSignedAgreement(selectedAgreementDetails)}
-                                        disabled={!selectedAgreementDetails}
                                     >
                                         {agreementActionLoading === `signed-${selectedAgreementDetails?.agreementId}` ? (
                                             <FaSpinner className="documents-button-spinner" aria-hidden="true" />
@@ -2220,8 +2259,8 @@ function Documents({
                                     <button
                                         type="button"
                                         className="document-action-btn download-btn"
+                                        disabled={!canDownloadSigned}
                                         onClick={() => handleDownloadSignedAgreement(selectedAgreementDetails)}
-                                        disabled={!selectedAgreementDetails}
                                     >
                                         {agreementDownloadLoading === selectedAgreementDetails?.agreementId ? (
                                             <FaSpinner className="documents-button-spinner" aria-hidden="true" />
@@ -2234,12 +2273,9 @@ function Documents({
                                     <button
                                         type="button"
                                         className="document-action-btn download-btn"
+                                        disabled={!canSubmitAgreement || signingAgreement}
                                         onClick={handleSubmitSignature}
-                                        disabled={
-                                            !selectedAgreementDetails ||
-                                            signingAgreement ||
-                                            String(selectedAgreementDetails?.status).toLowerCase() === "signed"
-                                        }
+
                                     >
                                         {signingAgreement ? (
                                             <>
@@ -2258,48 +2294,51 @@ function Documents({
                         )}
                     </div>
                 </>
-            )}
+            )
+            }
 
-            {showDeleteModal && selectedDeleteDocument && (
-                <div className="delete-modal-overlay">
-                    <div className="delete-modal">
-                        <h3>Confirm Delete</h3>
-                        <p>
-                            Are you sure you want to delete this document?
-                        </p>
+            {
+                showDeleteModal && selectedDeleteDocument && (
+                    <div className="delete-modal-overlay">
+                        <div className="delete-modal">
+                            <h3>Confirm Delete</h3>
+                            <p>
+                                Are you sure you want to delete this document?
+                            </p>
 
-                        <div className="delete-modal-actions">
-                            <button
-                                type="button"
-                                className="delete-cancel-btn"
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setSelectedDeleteDocument(null);
-                                }}
-                                disabled={Boolean(deletingId)}
-                            >
-                                Cancel
-                            </button>
+                            <div className="delete-modal-actions">
+                                <button
+                                    type="button"
+                                    className="delete-cancel-btn"
+                                    onClick={() => {
+                                        setShowDeleteModal(false);
+                                        setSelectedDeleteDocument(null);
+                                    }}
+                                    disabled={Boolean(deletingId)}
+                                >
+                                    Cancel
+                                </button>
 
-                            <button
-                                type="button"
-                                className="delete-confirm-btn"
-                                onClick={() => handleDelete(selectedDeleteDocument)}
-                                disabled={Boolean(deletingId)}
-                            >
-                                {deletingId ? (
-                                    <>
-                                        <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-                                        Deleting...
-                                    </>
-                                ) : (
-                                    "Yes, Delete"
-                                )}
-                            </button>
+                                <button
+                                    type="button"
+                                    className="delete-confirm-btn"
+                                    onClick={() => handleDelete(selectedDeleteDocument)}
+                                    disabled={Boolean(deletingId)}
+                                >
+                                    {deletingId ? (
+                                        <>
+                                            <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        "Yes, Delete"
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <DocumentPreviewModal
                 open={Boolean(previewDocument)}
@@ -2343,7 +2382,7 @@ function Documents({
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 export default Documents;

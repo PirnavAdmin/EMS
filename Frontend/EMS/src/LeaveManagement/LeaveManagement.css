@@ -647,10 +647,13 @@ body {
 }
 
 .table-scroll {
-  width: 100%;
-  overflow-y: auto;
-  max-height: 520px;
-  border-radius: 12px;
+    width: 100%;
+    max-height: 520px;
+
+    overflow-x: auto;   /* Horizontal scroll */
+    overflow-y: auto;   /* Vertical scroll */
+
+    border-radius: 12px;
 }
 
 .leave-table table {
@@ -1331,17 +1334,17 @@ body {
   width: 800px;
   max-width: 95%;
   max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-page);
   border: 1px solid var(--border-soft);
   border-radius: 22px;
   padding: 24px;
   box-shadow: var(--theme-shadow-lg);
   position: relative;
-  overflow-y: auto;
-  overflow-x: hidden;
-
-  scrollbar-width: thin;
 }
 
 .history-close-icon {
@@ -1404,13 +1407,43 @@ body {
   border-bottom: 1px solid var(--border-soft);
 }
 
-.history-table {
+.employee-history-modal table.history-table {
   width: max-content;
-  border-collapse: collapse;
+  min-width: 100%;
+  /* Keep sticky header and body rows in separate paint layers. */
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
 }
 
-.history-table thead {
+.employee-history-modal table.history-table thead {
+  /* Sticky header stays above the scrolling rows. */
+  position: sticky;
+  top: 0;
+  z-index: 100;
   background: var(--table-header-bg);
+}
+
+.employee-history-modal table.history-table thead th {
+  /* Opaque header cells prevent row text from bleeding through. */
+  position: sticky;
+  top: 0;
+  z-index: 101;
+  background: var(--table-header-bg);
+  background-clip: padding-box;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.employee-history-modal table.history-table tbody {
+  /* Keep body rows below the sticky header in the stacking order. */
+  position: relative;
+  z-index: 1;
+}
+
+.employee-history-modal table.history-table tbody td {
+  /* Solid cell background stops the first row from painting into the header. */
+  background: var(--bg-page);
 }
 
 .history-table th {
@@ -1485,6 +1518,15 @@ body {
   font-weight: 500;
 }
 
+.history-header,
+.leave-balance-section,
+.leave-summary-grid,
+.history-section-title,
+.history-loading,
+.history-footer {
+  flex: 0 0 auto;
+}
+
 .history-table th:nth-child(1),
 .history-table td:nth-child(1) {
   min-width: 110px;
@@ -1529,11 +1571,16 @@ body {
   min-width: 260px;
 }
 
-.history-table-wrapper {
+.employee-history-modal .history-table-wrapper {
   width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-shrink: 0;
+  max-height: 420px;
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 350px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border-soft);
   border-radius: 20px;
 }
@@ -2080,6 +2127,3 @@ body {
   background: var(--bg-page);
   transform: translateY(-50%) scale(1.02);
 }
-
-
-

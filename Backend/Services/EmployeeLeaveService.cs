@@ -2176,6 +2176,191 @@ style='border-collapse:collapse;'>
 
     }
 
+    public async Task<IActionResult> WFHMailAction(
+        int requestId,
+        string action,
+        string token,
+        string approverEmail)
+    {
+        var request = await _context.WorkFromHomeRequests
+            .FirstOrDefaultAsync(x => x.Id == requestId);
+
+        if (request == null)
+            return new NotFoundObjectResult("WFH request not found");
+
+        if (request.ApprovalToken != token)
+            return new BadRequestObjectResult("Invalid token");
+
+        if (request.Status != "Pending")
+            return new BadRequestObjectResult("WFH request already processed");
+
+        // Update Status
+        if (action.Equals("approve", StringComparison.OrdinalIgnoreCase))
+        {
+            request.Status = $"Approved By {approverEmail}";
+            request.ManagerStatus = "Approved";
+            request.HRStatus = "Approved";
+        }
+        else if (action.Equals("reject", StringComparison.OrdinalIgnoreCase))
+        {
+            request.Status = $"Rejected By {approverEmail}";
+            request.ManagerStatus = "Rejected";
+            request.HRStatus = "Rejected";
+        }
+        else
+        {
+            return new BadRequestObjectResult("Invalid action");
+        }
+
+        request.ApprovedBy = approverEmail;
+        request.ApprovedOn = DateTime.UtcNow;
+
+        _context.UserNotifications.Add(new UserNotification
+        {
+            Employee_Id = request.EmployeeId,
+            Title = action.Equals("approve", StringComparison.OrdinalIgnoreCase)
+                ? "Work From Home Approved"
+                : "Work From Home Rejected",
+
+            Message = action.Equals("approve", StringComparison.OrdinalIgnoreCase)
+                ? $"Your Work From Home request has been approved by {approverEmail}."
+                : $"Your Work From Home request has been rejected by {approverEmail}.",
+
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
+
+        var leaveSettings = GetLeaveSettings();
+
+        var emailList = leaveSettings.ExternalEmails?
+            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+
+        var approvalRoles = leaveSettings.ApprovalRoles
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim().ToLower())
+            .ToList();
+
+        var roleEmails = await _context.Employees
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.Email) &&
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                approvalRoles.Contains(x.RoleName.ToLower()))
+            .Select(x => x.Email)
+            .ToListAsync();
+
+        emailList.AddRange(roleEmails);
+
+        if (employee != null &&
+            !string.IsNullOrWhiteSpace(employee.Email))
+        {
+            emailList.Add(employee.Email);
+        }
+
+        emailList = emailList
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var notification = GetNotificationSettings();
+
+        if (notification.EnableEmailNotifications &&
+            notification.EnableWFHEmails)
+        {
+            string body = $@"
+<html>
+<body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
+
+<h3>Work From Home Request {request.Status}</h3>
+
+<p>Dear Team,</p>
+
+<p>The following Work From Home request has been processed.</p>
+
+<table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse;'>
+
+<tr>
+<td><b>Employee Name</b></td>
+<td>{request.EmployeeName}</td>
+</tr>
+
+<tr>
+<td><b>Employee ID</b></td>
+<td>{request.EmployeeId}</td>
+</tr>
+
+<tr>
+<td><b>WFH Type</b></td>
+<td>{request.LeaveType}</td>
+</tr>
+
+<tr>
+<td><b>From Date</b></td>
+<td>{request.FromDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+<td><b>To Date</b></td>
+<td>{request.ToDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+<td><b>Reason</b></td>
+<td>{request.Reason}</td>
+</tr>
+
+<tr>
+<td><b>Status</b></td>
+<td>{request.Status}</td>
+</tr>
+
+<tr>
+<td><b>Approved By</b></td>
+<td>{request.ApprovedBy}</td>
+</tr>
+
+<tr>
+<td><b>Processed On</b></td>
+<td>{request.ApprovedOn:dd-MMM-yyyy hh:mm tt}</td>
+</tr>
+
+</table>
+
+<br/>
+
+<p>Regards,<br/>
+<b>PIRNAV EMS</b><br/>
+Employee Management System
+</p>
+
+</body>
+</html>";
+
+            foreach (var mail in emailList)
+            {
+                try
+                {
+                    await _emailService.SendEmailAsync(
+                        mail,
+                        $"Work From Home {request.Status}",
+                        body);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                }
+            }
+        }
+
+        return new OkObjectResult($"Work From Home {request.Status} Successfully");
+    }
 
 }
 

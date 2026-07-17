@@ -161,52 +161,65 @@ Pirnav EMS Team";
 
         }
 
-        public void SendEmployeeCredentials(string toEmail, string employeeName)
-
+        public async Task SendEmployeeCredentials(string toEmail, string employeeName)
         {
-
             var settings = GetEmailSettings();
 
-            using (var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort))
-
+            try
             {
+                using var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort);
 
                 smtp.EnableSsl = settings.EnableSSL;
-
                 smtp.UseDefaultCredentials = false;
-
                 smtp.Credentials = new NetworkCredential(
+                    settings.SenderEmail,
+                    settings.SenderPassword);
 
-    settings.SenderEmail,
+                smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                smtp.Timeout = 60000; // 60 seconds
 
-    settings.SenderPassword);
-
-                var message = new MailMessage();
+                using var message = new MailMessage();
 
                 message.From = new MailAddress(
-
-      settings.SenderEmail,
-
-      settings.DisplayName);
+                    settings.SenderEmail,
+                    settings.DisplayName);
 
                 message.To.Add(toEmail);
 
                 message.Subject = "EMS Login Details";
 
-                message.Body = $"Hello {employeeName},\n\n" +
+                message.Body = $@"
+Hello {employeeName},
 
-                               $"Your account is created in Pirnav Company.\n\n" +
+Your account has been created successfully in Pirnav EMS.
 
-                               $"Login Link: https://hrms.pirnav.com/register\n" +
+Login URL:
+https://hrms.pirnav.com/register
 
-                               $"Newly User Verify your account by using Register and Login.";
+Please register and verify your account before logging in.
 
-                smtp.Send(message);
+Regards,
+Pirnav HR Team";
 
+                message.IsBodyHtml = false;
+
+                await smtp.SendMailAsync(message);
             }
+            catch (SmtpException ex)
+            {
+                Console.WriteLine("SMTP ERROR");
+                Console.WriteLine($"Message: {ex.Message}");
+                Console.WriteLine($"Status Code: {ex.StatusCode}");
+                Console.WriteLine($"Inner Exception: {ex.InnerException?.Message}");
 
+                throw new Exception($"Failed to send email: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"General Error: {ex.Message}");
+                throw;
+            }
         }
-
 
         public async Task SendEmailAsync(
 

@@ -15,39 +15,38 @@ namespace EmployeeManagementSystem.Services
             _context = context;
         }
 
-        // ✅ SAVE PERMISSIONS (RoleName based)
+        // Save Permissions (RoleName based)
         public async Task SavePermissions(SaveRolePermissionDto dto)
         {
-            // 🔥 Convert RoleName → RoleId
+            // Convert RoleName -> RoleId
             var role = await _context.Roles
                 .FirstOrDefaultAsync(r => r.Name == dto.RoleName);
 
             if (role == null)
                 throw new Exception("Invalid Role Name");
 
-            // Remove existing
-            var existing = _context.RolePermissions
-                .Where(x => x.RoleId == role.RoleId);
+            // Remove existing permissions
+            var existingPermissions = _context.RolePermissions
+                .Where(rp => rp.RoleId == role.RoleId);
 
-            _context.RolePermissions.RemoveRange(existing);
+            _context.RolePermissions.RemoveRange(existingPermissions);
 
-            // Add new
+            // Add new permissions
             var newPermissions = dto.Modules.Select(m => new RolePermission
             {
                 RoleId = role.RoleId,
                 ModuleId = m.ModuleId,
-                CanAccess = m.CanAccess,
-                AccessType = m.CanAccess ? m.AccessType : null
+                CanAccess = m.CanAccess
             });
 
             await _context.RolePermissions.AddRangeAsync(newPermissions);
             await _context.SaveChangesAsync();
         }
 
-        // ✅ GET PERMISSIONS (RoleName based)
+        // Get Permissions (RoleName based)
         public async Task<List<RolePermissionResponseDto>> GetPermissions(string roleName)
         {
-            // 🔥 Convert RoleName → RoleId
+            // Convert RoleName -> RoleId
             var role = await _context.Roles
                 .FirstOrDefaultAsync(r => r.Name == roleName);
 
@@ -57,7 +56,7 @@ namespace EmployeeManagementSystem.Services
             var modules = await _context.Modules.ToListAsync();
 
             var permissions = await _context.RolePermissions
-                .Where(x => x.RoleId == role.RoleId)
+                .Where(rp => rp.RoleId == role.RoleId)
                 .ToListAsync();
 
             var result = modules.Select(m => new RolePermissionResponseDto
@@ -66,16 +65,13 @@ namespace EmployeeManagementSystem.Services
                 ModuleName = m.ModuleName,
                 Type = m.Type,
                 CanAccess = permissions
-         .FirstOrDefault(p => p.ModuleId == m.ModuleId)?.CanAccess ?? false,
-
-                AccessType = permissions
-         .FirstOrDefault(p => p.ModuleId == m.ModuleId)?.AccessType
+                    .FirstOrDefault(p => p.ModuleId == m.ModuleId)?.CanAccess ?? false
             }).ToList();
 
             return result;
         }
 
-        // ✅ ALLOWED MODULES (LOGIN USER → uses RoleId from JWT)
+        // Get Allowed Modules for Logged-in User
         public async Task<List<object>> GetAllowedModules(int roleId)
         {
             var data = await _context.RolePermissions
@@ -85,8 +81,7 @@ namespace EmployeeManagementSystem.Services
                 {
                     rp.Module.ModuleId,
                     rp.Module.ModuleName,
-                    rp.Module.Type,
-                    rp.AccessType
+                    rp.Module.Type
                 })
                 .ToListAsync();
 

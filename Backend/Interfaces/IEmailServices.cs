@@ -3,7 +3,7 @@
     public interface IEmailService
     {
         Task SendOtpAsync(string toEmail, string otp);
-        void SendEmployeeCredentials(string toEmail, string employeeName);
+        Task SendEmployeeCredentials(string toEmail, string employeeName);
 
         Task SendEmailWithAttachment(
             string toEmail,

@@ -103,22 +103,22 @@ function LeaveManagement() {
         totalLeavesApplied:
           apiData.totalLeavesApplied || 0,
 
-        leaveBalances: {
-          casual:
-            apiData.leaveBalance?.casual ||
-            apiData.leaveBalance?.Casual ||
-            {},
+        // leaveBalances: {
+        //   casual:
+        //     apiData.leaveBalance?.casual ||
+        //     apiData.leaveBalance?.Casual ||
+        //     {},
 
-          sick:
-            apiData.leaveBalance?.sick ||
-            apiData.leaveBalance?.Sick ||
-            {},
+        //   sick:
+        //     apiData.leaveBalance?.sick ||
+        //     apiData.leaveBalance?.Sick ||
+        //     {},
 
-          earned:
-            apiData.leaveBalance?.earned ||
-            apiData.leaveBalance?.Earned ||
-            {}
-        },
+        //   earned:
+        //     apiData.leaveBalance?.earned ||
+        //     apiData.leaveBalance?.Earned ||
+        //     {}
+        // },
 
         history:
           apiData.leaveHistory || []
@@ -652,7 +652,7 @@ function LeaveManagement() {
 
             </div>
 
-            {/* LEAVE BALANCE */}
+            {/* LEAVE BALANCE
             <div className="leave-balance-section">
               <h4>LEAVE BALANCE</h4>
 
@@ -746,7 +746,7 @@ function LeaveManagement() {
                 </div>
 
               </div>
-            </div>
+            </div> */}
 
             {/* SUMMARY CARDS */}
             <div className="leave-summary-grid">

@@ -932,6 +932,15 @@
   color: var(--text-strong);
 }
 
+button:disabled,
+.documents-action-btn:disabled,
+.agreement-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+ 
+
 /* ================= FORM CARD ================= */
 
 .form-card {

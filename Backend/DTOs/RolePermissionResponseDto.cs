@@ -6,6 +6,6 @@
         public string ModuleName { get; set; }
         public string Type { get; set; }
         public bool CanAccess { get; set; }
-        public string? AccessType { get; set; }
+       
     }
 }

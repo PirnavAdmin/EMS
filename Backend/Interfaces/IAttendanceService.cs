@@ -89,7 +89,11 @@ namespace EmployeeManagementSystem.Interfaces
 
 
         Task<byte[]> ExportMonthlyAttendance(int month, int year);
-        Task<string> UploadMonthlyAttendance(IFormFile file, int month, int year);
+        Task<string> UploadMonthlyAttendance(
+      ClaimsPrincipal user,
+      IFormFile file,
+      int month,
+      int year);
         Task<byte[]> ExportWeeklyAttendance(DateTime weekStartDate);
         Task<byte[]> ExportDailyAttendance(DateTime date);
 

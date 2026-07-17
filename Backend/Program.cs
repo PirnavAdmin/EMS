@@ -98,7 +98,7 @@ builder.Services.AddHostedService<TicketOverdueBackgroundService>();
 
 builder.Services.AddScoped<IAgreementService, AgreementService>();
 builder.Services.AddScoped<IAgreementTemplateService, AgreementTemplateService>();
-
+builder.Services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
 // ================= CORS =================
 
 var configuredCorsOrigins = builder.Configuration

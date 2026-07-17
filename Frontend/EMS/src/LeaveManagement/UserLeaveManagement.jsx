@@ -110,7 +110,7 @@ function UserLeaveManagement() {
   });
 
   const [leaveData, setLeaveData] = useState([]);
-  const [balance, setBalance] = useState(null);
+  // const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [wfhData, setWfhData] = useState([]);
@@ -122,43 +122,43 @@ function UserLeaveManagement() {
     });
   };
 
-  const fetchBalance = async () => {
-    const token = getToken();
-    if (!token) {
-      console.log("❌ No token found for leave balance");
-      return;
-    }
+  // const fetchBalance = async () => {
+  //   const token = getToken();
+  //   if (!token) {
+  //     console.log("❌ No token found for leave balance");
+  //     return;
+  //   }
 
-    try {
-      console.log("📡 Fetching leave balance...");
-      console.log("🔗 Balance API:", API_ENDPOINTS.leave.balance);
+  //   try {
+  //     console.log("📡 Fetching leave balance...");
+  //     console.log("🔗 Balance API:", API_ENDPOINTS.leave.balance);
 
-      const res = await api.get(API_ENDPOINTS.leave.balance, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        }
-      });
+  //     const res = await api.get(API_ENDPOINTS.leave.balance, {
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "application/json",
+  //       }
+  //     });
 
-      console.log("📄 Raw Balance Response:", res.data);
+  //     console.log("📄 Raw Balance Response:", res.data);
 
-      const data = res.data || {};
-      console.log("✅ Parsed Balance Data:", data);
+  //     const data = res.data || {};
+  //     console.log("✅ Parsed Balance Data:", data);
 
-      const formattedBalance = {
-        sick: data?.sick ?? { used: 0, total: 0, remaining: 0 },
-        earned: data?.earned ?? { used: 0, total: 0, remaining: 0 },
-        casual: data?.casual ?? { used: 0, total: 0, remaining: 0 }
-      };
+  //     const formattedBalance = {
+  //       sick: data?.sick ?? { used: 0, total: 0, remaining: 0 },
+  //       earned: data?.earned ?? { used: 0, total: 0, remaining: 0 },
+  //       casual: data?.casual ?? { used: 0, total: 0, remaining: 0 }
+  //     };
 
-      console.log("🎯 Final Balance Set to State:", formattedBalance);
+  //     console.log("🎯 Final Balance Set to State:", formattedBalance);
 
-      setBalance(formattedBalance);
-    } catch (error) {
-      console.error("❌ Error fetching leave balance:", error);
-      toast.error("Failed to fetch balance");
-    }
-  };
+  //     setBalance(formattedBalance);
+  //   } catch (error) {
+  //     console.error("❌ Error fetching leave balance:", error);
+  //     toast.error("Failed to fetch balance");
+  //   }
+  // };
 
   const fetchLeaves = async () => {
     const token = getToken();
@@ -288,7 +288,7 @@ function UserLeaveManagement() {
         const results = await Promise.allSettled([
           fetchLeaves(),
           fetchMyWFH(),
-          fetchBalance()
+          // fetchBalance()
         ]);
 
         console.log(
@@ -374,7 +374,7 @@ function UserLeaveManagement() {
 
       await fetchLeaves();
       await fetchMyWFH();
-      await fetchBalance();
+      // await fetchBalance();
 
       setForm({
         leaveType: "Casual",
@@ -434,7 +434,7 @@ function UserLeaveManagement() {
       toast.success("Leave deleted successfully 🗑️");
 
       await fetchLeaves();
-      await fetchBalance();
+      // await fetchBalance();
     } catch (err) {
       console.error(err);
       toast.error(
@@ -492,32 +492,32 @@ function UserLeaveManagement() {
 
   ];
 
-  const leaveCards = balance ? [
-    {
-      title: "Sick Leave",
-      used: balance.sick.used,
-      total: balance.sick.total,
-      remaining: balance.sick.remaining,
-      icon: <FaUserInjured />,
-      className: "sick"
-    },
-    {
-      title: "Earned Leave",
-      used: balance.earned.used,
-      total: balance.earned.total,
-      remaining: balance.earned.remaining,
-      icon: <FaBookOpen />,
-      className: "earned"
-    },
-    {
-      title: "Casual Leave",
-      used: balance.casual.used,
-      total: balance.casual.total,
-      remaining: balance.casual.remaining,
-      icon: <FaRegCalendarAlt />,
-      className: "casual"
-    }
-  ] : [];
+  // const leaveCards = balance ? [
+  //   {
+  //     title: "Sick Leave",
+  //     used: balance.sick.used,
+  //     total: balance.sick.total,
+  //     remaining: balance.sick.remaining,
+  //     icon: <FaUserInjured />,
+  //     className: "sick"
+  //   },
+  //   {
+  //     title: "Earned Leave",
+  //     used: balance.earned.used,
+  //     total: balance.earned.total,
+  //     remaining: balance.earned.remaining,
+  //     icon: <FaBookOpen />,
+  //     className: "earned"
+  //   },
+  //   {
+  //     title: "Casual Leave",
+  //     used: balance.casual.used,
+  //     total: balance.casual.total,
+  //     remaining: balance.casual.remaining,
+  //     icon: <FaRegCalendarAlt />,
+  //     className: "casual"
+  //   }
+  // ] : [];
 
   return (
     initialLoading ? (
@@ -581,16 +581,11 @@ function UserLeaveManagement() {
           Leave Management
         </h2>
 
-        <div className="leave-top-cards">
-
+        {/* <div className="leave-top-cards">
           {!balance ? (
-
             <p>Loading leave balance...</p>
-
           ) : (
-
             leaveCards.map((card, index) => {
-
               const progress =
                 card.total > 0
                   ? Math.min(
@@ -598,58 +593,40 @@ function UserLeaveManagement() {
                     100
                   )
                   : 0;
-
               return (
-
                 <div
                   className="leave-summary-card"
                   key={index}
                 >
-
                   <div className="leave-card-header">
-
                     <div
                       className={`leave-icon-box ${card.className}`}
                     >
                       {card.icon}
                     </div>
-
                     <h4>{card.title}</h4>
-
                   </div>
-
                   <div className="leave-card-info">
-
                     <span>
                       Used {card.used} / {card.total}
                     </span>
-
                     <span>
                       {card.remaining} left
                     </span>
-
                   </div>
-
                   <div className="leave-progress">
-
                     <div
                       className={`leave-progress-fill ${card.className}`}
                       style={{
                         width: progress > 0 ? `${progress}%` : "8px"
                       }}
                     ></div>
-
                   </div>
-
                 </div>
-
               );
-
             })
-
           )}
-
-        </div>
+        </div> */}
 
         <div className="apply-card">
           <h2>Apply Leave</h2>

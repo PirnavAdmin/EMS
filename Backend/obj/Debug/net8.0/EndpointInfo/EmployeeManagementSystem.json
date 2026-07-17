@@ -1247,7 +1247,7 @@
         }
       }
     },
-    "/api/Attendance/admin/upload-monthly": {
+    "/api/Attendance/bulk-upload": {
       "post": {
         "tags": [
           "Attendance"
@@ -2746,6 +2746,49 @@
         "parameters": [
           {
             "name": "leaveId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "approverEmail",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/EmployeeLeave/wfh-mail-action": {
+      "get": {
+        "tags": [
+          "EmployeeLeave"
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
             "in": "query",
             "schema": {
               "type": "integer",

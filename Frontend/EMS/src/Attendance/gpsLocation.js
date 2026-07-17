@@ -18,7 +18,7 @@ export const GPS_CONFIG = {
   EXCELLENT_ACCURACY_M: 100, // <= 100m -> excellent
   GOOD_ACCURACY_M: 200, // <= 200m -> good
   ACCEPTABLE_ACCURACY_M: 300, // <= 300m -> acceptable
-  MAX_ATTEMPTS: 5, // Legacy compatibility; kept unchanged
+  MAX_ATTEMPTS: 2, // Legacy compatibility; kept unchanged
   RETRY_DELAY_MS: 3000, // Legacy compatibility; kept unchanged
   TIMEOUT_MS: 45000,
 };

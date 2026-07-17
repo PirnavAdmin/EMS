@@ -1,23 +1,37 @@
 ﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
 {
     public interface IEmployeeService
     {
-        Task<object> AddEmployee(EmployeeDto dto);
+       
 
         Task<List<Employee>> GetAllEmployees();
 
-        Task<Employee?> UpdateEmployee(string EmployeeId, EmployeeDto dto);
+        Task<object> AddEmployee(
+     ClaimsPrincipal user,
+     EmployeeDto dto);
 
-        Task<string> DeleteEmployee(string employeeId);
+        Task<Employee?> UpdateEmployee(
+            ClaimsPrincipal user,
+            string employeeId,
+            EmployeeDto dto);
+
+        Task<string> DeleteEmployee(
+            ClaimsPrincipal user,
+            string employeeId);
+
+        Task<object> BulkUploadEmployees(
+            ClaimsPrincipal user,
+            IFormFile file);
         Task<byte[]> ExportFullEmployeeMaster();
         Task<byte[]> DownloadEmployeeUploadTemplate();
         Task<Employee?> GetEmployeeByEmployeeId(string employeeId);
         Task SaveChanges();
         Task<byte[]> ExportEmployeeProfilePdf(string employeeId);
-        Task<object> BulkUploadEmployees(IFormFile file);
+      
         Task<List<UpcomingBirthdayDto>> GetUpcomingBirthdays();
     }
 }

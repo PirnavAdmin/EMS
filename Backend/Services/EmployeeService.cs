@@ -1,13 +1,14 @@
-﻿using EmployeeManagementSystem.Data;
+﻿using ClosedXML.Excel;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using ClosedXML.Excel;
-using System.IO;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.IO;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -17,22 +18,32 @@ namespace EmployeeManagementSystem.Services
         private readonly IEmailService _emailService;
         private readonly IAdminNotificationService _adminNotificationService;
         private readonly IUserNotificationService _notificationService;
+        private readonly IAdminAuthorizationService _adminAuthorization;
 
         public EmployeeService(
-      AppDbContext context,
-      IUserNotificationService notificationService,
-      IAdminNotificationService adminNotificationService,
-      IEmailService emailService)
+     AppDbContext context,
+     IUserNotificationService notificationService,
+     IAdminNotificationService adminNotificationService,
+     IEmailService emailService,
+     IAdminAuthorizationService adminAuthorization)
         {
             _context = context;
             _notificationService = notificationService;
             _adminNotificationService = adminNotificationService;
-            _emailService = emailService; // 👈 IMPORTANT
+            _emailService = emailService;
+            _adminAuthorization = adminAuthorization;
         }
 
         // ✅ ADD EMPLOYEE
-        public async Task<object> AddEmployee(EmployeeDto dto)
+        public async Task<object> AddEmployee(
+            ClaimsPrincipal user,
+            EmployeeDto dto)
         {
+            if (!await _adminAuthorization.IsAdminAsync(user))
+            {
+                throw new UnauthorizedAccessException(
+                    "Only admins can add employees.");
+            }
             // 1. Check duplicate
             var exists = await _context.Employees
                 .AnyAsync(e => e.Employee_Id == dto.Employee_Id);
@@ -64,12 +75,19 @@ namespace EmployeeManagementSystem.Services
             };
 
             // ✅ STEP 1: SAVE EMPLOYEE FIRST
+            // Save employee first
             _context.Employees.Add(employee);
             await _context.SaveChangesAsync();
-            _emailService.SendEmployeeCredentials(
-                    employee.Email,
-                    employee.Name
-                        );
+
+            // Send email (don't stop employee creation if email fails)
+            try
+            {
+                await _emailService.SendEmployeeCredentials(employee.Email, employee.Name);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Email sending failed: {ex.Message}");
+            }
             // ✅ STEP 2: NOW ADD LEAVE BALANCE (AFTER EMPLOYEE EXISTS)
             //_context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
             //{
@@ -102,13 +120,12 @@ namespace EmployeeManagementSystem.Services
             // 7. Sync Role → User table
             if (!string.IsNullOrEmpty(employee.Email))
             {
-                var user = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Email == employee.Email);
+                var existingUser = await _context.Users
+    .FirstOrDefaultAsync(u => u.Email == employee.Email);
 
-                if (user != null)
+                if (existingUser != null)
                 {
-                    user.RoleId = role.RoleId;
-                    await _context.SaveChangesAsync();
+                    existingUser.RoleId = role.RoleId;
                 }
             }
 
@@ -137,8 +154,17 @@ namespace EmployeeManagementSystem.Services
         }
 
         // ✅ UPDATE EMPLOYEE
-        public async Task<Employee?> UpdateEmployee(string employeeId, EmployeeDto dto)
+        public async Task<Employee?> UpdateEmployee(
+     ClaimsPrincipal user,
+     string employeeId,
+     EmployeeDto dto)
+
         {
+            if (!await _adminAuthorization.IsAdminAsync(user))
+            {
+                throw new UnauthorizedAccessException(
+                    "Only admins can update employees.");
+            }
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 
@@ -183,12 +209,13 @@ namespace EmployeeManagementSystem.Services
                     newDept.MembersCount += 1;
             }
 
-            // 🔥 Sync user role
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == employee.Email);
+            var existingUser = await _context.Users
+     .FirstOrDefaultAsync(u => u.Email == employee.Email);
 
-            if (user != null)
-                user.RoleId = role.RoleId;
+            if (existingUser != null)
+            {
+                existingUser.RoleId = role.RoleId;
+            }
 
             // 🔥 Activity log
             _context.ActivityLogs.Add(new ActivityLog
@@ -203,8 +230,14 @@ namespace EmployeeManagementSystem.Services
         }
 
         // ✅ DELETE EMPLOYEE
-        public async Task<string> DeleteEmployee(string employeeId)
+        public async Task<string> DeleteEmployee(
+     ClaimsPrincipal user,
+     string employeeId)
         {
+            if (!await _adminAuthorization.IsAdminAsync(user))
+            {
+                return "Only admins can delete employees.";
+            }
             var emp = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 
@@ -291,9 +324,19 @@ namespace EmployeeManagementSystem.Services
 
             return result;
         }
-        public async Task<object> BulkUploadEmployees(IFormFile file)
+        public async Task<object> BulkUploadEmployees(
+    ClaimsPrincipal user,
+    IFormFile file)
 
         {
+            if (!await _adminAuthorization.IsAdminAsync(user))
+            {
+                return new
+                {
+                    Status = false,
+                    Message = "Only admins can bulk upload employees."
+                };
+            }
 
             if (file == null || file.Length == 0)
 

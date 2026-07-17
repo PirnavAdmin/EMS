@@ -554,12 +554,12 @@ function UserAttendance() {
       currentTime.getHours() === 8 &&
       currentTime.getMinutes() < 55
     );
-  // const isAfter615 =
-  //   currentTime.getHours() > 18 ||
-  //   (
-  //     currentTime.getHours() === 18 &&
-  //     currentTime.getMinutes() >= 15
-  //   );
+  const isAfter615 =
+    currentTime.getHours() > 18 ||
+    (
+      currentTime.getHours() === 18 &&
+      currentTime.getMinutes() >= 15
+    );
   const getStatusClass = (status) => {
     const value = normalizeStatus(status).toLowerCase().replace(/\s+/g, "");
 
