@@ -1,3 +1,5 @@
+using ClosedXML.Excel;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
@@ -928,6 +930,7 @@ namespace EmployeeManagementSystem.Services
                     CheckOut = checkOut?.ToString("hh:mm tt"),
                     Hours = hours
                 });
+            }
 
             return new OkObjectResult(result);
         }
@@ -3044,10 +3047,7 @@ namespace EmployeeManagementSystem.Services
                 var checkIn =
                     ConvertToIST(item.Attendance.Check_In.Value);
 
-                var lateMinutes =
-                    (int)(checkIn.TimeOfDay -
-                          new TimeSpan(9, 15, 0))
-                    .TotalMinutes;
+                    var lateMinutes = (int)((checkIn.TimeOfDay - new TimeSpan(9, 15, 0)).TotalMinutes);
 
                 lateMcSheet.Cell(lateMcRow, 1).Value =
                     item.Employee.Employee_Id;
@@ -3119,10 +3119,7 @@ namespace EmployeeManagementSystem.Services
                     ConvertToIST(
                         item.Attendance.Check_In.Value);
 
-                var lateMinutes =
-                    (int)(checkInTime.TimeOfDay -
-                    new TimeSpan(9, 15, 0))
-                    .TotalMinutes;
+                var lateMinutes = (int)((checkInTime.TimeOfDay - new TimeSpan(9, 15, 0)).TotalMinutes);
 
                 lateSheet.Cell(lateRow, 1).Value =
                     item.Employee.Employee_Id;
