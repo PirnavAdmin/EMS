@@ -1,5 +1,3 @@
-using ClosedXML.Excel;
-using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
