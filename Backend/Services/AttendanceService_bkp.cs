@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
@@ -905,6 +905,22 @@ namespace EmployeeManagementSystem.Services
                     status = "Absent";
                 }
 
+                string hours = "0h 0m";
+
+                if (att != null && att.Check_In.HasValue)
+                {
+                    int minutes = att.Check_Out.HasValue
+                        ? att.WorkingMinutes
+                        : Math.Max(
+                            0,
+                            Math.Min(
+                                (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes,
+                                720
+                            ) - att.TotalBreakMinutes);
+
+                    hours = FormatHours(minutes);
+                }
+
                 result.Add(new
                 {
                     Day = date.DayOfWeek.ToString(),
@@ -912,17 +928,7 @@ namespace EmployeeManagementSystem.Services
                     Status = status,
                     CheckIn = checkIn?.ToString("hh:mm tt"),
                     CheckOut = checkOut?.ToString("hh:mm tt"),
-                    Hours = att != null
-    ? FormatHours(
-        att.Check_Out != null
-            ? att.WorkingMinutes
-            : Math.Max(
-                0,
-                Math.Min(
-                    (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes,
-                    720
-                ) - att.TotalBreakMinutes))
-    : "0h 0m"
+                    Hours = hours
                 });
             }
 
@@ -1885,32 +1891,17 @@ namespace EmployeeManagementSystem.Services
         }
 
 
-        public async Task<string> UploadMonthlyAttendance(
-     ClaimsPrincipal user,
-     IFormFile file,
-     int month,
-     int year)
+                public async Task<string> UploadMonthlyAttendance(
+            ClaimsPrincipal user,
+            IFormFile file,
+            int month,
+            int year)
 
         {
 
             try
 
             {
-                var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
-
-                if (string.IsNullOrWhiteSpace(email))
-                {
-                    return "Unauthorized.";
-                }
-
-                var admin = await _context.Admins
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
-
-                if (admin == null)
-                {
-                    return "Only Admins can upload attendance.";
-                }
 
                 if (file == null || file.Length == 0)
 
@@ -3054,10 +3045,7 @@ namespace EmployeeManagementSystem.Services
                 var checkIn =
                     ConvertToIST(item.Attendance.Check_In.Value);
 
-                var lateMinutes =
-                    (int)(checkIn.TimeOfDay -
-                          new TimeSpan(9, 15, 0))
-                    .TotalMinutes;
+                    var lateMinutes = (int)((checkIn.TimeOfDay - new TimeSpan(9, 15, 0)).TotalMinutes);
 
                 lateMcSheet.Cell(lateMcRow, 1).Value =
                     item.Employee.Employee_Id;
@@ -3129,10 +3117,7 @@ namespace EmployeeManagementSystem.Services
                     ConvertToIST(
                         item.Attendance.Check_In.Value);
 
-                var lateMinutes =
-                    (int)(checkInTime.TimeOfDay -
-                    new TimeSpan(9, 15, 0))
-                    .TotalMinutes;
+                var lateMinutes = (int)((checkInTime.TimeOfDay - new TimeSpan(9, 15, 0)).TotalMinutes);
 
                 lateSheet.Cell(lateRow, 1).Value =
                     item.Employee.Employee_Id;
@@ -3380,16 +3365,19 @@ namespace EmployeeManagementSystem.Services
                     Status = status,
                     WorkingHours = att == null
     ? "0h 0m"
-    : FormatHours(
-        att.Check_Out != null
-            ? att.WorkingMinutes
-            : Math.Max(
-                0,
-                Math.Min(
-                    (int)(ConvertToIST(DateTime.UtcNow) - ConvertToIST(att.Check_In!.Value)).TotalMinutes,
-                    720
-                ) - att.TotalBreakMinutes
-            ))
+    : !att.Check_In.HasValue
+        ? "0h 0m"
+        : FormatHours(
+            att.Check_Out.HasValue
+                ? att.WorkingMinutes
+                : Math.Max(
+                    0,
+                    Math.Min(
+                        (int)(ConvertToIST(DateTime.UtcNow) - ConvertToIST(att.Check_In.Value)).TotalMinutes,
+                        720
+                    ) - att.TotalBreakMinutes
+                )
+          )
                 });
             }
 
@@ -3517,7 +3505,3 @@ namespace EmployeeManagementSystem.Services
         }
     }
 }
-
-
-
-
