@@ -1,5 +1,3 @@
-
-root@ip-172-31-5-122:/home/ubuntu/EMS/Backend/Services# cat AttendanceService.cs
 using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
