@@ -927,7 +927,7 @@ namespace EmployeeManagementSystem.Services
                     ) - att.TotalBreakMinutes
                 )
           ),
-            }
+            });
 
             return new OkObjectResult(result);
         }
