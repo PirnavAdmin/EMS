@@ -764,7 +764,10 @@ function Documents({
     const isAgreementSelected = !!selectedAgreementDetails;
 
     const isAgreementSigned =
-        String(selectedAgreementDetails?.status || "").toLowerCase() === "signed";
+        selectedAgreementDetails &&
+        String(selectedAgreementDetails.status)
+            .toLowerCase()
+            .includes("signed");
 
     const isSignatureFormValid =
         signatureName.trim() !== "" &&
@@ -780,10 +783,18 @@ function Documents({
 
     // Enable ONLY after agreement is signed
     const canViewSigned =
-        isAgreementSelected && isAgreementSigned;
+        Boolean(
+            selectedAgreementDetails &&
+            (
+                selectedAgreementDetails.signedEmployeeAgreementId ||
+                String(selectedAgreementDetails.status)
+                    .toLowerCase()
+                    .includes("signed")
+            )
+        );
 
-    const canDownloadSigned =
-        isAgreementSelected && isAgreementSigned;
+    const canDownloadSigned = canViewSigned;
+
 
     useEffect(
         () => () => {
@@ -915,19 +926,22 @@ function Documents({
 
                 const normalizedAgreements = allAgreements.map((agreement) => {
                     const normalizedAgreement = normalizeAgreement(agreement);
-                    const pendingMatch = findAgreementMatch(
-                        pendingAgreementIndex,
-                        normalizedAgreement
-                    );
                     const signedMatch = findAgreementMatch(
                         signedAgreementIndex,
                         normalizedAgreement
                     );
-                    const agreementStatus = signedCodes.has(normalizedAgreement.agreementCode)
-                        ? "Signed"
-                        : pendingCodes.has(normalizedAgreement.agreementCode)
-                            ? "Pending"
-                            : normalizedAgreement.status || "Pending";
+
+                    const pendingMatch = findAgreementMatch(
+                        pendingAgreementIndex,
+                        normalizedAgreement
+                    );
+
+                    const agreementStatus =
+                        signedMatch
+                            ? "Signed"
+                            : pendingMatch
+                                ? "Pending"
+                                : normalizedAgreement.status || "Pending";
 
                     const mergedAgreement = mergeAgreementLifecycleIds(
                         {
@@ -1563,6 +1577,26 @@ function Documents({
             setSuccessMsg("Agreement Signed Successfully");
             toast.success("Agreement Signed Successfully");
             await loadAgreements({ silent: true });
+
+            const refreshedPending = await getPendingAgreementCount(employeeIdForSignature);
+            const refreshedSigned = await getSignedAgreementCount(employeeIdForSignature);
+
+            const signedAgreement = refreshedSigned.find(
+                x => x.agreementCode === agreement.agreementCode
+            );
+
+            if (signedAgreement) {
+                const updatedAgreement = normalizeAgreement({
+                    ...agreement,
+                    ...signedAgreement,
+                    status: "Signed",
+                });
+
+                setSelectedAgreement(updatedAgreement);
+            }
+
+            setPendingAgreementCount(refreshedPending.length);
+            setSignedAgreementCount(refreshedSigned.length);
         } catch (error) {
             if (!isMountedRef.current) {
                 return;

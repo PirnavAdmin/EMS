@@ -449,20 +449,20 @@ namespace EmployeeManagementSystem.Services
                 var imageData =
                     ImageDataFactory.Create(fullImagePath);
 
-                var image =
-                    new PdfImage(imageData);
+                var image = new PdfImage(imageData);
 
-                image.ScaleToFit(100, 40);
+                image.ScaleToFit(110, 45);
 
+                // Place beside employee details
                 image.SetFixedPosition(
                     lastPage,
-                    60,
-                    180   // increase until it aligns below "Place"
+                    180,   // X
+                    265    // Y
                 );
 
                 document.Add(image);
 
-                
+
             }
 
             File.Delete(pdfPath);

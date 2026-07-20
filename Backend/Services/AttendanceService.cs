@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
@@ -1366,13 +1366,16 @@ namespace EmployeeManagementSystem.Services
             var today = DateTime.UtcNow.Date;
 
             var records = await _context.Attendance
-                .Where(a =>
-                    a.Attendance_Date.Date < today &&
-                    a.Check_In != null &&
-                    a.Check_Out == null &&
-                    a.Status != "LOP" &&
-                    a.Status != "MC")
-                .ToListAsync();
+    .Where(a =>
+        a.Attendance_Date.Date < today &&
+        a.Check_In != null &&
+        a.Check_Out == null &&
+        a.Status != "Present" &&
+        a.Status != "Half Day" &&
+        a.Status != "LOP" &&
+        a.Status != "MC" &&
+        a.Status != "LMC")
+    .ToListAsync();
 
 
             foreach (var record in records)
@@ -1891,11 +1894,11 @@ namespace EmployeeManagementSystem.Services
         }
 
 
-                public async Task<string> UploadMonthlyAttendance(
-            ClaimsPrincipal user,
-            IFormFile file,
-            int month,
-            int year)
+        public async Task<string> UploadMonthlyAttendance(
+    ClaimsPrincipal user,
+    IFormFile file,
+    int month,
+    int year)
 
         {
 
@@ -2046,25 +2049,21 @@ namespace EmployeeManagementSystem.Services
                             continue;
 
                         string dbStatus = excelStatus switch
-
                         {
-
                             "P" => "Present",
+                            "MC" => "Present",
+                            "LMC" => "Present",
+                            "LOP" => "Present",
 
                             "A" => "Absent",
-
                             "HD" => "Half Day",
-
-                            "LOP" => "LOP",
-
                             "LT" => "Late",
+                            "OL" => "On Leave",
 
                             "W" => null,
-
                             "H" => null,
 
                             _ => null
-
                         };
 
                         if (string.IsNullOrWhiteSpace(dbStatus))
@@ -3045,7 +3044,7 @@ namespace EmployeeManagementSystem.Services
                 var checkIn =
                     ConvertToIST(item.Attendance.Check_In.Value);
 
-                    var lateMinutes = (int)((checkIn.TimeOfDay - new TimeSpan(9, 15, 0)).TotalMinutes);
+                var lateMinutes = (int)((checkIn.TimeOfDay - new TimeSpan(9, 15, 0)).TotalMinutes);
 
                 lateMcSheet.Cell(lateMcRow, 1).Value =
                     item.Employee.Employee_Id;
