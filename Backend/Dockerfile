@@ -5,13 +5,13 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS restore
 WORKDIR /src
  
 COPY EmployeeManagementSystem.csproj ./
-
+ 
 RUN dotnet restore "EmployeeManagementSystem.csproj"
  
 FROM restore AS build
  
 COPY . ./
-
+ 
 RUN dotnet publish "EmployeeManagementSystem.csproj" \
 
     --configuration Release \
@@ -23,25 +23,41 @@ RUN dotnet publish "EmployeeManagementSystem.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS runtime
  
 WORKDIR /app
-
+ 
 ENV ASPNETCORE_URLS=http://+:8080 \
 
     DOTNET_RUNNING_IN_CONTAINER=true
  
-RUN apt-get update \
-&& apt-get install -y --no-install-recommends \
+# Install LibreOffice and Microsoft-compatible fonts
+
+RUN apt-get update && \
+
+    apt-get install -y --no-install-recommends \
+
+        libreoffice-writer \
+
+        libreoffice-core \
+
+        libreoffice-common \
 
         fontconfig \
 
         fonts-dejavu \
 
-        libreoffice-writer \
-&& rm -rf /var/lib/apt/lists/*
+        fonts-liberation2 \
+
+        fonts-crosextra-carlito \
+
+        fonts-crosextra-caladea && \
+
+    fc-cache -fv && \
+
+    rm -rf /var/lib/apt/lists/*
  
 COPY --from=build /app/publish ./
 
 COPY --from=build /src/Templates ./Templates
-
+ 
 RUN mkdir -p \
 
     /app/GeneratedLetters \
@@ -52,13 +68,13 @@ RUN mkdir -p \
 
     /app/wwwroot/uploads \
 
-    /app/wwwroot/uploads/assets \
-&& chown -R ${APP_UID}:${APP_UID} /app
+    /app/wwwroot/uploads/assets && \
+
+    chown -R ${APP_UID}:${APP_UID} /app
  
 USER ${APP_UID}
  
 EXPOSE 8080
-
+ 
 ENTRYPOINT ["dotnet", "EmployeeManagementSystem.dll"]
-
  
