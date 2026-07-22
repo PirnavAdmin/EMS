@@ -5,5 +5,3 @@ const API_ORIGIN = (
 
 export const SERVER_URL = API_ORIGIN;
 export const BASE_URL = `${API_ORIGIN}/api`;
-
-

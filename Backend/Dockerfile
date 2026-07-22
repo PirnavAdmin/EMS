@@ -1,5 +1,11 @@
 # syntax=docker/dockerfile:1.7
  
+# ==========================
+
+# Restore
+
+# ==========================
+
 FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS restore
  
 WORKDIR /src
@@ -8,37 +14,61 @@ COPY EmployeeManagementSystem.csproj ./
  
 RUN dotnet restore "EmployeeManagementSystem.csproj"
  
+# ==========================
+
+# Build
+
+# ==========================
+
 FROM restore AS build
  
 COPY . ./
  
 RUN dotnet publish "EmployeeManagementSystem.csproj" \
 
-    --configuration Release \
+    -c Release \
 
-    --output /app/publish \
+    -o /app/publish \
 
     /p:UseAppHost=false
  
+# ==========================
+
+# Runtime
+
+# ==========================
+
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS runtime
  
 WORKDIR /app
  
 ENV ASPNETCORE_URLS=http://+:8080 \
 
-    DOTNET_RUNNING_IN_CONTAINER=true
+    DOTNET_RUNNING_IN_CONTAINER=true \
+
+    HOME=/tmp
  
-# Install LibreOffice and Microsoft-compatible fonts
+# Install LibreOffice and fonts
 
 RUN apt-get update && \
 
     apt-get install -y --no-install-recommends \
+
+        libreoffice \
 
         libreoffice-writer \
 
         libreoffice-core \
 
         libreoffice-common \
+
+        libreoffice-java-common \
+
+        libreoffice-style-colibre \
+
+        ure \
+
+        default-jre-headless \
 
         fontconfig \
 
@@ -48,7 +78,13 @@ RUN apt-get update && \
 
         fonts-crosextra-carlito \
 
-        fonts-crosextra-caladea && \
+        fonts-crosextra-caladea \
+
+        fonts-noto \
+
+        fonts-noto-cjk \
+
+        ghostscript && \
 
     fc-cache -fv && \
 
@@ -68,9 +104,11 @@ RUN mkdir -p \
 
     /app/wwwroot/uploads \
 
-    /app/wwwroot/uploads/assets && \
+    /app/wwwroot/uploads/assets \
 
-    chown -R ${APP_UID}:${APP_UID} /app
+    /tmp/libreoffice-profile && \
+
+    chown -R ${APP_UID}:${APP_UID} /app /tmp/libreoffice-profile
  
 USER ${APP_UID}
  
