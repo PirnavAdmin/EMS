@@ -75,21 +75,29 @@ namespace EmployeeManagementSystem.Services
             decimal pf = Math.Round(basic * 0.12m);
 
             // ✅ KEEP THIS (your system logic)
-            decimal gross = (monthlyCTC * ratio) - pf;
+            decimal gross = Math.Round(monthlyCTC * ratio) - pf;
 
-            decimal specialAllowance =
-                gross - (basic + hra + conveyance + medical);
+            decimal specialAllowance = Math.Round(
+    gross - (basic + hra + conveyance + medical),
+    0,
+    MidpointRounding.AwayFromZero);
 
-            decimal totalEarnings =
-                basic + hra + conveyance + medical + specialAllowance;
+            decimal totalEarnings = Math.Round(
+                basic + hra + conveyance + medical + specialAllowance,
+                0,
+                MidpointRounding.AwayFromZero);
 
             decimal professionalTax = 200;
 
-            decimal totalDeductions =
-                pf + professionalTax + dto.OtherDeductions;
+            decimal totalDeductions = Math.Round(
+                pf + professionalTax + dto.OtherDeductions,
+                0,
+                MidpointRounding.AwayFromZero);
 
-            decimal netSalary =
-                totalEarnings - totalDeductions;
+            decimal netSalary = Math.Round(
+                totalEarnings - totalDeductions,
+                0,
+                MidpointRounding.AwayFromZero);
 
             if (netSalary < 0)
                 netSalary = 0;

@@ -4,6 +4,9 @@
     {
         public bool Success { get; set; }
         public string Message { get; set; }
+        public int OfferLetterId { get; set; }
+
+        public string PreviewUrl { get; set; }
         public byte[]? PdfBytes { get; set; }
     }
 }

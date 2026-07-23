@@ -1,16 +1,16 @@
-﻿using EmployeeManagementSystem.DTOs;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
-
 using Microsoft.AspNetCore.Authorization;
-
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Controllers
 
 {
-
+    //[Authorize]
     [Route("api/[controller]")]
 
     [ApiController]
@@ -79,7 +79,8 @@ namespace EmployeeManagementSystem.Controllers
         //---------------------------------------
 
         // ✅ Weekly
-
+        //[Permission(ModuleIds.UserAttendance, PermissionAction.View)]
+        
         [HttpGet("weekly")]
 
         public async Task<IActionResult> GetWeekly()
@@ -92,6 +93,8 @@ namespace EmployeeManagementSystem.Controllers
 
         // ✅ Previous Week
 
+        
+        //[Permission(ModuleIds.UserAttendance, PermissionAction.View)]
         [HttpGet("previous-week")]
 
         public async Task<IActionResult> GetPreviousWeek()
@@ -103,7 +106,8 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // ✅ Current Month (Running Month)
-
+        //[Permission(ModuleIds.UserAttendance, PermissionAction.View)]
+      
         [HttpGet("current-month")]
 
         public async Task<IActionResult> GetCurrentMonth()
@@ -115,8 +119,9 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // ✅ Previous Month
-
+        //[Permission(ModuleIds.UserAttendance, PermissionAction.View)]
         [HttpGet("previous-month")]
+        
 
         public async Task<IActionResult> GetPreviousMonth()
 
@@ -127,7 +132,32 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // ✅ Custom Month View
+        [HttpGet("monthly-summary/{employeeId}")]
+        public async Task<IActionResult> GetMonthlySummary(
+    string employeeId,
+    [FromQuery] int month,
+    [FromQuery] int year)
+        {
+            try
+            {
+                var summary = await _attendanceService.GetMonthlyAttendanceSummary(
+                    employeeId,
+                    month,
+                    year);
 
+                return Ok(summary);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        //[Permission(ModuleIds.UserAttendance, PermissionAction.View)]
+        
         [HttpGet("month")]
 
         public async Task<IActionResult> GetMonth(
@@ -151,7 +181,7 @@ namespace EmployeeManagementSystem.Controllers
         // ✅ Daily Attendance (MAIN UI)
 
 
-
+      
       [HttpGet("today")]
 public async Task<IActionResult> GetAttendanceByDate(
     DateTime date,
@@ -163,6 +193,11 @@ public async Task<IActionResult> GetAttendanceByDate(
 
     return Ok(result);
 }
+        [HttpGet("admin-dashboard-overview")]
+        public async Task<IActionResult> GetAdminDashboardOverview()
+        {
+            return Ok(await _attendanceService.GetAdminDashboardOverview());
+        }
 
         // ✅ Monthly / Year View
 
@@ -210,7 +245,7 @@ public async Task<IActionResult> GetAttendanceByDate(
 
         // ✅ Today
 
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
 
         [HttpGet("stats/today")]
 
@@ -226,7 +261,7 @@ public async Task<IActionResult> GetAttendanceByDate(
 
         // ✅ Yearly Summary
 
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
 
         [HttpGet("stats/year")]
 
@@ -399,7 +434,8 @@ public async Task<IActionResult> GetAttendanceByDate(
                 });
             }
         }
-        [Authorize]
+
+        //[Authorize]
         [HttpPost("update-activity")]
         public async Task<IActionResult> UpdateActivity()
         {
@@ -407,7 +443,7 @@ public async Task<IActionResult> GetAttendanceByDate(
                 .UpdateActivity(User);
         }
 
-        [HttpPost("bulk-upload")]
+        [HttpPost("admin/upload-monthly")]
         public async Task<IActionResult> UploadAttendance(
     IFormFile file,
     int month,

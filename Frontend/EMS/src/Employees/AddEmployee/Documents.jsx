@@ -27,11 +27,14 @@ import {
     extractDocumentRecords,
     areDocumentRecordsEquivalent,
     formatDocumentSize,
+    formatFileSize,
+    MAX_DOCUMENT_FILE_SIZE_BYTES,
     mergeDocumentRecords,
     normalizeDocumentRecord,
     normalizeDocumentTypeKey,
     removeStoredDocument,
     saveStoredDocument,
+    validateFileSize,
 } from "./documentStore";
 import { formatDateTime } from "../../utils/date";
 import {
@@ -52,7 +55,7 @@ import {
     isSafeWebUrl,
 } from "./documentPreview";
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_SIGNATURE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const BASE_DOCUMENT_TYPE_GROUPS = [
     {
@@ -660,6 +663,7 @@ function Documents({
     const [savingNext, setSavingNext] = useState(false);
     const [deletingId, setDeletingId] = useState("");
     const [apiError, setApiError] = useState("");
+    const [fileValidationError, setFileValidationError] = useState("");
     const [loadError, setLoadError] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -682,6 +686,15 @@ function Documents({
     const fileInputRef = useRef(null);
     const signatureImageInputRef = useRef(null);
     const isMountedRef = useRef(true);
+    const clearSelectedFile = useCallback(() => {
+        setSelectedFile(null);
+        setFileValidationError("");
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    }, []);
+
     const visibleDocuments = useMemo(
         () => mergeDocumentRecords(documents, []),
         [documents]
@@ -1034,23 +1047,22 @@ function Documents({
         const file = event.target.files?.[0];
 
         if (!file) {
-            setSelectedFile(null);
+            clearSelectedFile();
             return;
         }
 
-        if (file.size > MAX_FILE_SIZE_BYTES) {
-            const message = "File size should be less than 10MB";
-            setApiError(message);
-            toast.error(message);
+        const fileSizeValidation = validateFileSize(file);
 
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
-
+        if (!fileSizeValidation.isValid) {
+            clearSelectedFile();
+            setFileValidationError(fileSizeValidation.message);
+            setApiError("");
+            toast.error(fileSizeValidation.message);
             return;
         }
 
         setSelectedFile(file);
+        setFileValidationError("");
         setApiError("");
     };
 
@@ -1070,7 +1082,7 @@ function Documents({
             return;
         }
 
-        if (file.size > MAX_FILE_SIZE_BYTES) {
+        if (file.size > MAX_SIGNATURE_FILE_SIZE_BYTES) {
             const message = "Signature image should be less than 10MB";
             setApiError(message);
             toast.error(message);
@@ -1112,9 +1124,20 @@ function Documents({
             return;
         }
 
+        const fileSizeValidation = validateFileSize(selectedFile);
+
+        if (!fileSizeValidation.isValid) {
+            clearSelectedFile();
+            setFileValidationError(fileSizeValidation.message);
+            setApiError("");
+            toast.error(fileSizeValidation.message);
+            return;
+        }
+
         try {
             setUploading(true);
             setApiError("");
+            setFileValidationError("");
 
             const formData = new FormData();
             formData.append("EmployeeId", employeeKey);
@@ -1181,14 +1204,10 @@ function Documents({
             setDocuments((currentDocuments) =>
                 mergeDocumentRecords([storedDocument], currentDocuments)
             );
-            setSelectedFile(null);
+            clearSelectedFile();
             setSelectedDocumentType("");
             setSuccessMsg("Document uploaded successfully.");
             toast.success("Document uploaded successfully.");
-
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
 
             loadDocuments({ silent: true });
         } catch (error) {
@@ -1818,7 +1837,7 @@ function Documents({
             </div> */}
                             </div>
 
-                            <div className="premium-upload-grid">
+                            <div className="premium-upload-grid premium-upload-grid--documents">
                                 <div className="premium-input-group">
                                     <CompactSearchableDropdown
                                         label="Document Type"
@@ -1838,15 +1857,24 @@ function Documents({
                                     />
                                 </div>
 
-                                <div className="premium-input-group">
+                                <div className="premium-input-group premium-input-group--file">
                                     <label>Choose File</label>
                                     <input
                                         ref={fileInputRef}
                                         type="file"
-                                        className="premium-input premium-file-input"
+                                        className={`premium-input premium-file-input ${fileValidationError ? "is-invalid" : ""}`}
                                         onChange={handleFileChange}
                                         disabled={uploading}
+                                        aria-invalid={Boolean(fileValidationError)}
                                     />
+                                    <div className="premium-field-hint">
+                                        Maximum file size: {formatFileSize(MAX_DOCUMENT_FILE_SIZE_BYTES)}
+                                    </div>
+                                    {fileValidationError && (
+                                        <div className="premium-field-error">
+                                            {fileValidationError}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1858,12 +1886,7 @@ function Documents({
 
                                             <span
                                                 className="document-remove-icon"
-                                                onClick={() => {
-                                                    setSelectedFile(null);
-                                                    if (fileInputRef.current) {
-                                                        fileInputRef.current.value = "";
-                                                    }
-                                                }}
+                                                onClick={clearSelectedFile}
                                             >
                                                 ×
                                             </span>

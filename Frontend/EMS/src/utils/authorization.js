@@ -50,7 +50,16 @@ export const normalizePermissionList = (data) => {
         moduleName: String(
           item?.moduleName ?? item?.ModuleName ?? ""
         ).trim(),
-        canAccess: item?.canAccess ?? item?.CanAccess ?? true,
+        canView: item?.canView ?? item?.CanView ?? false,
+        canAdd: item?.canAdd ?? item?.CanAdd ?? false,
+        canEdit: item?.canEdit ?? item?.CanEdit ?? false,
+        canDelete: item?.canDelete ?? item?.CanDelete ?? false,
+        canAccess:
+          item?.canAccess ??
+          item?.CanAccess ??
+          item?.canView ??
+          item?.CanView ??
+          true,
       };
     })
     .filter(

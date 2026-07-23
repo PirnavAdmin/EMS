@@ -7,7 +7,7 @@ using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 
 using Microsoft.EntityFrameworkCore;
-
+using System.Security.Claims;
 namespace EmployeeManagementSystem.Controllers
 
 {
@@ -31,12 +31,26 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // 🔹 CREATE
+        private async Task<bool> IsAdminUser()
+        {
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (string.IsNullOrEmpty(email))
+                return false;
+
+            return await _context.Admins
+                .AnyAsync(a => a.Email == email);
+        }
 
         [HttpPost]
 
         public async Task<IActionResult> Create(EmployeePersonalInfoDto dto)
 
         {
+            if (!await IsAdminUser())
+            {
+                return Forbid("Only administrators can create employee personal information.");
+            }
 
             if (!ModelState.IsValid)
 
@@ -135,6 +149,20 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> Update(string employeeId, EmployeePersonalInfoDto dto)
 
         {
+            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            bool isAdmin = await IsAdminUser();
+
+            if (!isAdmin)
+            {
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Email == loggedInEmail);
+
+                if (employee == null || employee.Employee_Id != employeeId)
+                {
+                    return Forbid("You can edit only your own information.");
+                }
+            }
 
             if (dto == null || string.IsNullOrEmpty(employeeId))
 
@@ -243,6 +271,10 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> Delete(string employeeId)
 
         {
+            if (!await IsAdminUser())
+            {
+                return Forbid("Only administrators can delete employee personal information.");
+            }
 
             var data = await _context.EmployeePersonalInfos
 

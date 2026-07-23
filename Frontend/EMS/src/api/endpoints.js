@@ -336,6 +336,19 @@ AGREEMENTS: {
     GET: (roleName) => `/RolePermission/${roleName}`,
     SAVE: "/RolePermission/save",
     MODULES: "/RolePermission/allowed-modules",
+    EMPLOYEES: (roleName) => `/RolePermission/employees/${roleName}`,
+  },
+
+  // ================= USER PERMISSION =================
+  USER_PERMISSION: {
+    SAVE: "/UserPermission",
+    GET: (employeeId) => `/UserPermission/${employeeId}`,
+    ALLOWED: (employeeId) => `/UserPermission/allowed/${employeeId}`,
+  },
+
+  // ================= PERMISSION =================
+  PERMISSION: {
+    GET: "/Permission",
   },
  
   // ================= REPORTS =================
@@ -362,7 +375,22 @@ AGREEMENTS: {
     GENERATE: "/OfferLetter/Generate",
     LIST: "/OfferLetter/all",
     CALCULATE_BREAKUP: "/OfferLetter/calculate-salary-breakup",
+    PREVIEW: (id) => `/OfferLetter/preview/${id}`,
+    SEND: "/OfferLetter/send",
+    SEND_STATUS: (id) => `/OfferLetter/${id}/send-status`,
     DOWNLOAD: (id) => `/OfferLetter/download/${id}`,
+    DELETE: (id) => `/OfferLetter/${id}`,
+  },
+
+  // ================= RELIEVING LETTER =================
+  RELIEVING_LETTER: {
+    GENERATE: "/RelievingLetter/generate",
+    GET_ALL: "/RelievingLetter/all",
+    PREVIEW: (id) => `/RelievingLetter/preview/${id}`,
+    SEND: "/RelievingLetter/send",
+    SEND_STATUS: (id) => `/RelievingLetter/${id}/send-status`,
+    DOWNLOAD: (id) => `/RelievingLetter/download/${id}`,
+    DELETE: (id) => `/RelievingLetter/${id}`,
   },
  
   // ================= EXPERIENCE LETTER =================
@@ -421,6 +449,15 @@ export const API_ENDPOINTS = {
     allowedModules: API.ROLE_PERMISSION.MODULES,
     byRoleName: API.ROLE_PERMISSION.GET,
     save: API.ROLE_PERMISSION.SAVE,
+    employees: API.ROLE_PERMISSION.EMPLOYEES,
+  },
+  userPermission: {
+    save: API.USER_PERMISSION.SAVE,
+    get: API.USER_PERMISSION.GET,
+    allowed: API.USER_PERMISSION.ALLOWED,
+  },
+  permission: {
+    get: API.PERMISSION.GET,
   },
   dashboard: API.DASHBOARD.ADMIN,
   userDashboard: API.DASHBOARD.USER,
@@ -625,8 +662,22 @@ export const API_ENDPOINTS = {
     all: API.OFFER.LIST,
     generate: API.OFFER.GENERATE,
     calculateBreakup: API.OFFER.CALCULATE_BREAKUP,
+    preview: API.OFFER.PREVIEW,
+    send: API.OFFER.SEND,
+    sendStatus: API.OFFER.SEND_STATUS,
     download: API.OFFER.DOWNLOAD,
+    delete: API.OFFER.DELETE,
   },
+  relievingLetters: {
+    generate: API.RELIEVING_LETTER.GENERATE,
+    all: API.RELIEVING_LETTER.GET_ALL,
+    preview: API.RELIEVING_LETTER.PREVIEW,
+    send: API.RELIEVING_LETTER.SEND,
+    sendStatus: API.RELIEVING_LETTER.SEND_STATUS,
+    download: API.RELIEVING_LETTER.DOWNLOAD,
+    delete: API.RELIEVING_LETTER.DELETE,
+  },
+  RELIEVING_LETTER: API.RELIEVING_LETTER,
   reports: {
     all: API.REPORTS.ALL,
   },

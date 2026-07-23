@@ -2,16 +2,20 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar/Sidebar";
 import Header from "./dashboard/Header";
+import MobileBottomNav from "./components/mobile/MobileBottomNav";
+import { App as CapApp } from "@capacitor/app";
 import api from "./api/axiosInstance";
 import { API_ENDPOINTS } from "./api/endpoints";
  
 import {
   getActiveAuthStorage,
+  getStoredEmployeeId,
   getStoredPermissions,
   getStoredRoleName,
   getStoredToken,
 } from "./utils/authStorage";
 import { isAdmin, isAuthenticationFailureResponse } from "./utils/authorization";
+import { getUserPermission } from "./services/permissionService";
 import {
   handleAutoLogout,
   isSessionExpired,
@@ -188,6 +192,8 @@ function MainLayout() {
                 (
                   permission.canAccess ??
                   permission.CanAccess ??
+                  permission.canView ??
+                  permission.CanView ??
                   true
                 ) === true
             )
@@ -202,7 +208,10 @@ function MainLayout() {
                   permission.ModuleName ||
                   ""
                 ).trim(),
- 
+              canView: permission.canView ?? permission.CanView ?? true,
+              canAdd: permission.canAdd ?? permission.CanAdd ?? false,
+              canEdit: permission.canEdit ?? permission.CanEdit ?? false,
+              canDelete: permission.canDelete ?? permission.CanDelete ?? false,
               canAccess: true,
             }))
             .filter(
@@ -237,6 +246,23 @@ function MainLayout() {
           ]);
  
           return;
+        }
+
+        const employeeId = getStoredEmployeeId();
+
+        if (employeeId) {
+          try {
+            const employeePermission = await getUserPermission(employeeId);
+
+            if (employeePermission.modules.length > 0) {
+              setStoredPermissions(normalizePermissionList(employeePermission.modules));
+              return;
+            }
+          } catch (error) {
+            if (error?.response?.status !== 404) {
+              throw error;
+            }
+          }
         }
  
         const allowedModulesResponse =
@@ -366,6 +392,37 @@ function MainLayout() {
   };
  
   // =========================
+  // HARDWARE BACK BUTTON (NATIVE APP)
+  // =========================
+  useEffect(() => {
+    let listener;
+    const setupListener = async () => {
+      try {
+        if (CapApp && typeof CapApp.addListener === "function") {
+          listener = await CapApp.addListener("backButton", ({ canGoBack }) => {
+            if (mobileSidebarOpen) {
+              setMobileSidebarOpen(false);
+            } else if (canGoBack) {
+              window.history.back();
+            } else {
+              CapApp.exitApp();
+            }
+          });
+        }
+      } catch (err) {
+        // Native app plugin not running in standard browser
+      }
+    };
+    setupListener();
+ 
+    return () => {
+      if (listener && typeof listener.remove === "function") {
+        listener.remove();
+      }
+    };
+  }, [mobileSidebarOpen]);
+ 
+  // =========================
   // LOADING
   // =========================
   if (!ready) {
@@ -420,10 +477,13 @@ function MainLayout() {
  
         </div>
       </div>
+ 
+      <MobileBottomNav
+        onToggleSidebar={handleSidebarToggle}
+        sidebarOpen={mobileSidebarOpen}
+      />
     </div>
   );
 }
  
 export default MainLayout;
- 
- 

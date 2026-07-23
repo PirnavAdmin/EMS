@@ -81,22 +81,13 @@ namespace EmployeeManagementSystem.Services
 
             decimal presentDays = summary.PresentDays;
 
-            int totalDaysInMonth =
-                DateTime.DaysInMonth(yearValue, monthNumber);
+            int payrollDays = summary.PayrollDays;
 
-            int weekendDays =
-                (int)(totalDaysInMonth -
-                (presentDays + absentDays));
-
-            int totalWorkingDays =
-                (int)(presentDays + absentDays + weekendDays);
-
-            
+            int totalWorkingDays = summary.PayrollDays;
 
             int lopDays = summary.LopDays;
 
-            decimal paidDays =
-                presentDays + weekendDays;
+            decimal paidDays = summary.PayableDays;
 
             //--------------------------------
             // SALARY CALCULATIONS
@@ -106,7 +97,9 @@ namespace EmployeeManagementSystem.Services
             decimal monthlyCTC = annualCTC / 12;
 
             decimal ratio =
-                (decimal)paidDays / totalDaysInMonth;
+    payrollDays == 0
+        ? 0
+        : paidDays / payrollDays;
 
             decimal basic =
                 Math.Round((monthlyCTC * 0.3817m) * ratio);
@@ -619,6 +612,69 @@ namespace EmployeeManagementSystem.Services
             }
 
             return words;
+        }
+
+        public async Task<List<object>> GetEmployeePayslips(string employeeId)
+        {
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+
+            if (employee == null)
+                throw new Exception("Employee not found.");
+
+            var payslips = await _context.PaySlips
+                .Where(p => p.EmployeeId == employeeId)
+                .OrderByDescending(p => p.Year)
+                .ThenByDescending(p => p.Generated_On)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.EmployeeId,
+                    EmployeeName = employee.Name,
+                    p.Month,
+                    p.Year,
+                    p.CTC,
+                    p.GrossSalary,
+                    p.TotalDeductions,
+                    p.NetSalary,
+                    p.Generated_On,
+                    PreviewUrl = $"/api/PaySlip/preview/{p.Id}",
+                    DownloadUrl = $"/api/PaySlip/download/{p.Id}"
+                })
+                .ToListAsync();
+
+            return payslips.Cast<object>().ToList();
+        }
+
+        public async Task<bool> DeletePaySlip(int id)
+        {
+            var payslip = await _context.PaySlips
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (payslip == null)
+                throw new Exception("Payslip not found.");
+
+            // Delete PDF file
+            if (!string.IsNullOrWhiteSpace(payslip.FilePath))
+            {
+                var fileName = Path.GetFileName(payslip.FilePath);
+
+                var filePath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot",
+                    "GeneratedPayslips",
+                    fileName);
+
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+            }
+
+            _context.PaySlips.Remove(payslip);
+            await _context.SaveChangesAsync();
+
+            return true;
         }
         public async Task<byte[]> DownloadSalaryRegister(
     string month,

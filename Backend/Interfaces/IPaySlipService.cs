@@ -14,6 +14,8 @@ namespace EmployeeManagementSystem.Interfaces
       string month,
       decimal OtherDeductions,
       string? DeductionLabel = null);
+        Task<bool> DeletePaySlip(int id);
+        Task<List<object>> GetEmployeePayslips(string employeeId);
 
         Task<List<string>> GenerateAllPaySlips(int year, string month);
 

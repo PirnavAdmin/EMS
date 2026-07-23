@@ -17,7 +17,7 @@
         public int Holidays { get; set; }
 
         public int Weekends { get; set; }
-
+        public int PayrollDays { get; set; }
         public decimal PayableDays { get; set; }
     }
 }

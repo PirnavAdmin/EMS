@@ -1,7 +1,12 @@
 import axios from "axios";
 import { BASE_URL } from "./config";
 import { sortNestedCollectionsByRecency } from "../utils/collections";
-import { getStoredToken } from "../utils/authStorage";
+import {
+  getStoredJwtRole,
+  getStoredRole,
+  getStoredRoleName,
+  getStoredToken,
+} from "../utils/authStorage";
 import { isAuthenticationFailureResponse } from "../utils/authorization";
 
 import {
@@ -24,6 +29,33 @@ const api = axios.create({
 });
  
 const inFlightGetRequests = new Map();
+
+const resolveRequestUrl = (url, baseURL = BASE_URL) => {
+  const requestUrl = String(url || "").trim();
+  const requestBaseUrl = String(baseURL || "").trim();
+
+  if (!requestUrl) {
+    return requestBaseUrl || "";
+  }
+
+  if (/^https?:\/\//i.test(requestUrl)) {
+    return requestUrl;
+  }
+
+  return `${String(requestBaseUrl || BASE_URL).replace(/\/+$/, "")}/${requestUrl.replace(/^\/+/, "")}`;
+};
+
+const headersForLogging = (headers) => {
+  if (!headers) {
+    return {};
+  }
+
+  if (typeof headers.toJSON === "function") {
+    return headers.toJSON();
+  }
+
+  return { ...headers };
+};
  
 // =========================
 // STABLE SERIALIZE
@@ -158,6 +190,10 @@ api.interceptors.request.use(
  
     const token =
       getStoredToken();
+    const userRole =
+      getStoredJwtRole() ||
+      getStoredRoleName() ||
+      getStoredRole();
  
     const method =
       (
@@ -167,6 +203,26 @@ api.interceptors.request.use(
  
     const url =
       config.url || "";
+    const requestUrl = resolveRequestUrl(url, config.baseURL || BASE_URL);
+
+    if (!config.headers) {
+      config.headers = {};
+    }
+
+    if (token) {
+      if (typeof config.headers.set === "function") {
+        config.headers.set("Authorization", `Bearer ${token}`);
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+
+    console.log("URL:", requestUrl);
+    console.log("Method:", method);
+    console.log("Params:", config.params || {});
+    console.log("Headers:", headersForLogging(config.headers));
+    console.log("JWT:", token);
+    console.log("User Role:", userRole);
  
     config.metadata = {
       ...(config.metadata || {}),
@@ -203,9 +259,6 @@ api.interceptors.request.use(
           )
         );
       }
- 
-      config.headers.Authorization =
-        `Bearer ${token}`;
     }
  
     return config;
@@ -227,6 +280,8 @@ api.interceptors.response.use(
       response?.config?.metadata
         ?.performanceLabel
     );
+
+    console.log("Response:", response);
  
     const responseType =
       response?.config
@@ -284,6 +339,12 @@ api.interceptors.response.use(
       config?.metadata
         ?.performanceLabel
     );
+
+    console.error("API Error:", error);
+    if (error?.response) {
+      console.log("Response:", error.response);
+      console.error(error.response.data);
+    }
 
     if (
       shouldForceLogout(

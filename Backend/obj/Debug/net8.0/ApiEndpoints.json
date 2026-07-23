@@ -483,6 +483,16 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
+    "Method": "GetAdminDashboardOverview",
+    "RelativePath": "api/Attendance/admin-dashboard-overview",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
     "Method": "DownloadDaily",
     "RelativePath": "api/Attendance/admin/download-daily",
     "HttpMethod": "GET",
@@ -568,7 +578,7 @@
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
     "Method": "UploadAttendance",
-    "RelativePath": "api/Attendance/bulk-upload",
+    "RelativePath": "api/Attendance/admin/upload-monthly",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
@@ -714,6 +724,32 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [
+      {
+        "Name": "month",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "year",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.AttendanceController",
+    "Method": "GetMonthlySummary",
+    "RelativePath": "api/Attendance/monthly-summary/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      },
       {
         "Name": "month",
         "Type": "System.Int32",
@@ -882,7 +918,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "BranchesController",
+    "ContainingType": "EmployeeManagementSystem.Controllers.BranchesController",
     "Method": "Create",
     "RelativePath": "api/Branches",
     "HttpMethod": "POST",
@@ -898,7 +934,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "BranchesController",
+    "ContainingType": "EmployeeManagementSystem.Controllers.BranchesController",
     "Method": "GetAll",
     "RelativePath": "api/Branches",
     "HttpMethod": "GET",
@@ -908,7 +944,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "BranchesController",
+    "ContainingType": "EmployeeManagementSystem.Controllers.BranchesController",
     "Method": "Update",
     "RelativePath": "api/Branches/{id}",
     "HttpMethod": "PUT",
@@ -929,7 +965,7 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "BranchesController",
+    "ContainingType": "EmployeeManagementSystem.Controllers.BranchesController",
     "Method": "Delete",
     "RelativePath": "api/Branches/{id}",
     "HttpMethod": "DELETE",
@@ -2351,6 +2387,38 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.OfferLetterController",
+    "Method": "DeleteOfferLetter",
+    "RelativePath": "api/OfferLetter/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.OfferLetterController",
+    "Method": "GetSendStatus",
+    "RelativePath": "api/OfferLetter/{id}/send-status",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.OfferLetterController",
     "Method": "GetAllOfferLetters",
     "RelativePath": "api/OfferLetter/all",
     "HttpMethod": "GET",
@@ -2393,6 +2461,22 @@
   },
   {
     "ContainingType": "EmployeeManagementSystem.Controllers.OfferLetterController",
+    "Method": "PreviewOfferLetter",
+    "RelativePath": "api/OfferLetter/preview/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.OfferLetterController",
     "Method": "GetSalaryStructure",
     "RelativePath": "api/OfferLetter/salary-structure/{ctc}",
     "HttpMethod": "GET",
@@ -2402,6 +2486,38 @@
       {
         "Name": "ctc",
         "Type": "System.Decimal",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.OfferLetterController",
+    "Method": "SendOfferLetter",
+    "RelativePath": "api/OfferLetter/send",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.SendOfferLetterDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.PaySlipController",
+    "Method": "DeletePaySlip",
+    "RelativePath": "api/PaySlip/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
         "IsRequired": true
       }
     ],
@@ -2418,6 +2534,22 @@
       {
         "Name": "id",
         "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.PaySlipController",
+    "Method": "GetEmployeePayslips",
+    "RelativePath": "api/PaySlip/employee/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
         "IsRequired": true
       }
     ],
@@ -2538,6 +2670,16 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "EmployeeManagementSystem.Controllers.PermissionController",
+    "Method": "GetPermissions",
+    "RelativePath": "api/Permission",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "ProjectsController",
     "Method": "GetAll",
     "RelativePath": "api/Projects",
@@ -2627,6 +2769,112 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RelievingLetterController",
+    "Method": "Delete",
+    "RelativePath": "api/RelievingLetter/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RelievingLetterController",
+    "Method": "GetSendStatus",
+    "RelativePath": "api/RelievingLetter/{id}/send-status",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RelievingLetterController",
+    "Method": "GetAll",
+    "RelativePath": "api/RelievingLetter/all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RelievingLetterController",
+    "Method": "Download",
+    "RelativePath": "api/RelievingLetter/download/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RelievingLetterController",
+    "Method": "Generate",
+    "RelativePath": "api/RelievingLetter/generate",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.RelievingLetterRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RelievingLetterController",
+    "Method": "Preview",
+    "RelativePath": "api/RelievingLetter/preview/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RelievingLetterController",
+    "Method": "Send",
+    "RelativePath": "api/RelievingLetter/send",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.SendRelievingLetterDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "EmployeeManagementSystem.Controllers.ReportsController",
     "Method": "GetAllReports",
     "RelativePath": "api/reports/all",
@@ -2660,6 +2908,22 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.RolePermissionController",
+    "Method": "GetEmployeesByRole",
+    "RelativePath": "api/RolePermission/employees/{roleName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roleName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -3854,6 +4118,54 @@
       {
         "Name": "dto",
         "Type": "EmployeeManagementSystem.DTOs.VerifyOtpDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.UserPermissionController",
+    "Method": "Save",
+    "RelativePath": "api/UserPermission",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.SaveUserPermissionDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.UserPermissionController",
+    "Method": "Get",
+    "RelativePath": "api/UserPermission/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "EmployeeManagementSystem.Controllers.UserPermissionController",
+    "Method": "Allowed",
+    "RelativePath": "api/UserPermission/allowed/{employeeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "employeeId",
+        "Type": "System.String",
         "IsRequired": true
       }
     ],

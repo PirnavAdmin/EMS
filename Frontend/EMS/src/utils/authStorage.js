@@ -11,6 +11,20 @@ const AUTH_KEYS = [
   "employeeId",
   "userId",
   "attendanceId",
+  "organizationId",
+  "organization_Id",
+  "organizationID",
+  "orgId",
+  "orgID",
+  "branchId",
+  "branch_Id",
+  "branchID",
+  "companyId",
+  "company_Id",
+  "companyID",
+  "tenantId",
+  "tenant_Id",
+  "tenantID",
   "modules",
   "permissions",
   "userData",
@@ -48,6 +62,53 @@ const ATTENDANCE_ID_KEYS = [
   "attendance_Id",
   "AttendanceId",
   "Attendance_Id",
+];
+
+const ORGANIZATION_ID_KEYS = [
+  "organizationId",
+  "organization_Id",
+  "organizationID",
+  "orgId",
+  "orgID",
+  "OrganizationId",
+  "Organization_Id",
+  "OrganizationID",
+];
+
+const BRANCH_ID_KEYS = [
+  "branchId",
+  "branch_Id",
+  "branchID",
+  "BranchId",
+  "Branch_Id",
+  "BranchID",
+];
+
+const COMPANY_ID_KEYS = [
+  "companyId",
+  "company_Id",
+  "companyID",
+  "CompanyId",
+  "Company_Id",
+  "CompanyID",
+];
+
+const TENANT_ID_KEYS = [
+  "tenantId",
+  "tenant_Id",
+  "tenantID",
+  "TenantId",
+  "Tenant_Id",
+  "TenantID",
+];
+
+const JWT_ROLE_KEYS = [
+  "role",
+  "roleName",
+  "Role",
+  "RoleName",
+  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
+  "http://schemas.microsoft.com/ws/2008/06/identity/claims/name",
 ];
 
 const tryParseJson = (value) => {
@@ -129,6 +190,11 @@ const getStoredValueFromSources = (keys) => {
   return getValueFromRecord(tokenPayload, keys);
 };
 
+export const getStoredJwtPayload = () => decodeJwtPayload(getStoredToken());
+
+export const getStoredJwtRole = () =>
+  getValueFromRecord(getStoredJwtPayload(), JWT_ROLE_KEYS);
+
 export const getAuthStorage = (rememberMe) =>
   rememberMe ? localStorage : sessionStorage;
 
@@ -162,9 +228,10 @@ export const getStoredToken = () =>
   getStoredAuthValue("jwtToken");
 
 export const getStoredRole = () =>
-  getStoredAuthValue("role", "user").toLowerCase();
+  String(getStoredAuthValue("role") || getStoredJwtRole() || "user").toLowerCase();
 
-export const getStoredRoleName = () => getStoredAuthValue("roleName");
+export const getStoredRoleName = () =>
+  getStoredAuthValue("roleName") || getStoredJwtRole();
 
 export const getStoredPermissions = () => {
   const storage = getActiveAuthStorage();
@@ -199,6 +266,18 @@ export const getStoredUserId = () =>
 export const getStoredAttendanceId = () =>
   getStoredValueFromSources(ATTENDANCE_ID_KEYS);
 
+export const getStoredOrganizationId = () =>
+  getStoredValueFromSources(ORGANIZATION_ID_KEYS);
+
+export const getStoredBranchId = () =>
+  getStoredValueFromSources(BRANCH_ID_KEYS);
+
+export const getStoredCompanyId = () =>
+  getStoredValueFromSources(COMPANY_ID_KEYS);
+
+export const getStoredTenantId = () =>
+  getStoredValueFromSources(TENANT_ID_KEYS);
+
 export const getStoredIdentityParams = () => {
   const employeeId = getStoredEmployeeId();
   const userId = getStoredUserId();
@@ -208,5 +287,19 @@ export const getStoredIdentityParams = () => {
     ...(employeeId ? { employeeId } : {}),
     ...(userId ? { userId } : {}),
     ...(attendanceId ? { attendanceId } : {}),
+  };
+};
+
+export const getStoredTenantContextParams = () => {
+  const organizationId = getStoredOrganizationId();
+  const branchId = getStoredBranchId();
+  const companyId = getStoredCompanyId();
+  const tenantId = getStoredTenantId();
+
+  return {
+    ...(organizationId ? { organizationId } : {}),
+    ...(branchId ? { branchId } : {}),
+    ...(companyId ? { companyId } : {}),
+    ...(tenantId ? { tenantId } : {}),
   };
 };

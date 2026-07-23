@@ -1,77 +1,91 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
-[ApiController]
-[Route("api/[controller]")]
-public class BranchesController : ControllerBase
+namespace EmployeeManagementSystem.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public BranchesController(AppDbContext context)
+    //[Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BranchesController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
 
-    // ✅ CREATE BRANCH
-    [HttpPost]
-    public async Task<IActionResult> Create(BranchDto dto)
-    {
-        var branch = new Branch
+        public BranchesController(AppDbContext context)
         {
-            BranchName = dto.BranchName,
-            Established = dto.Established,
-            PhoneNumber = dto.PhoneNumber,
-            Email = dto.Email,
-            
-            Branch_Id = dto.Branch_Id,
-        };
+            _context = context;
+        }
 
-        await _context.Branches.AddAsync(branch);
-        await _context.SaveChangesAsync();
+        // ✅ CREATE BRANCH
+        //[Permission(ModuleIds.Clients, PermissionAction.Add)]
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] BranchDto dto)
+        {
+            var branch = new Branch
+            {
+                BranchName = dto.BranchName,
+                Established = dto.Established,
+                PhoneNumber = dto.PhoneNumber,
+                Email = dto.Email,
+                Branch_Id = dto.Branch_Id
+            };
 
-        return Ok(branch);
-    }
+            await _context.Branches.AddAsync(branch);
+            await _context.SaveChangesAsync();
 
-    // ✅ GET ALL
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        var branches = await _context.Branches.ToListAsync();
-        return Ok(branches);
-    }
+            return Ok(branch);
+        }
 
-    // ✅ UPDATE
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, BranchDto dto)
-    {
-        var branch = await _context.Branches.FindAsync(id);
+        // ✅ GET ALL BRANCHES
+        //[Permission(ModuleIds.Clients, PermissionAction.View)]
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var branches = await _context.Branches.ToListAsync();
+            return Ok(branches);
+        }
 
-        if (branch == null)
-            return NotFound("Branch not found");
+        // ✅ UPDATE BRANCH
+        //[Permission(ModuleIds.Clients, PermissionAction.Edit)]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] BranchDto dto)
+        {
+            var branch = await _context.Branches.FindAsync(id);
 
-        branch.BranchName = dto.BranchName;
-        branch.Established = dto.Established;
-        branch.PhoneNumber = dto.PhoneNumber;
-        branch.Email = dto.Email;
-        branch.Branch_Id = dto.Branch_Id;
-        await _context.SaveChangesAsync();
+            if (branch == null)
+                return NotFound("Branch not found");
 
-        return Ok(branch);
-    }
+            branch.BranchName = dto.BranchName;
+            branch.Established = dto.Established;
+            branch.PhoneNumber = dto.PhoneNumber;
+            branch.Email = dto.Email;
+            branch.Branch_Id = dto.Branch_Id;
 
-    // ✅ DELETE
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var branch = await _context.Branches.FindAsync(id);
+            await _context.SaveChangesAsync();
 
-        if (branch == null)
-            return NotFound("Branch not found");
+            return Ok(branch);
+        }
 
-        _context.Branches.Remove(branch);
-        await _context.SaveChangesAsync();
+        // ✅ DELETE BRANCH
+        //[Permission(ModuleIds.Clients, PermissionAction.Delete)]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var branch = await _context.Branches.FindAsync(id);
 
-        return Ok("Branch deleted successfully");
+            if (branch == null)
+                return NotFound("Branch not found");
+
+            _context.Branches.Remove(branch);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = "Branch deleted successfully."
+            });
+        }
     }
 }

@@ -162,7 +162,8 @@ namespace EmployeeManagementSystem.Data
         public DbSet<AgreementMaster> AgreementMasters { get; set; }
         public DbSet<EmployeeAgreement> EmployeeAgreements { get; set; }
 
-
+        public DbSet<RelievingLetter> RelievingLetters { get; set; }
+        public DbSet<UserPermission> UserPermissions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
         {
@@ -245,6 +246,10 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<Admin>().ToTable("admins");
             modelBuilder.Entity<MonitoringSettings>()
     .ToTable("MonitoringSettings");
+            modelBuilder.Entity<RelievingLetter>()
+                .ToTable("RelievingLetter");
+            modelBuilder.Entity<UserPermission>()
+    .ToTable("userpermission");
 
             modelBuilder.Entity<EmployeeScreenshot>()
                 .ToTable("EmployeeScreenshots");
@@ -290,7 +295,21 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<ActivityLog>()
                 .HasIndex(a => a.CreatedAt);
 
+            modelBuilder.Entity<Employee>()
+    .HasAlternateKey(e => e.Employee_Id);
+            modelBuilder.Entity<Employee>()
+                .HasAlternateKey(e => e.Employee_Id);
 
+            modelBuilder.Entity<UserPermission>()
+                .HasOne(up => up.Employee)
+                .WithMany()
+                .HasForeignKey(up => up.EmployeeId)
+                .HasPrincipalKey(e => e.Employee_Id);
+
+            modelBuilder.Entity<UserPermission>()
+    .HasOne(up => up.Module)
+    .WithMany(m => m.UserPermissions)
+    .HasForeignKey(up => up.ModuleId);
             //Make Employee.EmployeeId UNIQUE
 
             modelBuilder.Entity<Employee>()
@@ -333,10 +352,11 @@ namespace EmployeeManagementSystem.Data
 
 
             base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<Employee>()
-                .HasIndex(x => x.Employee_Id)
-                .IsUnique();
+            modelBuilder.Entity<RelievingLetter>()
+    .HasOne(r => r.Employee)
+    .WithMany()
+    .HasForeignKey(r => r.EmployeeId)
+    .HasPrincipalKey(e => e.Employee_Id);
 
             modelBuilder.Entity<Team>()
                 .HasOne(x => x.ReportingManager)

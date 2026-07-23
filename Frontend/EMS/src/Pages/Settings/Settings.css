@@ -138,9 +138,10 @@
 
 .settings-layout {
   display: grid;
-  grid-template-columns: clamp(280px, 26vw, 340px) minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: clamp(250px, 22vw, 320px) minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
+  min-width: 0;
 }
 
 .settings-nav {
@@ -150,6 +151,7 @@
   gap: 18px;
   padding: 20px;
   border-radius: 24px;
+  min-width: 0;
 }
 
 .settings-nav-head {
@@ -190,6 +192,7 @@
   align-items: center;
   gap: 16px;
   width: 100%;
+  min-width: 0;
   min-height: 92px;
   padding: 18px;
   border: 1px solid var(--border-color);
@@ -305,6 +308,7 @@
   display: grid;
   gap: 0;
   width: 100%;
+  min-width: 0;
   padding: 32px;
   box-sizing: border-box;
   border-radius: 24px;
@@ -317,16 +321,19 @@
 .settings-header,
 .settings-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 36px;
+  flex-wrap: wrap;
+  gap: 18px 24px;
+  margin-bottom: 28px;
+  min-width: 0;
 }
 
 .settings-card-copy {
   display: grid;
   gap: 10px;
   min-width: 0;
+  flex: 1 1 420px;
 }
 
 .settings-card-title {
@@ -345,13 +352,16 @@
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 
 .settings-card-meta {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .settings-last-updated {
@@ -368,25 +378,27 @@
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .settings-card-body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
 }
 
 .settings-grid,
 .settings-form-grid {
   display: grid;
-  gap: 28px 32px;
+  gap: 22px 24px;
   min-width: 0;
   align-items: start;
 }
 
 .settings-form-grid {
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .settings-grid-2 {
@@ -398,7 +410,7 @@
 }
 
 .settings-form-grid.settings-grid-2 {
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .settings-form-grid.settings-grid-3 {
@@ -408,7 +420,7 @@
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -424,7 +436,9 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .settings-field-label,
@@ -434,6 +448,7 @@
   font-weight: 600;
   line-height: 24px;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .settings-field-required {
@@ -466,6 +481,8 @@
 .settings-time-input,
 .settings-textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   margin: 0;
   border: 1px solid var(--input-border);
@@ -681,6 +698,7 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
   gap: 12px;
   width: fit-content;
   min-height: 48px;
+  max-width: 100%;
   color: var(--text-primary);
   cursor: pointer;
 }
@@ -729,6 +747,7 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .settings-banner {
@@ -951,6 +970,23 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
   }
 }
 
+@media (max-width: 1199px) {
+  .settings-layout {
+    grid-template-columns: clamp(240px, 24vw, 300px) minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .settings-card {
+    padding: 28px;
+  }
+
+  .settings-card-header,
+  .settings-header,
+  .settings-card-head {
+    margin-bottom: 24px;
+  }
+}
+
 @media (max-width: 991px) {
   .settings-layout {
     grid-template-columns: 1fr;
@@ -970,6 +1006,44 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
     width: 100%;
     min-width: 0;
   }
+
+  .settings-card-header,
+  .settings-header,
+  .settings-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-card-meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .settings-grid-2,
+  .settings-grid-3,
+  .settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-hero,
+  .settings-card,
+  .settings-nav,
+  .settings-footer {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .settings-card-header,
+  .settings-header,
+  .settings-card-head {
+    margin-bottom: 20px;
+  }
+
+  .settings-field {
+    gap: 7px;
+  }
 }
 
 @media (max-width: 576px) {
@@ -986,12 +1060,6 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
   }
 
   .settings-hero-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-grid-2,
-  .settings-grid-3,
-  .settings-form-grid {
     grid-template-columns: 1fr;
   }
 

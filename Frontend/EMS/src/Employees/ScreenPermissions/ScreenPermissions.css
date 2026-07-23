@@ -1,5 +1,3 @@
-/* ================= PAGE ================= */
-
 .permission-page {
   padding: 20px;
   background: var(--bg-muted);
@@ -7,18 +5,18 @@
   font-family: var(--font-sans);
 }
 
-/* ================= HEADER ================= */
-
 .permission-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 16px;
   margin-bottom: 25px;
 }
 
 .permission-top h2 {
+  margin: 0;
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-body);
 }
 
@@ -26,9 +24,38 @@
   color: var(--theme-primary);
 }
 
-/* ================= SELECT ALL BUTTON ================= */
+.permission-employee-header {
+  display: grid;
+  gap: 12px;
+}
+
+.permission-employee-header dl {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.permission-employee-header div {
+  display: grid;
+  gap: 4px;
+}
+
+.permission-employee-header dt {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.permission-employee-header dd {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
 
 .select-all-btn {
+  min-height: 40px;
   background: var(--theme-success);
   color: var(--theme-on-primary);
   border: none;
@@ -36,14 +63,13 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 700;
   transition: 0.2s;
 }
 
 .select-all-btn:hover {
   background: var(--success);
 }
-
-/* ================= GROUP ================= */
 
 .permission-group {
   background: var(--bg-page);
@@ -53,109 +79,66 @@
   box-shadow: 0 3px 10px var(--shadow-color-xs);
 }
 
-/* ================= GROUP HEADER ================= */
-
 .group-header {
   background: var(--surface-info-soft);
   color: var(--theme-primary);
-  font-weight: 600;
+  font-weight: 700;
   padding: 10px 15px;
   border-radius: 10px;
   margin-bottom: 10px;
   font-size: 14px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
 }
 
-/* ================= ROW ================= */
+.permission-matrix-wrap {
+  overflow-x: auto;
+}
 
-.permission-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 15px;
+.permission-matrix {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.permission-matrix th,
+.permission-matrix td {
+  padding: 13px 15px;
   border-bottom: 1px solid var(--border-soft);
-  font-size: 14px;
   color: var(--text-body);
+  font-size: 14px;
+  text-align: center;
+  vertical-align: middle;
 }
 
-.permission-row:last-child {
+.permission-matrix th {
+  color: var(--text-strong);
+  font-weight: 800;
+  background: var(--bg-muted);
+}
+
+.permission-matrix th:first-child,
+.permission-matrix td:first-child {
+  text-align: left;
+  width: 34%;
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.permission-matrix tbody tr:last-child td {
   border-bottom: none;
 }
 
-/* ================= SWITCH ================= */
-
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 42px;
-  height: 22px;
-  /* guard against any parent clipping/stacking issues */
-  overflow: visible;
-  z-index: 0;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-/* slider / track */
-.slider {
-  position: absolute;
+.permission-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--theme-primary);
   cursor: pointer;
-  inset: 0;
-  border-radius: 999px;
-
-  /* OFF state: dedicated dark-gray track, NOT a theme background var */
-  background-color: var(--switch-track-off, #4b4f56);
-
-  transition: background-color 0.3s ease;
-  overflow: visible;
-  opacity: 1;
-  visibility: visible;
 }
 
-/* thumb */
-.slider::before {
-  content: "";
-  position: absolute;
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-
-  /* Fixed white thumb - never tied to page/surface background */
-  background-color: var(--switch-thumb, #FFFFFF);
-
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.06);
-
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  opacity: 1;
-  visibility: visible;
-  z-index: 1;
-}
-
-/* checked / ON state */
-.switch input:checked + .slider {
-  background-color: var(--theme-success);
-}
-
-.switch input:checked + .slider::before {
-  transform: translateX(20px);
-  /* slightly stronger shadow so the white thumb still reads
-     clearly against the green track in dark mode */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-
-/* keyboard accessibility */
-.switch input:focus-visible + .slider {
+.permission-checkbox:focus-visible {
   outline: 2px solid var(--theme-primary);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
-
-/* ================= FOOTER ================= */
 
 .permission-actions {
   display: flex;
@@ -164,28 +147,55 @@
   margin-top: 20px;
 }
 
-/* skip */
-.permission-actions button:first-child {
-  background: var(--bg-muted);
-  color: var(--text-strong);
+.permission-actions button {
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: 0.2s;
 }
 
-/* save */
+.permission-actions button:first-child {
+  background: var(--bg-page);
+  color: var(--text-strong);
+  border: 1px solid var(--border-soft);
+}
+
 .permission-actions button:last-child {
   background: var(--theme-success);
   color: var(--theme-on-primary);
 }
 
-/* buttons common */
-.permission-actions button {
-  border: none;
-  padding: 8px 18px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: 0.2s;
+.permission-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
-.permission-actions button:hover {
+.permission-actions button:not(:disabled):hover {
   opacity: 0.9;
+}
+
+@media (max-width: 720px) {
+  .permission-page {
+    padding: 14px 12px;
+  }
+
+  .permission-top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .select-all-btn {
+    width: 100%;
+  }
+
+  .permission-actions {
+    flex-direction: column-reverse;
+  }
+
+  .permission-actions button {
+    width: 100%;
+  }
 }

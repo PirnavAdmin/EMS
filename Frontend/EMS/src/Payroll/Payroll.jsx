@@ -12,7 +12,7 @@ import {
   logPerformanceError,
   startPerformanceTimer,
 } from "../utils/performance";
-import { FaDownload } from "react-icons/fa6";
+import { FiDownload, FiLoader, FiTrash2 } from "react-icons/fi";
 import { TableSkeleton } from "../components/Skeletons";
 
 const PAYROLL_MONTHS = [
@@ -28,13 +28,124 @@ const MANUAL_FIELDS = [
   ["otherDeductions", "Other Deductions"]
 ];
 
+const getEmployeeKey = (value) => String(value ?? "");
+const getPayslipEmployeeKey = (payslip) =>
+  getEmployeeKey(
+    payslip?.employeeId ??
+    payslip?.employee_Id ??
+    payslip?.employeeID ??
+    payslip?.employee_id
+  );
+
+function parseDateSafely(dateString) {
+  if (!dateString) return null;
+  if (dateString instanceof Date && !isNaN(dateString.getTime())) return dateString;
+
+  const raw = String(dateString).trim();
+  const match = raw.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const year = parseInt(match[3], 10);
+    const hour = parseInt(match[4] || "0", 10);
+    const minute = parseInt(match[5] || "0", 10);
+    const second = parseInt(match[6] || "0", 10);
+
+    const parsed = new Date(year, month, day, hour, minute, second);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  const fallback = new Date(raw);
+  return !isNaN(fallback.getTime()) ? fallback : null;
+}
+
+function formatCurrency(val, showZero = false) {
+  return formatAppCurrency(val, {
+    fallback: showZero ? "\u20b90.00" : "-",
+    decimals: 2,
+    showZero,
+  });
+}
+
+function getCtcValue(payslip, emp) {
+  const ctc = payslip?.ctc ?? emp?.ctc ?? payslip?.annualCTC ?? emp?.annualCTC;
+  return ctc != null && ctc !== "" && ctc !== 0 ? Number(ctc) : null;
+}
+
+function formatGeneratedDate(dateValue) {
+  const parsedDate =
+    dateValue instanceof Date ? dateValue : parseDateSafely(dateValue);
+
+  if (!parsedDate) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
+    .format(parsedDate)
+    .replace(/\b(am|pm)\b/i, (match) => match.toUpperCase());
+}
+
+function extractPayslipRecords(responseData) {
+  const payslipData =
+    responseData?.data ||
+    responseData?.items ||
+    responseData?.records ||
+    (Array.isArray(responseData) ? responseData : []);
+
+  return Array.isArray(payslipData) ? payslipData : [];
+}
+
+function normalizePayslipRecords(responseData, months) {
+  return extractPayslipRecords(responseData)
+    .map((p) => {
+      const generatedDate =
+        p.generated_On || p.generatedOn || p.generatedDate ||
+        p.createdOn || p.createdDate || p.generatedAt || p.createdAt;
+
+      const parsedDate = parseDateSafely(generatedDate);
+      const normalizedMonth =
+        p.month && months.includes(p.month)
+          ? p.month
+          : parsedDate ? months[parsedDate.getMonth()] : "";
+
+      const normalizedYear =
+        p.year && !isNaN(Number(p.year))
+          ? Number(p.year)
+          : parsedDate ? parsedDate.getFullYear() : "";
+
+      return {
+        ...p,
+        netPay: p.netPay || p.netSalary || p.totalNet || (p.ctc ? p.ctc / 12 : 0),
+        generatedDate,
+        parsedGeneratedDate: parsedDate,
+        month: normalizedMonth,
+        year: normalizedYear,
+        OtherDeductions: p.OtherDeductions ?? p.otherDeductions ?? p.deduction ?? 0
+      };
+    })
+    .sort((a, b) => {
+      const dateA = a.parsedGeneratedDate ? a.parsedGeneratedDate.getTime() : 0;
+      const dateB = b.parsedGeneratedDate ? b.parsedGeneratedDate.getTime() : 0;
+      return dateB - dateA;
+    });
+}
+
 function Payroll() {
   const currentDate = new Date();
   const currentMonthName = currentDate.toLocaleString("en-US", { month: "long" });
   const currentYearValue = currentDate.getFullYear();
 
   const [employees, setEmployees] = useState([]);
-  const [selectedEmp, setSelectedEmp] = useState(null);
 
   const [allPayslips, setAllPayslips] = useState([]);
 
@@ -60,6 +171,8 @@ function Payroll() {
   const RECENT_ROWS_PER_PAGE = 30;
   const [recentLoading, setRecentLoading] = useState(false);
   const [isSalaryDownloading, setIsSalaryDownloading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletingPayslipId, setDeletingPayslipId] = useState(null);
 
   const token = getStoredToken();
   const months = PAYROLL_MONTHS;
@@ -71,6 +184,123 @@ function Payroll() {
     otherDeductions: ""
   });
 
+  const fetchEmployees = useCallback(async (signal) => {
+    const timerLabel = "payroll:employees-fetch";
+
+    try {
+      // Optimization: time initial payroll employee loading and cancel stale route requests.
+      startPerformanceTimer(timerLabel);
+
+      const res = await api.get(API_ENDPOINTS.payroll.employees, {
+        signal,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const empData = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setEmployees(empData);
+    } catch (err) {
+      if (err?.code === "ERR_CANCELED") {
+        return;
+      }
+
+      logPerformanceError("Employees fetch error:", err.response?.data || err.message);
+      setErrorMsg("Failed to fetch employees");
+    } finally {
+      endPerformanceTimer(timerLabel);
+    }
+  }, [token]);
+
+  const fetchRecentPayslips = useCallback(async (signal, options = {}) => {
+    let canceled = false;
+    const silent = options.silent === true;
+    const clearOnError = options.clearOnError !== false;
+    const timerLabel = "payroll:recent-payslips-fetch";
+
+    try {
+      if (!silent) {
+        setRecentLoading(true);
+      }
+
+      startPerformanceTimer(timerLabel);
+
+      const res = await api.get(API_ENDPOINTS.payroll.recent, {
+        signal,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setAllPayslips(normalizePayslipRecords(res.data, months));
+    } catch (err) {
+      canceled = err?.code === "ERR_CANCELED";
+
+      if (canceled) {
+        return;
+      }
+
+      logPerformanceError("Recent payslips fetch error:", err.response?.data || err.message);
+
+      if (!silent) {
+        setErrorMsg("Failed to fetch recent payslips");
+      }
+
+      if (clearOnError) {
+        setAllPayslips([]);
+      }
+    } finally {
+      endPerformanceTimer(timerLabel);
+
+      if (!canceled && !silent) {
+        setRecentLoading(false);
+      }
+    }
+  }, [token, months]);
+
+  const fetchEmployeePayslips = useCallback(async (employeeId, signal, options = {}) => {
+    if (!employeeId) {
+      return;
+    }
+
+    let canceled = false;
+    const silent = options.silent === true;
+    const clearOnError = options.clearOnError !== false;
+    const timerLabel = "payroll:employee-payslips-fetch";
+
+    try {
+      if (!silent) {
+        setRecentLoading(true);
+      }
+
+      startPerformanceTimer(timerLabel);
+
+      const res = await api.get(API_ENDPOINTS.payroll.byEmployee(employeeId), {
+        signal,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setAllPayslips(normalizePayslipRecords(res.data, months));
+    } catch (err) {
+      canceled = err?.code === "ERR_CANCELED";
+
+      if (canceled) {
+        return;
+      }
+
+      logPerformanceError("Employee payslips fetch error:", err.response?.data || err.message);
+
+      if (!silent) {
+        setErrorMsg("Failed to fetch employee payslips");
+      }
+
+      if (clearOnError) {
+        setAllPayslips([]);
+      }
+    } finally {
+      endPerformanceTimer(timerLabel);
+
+      if (!canceled && !silent) {
+        setRecentLoading(false);
+      }
+    }
+  }, [token, months]);
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -78,7 +308,7 @@ function Payroll() {
     fetchRecentPayslips(controller.signal);
 
     return () => controller.abort();
-  }, []);
+  }, [fetchEmployees, fetchRecentPayslips]);
 
   useEffect(() => {
     if (successMsg || errorMsg) {
@@ -94,129 +324,9 @@ function Payroll() {
     setRecentPage(1);
   }, [recentFilterMonth, recentFilterYear]);
 
-  const parseDateSafely = (dateString) => {
-    if (!dateString) return null;
-    if (dateString instanceof Date && !isNaN(dateString.getTime())) return dateString;
-
-    const raw = String(dateString).trim();
-    const match = raw.match(
-      /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
-    );
-
-    if (match) {
-      const day = parseInt(match[1], 10);
-      const month = parseInt(match[2], 10) - 1;
-      const year = parseInt(match[3], 10);
-      const hour = parseInt(match[4] || "0", 10);
-      const minute = parseInt(match[5] || "0", 10);
-      const second = parseInt(match[6] || "0", 10);
-
-      const parsed = new Date(year, month, day, hour, minute, second);
-      if (!isNaN(parsed.getTime())) return parsed;
-    }
-
-    const fallback = new Date(raw);
-    return !isNaN(fallback.getTime()) ? fallback : null;
-  };
-
-  const fetchEmployees = async (signal) => {
-    const timerLabel = "payroll:employees-fetch";
-
-    try {
-      // Optimization: time initial payroll employee loading and cancel stale route requests.
-      startPerformanceTimer(timerLabel);
-
-      const res = await api.get(API_ENDPOINTS.payroll.employees, {
-        signal,
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const empData = Array.isArray(res.data) ? res.data : res.data?.data || [];
-      setEmployees(empData);
-      if (empData.length > 0) setSelectedEmp(empData[0]);
-    } catch (err) {
-      if (err?.code === "ERR_CANCELED") {
-        return;
-      }
-
-      logPerformanceError("Employees fetch error:", err.response?.data || err.message);
-      setErrorMsg("Failed to fetch employees");
-    } finally {
-      endPerformanceTimer(timerLabel);
-    }
-  };
-
-  const fetchRecentPayslips = useCallback(async (signal) => {
-    let canceled = false;
-    const timerLabel = "payroll:recent-payslips-fetch";
-
-    try {
-      setRecentLoading(true);
-      startPerformanceTimer(timerLabel);
-
-      const res = await api.get(API_ENDPOINTS.payroll.recent, {
-        signal,
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const responseData = res.data;
-      const payslipData =
-        responseData?.data ||
-        responseData?.items ||
-        responseData?.records ||
-        (Array.isArray(responseData) ? responseData : []);
-
-      const normalized = payslipData
-        .map((p) => {
-          const generatedDate =
-            p.generated_On || p.generatedOn || p.generatedDate ||
-            p.createdOn || p.createdDate || p.generatedAt || p.createdAt;
-
-          const parsedDate = parseDateSafely(generatedDate);
-          const normalizedMonth =
-            p.month && months.includes(p.month)
-              ? p.month
-              : parsedDate ? months[parsedDate.getMonth()] : "";
-
-          const normalizedYear =
-            p.year && !isNaN(Number(p.year))
-              ? Number(p.year)
-              : parsedDate ? parsedDate.getFullYear() : "";
-
-          return {
-            ...p,
-            netPay: p.netPay || p.netSalary || p.totalNet || (p.ctc ? p.ctc / 12 : 0),
-            generatedDate,
-            parsedGeneratedDate: parsedDate,
-            month: normalizedMonth,
-            year: normalizedYear,
-            OtherDeductions: p.OtherDeductions ?? p.otherDeductions ?? p.deduction ?? 0
-          };
-        })
-        .sort((a, b) => {
-          const dateA = a.parsedGeneratedDate ? a.parsedGeneratedDate.getTime() : 0;
-          const dateB = b.parsedGeneratedDate ? b.parsedGeneratedDate.getTime() : 0;
-          return dateB - dateA;
-        });
-
-      setAllPayslips(normalized);
-    } catch (err) {
-      canceled = err?.code === "ERR_CANCELED";
-
-      if (canceled) {
-        return;
-      }
-
-      logPerformanceError("Recent payslips fetch error:", err.response?.data || err.message);
-      setErrorMsg("Failed to fetch recent payslips");
-      setAllPayslips([]);
-    } finally {
-      endPerformanceTimer(timerLabel);
-
-      if (!canceled) {
-        setRecentLoading(false);
-      }
-    }
-  }, [token]);
+  useEffect(() => {
+    setRecentPage(1);
+  }, [selectedEmployees]);
 
   const getMonthYearList = (count, selectedMonth, selectedYear) => {
     const selectedMonthIndex = months.findIndex((m) => m === selectedMonth);
@@ -248,17 +358,17 @@ function Payroll() {
 
   const employeesById = useMemo(() => {
     // Optimization: avoid repeated employees.find calls while rendering payslip rows.
-    return new Map(employees.map((emp) => [emp.employee_Id, emp]));
+    return new Map(employees.map((emp) => [getEmployeeKey(emp.employee_Id), emp]));
   }, [employees]);
 
   const selectedEmployeeSet = useMemo(
-    () => new Set(selectedEmployees),
+    () => new Set(selectedEmployees.map(getEmployeeKey)),
     [selectedEmployees]
   );
 
   const selectedEmployeeObjects = useMemo(() => {
     return selectedEmployees
-      .map((employeeId) => employeesById.get(employeeId))
+      .map((employeeId) => employeesById.get(getEmployeeKey(employeeId)))
       .filter(Boolean);
   }, [employeesById, selectedEmployees]);
 
@@ -270,14 +380,29 @@ function Payroll() {
     });
   }, [allPayslips, recentFilterMonth, recentFilterYear]);
 
-  const recentTotalCount = filteredPayslips.length;
+  const displayedPayslips = useMemo(() => {
+    const data = filteredPayslips;
+
+    if (selectedEmployees.length === 1) {
+      const selectedEmployeeId = getEmployeeKey(selectedEmployees[0]);
+      return data.filter((p) => getPayslipEmployeeKey(p) === selectedEmployeeId);
+    }
+
+    if (selectedEmployees.length > 1) {
+      return data.filter((p) => selectedEmployeeSet.has(getPayslipEmployeeKey(p)));
+    }
+
+    return data;
+  }, [filteredPayslips, selectedEmployeeSet, selectedEmployees]);
+
+  const recentTotalCount = displayedPayslips.length;
   const totalRecentPages = Math.max(1, Math.ceil(recentTotalCount / RECENT_ROWS_PER_PAGE));
 
   const paginatedRecentPayslips = useMemo(() => {
     const startIndex = (recentPage - 1) * RECENT_ROWS_PER_PAGE;
     const endIndex = startIndex + RECENT_ROWS_PER_PAGE;
-    return filteredPayslips.slice(startIndex, endIndex);
-  }, [filteredPayslips, recentPage]);
+    return displayedPayslips.slice(startIndex, endIndex);
+  }, [displayedPayslips, recentPage]);
 
   useEffect(() => {
     if (recentPage > totalRecentPages) setRecentPage(totalRecentPages);
@@ -285,25 +410,19 @@ function Payroll() {
 
   const handleToggleEmployee = (employeeId) => {
     if (generating) return;
+    const selectedEmployeeId = getEmployeeKey(employeeId);
     setSelectedEmployees((prev) => {
-      const alreadySelected = prev.includes(employeeId);
+      const alreadySelected = prev.includes(selectedEmployeeId);
       let updated = alreadySelected
-        ? prev.filter((id) => id !== employeeId)
-        : [...prev, employeeId];
-
-      if (updated.length === 1) {
-        const onlyEmp = employeesById.get(updated[0]);
-        setSelectedEmp(onlyEmp || null);
-      } else {
-        setSelectedEmp(null);
-      }
+        ? prev.filter((id) => id !== selectedEmployeeId)
+        : [...prev, selectedEmployeeId];
       return updated;
     });
   };
 
   const handleSelectAll = () => {
     if (generating) return;
-    const visibleIds = filteredEmployees.map((emp) => emp.employee_Id);
+    const visibleIds = filteredEmployees.map((emp) => getEmployeeKey(emp.employee_Id));
     const visibleIdSet = new Set(visibleIds);
     const allVisibleSelected =
       visibleIds.length > 0 && visibleIds.every((id) => selectedEmployeeSet.has(id));
@@ -313,30 +432,21 @@ function Payroll() {
       : [...new Set([...selectedEmployees, ...visibleIds])];
 
     setSelectedEmployees(updated);
-    if (updated.length === 1) {
-      const onlyEmp = employeesById.get(updated[0]);
-      setSelectedEmp(onlyEmp || null);
-    } else {
-      setSelectedEmp(null);
-    }
   };
 
   const allFilteredSelected =
     filteredEmployees.length > 0 &&
-    filteredEmployees.every((emp) => selectedEmployeeSet.has(emp.employee_Id));
+    filteredEmployees.every((emp) => selectedEmployeeSet.has(getEmployeeKey(emp.employee_Id)));
 
   const handleCardClick = (emp) => {
     if (generating) return;
-    setSelectedEmp(emp);
+    setSelectedEmployees([getEmployeeKey(emp.employee_Id)]);
   };
 
   const handleGeneratePayslip = async () => {
     if (generating) return;
 
-    const employeeIds =
-      selectedEmployees.length > 0
-        ? selectedEmployees
-        : selectedEmp ? [selectedEmp.employee_Id] : [];
+    const employeeIds = selectedEmployees;
 
     if (employeeIds.length === 0) {
       setErrorMsg("Please select employee(s)");
@@ -427,6 +537,74 @@ function Payroll() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       logPerformanceError("Download failed:", error);
+    }
+  };
+
+  const refreshPayslipsAfterDelete = useCallback(async () => {
+    const selectedEmployeeIds = selectedEmployees.map(getEmployeeKey).filter(Boolean);
+
+    if (selectedEmployeeIds.length === 1) {
+      await fetchEmployeePayslips(
+        selectedEmployeeIds[0],
+        undefined,
+        { silent: true, clearOnError: false }
+      );
+      return;
+    }
+
+    await fetchRecentPayslips(
+      undefined,
+      { silent: true, clearOnError: false }
+    );
+  }, [fetchEmployeePayslips, fetchRecentPayslips, selectedEmployees]);
+
+  const handleOpenDeleteModal = (payslip) => {
+    if (payslip?.id == null || deletingPayslipId) {
+      return;
+    }
+
+    setSuccessMsg("");
+    setErrorMsg("");
+    setDeleteTarget(payslip);
+  };
+
+  const closeDeleteModal = () => {
+    if (deletingPayslipId) {
+      return;
+    }
+
+    setDeleteTarget(null);
+  };
+
+  const handleDeletePayslip = async () => {
+    const payslipId = deleteTarget?.id;
+
+    if (payslipId == null || deletingPayslipId) {
+      return;
+    }
+
+    try {
+      setDeletingPayslipId(payslipId);
+      setErrorMsg("");
+
+      await api.delete(API_ENDPOINTS.payroll.delete(payslipId), {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      setAllPayslips((prev) =>
+        prev.filter((p) => String(p.id) !== String(payslipId))
+      );
+
+      setDeleteTarget(null);
+      setSuccessMsg("Payslip deleted successfully.");
+      await refreshPayslipsAfterDelete();
+    } catch (error) {
+      logPerformanceError("Delete payslip error:", error.response?.data || error.message);
+      setErrorMsg("Unable to delete payslip. Please try again.");
+    } finally {
+      setDeletingPayslipId(null);
     }
   };
 
@@ -524,88 +702,60 @@ function Payroll() {
   };
 
   const isBulkMode = selectedEmployees.length > 1;
-  const previewEmployee =
-    selectedEmployees.length === 1 ? selectedEmployeeObjects[0] : selectedEmp;
-
-  const getCtcValue = (payslip, emp) => {
-    const ctc = payslip?.ctc ?? emp?.ctc ?? payslip?.annualCTC ?? emp?.annualCTC;
-    return ctc != null && ctc !== "" && ctc !== 0 ? Number(ctc) : null;
-  };
-
-  const formatCurrency = (val, showZero = false) => {
-    return formatAppCurrency(val, {
-      fallback: showZero ? "\u20b90.00" : "-",
-      decimals: 2,
-      showZero,
-    });
-  };
-
-  const tableColumnWidths = {
-    employee: "240px",
-    department: "150px",
-    period: "130px",
-    netPay: "140px",
-    deduction: "130px",
-    ctc: "140px",
-    generated: "190px",
-    actions: "80px"
-  };
-
-  const numericPaddingRight = "20px";
-
-  const baseTableCellStyle = {
-    padding: "14px",
-    fontSize: "14px",
-    borderBottom: "1px solid var(--bg-muted)",
-    verticalAlign: "middle",
-    color: "var(--text-strong)",
-    boxSizing: "border-box",
-    lineHeight: 1.5,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap"
-  };
-
-  const baseTableHeaderStyle = {
-    ...baseTableCellStyle,
-    paddingBottom: "16px",
-    borderBottom: "2px solid var(--border-soft)"
-  };
-
-  const getTableCellStyle = (width, align = "left", extraStyles = {}) => ({
-    ...baseTableCellStyle,
-    width,
-    minWidth: width,
-    maxWidth: width,
-    textAlign: align,
-    paddingRight: align === "right" ? numericPaddingRight : "14px",
-    paddingLeft: "14px",
-    ...extraStyles
-  });
-
-  const getTableHeaderStyle = (width, align = "left", extraStyles = {}) => ({
-    ...baseTableHeaderStyle,
-    width,
-    minWidth: width,
-    maxWidth: width,
-    textAlign: align,
-    paddingRight: align === "right" ? numericPaddingRight : "14px",
-    paddingLeft: "14px",
-    ...extraStyles
-  });
-
-  const numericValueStyle = {
-    display: "block",
-    width: "100%",
-    textAlign: "right",
-    fontVariantNumeric: "tabular-nums",
-    fontFeatureSettings: '"tnum" 1, "lnum" 1',
-    whiteSpace: "nowrap"
-  };
-
-  const renderNumericValue = (value) => (
-    <span style={numericValueStyle}>{formatCurrency(value)}</span>
-  );
+  const previewEmployee = selectedEmployees.length === 1 ? selectedEmployeeObjects[0] : null;
+  const generationBadgeText = selectedEmployees.length > 0
+    ? `${selectedEmployees.length} Selected`
+    : "No Selection";
+  const selectionAvatarText = (() => {
+    if (selectedEmployees.length === 0) return "ALL";
+    if (selectedEmployees.length === 1) {
+      return previewEmployee?.name
+        ?.split(" ")
+        .map((part) => part[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase() || "EE";
+    }
+    return String(selectedEmployees.length);
+  })();
+  const selectionTitle = (() => {
+    if (selectedEmployees.length === 0) return "All Employees";
+    if (selectedEmployees.length === 1) return previewEmployee?.name || "Employee";
+    return `${selectedEmployees.length} Employees Selected`;
+  })();
+  const selectionSubtitle = (() => {
+    if (selectedEmployees.length === 0) return "Showing payslips for all employees";
+    if (selectedEmployees.length === 1) {
+      return [
+        previewEmployee?.department || "-",
+        `CTC ${formatCurrency(previewEmployee?.ctc, true)}`,
+        `Joined ${formatDate(previewEmployee?.joiningDate)}`
+      ].join(" | ");
+    }
+    return "Bulk Generation Mode";
+  })();
+  const deleteTargetEmployee = deleteTarget
+    ? employeesById.get(getPayslipEmployeeKey(deleteTarget))
+    : null;
+  const deleteTargetEmployeeName =
+    deleteTargetEmployee?.name ||
+    deleteTarget?.employeeName ||
+    deleteTarget?.employeeId ||
+    "-";
+  const deleteTargetMonth = deleteTarget?.month || "-";
+  const deleteTargetYear = deleteTarget?.year || "-";
+  const generateButtonLabel =
+    generationMode === "manual"
+      ? selectedEmployees.length === 0
+        ? "Select employee(s) to generate"
+        : selectedEmployees.length === 1
+          ? `Generate Manual for ${previewEmployee?.name || "1 Employee"}`
+          : `Generate Manual for ${selectedEmployees.length} Employees`
+      : selectedEmployees.length === 0
+        ? "Select employee(s) to generate"
+        : selectedEmployees.length === 1
+          ? `Generate for ${previewEmployee?.name || "1 Employee"} - ${selectedPeriod} Month(s)`
+          : `Generate for ${selectedEmployees.length} Employees - ${selectedPeriod} Month(s)`;
 
   return (
     <div className="payroll-page">
@@ -639,72 +789,34 @@ function Payroll() {
 
         <div className="employee-list">
           {filteredEmployees.map((emp) => {
-            const isChecked = selectedEmployeeSet.has(emp.employee_Id);
-            const isActive =
-              selectedEmp?.employee_Id === emp.employee_Id ||
-              (selectedEmployees.length === 1 && isChecked);
+            const employeeKey = getEmployeeKey(emp.employee_Id);
+            const isChecked = selectedEmployeeSet.has(employeeKey);
+            const isActive = isChecked && selectedEmployees.length === 1;
 
             return (
               <div
                 key={emp.employee_Id}
                 className={`employee-card ${isActive ? "active" : ""} ${generating ? "disabled-card" : ""}`}
-                style={{
-                  padding: "8px 10px",
-                  minHeight: "52px",
-                  border: isActive
-                    ? "2px solid var(--theme-info)"
-                    : "1px solid var(--border-soft)",
-                  borderRadius: "10px",
-                  marginBottom: "2px",
-                  background: "var(--bg-page)"
-                }}
                 onClick={() => handleCardClick(emp)}
               >
-                <div className="employee-left">
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    disabled={generating}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleToggleEmployee(emp.employee_Id);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "center",
-                      gap: "2px",
-                      lineHeight: "1"
-                    }}
-                  >
-                    <div
-                      style={{
-                        margin: "0",
-                        padding: "0",
-                        lineHeight: "1.3",
-                        fontSize: "14px",
-                        fontWeight: "400"
-                      }}
-                    >
-                      {emp.name}
-                    </div>
-
-                    <p
-                      style={{
-                        margin: "0",
-                        marginTop: "2px",
-                        padding: "0",
-                        lineHeight: "1",
-                        fontSize: "12px",
-                        color: "var(--text-muted)"
-                      }}
-                    >
-                      {emp.employee_Id}
-                    </p>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  disabled={generating}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleToggleEmployee(emp.employee_Id);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <div className="employee-card-body">
+                  <div className="employee-card-name">
+                    {emp.name}
                   </div>
+
+                  <p className="employee-card-id">
+                    {emp.employee_Id}
+                  </p>
                 </div>
                 <span className="dept">{emp.department}</span>
               </div>
@@ -714,8 +826,7 @@ function Payroll() {
       </div>
 
       {/* RIGHT PANEL */}
-      {(selectedEmp || selectedEmployees.length > 0) && (
-        <div className="payroll-content">
+      <div className="payroll-content">
           {generating && (
             <div className="generation-overlay">
               <div className="generation-loader"></div>
@@ -726,16 +837,12 @@ function Payroll() {
           <div className={`employee-header ${generating ? "panel-disabled" : ""}`}>
             {!isBulkMode ? (
               <>
-                <div className="avatar">
-                  {previewEmployee?.name
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .substring(0, 2)
-                    .toUpperCase()}
+                <div className={`avatar ${selectedEmployees.length === 0 ? "bulk-avatar" : ""}`}>
+                  {selectionAvatarText}
                 </div>
                 <div className="employee-header-info">
-                  <h3>{previewEmployee?.name || "Employee"}</h3>
+                  <h3>{selectionTitle}</h3>
+                  <p className="employee-header-subtitle">{selectionSubtitle}</p>
                   <p>
                     {previewEmployee?.employee_Id || "-"} {" • "}
                     {previewEmployee?.department || "-"} {" • "}
@@ -748,7 +855,8 @@ function Payroll() {
               <>
                 <div className="avatar bulk-avatar">{selectedEmployees.length}</div>
                 <div className="employee-header-info">
-                  <h3>{selectedEmployees.length} Employees Selected</h3>
+                  <h3>{selectionTitle}</h3>
+                  <p className="employee-header-subtitle">{selectionSubtitle}</p>
                   <p>
                     Bulk generation mode •{" "}
                     {selectedEmployeeObjects
@@ -763,12 +871,12 @@ function Payroll() {
               </>
             )}
 
-            <div className="mode-dropdown-wrapper">
+            <div className="mode-dropdown-wrapper payroll-filter-wrapper">
               <label>Payslip Mode</label>
               <select
                 value={generationMode}
                 onChange={(e) => setGenerationMode(e.target.value)}
-                className="mode-dropdown"
+                className="mode-dropdown payroll-filter-select payroll-mode-select"
                 disabled={generating}
               >
                 <option value="auto">Auto Payslip</option>
@@ -805,22 +913,20 @@ function Payroll() {
                 <h4>
                   Generate Payslip
                   <span className="selected-badge">
-                    {selectedEmployees.length > 0
-                      ? `${selectedEmployees.length} Selected`
-                      : "Single Employee"}
+                    {generationBadgeText}
                   </span>
                 </h4>
 
-                <div className="period-section">
-                  <div className="standard-periods">
+                <div className="period-section payroll-filter-wrapper">
+                  <div className="standard-periods payroll-filter-group payroll-period-group">
                     <label>STANDARD PERIODS</label>
-                    <div className="period-buttons">
+                    <div className="period-buttons payroll-period-controls">
                       {STANDARD_PERIODS.map((period) => (
                         <button
                           key={period}
                           type="button"
                           disabled={generating}
-                          className={selectedPeriod === period ? "active-period-btn" : ""}
+                          className={`payroll-period-btn ${selectedPeriod === period ? "active-period-btn payroll-period-btn-active" : ""}`}
                           onClick={() => setSelectedPeriod(period)}
                         >
                           {period}m
@@ -829,13 +935,14 @@ function Payroll() {
                     </div>
                   </div>
 
-                  <div className="specific-period">
+                  <div className="specific-period payroll-filter-group payroll-period-group">
                     <label>SPECIFIC PERIOD</label>
-                    <div className="period-buttons">
+                    <div className="period-buttons payroll-period-controls">
                       <select
                         value={year}
                         onChange={(e) => setYear(parseInt(e.target.value))}
                         disabled={generating}
+                        className="payroll-filter-select payroll-period-select"
                       >
                         {years.map((y) => (
                           <option key={y} value={y}>
@@ -848,6 +955,7 @@ function Payroll() {
                         value={month}
                         onChange={(e) => setMonth(e.target.value)}
                         disabled={generating}
+                        className="payroll-filter-select payroll-period-select"
                       >
                         {months.map((m) => (
                           <option key={m} value={m}>
@@ -862,13 +970,9 @@ function Payroll() {
                 <button
                   className="generate-btn"
                   onClick={handleGeneratePayslip}
-                  disabled={generating}
+                  disabled={generating || selectedEmployees.length === 0}
                 >
-                  {generating
-                    ? "Generating..."
-                    : selectedEmployees.length > 0
-                      ? `Generate for ${selectedEmployees.length} Employee(s) - ${selectedPeriod} Month(s)`
-                      : `Generate ${selectedPeriod > 1 ? `${selectedPeriod} Months` : `${month}`} Payslip`}
+                  {generating ? "Generating..." : generateButtonLabel}
                 </button>
               </div>
             </>
@@ -880,19 +984,18 @@ function Payroll() {
               <h4>
                 Manual Payslip Generation
                 <span className="selected-badge">
-                  {selectedEmployees.length > 0
-                    ? `${selectedEmployees.length} Selected`
-                    : "Single Employee"}
+                  {generationBadgeText}
                 </span>
               </h4>
-              <div className="period-section manual-top-controls">
-                <div className="specific-period">
+              <div className="period-section manual-top-controls payroll-filter-wrapper">
+                <div className="specific-period payroll-filter-group payroll-period-group">
                   <label>MONTH</label>
-                  <div className="period-buttons">
+                  <div className="period-buttons payroll-period-controls">
                     <select
                       value={month}
                       onChange={(e) => setMonth(e.target.value)}
                       disabled={generating}
+                      className="payroll-filter-select payroll-period-select"
                     >
                       {months.map((m) => (
                         <option key={m} value={m}>
@@ -903,13 +1006,14 @@ function Payroll() {
                   </div>
                 </div>
 
-                <div className="specific-period">
+                <div className="specific-period payroll-filter-group payroll-period-group">
                   <label>YEAR</label>
-                  <div className="period-buttons">
+                  <div className="period-buttons payroll-period-controls">
                     <select
                       value={year}
                       onChange={(e) => setYear(parseInt(e.target.value))}
                       disabled={generating}
+                      className="payroll-filter-select payroll-period-select"
                     >
                       {years.map((y) => (
                         <option key={y} value={y}>
@@ -939,16 +1043,11 @@ function Payroll() {
               </div>
 
               <button
-                className="generate-btn"
+                className="generate-btn manual-generate-btn"
                 onClick={handleGeneratePayslip}
-                disabled={generating}
-                style={{ marginTop: "20px" }}
+                disabled={generating || selectedEmployees.length === 0}
               >
-                {generating
-                  ? "Generating..."
-                  : selectedEmployees.length > 0
-                    ? `Generate Manual for ${selectedEmployees.length} Employee(s)`
-                    : "Generate Manual Payslip"}
+                {generating ? "Generating..." : generateButtonLabel}
               </button>
             </div>
           )}
@@ -956,31 +1055,13 @@ function Payroll() {
           {/* RECENT PAYSLIPS TABLE */}
           <div className="recent-table">
             <div className="recent-table-header">
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px"
-                }}
-              >
+              <div className="recent-table-title-group">
                 <h4>Recently Generated</h4>
 
                 <button
                   disabled={isSalaryDownloading}
                   onClick={handleDownloadSalaryRegister}
-                  style={{
-                    border: "1px solid var(--surface-info-soft)",
-                    background: "var(--surface-info-soft)",
-                    color: "var(--theme-info)",
-                    padding: "10px 16px",
-                    borderRadius: "10px",
-                    fontSize: "14px",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                    transition: "0.2s ease",
-                    opacity: isSalaryDownloading ? 0.7 : 1
-                  }}
+                  className="payroll-report-btn"
                 >
                   {isSalaryDownloading
                     ? "Downloading..."
@@ -988,11 +1069,12 @@ function Payroll() {
                 </button>
               </div>
 
-              <div className="recent-filters">
+              <div className="recent-filters payroll-filter-wrapper">
                 <select
                   value={recentFilterMonth}
                   onChange={(e) => setRecentFilterMonth(e.target.value)}
                   disabled={generating || recentLoading}
+                  className="payroll-filter-select payroll-report-filter-select"
                 >
                   <option value="All">All Months</option>
                   {months.map((m) => (
@@ -1006,6 +1088,7 @@ function Payroll() {
                   value={recentFilterYear}
                   onChange={(e) => setRecentFilterYear(e.target.value)}
                   disabled={generating || recentLoading}
+                  className="payroll-filter-select payroll-report-filter-select"
                 >
                   <option value="All">All Years</option>
                   {years.map((y) => (
@@ -1018,89 +1101,39 @@ function Payroll() {
               </div>
             </div>
 
-            <div
-              style={{
-                width: "100%",
-                padding: "6px 15px",
-                marginBottom: "14px",
-                border: "1px solid var(--surface-info-soft)",
-                borderRadius: "16px",
-                background: "var(--surface-info-soft)",
-                color: "var(--theme-info-strong)",
-                fontSize: "13px",
-                fontWeight: "450",
-                textAlign: "center",
-                boxSizing: "border-box",
-              }}
-            >
-              ← Scroll horizontally to view more payroll details →
+            <div className="payroll-scroll-hint">
+              Scroll horizontally to view more payroll details
             </div>
 
-            <div
-              className="table-scroll"
-              style={{
-                overflowX: "auto",
-                border: "1px solid var(--border-soft)",
-                borderRadius: "12px",
-                background: "var(--bg-page)",
-                position: "relative"
-              }}
-            >
-              <table
-                className="payroll-table"
-                style={{
-                  width: "100%",
-                  minWidth: "1100px",
-                  borderCollapse: "separate",
-                  borderSpacing: 0,
-                  tableLayout: "fixed"
-                }}
-              >
+            <div className="table-scroll payroll-table-shell">
+              <table className="payroll-table">
                 {/* TABLE HEADER */}
-                <thead
-                  style={{
-                    background: "var(--bg-muted)"
-                  }}
-                >
+                <thead className="payroll-table-head">
                   <tr>
-                    {[
-                      ["Employee", "left", "240px"],
-                      ["Department", "left", "110px"],
-                      ["Period", "center", "80px"],
-                      ["Net Pay", "center", "150px"],
-                      ["Deduction", "right", "110px"],
-                      ["CTC", "right", "130px"],
-                      ["Generated", "center", "180px"],
-                      ["Actions", "center", "110px"]
-                    ].map(([title, align, width]) => (
-                      <th
-                        key={title}
-                        style={{
-                          position: title === "Employee" ? "sticky" : "static",
-                          left: title === "Employee" ? 0 : "auto",
-                          zIndex: title === "Employee" ? 20 : 1,
-                          width,
-                          minWidth: width,
-                          maxWidth: width,
-                          padding: "12px 0px",
-                          paddingLeft:
-                            title === "Net Pay"
-                              ? "35px"
-                              : title === "Employee"
-                                ? "20px"
-                                : "0px",
-                          textAlign: align,
-                          verticalAlign: "middle",
-                          borderBottom: "1px solid var(--border-soft)",
-                          whiteSpace: "nowrap",
-                          background: "var(--bg-muted)",
-                          height: "48px",
-                          lineHeight: "20px"
-                        }}
-                      >
-                        {title}
-                      </th>
-                    ))}
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--left payroll-sticky-column payroll-col-employee">
+                      Employee
+                    </th>
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-department">
+                      Department
+                    </th>
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-period">
+                      Period
+                    </th>
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--right payroll-col-netpay">
+                      Net Pay
+                    </th>
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-deduction">
+                      Deduction
+                    </th>
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-ctc">
+                      CTC
+                    </th>
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-generated">
+                      Generated
+                    </th>
+                    <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-actions">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
 
@@ -1108,149 +1141,67 @@ function Payroll() {
                 <tbody>
                   {recentLoading ? (
                     <tr>
-                      <td colSpan="8" style={{ padding: "0" }}>
+                      <td colSpan="8" className="payroll-skeleton-cell">
                         <TableSkeleton
                           rows={6}
                           columns={[
-                            { width: "240px", type: "avatar", headerWidth: "58%" },
-                            { width: "110px", headerWidth: "54%" },
-                            { width: "80px", headerWidth: "54%" },
+                            { width: "260px", type: "avatar", headerWidth: "58%" },
+                            { width: "150px", headerWidth: "54%" },
+                            { width: "140px", headerWidth: "54%" },
                             { width: "150px", headerWidth: "58%" },
-                            { width: "110px", headerWidth: "56%" },
-                            { width: "130px", headerWidth: "56%" },
-                            { width: "180px", headerWidth: "58%" },
-                            { width: "110px", type: "actions", headerWidth: "54%" },
+                            { width: "150px", headerWidth: "56%" },
+                            { width: "150px", headerWidth: "56%" },
+                            { width: "220px", headerWidth: "58%" },
+                            { width: "120px", type: "actions", headerWidth: "54%" },
                           ]}
                         />
                       </td>
                     </tr>
                   ) : paginatedRecentPayslips.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan="8"
-                        style={{
-                          padding: "45px",
-                          textAlign: "center",
-                          color: "var(--text-muted)",
-                          fontSize: "15px"
-                        }}
-                      >
+                      <td colSpan="8" className="payroll-empty-state">
                         No Payslips Generated
                       </td>
                     </tr>
                   ) : (
                     paginatedRecentPayslips.map((p, index) => {
-                      const emp = employeesById.get(p.employeeId);
+                      const emp = employeesById.get(getPayslipEmployeeKey(p));
+                      const isDeletingRow = deletingPayslipId != null && String(deletingPayslipId) === String(p.id);
 
                       const ctcValue = getCtcValue(p, emp);
 
                       return (
-                        <tr
-                          key={p.id || index}
-                          style={{
-                            background: "var(--bg-page)",
-                            transition: "0.2s ease",
-                            height: "50px"
-                          }}
-                        >
+                        <tr key={p.id || index} className="payroll-table-row">
                           {/* EMPLOYEE */}
-                          <td
-                            style={{
-                              padding: "0px 8px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              verticalAlign: "middle",
-                              position: "sticky",
-                              left: 0,
-                              zIndex: 10,
-                              background: "var(--bg-page)",
-                              boxShadow: "6px 0 10px var(--shadow-color-xs)"
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontWeight: 600,
-                                color: "var(--text-strong)",
-                                fontSize: "13px",
-                                marginBottom: "1px",
-                                lineHeight: "16px"
-                              }}
-                            >
-                              {emp?.name || p.employeeName || p.employeeId}
-                            </div>
+                          <td className="payroll-table-cell payroll-employee-cell payroll-sticky-column payroll-col-employee">
+                            <div className="payroll-employee-content">
+                              <div className="payroll-employee-name">
+                                {emp?.name || p.employeeName || p.employeeId}
+                              </div>
 
-                            <div
-                              style={{
-                                fontSize: "11px",
-                                color: "var(--text-muted)",
-                                lineHeight: "14px"
-                              }}
-                            >
-                              {p.employeeId}
+                              <div className="payroll-employee-id">
+                                {p.employeeId}
+                              </div>
                             </div>
                           </td>
 
                           {/* DEPARTMENT */}
-                          <td
-                            style={{
-                              padding: "10px 25px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              color: "var(--text-strong)",
-                              verticalAlign: "middle",
-                              fontSize: "13px",
-                              lineHeight: "16px"
-                            }}
-                          >
+                          <td className="payroll-table-cell payroll-department-cell payroll-col-department">
                             {emp?.department || p.department || "-"}
                           </td>
 
                           {/* PERIOD */}
-                          <td
-                            style={{
-                              padding: "4px 10px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              textAlign: "center",
-                              color: "var(--text-strong)",
-                              verticalAlign: "middle",
-                              whiteSpace: "nowrap",
-                              fontSize: "13px",
-                              lineHeight: "16px"
-                            }}
-                          >
+                          <td className="payroll-table-cell payroll-period-cell payroll-col-period">
                             {p.month || "-"} {p.year || ""}
                           </td>
 
                           {/* NET PAY */}
-                          <td
-                            style={{
-                              padding: "4px 25px 4px 10px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              textAlign: "right",
-                              verticalAlign: "middle",
-                              fontWeight: 700,
-                              color: "var(--success)",
-                              fontSize: "13px",
-                              fontVariantNumeric: "tabular-nums",
-                              whiteSpace: "nowrap",
-                              lineHeight: "16px"
-                            }}
-                          >
+                          <td className="payroll-table-cell payroll-currency-cell payroll-netpay-cell payroll-col-netpay">
                             {formatCurrency(p.netPay, true)}
                           </td>
 
                           {/* DEDUCTION */}
-                          <td
-                            style={{
-                              padding: "4px 14px 4px 10px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              textAlign: "right",
-                              verticalAlign: "middle",
-                              color: "var(--theme-danger)",
-                              fontSize: "13px",
-                              fontVariantNumeric: "tabular-nums",
-                              whiteSpace: "nowrap",
-                              lineHeight: "16px"
-                            }}
-                          >
+                          <td className="payroll-table-cell payroll-currency-cell payroll-deduction-cell payroll-col-deduction">
                             {formatCurrency(
                               p.OtherDeductions ??
                               p.otherDeductions ??
@@ -1261,77 +1212,42 @@ function Payroll() {
                           </td>
 
                           {/* CTC */}
-                          <td
-                            style={{
-                              padding: "4px 14px 4px 10px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              textAlign: "right",
-                              verticalAlign: "middle",
-                              fontWeight: 700,
-                              color: "var(--text-strong)",
-                              fontSize: "13px",
-                              fontVariantNumeric: "tabular-nums",
-                              whiteSpace: "nowrap",
-                              lineHeight: "16px"
-                            }}
-                          >
+                          <td className="payroll-table-cell payroll-currency-cell payroll-ctc-cell payroll-col-ctc">
                             {formatCurrency(ctcValue, true)}
                           </td>
 
                           {/* GENERATED */}
-                          <td
-                            style={{
-                              padding: "4px 10px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              textAlign: "center",
-                              verticalAlign: "middle",
-                              color: "var(--text-body)",
-                              fontSize: "12px",
-                              lineHeight: "16px"
-                            }}
-                          >
-                            {p.parsedGeneratedDate
-                              ? p.parsedGeneratedDate.toLocaleString(
-                                "en-IN",
-                                {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                  hour12: true
-                                }
-                              )
-                              : "-"}
+                          <td className="payroll-table-cell payroll-generated-cell payroll-col-generated">
+                            {formatGeneratedDate(p.parsedGeneratedDate)}
                           </td>
 
                           {/* ACTION */}
-                          <td
-                            style={{
-                              padding: "4px 10px",
-                              borderBottom: "1px solid var(--bg-muted)",
-                              textAlign: "center",
-                              verticalAlign: "middle"
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center"
-                              }}
-                            >
-                              <FaDownload
-                                className="download-icon"
+                          <td className="payroll-table-cell payroll-actions-cell payroll-col-actions">
+                            <div className="payroll-actions">
+                              <button
+                                type="button"
+                                className="payroll-action-btn payroll-download-btn"
                                 onClick={() => handleDownloadPayslip(p.id)}
+                                disabled={isDeletingRow}
                                 title="Download Payslip"
-                                style={{
-                                  cursor: "pointer",
-                                  fontSize: "15px",
-                                  color: "var(--theme-info)"
-                                }}
-                              />
+                                aria-label={`Download payslip for ${emp?.name || p.employeeName || p.employeeId || "employee"}`}
+                              >
+                                <FiDownload aria-hidden="true" focusable="false" />
+                              </button>
+                              <button
+                                type="button"
+                                className="payroll-action-btn payroll-delete-btn"
+                                onClick={() => handleOpenDeleteModal(p)}
+                                disabled={isDeletingRow || p.id == null}
+                                title={isDeletingRow ? "Deleting Payslip..." : "Delete Payslip"}
+                                aria-label={`Delete payslip for ${emp?.name || p.employeeName || p.employeeId || "employee"}`}
+                              >
+                                {isDeletingRow ? (
+                                  <FiLoader className="payroll-action-spinner" aria-hidden="true" focusable="false" />
+                                ) : (
+                                  <FiTrash2 aria-hidden="true" focusable="false" />
+                                )}
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1349,10 +1265,89 @@ function Payroll() {
               itemLabel="payslips"
             />
           </div>
+
+          {deleteTarget && (
+            <div
+              className="delete-overlay payroll-delete-overlay"
+              role="presentation"
+              onClick={closeDeleteModal}
+            >
+              <div
+                className="delete-modal payroll-delete-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="payroll-delete-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="payroll-delete-header">
+                  <h3 id="payroll-delete-title" className="payroll-delete-title">
+                    Delete Payslip
+                  </h3>
+                </div>
+
+                <div className="payroll-delete-body">
+                  <p className="payroll-delete-message">
+                    Are you sure you want to delete this payslip?
+                  </p>
+
+                  <div className="payroll-delete-summary">
+                    <div className="payroll-delete-summary-row">
+                      <span className="payroll-delete-summary-label">Employee:</span>
+                      <span className="payroll-delete-summary-value">{deleteTargetEmployeeName}</span>
+                    </div>
+                    <div className="payroll-delete-summary-row">
+                      <span className="payroll-delete-summary-label">Month:</span>
+                      <span className="payroll-delete-summary-value">{deleteTargetMonth}</span>
+                    </div>
+                    <div className="payroll-delete-summary-row">
+                      <span className="payroll-delete-summary-label">Year:</span>
+                      <span className="payroll-delete-summary-value">{deleteTargetYear}</span>
+                    </div>
+                  </div>
+
+                  <p className="payroll-delete-warning">
+                    This action cannot be undone.
+                  </p>
+
+                  {errorMsg ? (
+                    <div className="payroll-delete-error" role="alert">
+                      {errorMsg}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="delete-actions payroll-delete-actions">
+                  <button
+                    type="button"
+                    className="delete-cancel-btn"
+                    onClick={closeDeleteModal}
+                    disabled={Boolean(deletingPayslipId)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="delete-confirm-btn payroll-delete-confirm-btn"
+                    onClick={handleDeletePayslip}
+                    disabled={Boolean(deletingPayslipId)}
+                  >
+                    {deletingPayslipId ? (
+                      <>
+                        <FiLoader className="payroll-action-spinner" aria-hidden="true" focusable="false" />
+                        Deleting...
+                      </>
+                    ) : (
+                      "Delete Payslip"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
   );
 }
 
 export default Payroll;
+

@@ -267,6 +267,28 @@ namespace EmployeeManagementSystem.Services
             // YEARLY VALUES
             // ================================
 
+            // ================================
+            // ROUND MONTHLY VALUES FIRST
+            // ================================
+
+            basic = Math.Round(basic, 0, MidpointRounding.AwayFromZero);
+            hra = Math.Round(hra, 0, MidpointRounding.AwayFromZero);
+            conveyance = Math.Round(conveyance, 0, MidpointRounding.AwayFromZero);
+            medicalAllowance = Math.Round(medicalAllowance, 0, MidpointRounding.AwayFromZero);
+
+            providentfundMonthly = Math.Round(providentfundMonthly, 0, MidpointRounding.AwayFromZero);
+            professionaltaxMonthly = Math.Round(professionaltaxMonthly, 0, MidpointRounding.AwayFromZero);
+
+            gross = Math.Round(gross, 0, MidpointRounding.AwayFromZero);
+            otherAllowance = Math.Round(otherAllowance, 0, MidpointRounding.AwayFromZero);
+            netMonthly = Math.Round(netMonthly, 0, MidpointRounding.AwayFromZero);
+
+            employerPfMonthly = Math.Round(employerPfMonthly, 0, MidpointRounding.AwayFromZero);
+
+            // ================================
+            // NOW CALCULATE YEARLY VALUES
+            // ================================
+
             decimal basicYearly = basic * 12;
             decimal hraYearly = hra * 12;
             decimal conveyanceYearly = conveyance * 12;
@@ -277,12 +299,9 @@ namespace EmployeeManagementSystem.Services
 
             decimal providentfundAnnual = providentfundMonthly * 12;
             decimal professionaltaxAnnual = professionaltaxMonthly * 12;
-
             decimal employerPfAnnual = employerPfMonthly * 12;
 
             decimal netAnnual = netMonthly * 12;
-
-
 
             // =============================
             // Replace Bookmarks
@@ -333,7 +352,7 @@ namespace EmployeeManagementSystem.Services
                 ReplaceBookmark(wordDoc, "ProfessionalTaxYearly", professionaltaxAnnual.ToString("N2"));
 
                 ReplaceBookmark(wordDoc, "ProvidentFund", providentfundMonthly.ToString("N2"));
-                ReplaceBookmark(wordDoc, "ProvidentFundYearly", providentfundAnnual.ToString("F0"));
+                ReplaceBookmark(wordDoc, "ProvidentFundYearly", providentfundAnnual.ToString("N2"));
 
                 ReplaceBookmark(wordDoc, "NetTakeHome", netMonthly.ToString("N2"));
                 ReplaceBookmark(wordDoc, "NetTakeHomeYearly", netAnnual.ToString("N2"));
@@ -424,11 +443,11 @@ if (process.ExitCode != 0)
             // Send Email
             // =============================
 
-            await _emailService.SendEmailWithAttachment(
-                dto.Email,
-                "Offer Letter - EMS",
-                "Dear Candidate,\n\nPlease find attached your offer letter.\n\nRegards,\nHR Team",
-                pdfPath);
+            //await _emailService.SendEmailWithAttachment(
+            //    dto.Email,
+            //    "Offer Letter - EMS",
+            //    "Dear Candidate,\n\nPlease find attached your offer letter.\n\nRegards,\nHR Team",
+            //    pdfPath);
 
             // =============================
             // Save Record
@@ -444,7 +463,12 @@ if (process.ExitCode != 0)
                 Joining_Date = dto.Joining_Date,
                 CTC_Annual = dto.CTC_Annual,
                 Generated_On = DateTime.UtcNow,
-                File_Path = pdfPath
+                File_Path = pdfPath,
+                PreviewPath = pdfPath,
+                Status = "Draft",
+                IsSent = false,
+                SentCount = 0,
+                SentOn = null
             };
 
             _context.OfferLetters.Add(offerLetter);
@@ -453,9 +477,99 @@ if (process.ExitCode != 0)
             return new OfferLetterResponseDto
             {
                 Success = true,
-                Message = "Offer letter generated and sent successfully."
+                Message = "Offer Letter Generated Successfully",
+                OfferLetterId = offerLetter.Id,
+                PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}"
             };
         }
+
+        public async Task<byte[]> PreviewOfferLetter(int id)
+        {
+            var letter = await _context.OfferLetters
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (letter == null)
+                throw new Exception("Offer Letter not found.");
+
+            if (!System.IO.File.Exists(letter.File_Path))
+                throw new Exception("PDF not found.");
+
+            return await System.IO.File.ReadAllBytesAsync(letter.File_Path);
+        }
+
+        public async Task SendOfferLetterAsync(SendOfferLetterDto dto)
+        {
+            var letter = await _context.OfferLetters
+    .FirstOrDefaultAsync(x => x.Id == dto.OfferLetterId);
+
+            if (letter == null)
+                throw new Exception("Offer Letter Not Found.");
+
+            if (!File.Exists(letter.File_Path))
+                throw new Exception("PDF Not Found.");
+
+            await _emailService.SendEmailWithAttachment(
+                letter.Email,
+                dto.Subject,
+                dto.Body,
+                letter.File_Path);
+            letter.Status = "Sent";
+            letter.IsSent = true;
+            letter.SentOn = DateTime.UtcNow;
+            letter.SentCount += 1;
+
+            await _context.SaveChangesAsync();
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<OfferLetterSendStatusDto> GetSendStatusAsync(int id)
+        {
+            var letter = await _context.OfferLetters
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (letter == null)
+                throw new Exception("Offer Letter not found.");
+
+            return new OfferLetterSendStatusDto
+            {
+                OfferLetterId = letter.Id,
+                CandidateName = letter.Candidate_Name,
+                Position = letter.Position,
+                IsSent = letter.IsSent,
+                SentCount = letter.SentCount,
+                SentOn = letter.SentOn,
+                Status = letter.Status
+            };
+        }
+        public async Task DeleteOfferLetterAsync(int id)
+        {
+            var offerLetter = await _context.OfferLetters
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (offerLetter == null)
+                throw new Exception("Offer Letter not found.");
+
+            // Delete PDF if exists
+            if (!string.IsNullOrWhiteSpace(offerLetter.File_Path) &&
+                File.Exists(offerLetter.File_Path))
+            {
+                File.Delete(offerLetter.File_Path);
+            }
+
+            // Delete DOCX if stored
+            if (!string.IsNullOrWhiteSpace(offerLetter.PreviewPath) &&
+                File.Exists(offerLetter.PreviewPath))
+            {
+                File.Delete(offerLetter.PreviewPath);
+            }
+
+            _context.OfferLetters.Remove(offerLetter);
+
+            await _context.SaveChangesAsync();
+        }
+
+
 
         // =============================
         // FIXED BOOKMARK METHOD

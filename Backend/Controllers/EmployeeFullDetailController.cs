@@ -37,7 +37,42 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // 🔹 Helper Method to Extract EmployeeId from JWT Token
+        private async Task<bool> CanEditProfile(string employeeId)
+        {
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
+            if (string.IsNullOrEmpty(email))
+                return false;
+
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+                return false;
+
+            // Admin can edit
+            if (user.Role != null &&
+                user.Role.Name.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // Employee can edit only own profile
+            if (user.Role != null &&
+                user.Role.Name.Equals("Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Email == user.Email);
+
+                if (employee == null)
+                    return false;
+
+                return employee.Employee_Id == employeeId;
+            }
+
+            return false;
+        }
         private string GetEmployeeId()
 
         {
@@ -121,6 +156,10 @@ namespace EmployeeManagementSystem.Controllers
             if (string.IsNullOrEmpty(employeeId))
 
                 return Unauthorized(new { message = "Invalid or missing token." });
+            if (!await CanEditProfile(employeeId))
+            {
+                return Forbid("You don't have permission to edit employee details.");
+            }
 
             if (dto == null)
 

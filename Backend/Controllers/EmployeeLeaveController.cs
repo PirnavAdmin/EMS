@@ -1,11 +1,10 @@
 ﻿using DocumentFormat.OpenXml.Spreadsheet;
-
-using Microsoft.AspNetCore.Authorization;
-
-using Microsoft.AspNetCore.Mvc;
-
-using System.Security.Claims;
+using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.DTOs;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 
 
@@ -28,7 +27,9 @@ public class EmployeeLeaveController : ControllerBase
     }
 
     // Employee applies leave
-    [Authorize]
+
+    //[Authorize]
+    //[Permission(ModuleIds.UserLeaveManagement, PermissionAction.Add)]
     [HttpPost]
 
     public async Task<IActionResult> ApplyLeave(EmployeeLeaveDto dto)
@@ -40,7 +41,8 @@ public class EmployeeLeaveController : ControllerBase
     }
 
     // Employee sees their leaves
-    [Authorize]
+    //[Authorize]
+    //[Permission(ModuleIds.UserLeaveManagement, PermissionAction.View)]
     [HttpGet]
 
     public async Task<IActionResult> GetMyLeaves()
@@ -65,8 +67,11 @@ public class EmployeeLeaveController : ControllerBase
 
         return await _service.GetAllLeaves();
 
+
     }
 
+    //[Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpPut("approve-reject/{id}")]
     public async Task<IActionResult> ApproveOrRejectLeave(
        int id,
@@ -89,6 +94,8 @@ public class EmployeeLeaveController : ControllerBase
 
     // Admin approves/rejects leave
 
+    //[Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpPut("update-status/{id}")]
     public async Task<IActionResult> UpdateStatus(
     int id,
@@ -98,7 +105,8 @@ public class EmployeeLeaveController : ControllerBase
     }
 
     // Delete leave
-
+    //[Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.Delete)]
     [HttpDelete("{id}")]
 
     public async Task<IActionResult> Delete(int id)
@@ -127,6 +135,8 @@ public class EmployeeLeaveController : ControllerBase
         return await _service.GetEmployeeLeaveDetails(employeeId);
     }
 
+    //[Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.View)]
     [HttpGet("export")]
     public async Task<IActionResult> ExportLeaves()
     {
@@ -140,7 +150,8 @@ public class EmployeeLeaveController : ControllerBase
     }
 
 
-    [Authorize]
+    //[Authorize]
+    //[Permission(ModuleIds.UserLeaveManagement, PermissionAction.Add)]
 
     [HttpPost("apply-wfh")]
 
@@ -154,8 +165,9 @@ WorkFromHomeDto dto)
 
     }
 
-    [Authorize]
-
+    
+    //[Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.View)]
     [HttpGet("all-wfh")]
 
     public async Task<IActionResult> GetAllWFH()
@@ -166,7 +178,8 @@ WorkFromHomeDto dto)
 
     }
 
-    [Authorize]
+    //[Authorize]
+    //[Permission(ModuleIds.UserLeaveManagement, PermissionAction.View)]
 
     [HttpGet("my-wfh")]
 
@@ -178,8 +191,8 @@ WorkFromHomeDto dto)
 
     }
 
-    [Authorize]
-
+    //[Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpPut("update-wfh-status/{id}")]
 
     public async Task<IActionResult> UpdateWFHStatus(
@@ -200,8 +213,8 @@ WorkFromHomeDto dto)
 
     }
 
-    [Authorize]
-
+    //[Authorize]
+    //[Permission(ModuleIds.UserLeaveManagement, PermissionAction.Edit)]
     [HttpPut("cancel-wfh/{id}")]
 
     public async Task<IActionResult> CancelWFH(int id)
@@ -211,6 +224,8 @@ WorkFromHomeDto dto)
         return await _service.CancelWFH(id, User);
 
     }
+    //[Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
 
     [HttpGet("mail-action")]
     public async Task<IActionResult> MailAction(
@@ -225,6 +240,9 @@ string approverEmail)
             token,
             approverEmail);
     }
+
+//    [Authorize]
+//[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpGet("wfh-mail-action")]
     public async Task<IActionResult> WFHMailAction(
         int requestId,

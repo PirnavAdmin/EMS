@@ -1,6 +1,9 @@
-﻿using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +11,7 @@ using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    //[Authorize]
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class OfferLetterController : ControllerBase
@@ -29,7 +32,7 @@ namespace EmployeeManagementSystem.Controllers
         //---------------------------------------
         // Generate Offer Letter
         //---------------------------------------
-
+        //[Permission(ModuleIds.OfferLetters, PermissionAction.Add)]
         [HttpPost("generate")]
         public async Task<IActionResult> Generate([FromBody] OfferLetterRequestDto dto)
         {
@@ -45,11 +48,44 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(result.Message);
         }
+        //[Permission(ModuleIds.OfferLetters, PermissionAction.Add)]
+        [HttpGet("preview/{id}")]
+        public async Task<IActionResult> PreviewOfferLetter(int id)
+        {
+            var pdf = await _offerLetterService.PreviewOfferLetter(id);
 
+            return File(pdf, "application/pdf");
+        }
+        //[Permission(ModuleIds.OfferLetters, PermissionAction.Add)]
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteOfferLetter(int id)
+        {
+            await _offerLetterService.DeleteOfferLetterAsync(id);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Offer Letter deleted successfully."
+            });
+        }
+
+        //[Permission(ModuleIds.OfferLetters, PermissionAction.Add)]
+        [HttpPost("send")]
+        public async Task<IActionResult> SendOfferLetter(
+    SendOfferLetterDto dto)
+        {
+            await _offerLetterService.SendOfferLetterAsync(dto);
+
+            return Ok(new
+            {
+                message = "Offer Letter Sent Successfully."
+            });
+        }
         //---------------------------------------
         // GET ALL OFFER LETTERS (Admin View)
         //---------------------------------------
-
+        //[Permission(ModuleIds.OfferLetters, PermissionAction.View)]
         [HttpGet("all")]
         public async Task<IActionResult> GetAllOfferLetters()
         {
@@ -77,7 +113,7 @@ namespace EmployeeManagementSystem.Controllers
         //---------------------------------------
         // Download Offer Letter
         //---------------------------------------
-
+        //[Permission(ModuleIds.OfferLetters, PermissionAction.View)]
         [HttpGet("download/{id}")]
         public async Task<IActionResult> Download(int id)
         {
@@ -102,68 +138,74 @@ namespace EmployeeManagementSystem.Controllers
                 Path.GetFileName(record.File_Path));
         }
 
+        [HttpGet("{id}/send-status")]
+        public async Task<IActionResult> GetSendStatus(int id)
+        {
+            var result = await _offerLetterService.GetSendStatusAsync(id);
+            return Ok(result);
+        }
 
+        //[Permission(ModuleIds.OfferLetters, PermissionAction.View)]
         [HttpGet("salary-structure/{ctc}")]
         public IActionResult GetSalaryStructure(decimal ctc)
         {
-            decimal monthlyCTC =
-                Math.Round(ctc / 12, 2);
+            decimal monthlyCTC = Math.Round(ctc / 12, 0, MidpointRounding.AwayFromZero);
 
-            decimal basic =
-                Math.Round(monthlyCTC * 0.3817m, 2);
+            // Earnings
+            decimal basic = Math.Round(monthlyCTC * 0.3817m, 0, MidpointRounding.AwayFromZero);
 
-            decimal hra =
-                Math.Round(basic * 0.40m, 2);
+            decimal hra = Math.Round(basic * 0.40m, 0, MidpointRounding.AwayFromZero);
 
             decimal conveyance = 1600;
 
             decimal medicalAllowance = 1250;
 
-            decimal employerPf =
-                Math.Round(basic * 0.12m, 2);
-
-            decimal gross =
-                monthlyCTC - employerPf;
-
-            decimal otherAllowance =
-                Math.Round(
-                    gross - (
-                        basic +
-                        hra +
-                        conveyance +
-                        medicalAllowance
-                    ),
-                    2);
+            // Deductions
+            decimal employerPf = Math.Round(basic * 0.12m, 0, MidpointRounding.AwayFromZero);
 
             decimal professionalTax = 200;
 
-            decimal providentFund = employerPf;
+            // Gross Salary
+            decimal gross = Math.Round(monthlyCTC - employerPf, 0, MidpointRounding.AwayFromZero);
 
-            decimal netTakeHome =
-                Math.Round(
-                    gross - (
-                        providentFund +
-                        professionalTax
-                    ),
-                    2);
+            // Other Allowance
+            decimal otherAllowance = Math.Round(
+                gross -
+                (
+                    basic +
+                    hra +
+                    conveyance +
+                    medicalAllowance
+                ),
+                0,
+                MidpointRounding.AwayFromZero);
+
+            // Net Take Home
+            decimal netTakeHome = Math.Round(
+                gross -
+                (
+                    employerPf +
+                    professionalTax
+                ),
+                0,
+                MidpointRounding.AwayFromZero);
 
             return Ok(new
             {
-                monthlyCTC,
-                basic,
-                hra,
-                conveyance,
-                medicalAllowance,
-                otherAllowance,
+                monthlyCTC = monthlyCTC.ToString("N2"),
+                basic = basic.ToString("N2"),
+                hra = hra.ToString("N2"),
+                conveyance = conveyance.ToString("N2"),
+                medicalAllowance = medicalAllowance.ToString("N2"),
+                otherAllowance = otherAllowance.ToString("N2"),
 
-                // deductions
-                providentFund,
-                professionalTax,
+                providentFund = employerPf.ToString("N2"),
+                professionalTax = professionalTax.ToString("N2"),
 
-                // totals
-                gross,
-                netTakeHome
+                gross = gross.ToString("N2"),
+                netTakeHome = netTakeHome.ToString("N2")
             });
         }
     }
     }
+   

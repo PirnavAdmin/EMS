@@ -353,6 +353,15 @@ function App() {
             />
 
             <Route
+              path="/roles/:roleName"
+              element={
+                <PermissionRoute module="Screen Permissions">
+                  <ScreenPermissions />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
               path="/projects/:projectId"
               element={
                 <PermissionRoute module="Projects">

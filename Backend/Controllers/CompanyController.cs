@@ -1,11 +1,17 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Interfaces;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class CompanyController : ControllerBase
@@ -18,6 +24,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // ✅ GET: api/company/{id}
+        //[Permission(ModuleIds.CompanyDetails, PermissionAction.View)]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCompany(int id)
         {
@@ -30,6 +37,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // ✅ POST: api/company
+        //[Permission(ModuleIds.CompanyDetails, PermissionAction.Add)]
         [HttpPost]
         public async Task<IActionResult> CreateCompany([FromBody] UpdateCompanyDto dto)
         {
@@ -63,6 +71,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // ✅ PUT: api/company/{id}
+        //[Permission(ModuleIds.CompanyDetails, PermissionAction.Edit)]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateCompany(int id, [FromBody] UpdateCompanyDto dto)
         {

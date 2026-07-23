@@ -58,8 +58,8 @@ namespace EmployeeManagementSystem.Services
             }
             foreach (var file in dto.Files!)
             {
-                if (file.Length > 2 * 1024 * 1024)
-                    return "File size exceeds 2 MB";
+                if (file.Length > 5 * 1024 * 1024)
+                    return "File size exceeds 5 MB";
             }
 
             var allowedExtensions = new[]

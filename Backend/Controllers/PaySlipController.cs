@@ -1,13 +1,11 @@
-﻿using EmployeeManagementSystem.Data;
-
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Interfaces;
-
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
-
 using Microsoft.AspNetCore.Mvc;
-
 using Microsoft.EntityFrameworkCore;
-
 using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Controllers
@@ -43,6 +41,8 @@ namespace EmployeeManagementSystem.Controllers
         // GENERATE SINGLE PAYSLIP
 
         //--------------------------------
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.Add)]
         [HttpPost("generate")]
         public async Task<IActionResult> GeneratePaySlip(
     string employeeId,
@@ -66,7 +66,8 @@ namespace EmployeeManagementSystem.Controllers
         // GENERATE ALL PAYSLIPS
 
         //--------------------------------
-
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.Add)]
         [HttpPost("generate-all")]
 
         public async Task<IActionResult> GenerateAll(int year, string month)
@@ -84,7 +85,8 @@ namespace EmployeeManagementSystem.Controllers
         // GET RECENT PAYSLIPS
 
         //--------------------------------
-
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.View)]
         [HttpGet("recent")]
 
         public async Task<IActionResult> GetRecent()
@@ -104,7 +106,8 @@ namespace EmployeeManagementSystem.Controllers
         //--------------------------------
 
         // PREVIEW PAYSLIP (INLINE VIEW)
-
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.View)]
         [HttpGet("preview/{id}")]
 
         public async Task<IActionResult> Preview(int id)
@@ -140,7 +143,8 @@ namespace EmployeeManagementSystem.Controllers
             return File(fileBytes, "application/pdf");
 
         }
-
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.View)]
         [HttpGet("download/{id}")]
 
         public async Task<IActionResult> Download(int id)
@@ -184,7 +188,8 @@ namespace EmployeeManagementSystem.Controllers
             );
 
         }
-
+        //[Authorize]
+        //[Permission(ModuleIds.UserPayslip, PermissionAction.View)]
 
         [HttpGet("my")]
 
@@ -248,7 +253,8 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
-
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.View)]
         [HttpGet("salary-register")]
 
         public async Task<IActionResult> DownloadSalaryRegister(
@@ -305,6 +311,56 @@ namespace EmployeeManagementSystem.Controllers
 
                 $"SalaryRegister_{month}_{year}.xlsx");
 
+        }
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.View)]
+        [HttpGet("employee/{employeeId}")]
+        public async Task<IActionResult> GetEmployeePayslips(string employeeId)
+        {
+            try
+            {
+                var result = await _service.GetEmployeePayslips(employeeId);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Count = result.Count,
+                    Payslips = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+        //[Authorize]
+        //[Permission(ModuleIds.Payroll, PermissionAction.Delete)]
+      
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePaySlip(int id)
+        {
+            try
+            {
+                await _service.DeletePaySlip(id);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = "Payslip deleted successfully."
+                });
+            }
+            catch (Exception ex)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
         }
 
     }

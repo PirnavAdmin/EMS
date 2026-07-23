@@ -1,8 +1,12 @@
-﻿using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+//[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class HolidaysController : ControllerBase
@@ -15,6 +19,7 @@ public class HolidaysController : ControllerBase
     }
 
     // GET
+    //[Permission(ModuleIds.Holidays, PermissionAction.View)]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -33,6 +38,7 @@ public class HolidaysController : ControllerBase
     }
 
     // POST
+    //[Permission(ModuleIds.Holidays, PermissionAction.Add)]
     [HttpPost]
     public async Task<IActionResult> Create(HolidayDto dto)
     {
@@ -51,6 +57,7 @@ public class HolidaysController : ControllerBase
     }
 
     // PUT
+    //[Permission(ModuleIds.Holidays, PermissionAction.Edit)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, HolidayDto dto)
     {
@@ -58,7 +65,7 @@ public class HolidaysController : ControllerBase
 
         if (holiday == null)
             return NotFound();
-        
+
         holiday.Holiday_Name = dto.Holiday_Name;
         holiday.Holiday_Date = dto.Holiday_Date;
         holiday.Day = dto.Day;
@@ -68,6 +75,9 @@ public class HolidaysController : ControllerBase
 
         return Ok("Updated Successfully");
     }
+
+    // DELETE
+    //[Permission(ModuleIds.Holidays, PermissionAction.Delete)]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {

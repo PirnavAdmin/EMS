@@ -1,11 +1,15 @@
 ﻿using ClosedXML.Excel;
+using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
 
+//[Authorize]
 [ApiController]
 
 [Route("api/[controller]")]
@@ -68,7 +72,7 @@ public class ProjectsController : ControllerBase
         return $"{prefix}{(maxNumber + 1):D3}";
     }
 
-
+    //[Permission(ModuleIds.Projects, PermissionAction.View)]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -140,7 +144,7 @@ public class ProjectsController : ControllerBase
         return Ok(result);
     }
     // ========================= GET BY ID =========================
-
+    //[Permission(ModuleIds.Projects, PermissionAction.View)]
     [HttpGet("{projectId}")]
     public async Task<IActionResult> GetByProjectId(string projectId)
     {
@@ -184,7 +188,7 @@ public class ProjectsController : ControllerBase
         return Ok(result);
     }
     // ========================= CREATE =========================
-
+    //[Permission(ModuleIds.Projects, PermissionAction.Add)]
     [HttpPost]
     public async Task<IActionResult> Create(ProjectDto dto)
     {
@@ -232,6 +236,7 @@ public class ProjectsController : ControllerBase
         });
     }  // ========================= UPDATE =========================
 
+    //[Permission(ModuleIds.Projects, PermissionAction.Edit)]
     [HttpPut("{projectId}")]
     public async Task<IActionResult> Update(string projectId, ProjectDto dto)
     {
@@ -280,7 +285,7 @@ public class ProjectsController : ControllerBase
         return Ok("Project updated successfully.");
     }
     // ========================= DELETE =========================
-
+    //[Permission(ModuleIds.Projects, PermissionAction.Delete)]
     [HttpDelete("{projectId}")]
     public async Task<IActionResult> Delete(string projectId)
     {
@@ -315,6 +320,7 @@ public class ProjectsController : ControllerBase
         return Ok("Project deleted successfully.");
     }   // ========================= EXPORT =========================
 
+    //[Permission(ModuleIds.Projects, PermissionAction.View)]
     [HttpGet("export")]
 
     public async Task<IActionResult> ExportProjects()
@@ -494,6 +500,8 @@ public class ProjectsController : ControllerBase
     }
 
 }
+
+
 
 // ========================= EMPLOYEE DTO =========================
 

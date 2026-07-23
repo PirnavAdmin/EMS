@@ -136,7 +136,7 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             var role = await _context.Roles
-                .FirstOrDefaultAsync(r => r.RoleId == user.RoleId);
+    .FirstOrDefaultAsync(r => r.RoleId == user.RoleId);
 
             if (role == null)
             {
@@ -147,8 +147,19 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
+            // ✅ ADD THIS BLOCK
+            if (!role.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    Status = false,
+                    Message = "Your role is inactive. Please contact the administrator."
+                });
+            }
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Email == user.Email);
+           
 
             if (employee == null)
             {

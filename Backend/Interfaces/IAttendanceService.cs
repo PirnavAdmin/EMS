@@ -108,6 +108,8 @@ namespace EmployeeManagementSystem.Interfaces
         Task<IActionResult> GetLocations();
         Task<AttendanceDashboardDto> GetDashboardAttendance(ClaimsPrincipal user);
 
+        Task<object> GetAdminDashboardOverview();
+
 
     }
 }

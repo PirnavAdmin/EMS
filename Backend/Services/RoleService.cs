@@ -53,7 +53,7 @@
         {
             var role = await _context.Roles
                 .FirstOrDefaultAsync(r => r.RoleId == roleId);
-
+           
             if (role == null)
                 return null;
 

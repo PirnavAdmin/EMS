@@ -1,8 +1,12 @@
-﻿using EmployeeManagementSystem.Services;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    //[Authorize]
     [Route("api/reports")]
     [ApiController]
     public class ReportsController : ControllerBase
@@ -17,6 +21,7 @@ namespace EmployeeManagementSystem.Controllers
         // -----------------------------------------
         // GET: api/reports/all
         // -----------------------------------------
+        //[Permission(ModuleIds.Reports, PermissionAction.View)]
         [HttpGet("all")]
         public async Task<IActionResult> GetAllReports()
         {

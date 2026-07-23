@@ -1,4 +1,5 @@
-﻿using EmployeeManagementSystem.BackgroundServices;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.BackgroundServices;
 using EmployeeManagementSystem.Controllers;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Helpers;
@@ -99,6 +100,11 @@ builder.Services.AddHostedService<TicketOverdueBackgroundService>();
 builder.Services.AddScoped<IAgreementService, AgreementService>();
 builder.Services.AddScoped<IAgreementTemplateService, AgreementTemplateService>();
 builder.Services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
+
+builder.Services.AddScoped<IRelievingLetterService, RelievingLetterService>();
+builder.Services.AddScoped<IUserPermissionService, UserPermissionService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+//builder.Services.AddScoped<PermissionFilter>();
 // ================= CORS =================
 
 var configuredCorsOrigins = builder.Configuration
@@ -114,6 +120,7 @@ var allowedCorsOrigins = configuredCorsOrigins is { Length: > 0 }
         "http://localhost:4200",
         "http://localhost:5173",
          "http://localhost:5174",
+          "http://localhost:8801",
         "https://test.hrms.pirnav.com",
          "https://www.test.hrms.pirnav.com"
     };

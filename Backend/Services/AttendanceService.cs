@@ -1163,7 +1163,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = date.Day,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "L",
+                        Status = "OL",
                         LeaveType = leave.LeaveType, // ✅ ADD THIS
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
@@ -1312,7 +1312,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = date.Day,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "L",
+                        Status = "OL",
                         LeaveType = leave.LeaveType, // ✅ ADD THIS
                         CheckIn = (string?)null,
                         CheckOut = (string?)null,
@@ -1504,7 +1504,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         Day = i,
                         Date = date.ToString("dd MMM yyyy"),
-                        Status = "L",
+                        Status = "OL",
                         HolidayName = (string?)null,
                         LeaveType = leave.LeaveType,
                         CheckIn = (string?)null,
@@ -1550,6 +1550,7 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult(result);
         }
+
 
         public async Task<object> GetYearlySummary(int year)
 
@@ -1788,18 +1789,30 @@ namespace EmployeeManagementSystem.Services
 
             // Leaves
 
-            var leaves = await _context.EmployeeLeaves
-     .Where(l =>
-         l.EmployeeId == employeeId &&
-         l.Status.StartsWith("Approved"))
-     .ToListAsync();
+     //       var leaves = await _context.EmployeeLeaves
+     //.Where(l =>
+     //    l.EmployeeId == employeeId &&
+     //    l.Status.StartsWith("Approved"))
+     //.ToListAsync();
 
             decimal present = 0;
+            decimal halfDays = 0;
 
+            int paidLeaveDays = 0;
             int absent = 0;
             int lopDays = 0;
+            int weekendDays = 0;
+            int holidayDays = 0;
 
             int totalDays = DateTime.DaysInMonth(year, month);
+            var today = DateTime.UtcNow.Date;
+
+            // If generating summary for the current month,
+            // only consider days up to today.
+            if (month == today.Month && year == today.Year)
+            {
+                totalDays = today.Day;
+            }
 
             for (int day = 1; day <= totalDays; day++)
 
@@ -1824,74 +1837,97 @@ namespace EmployeeManagementSystem.Services
                 // Weekend
 
                 if (date.DayOfWeek == DayOfWeek.Saturday ||
-
-                    date.DayOfWeek == DayOfWeek.Sunday)
-
+    date.DayOfWeek == DayOfWeek.Sunday)
                 {
-
+                    weekendDays++;
                     continue;
-
                 }
 
                 // Holiday
-
                 if (holidaySet.Contains(date.Date))
-
                 {
-
+                    holidayDays++;
                     continue;
-
                 }
 
                 // Leave
 
-                bool isLeave = leaves.Any(l =>
+                //bool isLeave = leaves.Any(l =>
 
-                    date >= l.FromDate &&
+                //    date >= l.FromDate &&
 
-                    date <= l.ToDate);
+                //    date <= l.ToDate);
 
-                if (isLeave)
-
-                {
-
-                    present++;
-
-                    continue;
-
-                }
+                //if (isLeave)
+                //{
+                //    paidLeaveDays++;
+                //    present++;
+                //    continue;
+                //}
 
                 // Attendance
-
                 if (attendanceLookup.TryGetValue(date.Date, out var att))
                 {
-                    if (att.Status == "LOP")
+                    switch (att.Status)
                     {
-                        lopDays++;
-                    }
-                    else if (att.Status == "Half Day")
-                    {
-                        present += 0.5m;
-                    }
-                    else
-                    {
-                        present += 1m;
+                        case "Present":
+                        case "P":
+                        case "Late":
+                            present++;
+                            break;
+
+                        case "OL":
+                            present++;
+                            paidLeaveDays++;
+                            break;
+
+                        case "Half Day":
+                            present += 0.5m;
+                            halfDays += 0.5m;
+                            absent++;
+                            lopDays++;
+                            break;
+
+                        case "LOP":
+                        case "Absent":
+                        case "A":
+                        case "MC":
+                        case "LMC":
+                            absent++;
+                            lopDays++;
+                            break;
+
+                        default:
+                            absent++;
+                            lopDays++;
+                            break;
                     }
                 }
+               
                 else
                 {
                     absent++;
+                    lopDays++;
                 }
-            }
+            }   // <-- closes the for loop
 
             return new AttendanceSummaryDto
             {
                 PresentDays = present,
+                PaidLeaveDays = paidLeaveDays,
+                HalfDays = halfDays,
+                LopDays = lopDays,
                 AbsentDays = absent,
-                LopDays = lopDays
-            };
+                Holidays = holidayDays,
+                Weekends = weekendDays,
+                PayrollDays = totalDays,
 
-        }
+                PayableDays =
+        present +
+        weekendDays +
+        holidayDays
+            };
+        }   // <-- closes the method
 
 
         public async Task<string> UploadMonthlyAttendance(
@@ -3148,7 +3184,6 @@ namespace EmployeeManagementSystem.Services
 
             return stream.ToArray();
         }
-
         public async Task<AttendanceDashboardDto> GetDashboardAttendance(
       ClaimsPrincipal user)
         {
@@ -3391,6 +3426,7 @@ namespace EmployeeManagementSystem.Services
                 WeeklyHours = weeklyAttendance
             };
         }
+
         public async Task<IActionResult> SaveLocation(EmployeeLocationDto dto)
         {
             var location = new EmployeeLocation
@@ -3408,7 +3444,50 @@ namespace EmployeeManagementSystem.Services
                 Message = "Location saved successfully."
             });
         }
+        public async Task<object> GetAdminDashboardOverview()
+        {
+            await CheckMissingCheckouts();
 
+            var today = DateTime.UtcNow.Date;
+
+            var totalEmployees = await _context.Employees.CountAsync();
+
+            var attendance = await _context.Attendance
+                .Where(a => a.Attendance_Date.Date == today)
+                .ToListAsync();
+
+            var leaveEmployeeIds = await _context.EmployeeLeaves
+                .Where(l =>
+                    l.Status.StartsWith("Approved") &&
+                    today >= l.FromDate.Date &&
+                    today <= l.ToDate.Date)
+                .Select(l => l.EmployeeId)
+                .Distinct()
+                .ToListAsync();
+
+            var present = attendance.Count(a =>
+                a.Status == "Present" ||
+                a.Status == "Half Day");
+
+            var late = attendance.Count(a =>
+                a.Status == "Late");
+
+            var onLeave = leaveEmployeeIds.Count;
+
+            var absent = totalEmployees - (present + late + onLeave);
+
+            if (absent < 0)
+                absent = 0;
+
+            return new
+            {
+                TotalEmployees = totalEmployees,
+                Present = present,
+                Late = late,
+                OnLeave = onLeave,
+                Absent = absent
+            };
+        }
         public async Task<IActionResult> GetLocations()
         {
             var locations = await _context.EmployeeLocations

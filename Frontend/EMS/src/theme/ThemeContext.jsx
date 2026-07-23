@@ -1,5 +1,10 @@
-import React, { useLayoutEffect, useState } from "react";
-import ThemeContext from "./themeContextState";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   applyTheme,
   getStoredThemeMode,
@@ -10,10 +15,12 @@ import {
   THEME_OPTIONS,
 } from "./themeConfig";
 
-export function ThemeProvider({ children }) {
+export const ThemeContext = createContext(null);
+
+export const ThemeProvider = ({ children }) => {
   const [themeMode, setThemeModeState] = useState(getStoredThemeMode);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const resolvedThemeMode = normalizeThemeMode(themeMode);
     const themeDetails = getThemeDetails(resolvedThemeMode);
 
@@ -28,7 +35,7 @@ export function ThemeProvider({ children }) {
     }
   }, [themeMode]);
 
-  const toggleThemeMode = () => {
+  const toggleThemeMode = useMemo(() => () => {
     setThemeModeState((currentMode) =>
       currentMode === "light"
         ? "dark"
@@ -36,28 +43,32 @@ export function ThemeProvider({ children }) {
           ? "light"
           : "dark"
     );
-  };
+  }, []);
 
-  const setThemeMode = (nextThemeMode) => {
+  const setThemeMode = useMemo(() => (nextThemeMode) => {
     setThemeModeState(normalizeThemeMode(nextThemeMode));
-  };
+  }, []);
 
-  const activeTheme = getThemeDetails(themeMode);
+  const value = useMemo(() => {
+    const activeTheme = getThemeDetails(themeMode);
 
-  const value = {
-    themeMode,
-    activeTheme,
-    themeOptions: THEME_OPTIONS,
-    isDarkMode: themeMode !== "light",
-    setThemeMode,
-    toggleThemeMode,
-  };
+    return {
+      themeMode,
+      activeTheme,
+      themeOptions: THEME_OPTIONS,
+      isDarkMode: themeMode !== "light",
+      setThemeMode,
+      toggleThemeMode,
+    };
+  }, [setThemeMode, themeMode, toggleThemeMode]);
 
   return (
     <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
-}
+};
+
+export const useThemeContext = () => useContext(ThemeContext);
 
 export default ThemeProvider;

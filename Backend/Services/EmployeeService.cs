@@ -1130,7 +1130,56 @@ https://hrms.pirnav.com
             // Pending Employees
             // =========================
 
+            // =========================
+            // Pending Employees
+            // =========================
 
+            var employeesWithoutEducation = employees
+                .Where(e => !educations.Any(ed => ed.Employee_Id == e.Employee_Id))
+                .OrderBy(e => e.Employee_Id)
+                .ToList();
+
+            if (employeesWithoutEducation.Any())
+            {
+                educationRow += 2;
+
+                educationSheet.Cell(educationRow, 1).Value = "PENDING EMPLOYEES";
+
+                educationSheet.Range(educationRow, 1, educationRow, 2).Merge();
+
+                educationSheet.Cell(educationRow, 1).Style.Font.Bold = true;
+                educationSheet.Cell(educationRow, 1).Style.Font.FontColor = XLColor.White;
+                educationSheet.Cell(educationRow, 1).Style.Fill.BackgroundColor = XLColor.Red;
+                educationSheet.Cell(educationRow, 1).Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+
+                educationRow++;
+
+                educationSheet.Cell(educationRow, 1).Value = "Employee ID";
+                educationSheet.Cell(educationRow, 2).Value = "Employee Name";
+
+                var pendingHeader = educationSheet.Range(educationRow, 1, educationRow, 2);
+
+                pendingHeader.Style.Font.Bold = true;
+                pendingHeader.Style.Font.FontColor = XLColor.White;
+                pendingHeader.Style.Fill.BackgroundColor = XLColor.DarkRed;
+                pendingHeader.Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+                pendingHeader.Style.Border.OutsideBorder =
+                    XLBorderStyleValues.Thin;
+                pendingHeader.Style.Border.InsideBorder =
+                    XLBorderStyleValues.Thin;
+
+                educationRow++;
+
+                foreach (var emp in employeesWithoutEducation)
+                {
+                    educationSheet.Cell(educationRow, 1).Value = emp.Employee_Id;
+                    educationSheet.Cell(educationRow, 2).Value = emp.Name;
+
+                    educationRow++;
+                }
+            }
 
             // Freeze Header
             educationSheet.SheetView.FreezeRows(2);

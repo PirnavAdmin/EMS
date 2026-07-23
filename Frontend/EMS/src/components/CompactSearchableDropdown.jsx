@@ -9,6 +9,7 @@ import React, {
 import {
   FaCheck,
   FaChevronDown,
+  FaSpinner,
   FaSearch,
   FaTimes,
 } from "react-icons/fa";
@@ -42,6 +43,8 @@ function CompactSearchableDropdown({
   helperText = "",
   error = "",
   id,
+  loading = false,
+  emptyText = "No matching options",
 }) {
   const dropdownId = useId();
   const baseId = id || dropdownId;
@@ -209,6 +212,12 @@ function CompactSearchableDropdown({
     };
   }, [isOpen]);
 
+  const handleWrapperBlur = (event) => {
+    if (!wrapperRef.current?.contains(event.relatedTarget)) {
+      closeDropdown();
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       searchInputRef.current?.focus();
@@ -328,6 +337,7 @@ function CompactSearchableDropdown({
     <div
       className={`ems-compact-dropdown ${className}`.trim()}
       ref={wrapperRef}
+      onBlur={handleWrapperBlur}
     >
       {label && <label className="ems-compact-dropdown-label">{label}</label>}
 
@@ -339,6 +349,7 @@ function CompactSearchableDropdown({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={`${baseId}-menu`}
+        aria-busy={loading}
         disabled={disabled}
         onClick={toggleDropdown}
         onKeyDown={handleTriggerKeyDown}
@@ -348,7 +359,19 @@ function CompactSearchableDropdown({
             selectedOption ? "" : " is-placeholder"
           }`}
         >
-          {selectedOption?.label || placeholder}
+          {selectedOption ? (
+            selectedOption.label
+          ) : (
+            <span className="compact-dropdown-placeholder">
+              {loading ? (
+                <FaSpinner
+                  className="compact-dropdown-spinner"
+                  aria-hidden="true"
+                />
+              ) : null}
+              <span>{placeholder}</span>
+            </span>
+          )}
         </span>
 
         <FaChevronDown
@@ -403,9 +426,7 @@ function CompactSearchableDropdown({
             style={{ maxHeight: `${menuMaxHeight}px` }}
           >
             {filteredGroups.length === 0 ? (
-              <div className="compact-dropdown-empty">
-                No matching options
-              </div>
+              <div className="compact-dropdown-empty">{emptyText}</div>
             ) : (
               filteredGroups.map((group) => (
                 <div className="compact-dropdown-group" key={group.label}>

@@ -1,4 +1,6 @@
-﻿using EmployeeManagementSystem.DTOs;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +8,7 @@ using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class RolePermissionController : ControllerBase
@@ -18,6 +21,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // 🔹 GET ALL PERMISSIONS (for UI screen)
+        //[Permission(ModuleIds.ScreenPermissions, PermissionAction.View)]
         [HttpGet("{roleName}")]
         public async Task<IActionResult> Get(string roleName)
         {
@@ -26,6 +30,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // 🔹 SAVE PERMISSIONS
+        //[Permission(ModuleIds.ScreenPermissions, PermissionAction.Edit)]
         [HttpPost("save")]
         public async Task<IActionResult> Save(SaveRolePermissionDto dto)
         {
@@ -33,9 +38,17 @@ namespace EmployeeManagementSystem.Controllers
             return Ok("Permissions saved");
         }
 
+        //[Permission(ModuleIds.ScreenPermissions, PermissionAction.View)]
+        [HttpGet("employees/{roleName}")]
+        public async Task<IActionResult> GetEmployeesByRole(string roleName)
+        {
+            var result = await _service.GetEmployeesByRole(roleName);
+            return Ok(result);
+        }
+
         // 🔥 GET ALLOWED MODULES (for logged-in user)
+        //[Permission(ModuleIds.ScreenPermissions, PermissionAction.View)]
         [HttpGet("allowed-modules")]
-        [Authorize]
         public async Task<IActionResult> GetAllowedModules()
         {
             try

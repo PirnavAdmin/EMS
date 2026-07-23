@@ -709,6 +709,19 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.app-pagination-page-size-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.app-pagination-page-size-label {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .app-pagination-button,
 .pagination-btn,
 .app-pagination-page-size {
@@ -1736,7 +1749,7 @@ button:disabled {
 
 .react-datepicker-popper {
   z-index: calc(var(--app-modal-surface-z) + 90) !important;
-  max-width: calc(100vw - 24px);
+  max-width: calc(100vw - 16px);
   pointer-events: auto;
   animation: app-datepicker-pop 0.16s ease-out;
   will-change: opacity, transform;
@@ -1762,12 +1775,12 @@ button:disabled {
 
 .app-date-calendar,
 .react-datepicker {
-  width: 352px !important;
-  max-width: calc(100vw - 24px) !important;
+  width: min(272px, calc(100vw - 16px)) !important;
+  max-width: calc(100vw - 16px) !important;
   border: 1px solid var(--input-border) !important;
-  border-radius: var(--radius-md) !important;
+  border-radius: 11px !important;
   background-color: var(--input-bg) !important;
-  box-shadow: var(--modal-shadow) !important;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1) !important;
   font-family: var(--font-sans) !important;
   color: var(--text-strong) !important;
   overflow: visible !important;
@@ -1778,7 +1791,7 @@ button:disabled {
   z-index: 2 !important;
   background: var(--input-bg) !important;
   border-bottom: 1px solid var(--input-border) !important;
-  border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
+  border-radius: 11px 11px 0 0 !important;
   padding: 0 !important;
 }
 
@@ -1786,38 +1799,41 @@ button:disabled {
 .react-datepicker-time__header,
 .react-datepicker-year-header {
   color: var(--text-strong) !important;
-  font-size: 0.9375rem !important;
-  font-weight: 700 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
 }
 
 .app-calendar-header {
   position: relative;
   z-index: 4;
-  padding: 0.75rem 1.25rem 0.8rem;
+  padding: 0.35rem 0.55rem 0.4rem;
 }
 
 .app-calendar-header-top {
   display: grid;
-  grid-template-columns: 2.25rem 1fr 2.25rem;
+  grid-template-columns: 1.75rem 1fr 1.75rem;
   align-items: center;
-  min-height: 2rem;
-  margin-bottom: 0.55rem;
+  min-height: 40px;
+  margin-bottom: 0.2rem;
 }
 
 .app-calendar-current-month {
   color: var(--text-strong);
-  font-size: 1.125rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.1;
   text-align: center;
+  white-space: nowrap;
 }
 
 .app-calendar-nav-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -1829,10 +1845,10 @@ button:disabled {
 }
 
 .app-calendar-nav-button span {
-  width: 0.72rem;
-  height: 0.72rem;
-  border-left: 3px solid currentColor;
-  border-bottom: 3px solid currentColor;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
   transform: rotate(45deg);
 }
 
@@ -1852,8 +1868,9 @@ button:disabled {
 
 .app-calendar-dropdown-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
-  gap: 2.35rem;
+  grid-template-columns: repeat(2, minmax(0, 96px));
+  justify-content: center;
+  gap: 0.35rem;
   align-items: start;
 }
 
@@ -1867,17 +1884,26 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 38px;
-  padding: 0.35rem 0.875rem;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 0.45rem;
   border: 1px solid var(--input-border);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   background: var(--input-bg);
   color: var(--input-text);
-  font-size: 1rem;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 1.1;
   text-align: left;
   box-shadow: none;
+  gap: 0.35rem;
+}
+
+.app-calendar-dropdown-button > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-calendar-dropdown-button:hover,
@@ -1887,30 +1913,31 @@ button:disabled {
 }
 
 .app-calendar-dropdown-chevron {
-  width: 0.62rem;
-  height: 0.62rem;
-  margin-left: 0.75rem;
-  border-right: 3px solid var(--text-strong);
-  border-bottom: 3px solid var(--text-strong);
-  transform: translateY(-2px) rotate(45deg);
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: 0.3rem;
+  border-right: 1.5px solid var(--text-strong);
+  border-bottom: 1.5px solid var(--text-strong);
+  transform: translateY(-1px) rotate(45deg);
   flex: 0 0 auto;
 }
 
 .app-calendar-dropdown-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
   z-index: 11000;
-  max-height: 264px;
+  max-height: 168px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--input-border);
-  border-radius: 14px;
+  border-radius: 10px;
   background-color: var(--input-bg);
-  box-shadow: var(--theme-shadow-lg);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
+  padding: 0.15rem;
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
@@ -1931,15 +1958,15 @@ button:disabled {
 .app-calendar-dropdown-option {
   display: block;
   width: 100%;
-  min-height: 33px;
-  padding: 0.25rem 0.75rem;
+  min-height: 28px;
+  padding: 0.15rem 0.45rem;
   border: 0;
   border-radius: 0;
   background-color: var(--input-bg);
   color: var(--text-strong);
-  font-size: 0.95rem;
+  font-size: 12px;
   font-weight: 400 !important;
-  line-height: 1.35;
+  line-height: 1.2;
   text-align: left;
 }
 
@@ -1960,13 +1987,14 @@ button:disabled {
 
 .react-datepicker__month {
   margin: 0 !important;
-  padding: 0.55rem 1.15rem 0.8rem !important;
+  padding: 0.2rem 0.55rem 0.35rem !important;
 }
 
 .react-datepicker__week {
   display: grid !important;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   align-items: center;
+  margin: 0.02rem 0 !important;
 }
 
 .react-datepicker__day-name,
@@ -1975,12 +2003,12 @@ button:disabled {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 2.25rem !important;
-  height: 2.25rem !important;
-  margin: 0.18rem auto !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0.04rem auto !important;
   border-radius: 8px !important;
   color: var(--text-strong) !important;
-  font-size: 1rem !important;
+  font-size: 12px !important;
   font-weight: 500 !important;
   line-height: 1 !important;
 }
@@ -1989,12 +2017,12 @@ button:disabled {
   display: grid !important;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   margin: 0 !important;
-  padding: 0.75rem 1.15rem 0.3rem !important;
+  padding: 0.25rem 0.55rem 0.1rem !important;
 }
 
 .react-datepicker__day-name {
   color: var(--text-strong) !important;
-  font-size: 0.95rem !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
 }
 
@@ -2002,8 +2030,11 @@ button:disabled {
 .react-datepicker__day--keyboard-selected {
   background: var(--theme-primary) !important;
   color: var(--theme-on-primary) !important;
-  border-radius: 8px !important;
-  font-weight: 700 !important;
+  width: 25px !important;
+  height: 25px !important;
+  margin: 1px auto !important;
+  border-radius: 50% !important;
+  font-weight: 600 !important;
 }
 
 .react-datepicker__day:hover,
@@ -2037,9 +2068,14 @@ button:disabled {
 .react-datepicker__year-dropdown,
 .react-datepicker__month-select,
 .react-datepicker__year-select {
-  border-radius: var(--radius-md) !important;
+  width: 96px !important;
+  min-width: 90px !important;
+  max-width: 100% !important;
+  border-radius: 8px !important;
   border: 1px solid var(--input-border) !important;
-  padding: 0.35rem 0.5rem !important;
+  min-height: 30px !important;
+  padding: 0.2rem 0.4rem !important;
+  font-size: 13px !important;
   font-family: var(--font-sans) !important;
   background-color: var(--input-bg) !important;
   color: var(--input-text) !important;
@@ -2434,36 +2470,208 @@ body.app-modal-open .sidebar-backdrop {
 @media (max-width: 420px) {
   .app-date-calendar,
   .react-datepicker {
-    width: calc(100vw - 24px) !important;
+    width: min(272px, calc(100vw - 16px)) !important;
+    max-width: calc(100vw - 16px) !important;
   }
 
   .app-calendar-header {
-    padding: 0.7rem 0.9rem 0.75rem;
+    padding: 0.3rem 0.5rem 0.35rem;
   }
 
   .app-calendar-dropdown-row {
-    gap: 0.75rem;
-    grid-template-columns: minmax(0, 1.1fr) minmax(88px, 0.75fr);
+    gap: 0.3rem;
+    grid-template-columns: repeat(2, minmax(0, 96px));
+    justify-content: center;
   }
 
   .app-calendar-dropdown-button {
-    min-height: 36px;
-    padding-inline: 0.75rem;
-    font-size: 0.95rem;
+    min-height: 30px;
+    height: 30px;
+    padding-inline: 0.4rem;
+    font-size: 13px;
+  }
+
+  .app-month-picker {
+    width: 100%;
+  }
+
+  .app-month-picker-select {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .page-shell :is(
+    .attendance-header,
+    .holiday-header,
+    .company-header,
+    .branch-header,
+    .job-header-unique,
+    .projects-header,
+    .dept-header,
+    .leave-header,
+    .emp-header-unique,
+    .notifications-header,
+    .assets-header,
+    .roles-header-bar,
+    .task-header,
+    .clients-header,
+    .ems-task-header-wrapper,
+    .offer-header,
+    .payroll-header,
+    .permission-top,
+    .payslip-header,
+    .page-header-row
+  ) > button {
+    width: 100%;
+  }
+
+  :is(
+    .holiday-modal-btns,
+    .dept-modal-btns,
+    .company-modal-btns,
+    .clients-add-actions-unique,
+    .roles-modal-actions,
+    .asset-modal-actions,
+    .asset-delete-actions,
+    .apply-modal-actions,
+    .projects-modal-btns,
+    .projects-delete-actions,
+    .ems-task-create-buttons,
+    .attendance-modal-footer,
+    .emp-modal-btns,
+    .emp-delete-actions,
+    .delete-actions,
+    .offer-buttons,
+    .permission-actions
+  ) {
+    align-items: stretch !important;
+  }
+
+  :is(
+    .holiday-modal-btns,
+    .dept-modal-btns,
+    .company-modal-btns,
+    .clients-add-actions-unique,
+    .roles-modal-actions,
+    .asset-modal-actions,
+    .asset-delete-actions,
+    .apply-modal-actions,
+    .projects-modal-btns,
+    .projects-delete-actions,
+    .ems-task-create-buttons,
+    .attendance-modal-footer,
+    .emp-modal-btns,
+    .emp-delete-actions,
+    .delete-actions,
+    .offer-buttons,
+    .permission-actions
+  ) > button {
+    width: 100%;
+  }
+
+  :is(
+    .attendance-modal,
+    .apply-modal-box,
+    .asset-delete-modal,
+    .change-password-modal,
+    .clients-add-modal-box-unique,
+    .client-view-modal,
+    .company-modal-box,
+    .delete-modal,
+    .dept-members-modal,
+    .dept-modal-box,
+    .emp-delete-modal,
+    .emp-modal-box,
+    .ems-task-create-popup,
+    .ems-task-delete-popup,
+    .ems-task-view-popup,
+    .holiday-modal-box,
+    .image-modal,
+    .job-modal-box,
+    .leave-details-container,
+    .modal-content,
+    .projects-modal,
+    .projects-modal-small,
+    .roles-modal-container
+  ) {
+    width: min(100%, calc(100vw - 20px)) !important;
+    max-height: calc(100vh - 20px) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-date-calendar,
+  .react-datepicker {
+    width: min(272px, calc(100vw - 16px)) !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  .app-calendar-header {
+    padding: 0.3rem 0.5rem 0.35rem;
+  }
+
+  .app-calendar-dropdown-row {
+    gap: 0.3rem;
+    grid-template-columns: repeat(2, minmax(0, 96px));
+    justify-content: center;
+  }
+
+  .app-calendar-dropdown-button {
+    min-height: 30px;
+    height: 30px;
+    padding-inline: 0.4rem;
+    font-size: 13px;
   }
 
   .react-datepicker__day-names,
   .react-datepicker__month {
-    padding-inline: 0.75rem !important;
+    padding-inline: 0.45rem !important;
   }
 
-  .react-datepicker__day-name,
+  .react-datepicker__day-name {
+    width: 28px !important;
+    height: 28px !important;
+    margin: 0.04rem auto !important;
+    font-size: 11px !important;
+  }
+
   .react-datepicker__day,
   .react-datepicker__time-name {
-    width: 2rem !important;
-    height: 2rem !important;
-    font-size: 0.95rem !important;
+    width: 28px !important;
+    height: 28px !important;
+    margin: 0.04rem auto !important;
+    font-size: 12px !important;
   }
 }
 
+/* ==========================================================================
+   MOBILE APP STYLES & SAFE AREA INSETS
+   ========================================================================== */
+@media (max-width: 991px) {
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
 
+  .app-main-scroll {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .page-shell {
+    padding-bottom: 20px;
+  }
+
+  /* Touch-friendly target optimization */
+  button, 
+  [role="button"],
+  input,
+  select {
+    touch-action: manipulation;
+  }
+
+  /* Responsive table container horizontal scroll scrollbars */
+  .table-responsive,
+  [class*="-table-wrapper"],
+  [class*="-table-container"] {
+    -webkit-overflow-scrolling: touch;
+  }
+}

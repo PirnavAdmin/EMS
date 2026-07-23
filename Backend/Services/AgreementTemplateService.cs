@@ -455,10 +455,10 @@ namespace EmployeeManagementSystem.Services
 
                 // Place beside employee details
                 image.SetFixedPosition(
-                    lastPage,
-                    180,   // X
-                    265    // Y
-                );
+     lastPage,
+     220,   // X (moved right)
+     265    // Y
+ );
 
                 document.Add(image);
 

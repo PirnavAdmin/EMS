@@ -1,9 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using ClosedXML.Excel;
+using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
-using ClosedXML.Excel;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.IO;
 
+//[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class DepartmentsController : ControllerBase
@@ -16,6 +20,7 @@ public class DepartmentsController : ControllerBase
     }
 
     // ✅ Create Department
+    //[Permission(ModuleIds.Departments, PermissionAction.Add)]
     [HttpPost]
     public async Task<IActionResult> Create(DepartmentDto dto)
     {
@@ -26,17 +31,18 @@ public class DepartmentsController : ControllerBase
             Building = dto.Building,
             Status = dto.Status,
             MembersCount = dto.MembersCount,
-            Department_Id= dto.Department_Id,
+            Department_Id = dto.Department_Id,
             CreatedAt = DateTime.UtcNow
         };
 
         await _context.Departments.AddAsync(department);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Department created successfully"});
+        return Ok(new { message = "Department created successfully" });
     }
 
     // ✅ Get All
+    //[Permission(ModuleIds.Departments, PermissionAction.View)]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -45,6 +51,7 @@ public class DepartmentsController : ControllerBase
     }
 
     // ✅ Get By Id
+    //[Permission(ModuleIds.Departments, PermissionAction.View)]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -57,6 +64,7 @@ public class DepartmentsController : ControllerBase
     }
 
     // ✅ Update Department
+    //[Permission(ModuleIds.Departments, PermissionAction.Edit)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, DepartmentDto dto)
     {
@@ -73,10 +81,11 @@ public class DepartmentsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Department updated successfully"});
+        return Ok(new { message = "Department updated successfully" });
     }
 
     // ✅ Delete Department
+    //[Permission(ModuleIds.Departments, PermissionAction.Delete)]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -91,6 +100,8 @@ public class DepartmentsController : ControllerBase
         return Ok("Department deleted successfully");
     }
 
+    // ✅ Export Departments
+    [Permission(ModuleIds.Departments, PermissionAction.View)]
     [HttpGet("export")]
     public async Task<IActionResult> ExportDepartments()
     {
@@ -124,8 +135,7 @@ public class DepartmentsController : ControllerBase
             worksheet.Cell(row, 4).Value = dept.Building;
             worksheet.Cell(row, 5).Value = dept.Status;
             worksheet.Cell(row, 6).Value = dept.MembersCount;
-            worksheet.Cell(row, 7).Value =
-    dept.CreatedAt?.ToString("dd-MMM-yyyy") ?? "";
+            worksheet.Cell(row, 7).Value = dept.CreatedAt?.ToString("dd-MMM-yyyy") ?? "";
 
             row++;
         }

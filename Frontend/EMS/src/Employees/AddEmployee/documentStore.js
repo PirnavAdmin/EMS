@@ -4,6 +4,7 @@ const DB_NAME = "ems_add_employee_documents";
 const DB_VERSION = 1;
 const STORE_NAME = "documents";
 const GENERIC_DOCUMENT_TYPE_LABEL = "Document";
+export const MAX_DOCUMENT_FILE_SIZE_BYTES = 3 * 1024 * 1024;
 
 const isIndexedDbAvailable = () =>
   typeof window !== "undefined" && "indexedDB" in window;
@@ -537,6 +538,57 @@ export const formatDocumentSize = (size) => {
   }
 
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
+export const formatFileSize = (size) => {
+  const numericSize = Number(size);
+
+  if (!Number.isFinite(numericSize) || numericSize <= 0) {
+    return "0 B";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = numericSize;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const formattedValue = Number.isInteger(value)
+    ? String(value)
+    : value >= 10
+      ? value.toFixed(0)
+      : value.toFixed(1);
+
+  return `${formattedValue} ${units[unitIndex]}`;
+};
+
+export const validateFileSize = (
+  file,
+  maxSizeBytes = MAX_DOCUMENT_FILE_SIZE_BYTES
+) => {
+  const normalizedMaxSizeBytes = Number(maxSizeBytes) || MAX_DOCUMENT_FILE_SIZE_BYTES;
+
+  if (!file) {
+    return {
+      isValid: false,
+      message: "Please select a file.",
+    };
+  }
+
+  if (Number(file.size) <= normalizedMaxSizeBytes) {
+    return {
+      isValid: true,
+      message: "",
+    };
+  }
+
+  return {
+    isValid: false,
+    message: `File size exceeds the ${formatFileSize(normalizedMaxSizeBytes)} limit. Please upload a smaller file.`,
+  };
 };
 
 export const normalizeDocumentRecord = (

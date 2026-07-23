@@ -16,5 +16,11 @@ namespace EmployeeManagementSystem.Models
         public DateTime Generated_On { get; set; }
         public string Candidate_Title { get; set; }
         public string? File_Path { get; set; }
+        public string? PreviewPath { get; set; }
+        public string Status { get; set; } = "Draft";
+        public DateTime? SentOn { get; set; }
+        public bool IsSent { get; set; } = false;
+
+        public int SentCount { get; set; } = 0;
     }
 }

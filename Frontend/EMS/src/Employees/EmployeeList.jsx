@@ -37,11 +37,91 @@ const initialEmployeeForm = {
 const EXCEL_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+
+const ACTIVE_STATUS_VALUES = new Set(["active", "true", "1"]);
+const INACTIVE_STATUS_VALUES = new Set(["inactive", "false", "0"]);
+
+const normalizeStatus = (status) =>
+  String(status ?? "").trim().toLowerCase();
+
+const getFirstNonEmptyValue = (...values) =>
+  values.find(
+    (value) => value !== undefined && value !== null && String(value).trim() !== ""
+  );
+
+const getEmployeeStatusValue = (employee) =>
+  getFirstNonEmptyValue(
+    employee.status,
+    employee.Status,
+    employee.isActive,
+    employee.IsActive,
+    employee.active,
+    employee.Active,
+    employee.employeeStatus,
+    employee.EmployeeStatus
+  ) ?? "";
+
+const getDisplayEmployeeStatus = (status) => {
+  const normalizedStatus = normalizeStatus(status);
+
+  if (!normalizedStatus) {
+    return "";
+  }
+
+  if (ACTIVE_STATUS_VALUES.has(normalizedStatus)) {
+    return "Active";
+  }
+
+  if (INACTIVE_STATUS_VALUES.has(normalizedStatus)) {
+    return "InActive";
+  }
+
+  return String(status).trim();
+};
+
+const matchesEmployeeStatus = (employeeStatus, selectedStatus) => {
+  const normalizedEmployeeStatus = normalizeStatus(employeeStatus);
+  const normalizedSelectedStatus = normalizeStatus(selectedStatus);
+
+  if (!normalizedSelectedStatus || normalizedSelectedStatus === "all") {
+    return true;
+  }
+
+  if (
+    normalizedSelectedStatus === "active" &&
+    ACTIVE_STATUS_VALUES.has(normalizedEmployeeStatus)
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedSelectedStatus === "inactive" &&
+    INACTIVE_STATUS_VALUES.has(normalizedEmployeeStatus)
+  ) {
+    return true;
+  }
+
+  return normalizedEmployeeStatus === normalizedSelectedStatus;
+};
+
 const normalizeRoleOptions = (response) =>
-  extractCollection(response).map((role) => ({
-    roleId: role.roleId ?? role.id ?? role.role_Id ?? "",
-    roleName: role.roleName ?? role.name ?? role.role ?? "",
-  }));
+  extractCollection(response).map((role) => {
+    const rawActiveStatus =
+      role.isActive ??
+      role.IsActive ??
+      role.active ??
+      role.status;
+    const isInactive =
+      rawActiveStatus === false ||
+      String(rawActiveStatus || "").trim().toLowerCase() === "inactive";
+
+    return {
+      roleId: role.roleId ?? role.id ?? role.role_Id ?? "",
+      roleName: role.roleName ?? role.name ?? role.role ?? "",
+      status: isInactive ? "Inactive" : "Active",
+    };
+  });
 
 const normalizeDepartmentOptions = (response) =>
   extractCollection(response).map((dept) => ({
@@ -79,7 +159,7 @@ const normalizeEmployeeList = (response, roleOptions) =>
       ctc: formatAppCurrency(rawCtc, { fallback: "-", showZero: true }),
       role: matchedRole?.roleName || emp.roleName || emp.role || "-",
       roleId: matchedRole?.roleId || emp.roleId || emp.role_Id || "",
-      status: emp.status ?? "-",
+      status: getDisplayEmployeeStatus(getEmployeeStatusValue(emp)) || "-",
       joinedValue,
       joined: formatDate(joinedValue),
       salarySource: emp,
@@ -92,6 +172,7 @@ function EmployeeList() {
   const [empList, setEmpList] = useState([]);
   const [empSearch, setEmpSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [selectedRole, setSelectedRole] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("latest-desc");
 
@@ -103,6 +184,7 @@ function EmployeeList() {
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [pageSize, setPageSize] = useState(10);
 
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -227,6 +309,7 @@ function EmployeeList() {
   }, [
     empSearch,
     departmentFilter,
+    selectedRole,
     statusFilter,
     sortBy,
   ]);
@@ -575,6 +658,15 @@ function EmployeeList() {
     "Rejected Offer",
   ];
 
+  const roleOptions = useMemo(() => {
+    const values = roles
+      .filter((role) => role.status !== "Inactive")
+      .map((role) => role.roleName)
+      .filter(Boolean);
+
+    return [...new Set(values)];
+  }, [roles]);
+
   const filteredEmployees = useMemo(() => {
     const searchText = empSearch.trim().toLowerCase();
 
@@ -586,12 +678,14 @@ function EmployeeList() {
         );
       const matchesDepartment =
         departmentFilter === "All" || emp.dept === departmentFilter;
-      const matchesStatus =
-        statusFilter === "All" || emp.status === statusFilter;
+      const matchesRole =
+        !selectedRole || emp.role === selectedRole;
+      const matchesStatus = matchesEmployeeStatus(emp.status, statusFilter);
 
       return (
         matchesSearch &&
         matchesDepartment &&
+        matchesRole &&
         matchesStatus
       );
     });
@@ -619,13 +713,16 @@ function EmployeeList() {
         return Number(second.ctcRaw || 0) - Number(first.ctcRaw || 0);
       }
 
-      return 0;
+        return 0;
     });
-  }, [departmentFilter, empList, empSearch, sortBy, statusFilter]);
+  }, [departmentFilter, empList, empSearch, selectedRole, sortBy, statusFilter]);
 
   const emptyStateMessage = useMemo(() => {
     const hasSearch = empSearch.trim().length > 0;
-    const hasFilters = departmentFilter !== "All" || statusFilter !== "All";
+    const hasFilters =
+      departmentFilter !== "All" ||
+      Boolean(selectedRole) ||
+      statusFilter !== "All";
 
     if (hasSearch && hasFilters) {
       return "No employees match the current search and filters.";
@@ -640,17 +737,30 @@ function EmployeeList() {
     }
 
     return "No employees available.";
-  }, [departmentFilter, empSearch, statusFilter]);
+  }, [departmentFilter, empSearch, selectedRole, statusFilter]);
 
-  const indexOfLastEmployee = currentPage * EMPLOYEES_PER_PAGE;
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
 
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
+
+  const safeCurrentPage =
+    currentPage > totalPages ? 1 : Math.max(currentPage, 1);
+  const indexOfLastEmployee = safeCurrentPage * pageSize;
   const indexOfFirstEmployee =
-    indexOfLastEmployee - EMPLOYEES_PER_PAGE;
-
+    filteredEmployees.length === 0 ? 0 : indexOfLastEmployee - pageSize;
   const currentEmployees = filteredEmployees.slice(
     indexOfFirstEmployee,
     indexOfLastEmployee
   );
+  const visibleStart = filteredEmployees.length === 0 ? 0 : indexOfFirstEmployee + 1;
+  const visibleEnd =
+    filteredEmployees.length === 0
+      ? 0
+      : Math.min(indexOfLastEmployee, filteredEmployees.length);
 
   if (loading) {
     return (
@@ -727,7 +837,7 @@ function EmployeeList() {
         <div>
           <h2>Employees</h2>
           <p>
-            {filteredEmployees.length} shown of {empList.length} employees
+            Showing {visibleStart}–{visibleEnd} of {filteredEmployees.length} employees
           </p>
         </div>
 
@@ -773,6 +883,23 @@ function EmployeeList() {
             {departmentOptions.map((dept) => (
               <option key={dept} value={dept}>
                 {dept}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="emp-filter-select"
+            value={selectedRole}
+            onChange={(event) => setSelectedRole(event.target.value)}
+            disabled={roleOptions.length === 0}
+          >
+            <option value="">
+              {roleOptions.length === 0 ? "No roles available." : "All Roles"}
+            </option>
+
+            {roleOptions.map((role) => (
+              <option key={role} value={role}>
+                {role}
               </option>
             ))}
           </select>
@@ -925,8 +1052,14 @@ function EmployeeList() {
         </div>
         <AppPagination
           totalItems={filteredEmployees.length}
-          currentPage={currentPage}
+          currentPage={safeCurrentPage}
+          pageSize={pageSize}
           onPageChange={setCurrentPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
           itemLabel="employees"
         />
       </div>

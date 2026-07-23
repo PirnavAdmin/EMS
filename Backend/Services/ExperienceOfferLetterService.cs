@@ -201,6 +201,91 @@ namespace EmployeeManagementSystem.Services
         // FIXED BOOKMARK METHOD
         // =============================
 
+
+        public async Task<byte[]> PreviewOfferLetter(int id)
+        {
+            var letter = await _context.OfferLetters
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (letter == null)
+                throw new Exception("Experience Offer Letter not found.");
+
+            if (!System.IO.File.Exists(letter.File_Path))
+                throw new Exception("PDF not found.");
+
+            return await System.IO.File.ReadAllBytesAsync(letter.File_Path);
+        }
+        public async Task<OfferLetterSendStatusDto> GetSendStatusAsync(int id)
+        {
+            var letter = await _context.OfferLetters
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (letter == null)
+                throw new Exception("Offer Letter not found.");
+
+            return new OfferLetterSendStatusDto
+            {
+                OfferLetterId = letter.Id,
+                CandidateName = letter.Candidate_Name,
+                Position = letter.Position,
+                IsSent = letter.IsSent,
+                SentCount = letter.SentCount,
+                SentOn = letter.SentOn,
+                Status = letter.Status
+            };
+        }
+        public async Task SendOfferLetterAsync(SendOfferLetterDto dto)
+        {
+            var letter = await _context.OfferLetters
+                .FirstOrDefaultAsync(x => x.Id == dto.OfferLetterId);
+
+            if (letter == null)
+                throw new Exception("Offer Letter not found.");
+
+            if (string.IsNullOrWhiteSpace(letter.File_Path) || !File.Exists(letter.File_Path))
+                throw new Exception("Offer Letter PDF not found.");
+
+            await _emailService.SendEmailWithAttachment(
+                letter.Email,
+                dto.Subject,
+                dto.Body,
+                letter.File_Path);
+
+            letter.Status = "Sent";
+            await _context.SaveChangesAsync();
+        }
+
+
+        public async Task DeleteOfferLetterAsync(int id)
+        {
+            var offerLetter = await _context.OfferLetters
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (offerLetter == null)
+                throw new Exception("Experience Offer Letter not found.");
+
+            // Prevent deleting already sent letters (optional)
+            if (offerLetter.Status == "Sent")
+                throw new Exception("Sent Experience Offer Letter cannot be deleted.");
+
+            // Delete PDF
+            if (!string.IsNullOrWhiteSpace(offerLetter.File_Path) &&
+                File.Exists(offerLetter.File_Path))
+            {
+                File.Delete(offerLetter.File_Path);
+            }
+
+            // Delete DOCX (if stored)
+            if (!string.IsNullOrWhiteSpace(offerLetter.PreviewPath) &&
+                File.Exists(offerLetter.PreviewPath))
+            {
+                File.Delete(offerLetter.PreviewPath);
+            }
+
+            _context.OfferLetters.Remove(offerLetter);
+
+            await _context.SaveChangesAsync();
+        }
         private void ReplaceBookmark(
       WordprocessingDocument doc,
       string bookmarkName,
@@ -219,7 +304,7 @@ namespace EmployeeManagementSystem.Services
             if (bookmarkName == "Address")
             {
                 var rawLines = text
-                    .Replace("\r", "")
+                    .Replace("\r", "")  
                     .Split(new[] { ',', '\n' });
 
                 var lines = rawLines

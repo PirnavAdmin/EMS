@@ -1,10 +1,15 @@
-﻿using EmployeeManagementSystem.Data;
+﻿using ClosedXML.Excel;
+using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ClosedXML.Excel;
 
+
+//[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ClientsController : ControllerBase
@@ -17,6 +22,7 @@ public class ClientsController : ControllerBase
     }
 
     // ✅ GET ALL
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -37,6 +43,7 @@ public class ClientsController : ControllerBase
     }
 
     // ✅ GET BY NAME
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet("by-name/{clientName}")]
     public async Task<IActionResult> GetByName(string clientName)
     {
@@ -62,6 +69,7 @@ public class ClientsController : ControllerBase
     }
 
     // ✅ POST
+    //[Permission(ModuleIds.Clients, PermissionAction.Add)]
     [HttpPost]
     public async Task<IActionResult> Create(ClientDto dto)
     {
@@ -81,6 +89,8 @@ public class ClientsController : ControllerBase
 
         return Ok("The Client details are created");
     }
+
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet("{clientId:int}/projects")]
     public async Task<IActionResult> GetProjectsByClient(int clientId)
     {
@@ -107,6 +117,8 @@ public class ClientsController : ControllerBase
         return Ok(projects);
     }
     // ✅ PUT (Using Client_Name)
+
+    //[Permission(ModuleIds.Clients, PermissionAction.Edit)]
     [HttpPut("{clientName}")]
     public async Task<IActionResult> Update(string clientName, ClientDto dto)
     {
@@ -128,6 +140,8 @@ public class ClientsController : ControllerBase
     }
 
     // ✅ DELETE
+
+    //[Permission(ModuleIds.Clients, PermissionAction.Delete)]
     [HttpDelete("{clientName}")]
     public async Task<IActionResult> Delete(string clientName)
     {
@@ -142,7 +156,7 @@ public class ClientsController : ControllerBase
 
         return Ok("Client deleted successfully");
     }
-
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet("export")]
     public async Task<IActionResult> ExportClients()
     {

@@ -8,6 +8,7 @@ import {
   normalizePermissionList,
   normalizeRole,
 } from "../../utils/authorization";
+import { normalizePermissionList as normalizeUserPermissionList } from "../../services/permissionService";
 import { startSessionTimer } from "../../utils/sessionManager";
 import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
@@ -248,6 +249,44 @@ export default function LoginLeft() {
         decoded?.Attendance_Id
       );
 
+      const organizationId = resolveIdentityValue(
+        response.data.organizationId,
+        response.data.organization_Id,
+        response.data.organizationID,
+        response.data.orgId,
+        decoded?.organizationId,
+        decoded?.organization_Id,
+        decoded?.organizationID,
+        decoded?.orgId
+      );
+
+      const branchId = resolveIdentityValue(
+        response.data.branchId,
+        response.data.branch_Id,
+        response.data.branchID,
+        decoded?.branchId,
+        decoded?.branch_Id,
+        decoded?.branchID
+      );
+
+      const companyId = resolveIdentityValue(
+        response.data.companyId,
+        response.data.company_Id,
+        response.data.companyID,
+        decoded?.companyId,
+        decoded?.company_Id,
+        decoded?.companyID
+      );
+
+      const tenantId = resolveIdentityValue(
+        response.data.tenantId,
+        response.data.tenant_Id,
+        response.data.tenantID,
+        decoded?.tenantId,
+        decoded?.tenant_Id,
+        decoded?.tenantID
+      );
+
       const resolvedEmployeeId =
         employeeId || userId || attendanceId;
 
@@ -284,25 +323,50 @@ export default function LoginLeft() {
           response.data.allowedModules
       );
 
+      let employeePermissionExists = false;
+
       if (role === "admin") {
         modules =
           modules.length > 0
             ? modules
             : [{ moduleName: "all", canAccess: true }];
       } else if (modules.length === 0) {
-        const modulesResponse = await api.get(
-          API_ENDPOINTS.rolePermission.allowedModules,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        if (resolvedEmployeeId) {
+          try {
+            const employeeModulesResponse = await api.get(
+              API_ENDPOINTS.userPermission.get(resolvedEmployeeId),
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
 
-        modules = normalizePermissionList(modulesResponse.data);
+            const employeeModules = normalizeUserPermissionList(employeeModulesResponse.data);
+            employeePermissionExists = employeeModules.length > 0;
+            modules = normalizePermissionList(employeeModules);
+          } catch (error) {
+            if (error?.response?.status !== 404) {
+              throw error;
+            }
+          }
+        }
+
+        if (!employeePermissionExists && modules.length === 0) {
+          const modulesResponse = await api.get(
+            API_ENDPOINTS.rolePermission.allowedModules,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          modules = normalizePermissionList(modulesResponse.data);
+        }
       }
 
-      if (!Array.isArray(modules) || modules.length === 0) {
+      if (!Array.isArray(modules) || (modules.length === 0 && !employeePermissionExists)) {
         throw new Error(
           "Login failed: Role information is missing from the authentication response."
         );
@@ -327,6 +391,22 @@ export default function LoginLeft() {
 
       if (attendanceId) {
         storage.setItem("attendanceId", attendanceId);
+      }
+
+      if (organizationId) {
+        storage.setItem("organizationId", organizationId);
+      }
+
+      if (branchId) {
+        storage.setItem("branchId", branchId);
+      }
+
+      if (companyId) {
+        storage.setItem("companyId", companyId);
+      }
+
+      if (tenantId) {
+        storage.setItem("tenantId", tenantId);
       }
 
       storage.setItem("modules", JSON.stringify(modules));

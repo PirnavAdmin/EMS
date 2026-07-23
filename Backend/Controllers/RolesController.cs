@@ -1,9 +1,13 @@
-﻿using EmployeeManagementSystem.DTOs;
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class RolesController : ControllerBase
@@ -15,6 +19,7 @@ namespace EmployeeManagementSystem.Controllers
             _roleService = roleService;
         }
 
+        //[Permission(ModuleIds.Roles, PermissionAction.Add)]
         [HttpPost]
         public async Task<IActionResult> CreateRole([FromBody] CreateRoleDto dto)
         {
@@ -37,6 +42,7 @@ namespace EmployeeManagementSystem.Controllers
             }
         }
 
+        //[Permission(ModuleIds.Roles, PermissionAction.View)]
         [HttpGet]
         public async Task<IActionResult> GetRoles()
         {
@@ -45,6 +51,7 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(roles);
         }
 
+        //[Permission(ModuleIds.Roles, PermissionAction.Edit)]
         [HttpPut("{roleId}")]
         public async Task<IActionResult> UpdateRole(int roleId, [FromBody] CreateRoleDto dto)
         {
@@ -65,6 +72,7 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
 
+        //[Permission(ModuleIds.Roles, PermissionAction.Delete)]
         [HttpDelete("{roleId}")]
         public async Task<IActionResult> DeleteRole(int roleId)
         {

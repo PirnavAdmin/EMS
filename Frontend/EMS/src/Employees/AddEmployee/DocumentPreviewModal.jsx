@@ -11,6 +11,10 @@ import {
 } from "react-icons/fa";
 import { formatDateTime } from "../../utils/date";
 import {
+  previewDocumentFromUrl,
+  previewEmployeeDocument,
+} from "../../services/documentPreviewService";
+import {
   buildOfficeViewerUrl,
   getDocumentFileName,
   getDocumentMimeType,
@@ -21,6 +25,7 @@ import {
 } from "./documentPreview";
 
 const PREVIEW_UNAVAILABLE_MESSAGE = "Document preview unavailable.";
+const EMPTY_PREVIEW_MESSAGE = "No preview available.";
 
 const createPreviewState = (overrides = {}) => ({
   status: "idle",
@@ -68,6 +73,24 @@ const openWindow = (url) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
+const getDocumentPreviewId = (document = {}) =>
+  document?.serverId ||
+  document?.id ||
+  document?.documentId ||
+  document?.employeeDocumentId ||
+  document?.employeeDocumentID ||
+  document?.fileId ||
+  "";
+
+const getDocumentSourceUrl = (document = {}) =>
+  String(
+    document?.fileUrl ||
+      document?.downloadUrl ||
+      document?.url ||
+      document?.fileURL ||
+      ""
+  ).trim();
+
 function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
   const hasDocument = Boolean(
     selectedDocument && typeof selectedDocument === "object"
@@ -82,6 +105,18 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
     () => (hasDocument ? getDocumentPreviewKind(document) : "unknown"),
     [document, hasDocument]
   );
+  const documentId = useMemo(
+    () => getDocumentPreviewId(document),
+    [document]
+  );
+  const sourceUrl = useMemo(
+    () => getDocumentSourceUrl(document),
+    [document]
+  );
+  const safeSourceUrl = useMemo(
+    () => (isSafeWebUrl(sourceUrl) ? sourceUrl : ""),
+    [sourceUrl]
+  );
 
   useEffect(() => {
     if (!open) {
@@ -93,160 +128,65 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
       setState(
         createPreviewState({
           status: "empty",
-          error: PREVIEW_UNAVAILABLE_MESSAGE,
+          error: EMPTY_PREVIEW_MESSAGE,
         })
       );
       return undefined;
     }
 
-    const sourceUrl =
-      document?.fileUrl ||
-      document?.downloadUrl ||
-      document?.url ||
-      document?.fileURL ||
-      "";
-    const safeSourceUrl = isSafeWebUrl(sourceUrl) ? sourceUrl : "";
-
-    if (!safeSourceUrl && !(document?.blob instanceof Blob)) {
-      setState(
-        createPreviewState({
-          status: document?.errorMessage ? "error" : "empty",
-          error: document?.errorMessage || PREVIEW_UNAVAILABLE_MESSAGE,
-        })
-      );
-      return undefined;
-    }
-
+    const controller = new AbortController();
     let active = true;
     let objectUrl = "";
 
-    const loadPreview = async () => {
-      try {
-        setState(
-          createPreviewState({
-            status: "loading",
-            sourceUrl: safeSourceUrl,
-          })
-        );
+    const applyReadyState = async (
+      previewBlob,
+      previewSourceUrl = "",
+      responseContentType = "",
+      responseContentLength = 0
+    ) => {
+      const fileName = getDocumentFileName(document);
+      const headerMimeType = normalizeDocumentMimeType(
+        responseContentType,
+        fileName
+      );
+      const documentMimeType = getDocumentMimeType(document);
+      const resolvedMimeType = await resolveDocumentMimeType({
+        blob: previewBlob,
+        fileName,
+        headerMimeType,
+        documentMimeType,
+      });
+      const resolvedKind = getDocumentPreviewKind({
+        ...document,
+        fileName,
+        fileType: resolvedMimeType,
+        mimeType: resolvedMimeType,
+        contentType: resolvedMimeType,
+        fileMimeType: resolvedMimeType,
+        blob: previewBlob,
+      });
+      const blobSize = previewBlob.size || 0;
+      const blobType = previewBlob.type || resolvedMimeType || "";
+      const nextSourceUrl = previewSourceUrl || safeSourceUrl || sourceUrl || "";
 
-        let previewBlob = document?.blob instanceof Blob ? document.blob : null;
-        let responseContentType = "";
-        let responseContentLength = 0;
+      if (!active) {
+        return;
+      }
 
-        if (!previewBlob && safeSourceUrl) {
-          const response = await fetch(safeSourceUrl, {
-            credentials: "include",
-          });
-
-          if (!response.ok) {
-            throw new Error("Unable to load document preview.");
-          }
-
-          responseContentType = response.headers.get("content-type") || "";
-          responseContentLength =
-            Number(response.headers.get("content-length")) || 0;
-          previewBlob = await response.blob();
-        }
-
-        if (!previewBlob) {
-          throw new Error("Preview source not available");
-        }
-
-        const fileName = getDocumentFileName(document);
-        const headerMimeType = normalizeDocumentMimeType(
-          responseContentType,
-          fileName
-        );
-        const documentMimeType = getDocumentMimeType(document);
-        const resolvedMimeType = await resolveDocumentMimeType({
-          blob: previewBlob,
-          fileName,
-          headerMimeType,
-          documentMimeType,
-        });
-
-        const resolvedKind = getDocumentPreviewKind({
-          ...document,
-          fileName,
-          fileType: resolvedMimeType,
-          mimeType: resolvedMimeType,
-          contentType: resolvedMimeType,
-          fileMimeType: resolvedMimeType,
-          blob: previewBlob,
-        });
-
-        const blobSize = previewBlob.size || 0;
-        const blobType = previewBlob.type || resolvedMimeType || "";
-
-        console.info("[DocumentPreview] Loaded preview source", {
-          fileName,
-          contentType: resolvedMimeType || responseContentType || "",
-          contentLength: responseContentLength || blobSize,
-          blobSize,
-          blobType,
-          previewKind: resolvedKind,
-        });
+      if (resolvedKind === "pdf" || resolvedKind === "image") {
+        objectUrl = window.URL.createObjectURL(previewBlob);
 
         if (!active) {
-          return;
-        }
-
-        if (resolvedKind === "pdf" || resolvedKind === "image") {
-          objectUrl = window.URL.createObjectURL(previewBlob);
-          console.info("[DocumentPreview] Object URL", objectUrl);
-
-          if (!active) {
-            window.URL.revokeObjectURL(objectUrl);
-            return;
-          }
-
-          setState(
-            createPreviewState({
-              status: "ready",
-              previewUrl: objectUrl,
-              sourceUrl,
-              objectUrl,
-              previewKind: resolvedKind,
-              previewMimeType: resolvedMimeType || blobType,
-              blob: previewBlob,
-              contentType: resolvedMimeType || responseContentType || blobType,
-              contentLength: responseContentLength || blobSize,
-            })
-          );
-          return;
-        }
-
-        if (resolvedKind === "docx" || resolvedKind === "doc") {
-          const officeViewerUrl = buildOfficeViewerUrl(sourceUrl);
-
-          console.info("[DocumentPreview] Word document detected", {
-            officeViewerUrl: officeViewerUrl || "",
-            previewKind: resolvedKind,
-            contentType: resolvedMimeType || responseContentType || blobType,
-            contentLength: responseContentLength || blobSize,
-            blobSize,
-            blobType,
-          });
-
-          setState(
-            createPreviewState({
-              status: "ready",
-              sourceUrl,
-              previewKind: resolvedKind,
-              previewMimeType: resolvedMimeType || blobType,
-              officeViewerUrl,
-              blob: previewBlob,
-              contentType: resolvedMimeType || responseContentType || blobType,
-              contentLength: responseContentLength || blobSize,
-            })
-          );
+          window.URL.revokeObjectURL(objectUrl);
           return;
         }
 
         setState(
           createPreviewState({
             status: "ready",
-            sourceUrl,
+            previewUrl: objectUrl,
+            sourceUrl: nextSourceUrl,
+            objectUrl,
             previewKind: resolvedKind,
             previewMimeType: resolvedMimeType || blobType,
             blob: previewBlob,
@@ -254,45 +194,59 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
             contentLength: responseContentLength || blobSize,
           })
         );
-      } catch (error) {
-        if (!active) {
-          return;
-        }
+        return;
+      }
 
-        const fallbackMimeType = getDocumentMimeType(document);
+      if (resolvedKind === "docx" || resolvedKind === "doc") {
+        const officeViewerUrl = buildOfficeViewerUrl(nextSourceUrl);
 
-        if (
-          safeSourceUrl &&
-          (initialPreviewKind === "pdf" || initialPreviewKind === "image")
-        ) {
-          setState(
-            createPreviewState({
-              status: "ready",
-              previewUrl: safeSourceUrl,
-              sourceUrl: safeSourceUrl,
-              previewKind: initialPreviewKind,
-              previewMimeType: fallbackMimeType,
-              contentType: fallbackMimeType,
-              contentLength: Number(document?.size || document?.fileSize || 0) || 0,
-              blob: document?.blob instanceof Blob ? document.blob : null,
-            })
+        setState(
+          createPreviewState({
+            status: "ready",
+            sourceUrl: nextSourceUrl,
+            previewKind: resolvedKind,
+            previewMimeType: resolvedMimeType || blobType,
+            officeViewerUrl,
+            blob: previewBlob,
+            contentType: resolvedMimeType || responseContentType || blobType,
+            contentLength: responseContentLength || blobSize,
+          })
+        );
+        return;
+      }
+
+      setState(
+        createPreviewState({
+          status: "ready",
+          sourceUrl: nextSourceUrl,
+          previewKind: resolvedKind,
+          previewMimeType: resolvedMimeType || blobType,
+          blob: previewBlob,
+          contentType: resolvedMimeType || responseContentType || blobType,
+          contentLength: responseContentLength || blobSize,
+        })
+      );
+    };
+
+    const loadPreview = async () => {
+      try {
+        const previewBlob = document?.blob instanceof Blob ? document.blob : null;
+
+        if (previewBlob) {
+          await applyReadyState(
+            previewBlob,
+            safeSourceUrl || sourceUrl || "",
+            previewBlob.type || "",
+            previewBlob.size || 0
           );
           return;
         }
 
-        if (safeSourceUrl && (initialPreviewKind === "docx" || initialPreviewKind === "doc")) {
-          const officeViewerUrl = buildOfficeViewerUrl(safeSourceUrl);
-
+        if (!documentId && !safeSourceUrl) {
           setState(
             createPreviewState({
-              status: "ready",
-              sourceUrl: safeSourceUrl,
-              previewKind: initialPreviewKind,
-              previewMimeType: fallbackMimeType,
-              officeViewerUrl,
-              contentType: fallbackMimeType,
-              contentLength: Number(document?.size || document?.fileSize || 0) || 0,
-              blob: document?.blob instanceof Blob ? document.blob : null,
+              status: "empty",
+              error: EMPTY_PREVIEW_MESSAGE,
             })
           );
           return;
@@ -300,9 +254,64 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
 
         setState(
           createPreviewState({
+            status: "loading",
+            sourceUrl: safeSourceUrl || sourceUrl || "",
+          })
+        );
+
+        const response = documentId
+          ? await previewEmployeeDocument(documentId, {
+              signal: controller.signal,
+            })
+          : await previewDocumentFromUrl(safeSourceUrl, {
+              signal: controller.signal,
+            });
+
+        const responseBlob = response?.blob instanceof Blob
+          ? response.blob
+          : response?.data instanceof Blob
+            ? response.data
+            : new Blob([response?.data ?? []], {
+                type:
+                  response?.contentType ||
+                  response?.headers?.["content-type"] ||
+                  "",
+              });
+
+        const responseContentType = String(
+          response?.contentType ||
+            response?.headers?.["content-type"] ||
+            response?.headers?.["Content-Type"] ||
+            responseBlob.type ||
+            ""
+        ).trim();
+        const responseContentLength =
+          Number(
+            response?.headers?.["content-length"] ||
+              response?.headers?.["Content-Length"] ||
+              0
+          ) || responseBlob.size || 0;
+
+        await applyReadyState(
+          responseBlob,
+          safeSourceUrl || sourceUrl || "",
+          responseContentType,
+          responseContentLength
+        );
+      } catch (error) {
+        if (
+          !active ||
+          error?.code === "ERR_CANCELED" ||
+          error?.name === "CanceledError"
+        ) {
+          return;
+        }
+
+        setState(
+          createPreviewState({
             status: "error",
             error: error?.message || document?.errorMessage || PREVIEW_UNAVAILABLE_MESSAGE,
-            sourceUrl: safeSourceUrl,
+            sourceUrl: safeSourceUrl || sourceUrl || "",
           })
         );
       }
@@ -312,12 +321,20 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
 
     return () => {
       active = false;
+      controller.abort();
 
       if (objectUrl) {
         window.URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [document, hasDocument, open, initialPreviewKind]);
+  }, [
+    document,
+    documentId,
+    hasDocument,
+    open,
+    safeSourceUrl,
+    sourceUrl,
+  ]);
 
   useEffect(() => {
     if (!open) {
@@ -346,7 +363,7 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
   const PreviewIcon = hasDocument ? getPreviewIcon(previewKind) : FaFileAlt;
   const fileName = hasDocument
     ? getDocumentFileName(document)
-    : PREVIEW_UNAVAILABLE_MESSAGE;
+    : EMPTY_PREVIEW_MESSAGE;
   const fileType = hasDocument
     ? String(
         state.previewMimeType ||
@@ -356,19 +373,10 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
           previewKind ||
           "Document"
       ).trim()
-    : PREVIEW_UNAVAILABLE_MESSAGE;
+    : EMPTY_PREVIEW_MESSAGE;
   const uploadedAt = hasDocument
     ? document?.uploadedAt || document?.createdAt || ""
     : "";
-  const sourceUrl = hasDocument
-    ? state.sourceUrl ||
-      document?.fileUrl ||
-      document?.downloadUrl ||
-      document?.url ||
-      document?.fileURL ||
-      ""
-    : "";
-  const safeSourceUrl = isSafeWebUrl(sourceUrl) ? sourceUrl : "";
   const canOpenSource = hasDocument && Boolean(safeSourceUrl);
   const canOpenOfficeViewer =
     hasDocument && Boolean(state.officeViewerUrl);
@@ -453,7 +461,7 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
         <div className="document-preview-body">
           {!hasDocument && (
             <div className="document-preview-error">
-              <strong>{PREVIEW_UNAVAILABLE_MESSAGE}</strong>
+              <strong>{EMPTY_PREVIEW_MESSAGE}</strong>
               <p>The selected document is not available yet.</p>
             </div>
           )}
@@ -467,15 +475,15 @@ function DocumentPreviewModal({ document: selectedDocument, open, onClose }) {
 
           {state.status === "empty" && hasDocument && (
             <div className="document-preview-error">
-              <strong>{PREVIEW_UNAVAILABLE_MESSAGE}</strong>
+              <strong>{state.error || EMPTY_PREVIEW_MESSAGE}</strong>
               <p>The selected document is not available yet.</p>
             </div>
           )}
 
           {state.status === "error" && (
             <div className="document-preview-error">
-              <strong>Preview unavailable</strong>
-              <p>{state.error || document?.errorMessage || PREVIEW_UNAVAILABLE_MESSAGE}</p>
+              <strong>{state.error || PREVIEW_UNAVAILABLE_MESSAGE}</strong>
+              <p>We could not load the selected document preview.</p>
             </div>
           )}
 

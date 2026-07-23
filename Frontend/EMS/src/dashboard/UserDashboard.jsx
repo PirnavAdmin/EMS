@@ -37,6 +37,10 @@ import {
   logPerformanceError,
   startPerformanceTimer,
 } from "../utils/performance";
+import {
+  getAttendanceDashboardErrorMessage,
+  getAttendanceDashboardOverview,
+} from "../services/attendanceService";
 
 const DEFAULT_WEEK_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -830,7 +834,7 @@ function UserDashboard() {
             api.get(API_ENDPOINTS.userDashboard, {
               signal: controller.signal,
             }),
-            api.get(API_ENDPOINTS.attendance.dashboardAttendance, {
+            getAttendanceDashboardOverview({
               signal: controller.signal,
             }),
             api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
@@ -860,6 +864,10 @@ function UserDashboard() {
           setAttendanceData(normalizeAttendance(source));
           setAttendanceHasData(Object.keys(source || {}).length > 0);
         } else {
+          if (attendanceResult.reason?.code === "ERR_CANCELED") {
+            return;
+          }
+
           setAttendanceData({
             attendancePercentage: 0,
             presentDays: 0,
@@ -870,7 +878,12 @@ function UserDashboard() {
             weeklyHours: [],
           });
           setAttendanceHasData(false);
-          setAttendanceError("Unable to load attendance summary.");
+          setAttendanceError(
+            getAttendanceDashboardErrorMessage(
+              attendanceResult.reason,
+              "Unable to load attendance summary."
+            )
+          );
           logPerformanceError(
             "Attendance dashboard error:",
             attendanceResult.reason?.response?.data ||

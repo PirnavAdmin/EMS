@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaBirthdayCake, FaChevronRight, FaRedo } from "react-icons/fa";
 import "./Dashboard.css";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
@@ -13,11 +15,17 @@ import {
   logPerformanceError,
   startPerformanceTimer,
 } from "../utils/performance";
+import { handleAutoLogout } from "../utils/sessionManager";
+import {
+  getAttendanceDashboardErrorMessage,
+  getAttendanceDashboardOverview,
+} from "../services/attendanceService";
 
 import TopCharts from "./TopCharts";
 import RecentActivity from "./RecentActivity";
 import Holidays from "./Holidays";
 import QuickActions from "./QuickActions";
+import AttendanceOverviewCard from "./AttendanceOverview";
 
 const normalizeDashboardData = (payload = {}) => ({
   totalEmployees: payload?.totalEmployees ?? 0,
@@ -207,9 +215,15 @@ function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState(normalizeDashboardData());
   const [birthdays, setBirthdays] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
   const [birthdaysError, setBirthdaysError] = useState("");
+  const [attendanceError, setAttendanceError] = useState("");
+  const [attendanceData, setAttendanceData] = useState({});
   const [reloadTick, setReloadTick] = useState(0);
+  const isDarkMode =
+    typeof document !== "undefined" &&
+    document.documentElement.getAttribute("data-theme-mode") === "dark";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -287,7 +301,79 @@ function AdminDashboard() {
       }
     };
 
+    const loadAttendanceOverview = async () => {
+      try {
+        setAttendanceLoading(true);
+        setAttendanceError("");
+
+        const response = await getAttendanceDashboardOverview({
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setAttendanceData(response?.data || {});
+      } catch (error) {
+        if (error?.code === "ERR_CANCELED") {
+          return;
+        }
+
+        logPerformanceError(
+          "Admin attendance overview error:",
+          error.response?.data || error.message
+        );
+
+        if (error?.response?.data) {
+          console.error(error.response.data);
+        }
+
+        const status = error?.response?.status;
+        const message = getAttendanceDashboardErrorMessage(
+          error,
+          "Unable to load attendance overview right now."
+        );
+
+        setAttendanceData({});
+
+        if (status === 401) {
+          setAttendanceError("Session expired. Please sign in again.");
+          handleAutoLogout({
+            reason: "Attendance overview session expired",
+          });
+          return;
+        }
+
+        if (status === 403) {
+          setAttendanceError("You do not have permission to access attendance.");
+          toast.error("You do not have permission to access attendance.");
+          return;
+        }
+
+        if (status === 404) {
+          setAttendanceError("Attendance endpoint not found.");
+          toast.error("Attendance endpoint not found.");
+          return;
+        }
+
+        if (typeof status === "number" && status >= 500) {
+          setAttendanceError("Internal Server Error.");
+          toast.error("Internal Server Error.");
+          return;
+        }
+
+        setAttendanceError(message);
+        toast.error(message);
+      } finally {
+        if (!controller.signal.aborted) {
+          setAttendanceLoading(false);
+        }
+      }
+    };
+
     loadDashboard();
+    loadAttendanceOverview();
 
     return () => controller.abort();
   }, [reloadTick]);
@@ -307,10 +393,20 @@ function AdminDashboard() {
     [birthdays]
   );
 
+  const toastContainer = (
+    <ToastContainer
+      position="top-right"
+      autoClose={2600}
+      newestOnTop
+      theme={isDarkMode ? "dark" : "light"}
+    />
+  );
+
   if (loading) {
     return (
       <div className="dashboard">
         <PageSkeleton variant="dashboard" />
+        {toastContainer}
       </div>
     );
   }
@@ -332,6 +428,13 @@ function AdminDashboard() {
 
       <TopCharts data={dashboardData} loading={false} />
 
+      <AttendanceOverviewCard
+        data={attendanceData}
+        loading={attendanceLoading}
+        error={attendanceError}
+        onRetry={() => setReloadTick((tick) => tick + 1)}
+      />
+
       <div className="bottom">
         <RecentActivity activities={recentActivities} />
 
@@ -345,6 +448,7 @@ function AdminDashboard() {
           <QuickActions />
         </div>
       </div>
+      {toastContainer}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByNewestIdFirst } from "../utils/collections";
+import { getEmployeesByRole } from "../services/permissionService";
 import {
   normalizeWhitespace,
   validateRoleName,
@@ -22,6 +23,11 @@ function Roles() {
   const [rolesShowModal, setRolesShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
+  const [employeeModalRole, setEmployeeModalRole] = useState(null);
+  const [roleEmployees, setRoleEmployees] = useState([]);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeesLoading, setEmployeesLoading] = useState(false);
  
   const [isEdit, setIsEdit] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState(null);
@@ -200,6 +206,68 @@ function Roles() {
  
     setRolesShowModal(true);
   };
+
+  const openRolePermissions = (role) => {
+    navigate(`/roles/${encodeURIComponent(role.roleName)}`, {
+      state: { roleId: role.roleId, roleName: role.roleName },
+    });
+  };
+
+  const handleUsersClick = async (role) => {
+    setEmployeeModalOpen(true);
+    setEmployeeModalRole(role);
+    setEmployeeSearch("");
+    setRoleEmployees([]);
+    setEmployeesLoading(true);
+
+    try {
+      const employees = await getEmployeesByRole(role.roleName);
+      setRoleEmployees(employees);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to load role employees");
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
+
+  const closeEmployeeModal = () => {
+    setEmployeeModalOpen(false);
+    setEmployeeModalRole(null);
+    setRoleEmployees([]);
+    setEmployeeSearch("");
+  };
+
+  const handleEmployeeSelect = (employee) => {
+    if (!employee.employeeId || !employeeModalRole) {
+      toast.error("Employee ID is missing");
+      return;
+    }
+
+    const roleName = employeeModalRole.roleName;
+    closeEmployeeModal();
+    navigate(
+      `/roles/${encodeURIComponent(roleName)}?employeeId=${encodeURIComponent(employee.employeeId)}`,
+      {
+        state: {
+          roleId: employeeModalRole.roleId,
+          roleName,
+          employee,
+        },
+      }
+    );
+  };
+
+  const filteredEmployees = roleEmployees.filter((employee) => {
+    const query = employeeSearch.trim().toLowerCase();
+
+    if (!query) {
+      return true;
+    }
+
+    return [employee.employeeId, employee.employeeName, employee.role, employee.status]
+      .some((value) => String(value || "").toLowerCase().includes(query));
+  });
  
   const resetForm = () => {
     setRolesForm({ roleName: "", status: "Active" });
@@ -330,9 +398,7 @@ function Roles() {
                 }}
               >
                 <td
-                  onClick={() =>
-                    navigate(`/employee-permissions/${r.roleId}/${r.roleName}`)
-                  }
+                  onClick={() => openRolePermissions(r)}
                   style={{
                     padding: "10px 16px",
                     cursor: "pointer",
@@ -382,7 +448,13 @@ function Roles() {
                     color: "var(--text-strong)",
                   }}
                 >
-                  {r.users}
+                  <button
+                    type="button"
+                    className="roles-users-count-btn"
+                    onClick={() => handleUsersClick(r)}
+                  >
+                    {r.users}
+                  </button>
                 </td>
  
                 <td
@@ -491,6 +563,75 @@ function Roles() {
               >
                 {saving ? (isEdit ? "Updating..." : "Saving...") : isEdit ? "Update" : "Save"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {employeeModalOpen && (
+        <div className="roles-modal-overlay">
+          <div className="roles-employees-modal">
+            <div className="roles-employees-modal__header">
+              <div>
+                <h3>{employeeModalRole?.roleName || "Role"} Users</h3>
+                <p>{roleEmployees.length} employee{roleEmployees.length === 1 ? "" : "s"}</p>
+              </div>
+              <button type="button" onClick={closeEmployeeModal}>
+                Close
+              </button>
+            </div>
+
+            <input
+              type="search"
+              className="roles-employee-search"
+              placeholder="Search by employee ID, name, role, or status"
+              value={employeeSearch}
+              onChange={(event) => setEmployeeSearch(event.target.value)}
+            />
+
+            <div className="roles-employees-table-wrap">
+              <table className="roles-employees-table">
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employeesLoading ? (
+                    <tr>
+                      <td colSpan={4}>Loading employees...</td>
+                    </tr>
+                  ) : filteredEmployees.length > 0 ? (
+                    filteredEmployees.map((employee) => (
+                      <tr
+                        key={employee.employeeId || employee.employeeName}
+                        onClick={() => handleEmployeeSelect(employee)}
+                      >
+                        <td>{employee.employeeId || "-"}</td>
+                        <td>{employee.employeeName || "-"}</td>
+                        <td>{employee.role || employeeModalRole?.roleName || "-"}</td>
+                        <td>
+                          <span
+                            className={`roles-status-badge ${
+                              String(employee.status || "").toLowerCase() === "inactive"
+                                ? "roles-status-badge--inactive"
+                                : "roles-status-badge--active"
+                            }`}
+                          >
+                            {employee.status || "Active"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4}>No employees found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
