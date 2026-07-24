@@ -1197,43 +1197,6 @@ body {
 }
 
 /* ✅ FIX TOAST CLICK ISSUE */
-.Toastify__toast-container {
-  z-index: 999999 !important;
-  pointer-events: none;
-  /* allow only toast to receive clicks */
-}
-
-.Toastify__toast {
-  pointer-events: auto !important;
-  border-radius: 12px;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  padding: 12px 16px;
-}
-
-/* ✅ CLOSE BUTTON FIX */
-.Toastify__close-button {
-  pointer-events: auto !important;
-  cursor: pointer;
-  opacity: 1;
-}
-
-/* Optional: better UI */
-.Toastify__toast--success {
-  background: var(--surface-success-soft);
-  color: var(--theme-success-strong);
-}
-
-.Toastify__toast--error {
-  background: var(--surface-danger-soft);
-  color: var(--theme-danger-strong);
-}
-
-/* Progress bar */
-.Toastify__progress-bar {
-  background: var(--secondary);
-}
-
 .leave-table th {
   text-align: center;
 }

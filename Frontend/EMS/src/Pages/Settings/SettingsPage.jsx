@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import {
   FaCalendarMinus,
   FaBell,
@@ -270,7 +269,7 @@ function SettingsPage() {
               definition.loadErrorMessage
             );
 
-            toast.error(loadErrorMessage);
+            toastError(loadErrorMessage);
 
             nextSections[definition.key] = {
               ...previousSections[definition.key],
@@ -424,7 +423,7 @@ function SettingsPage() {
         "We could not load the selected policy."
       );
 
-      toast.error(loadErrorMessage);
+      toastError(loadErrorMessage);
 
       setSections((previousSections) => ({
         ...previousSections,
@@ -468,7 +467,7 @@ function SettingsPage() {
         },
       }));
 
-      toast.error("Please correct the highlighted fields before saving.");
+      toastError("Please correct the highlighted fields before saving.");
       return;
     }
 
@@ -522,7 +521,7 @@ function SettingsPage() {
         },
       }));
 
-      toast.success(definition.successMessage);
+      toastSuccess(definition.successMessage);
     } catch (error) {
       console.error("Settings Save Error:", error);
       console.trace();
@@ -535,7 +534,7 @@ function SettingsPage() {
         },
       }));
 
-      toast.error("Failed to update settings.");
+      toastError("Failed to update settings.");
     }
   };
 
@@ -607,9 +606,7 @@ function SettingsPage() {
   if (pageLoading) {
     return (
       <div className="settings-page">
-        <ToastContainer position="top-right" autoClose={2600} newestOnTop />
-
-        <div className="settings-hero settings-hero-skeleton app-surface">
+<div className="settings-hero settings-hero-skeleton app-surface">
           <div className="settings-skeleton-line settings-skeleton-kicker" />
           <div className="settings-skeleton-line settings-skeleton-title" />
           <div className="settings-skeleton-line settings-skeleton-subtitle" />
@@ -630,9 +627,7 @@ function SettingsPage() {
 
   return (
     <div className="settings-page">
-      <ToastContainer position="top-right" autoClose={2600} newestOnTop />
-
-      <div className="settings-hero app-surface">
+<div className="settings-hero app-surface">
         <div className="settings-hero-copy">
           <div className="settings-hero-kicker">
             <FaShieldAlt />

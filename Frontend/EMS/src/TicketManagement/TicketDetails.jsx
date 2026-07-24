@@ -55,16 +55,26 @@ function TicketDetails() {
     : "/admin/tickets";
 
   const loadTicket = useCallback(async () => {
+    if (!ticketId) {
+      console.error("Ticket Id is missing.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+
       const record = await fetchTicketById(ticketId);
+
       setTicket(record);
     } catch (error) {
-      console.error("Unable to load ticket details:", error);
+      console.error(error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
-        "Unable to load ticket details right now."
+        "Unable to load ticket details."
       );
+
       toast.error(errorMessage);
       setTicket(null);
     } finally {
@@ -73,8 +83,13 @@ function TicketDetails() {
   }, [ticketId]);
 
   useEffect(() => {
+    if (!ticketId) {
+      setLoading(false);
+      return;
+    }
+
     loadTicket();
-  }, [loadTicket]);
+  }, [loadTicket, ticketId]);
 
   const timelineItems = useMemo(() => {
     if (!ticket) {

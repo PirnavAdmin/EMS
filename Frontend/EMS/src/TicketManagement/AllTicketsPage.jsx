@@ -14,12 +14,14 @@ import {
   FaChevronUp,
   FaPaperclip,
   FaPen,
+  FaPlay,
   FaPlus,
   FaSearch,
   FaSort,
   FaSortDown,
   FaSortUp,
   FaSpinner,
+  FaStop,
   FaTicketAlt,
   FaTimes,
   FaTrash,
@@ -72,9 +74,12 @@ import {
   deleteTicket,
   downloadTicketTemplate,
   exportTickets,
+  fetchMyTickets,
   fetchTicketById,
   fetchTickets,
   getTicketApiErrorMessage,
+  startTicketWork,
+  stopTicketWork,
   updateTicket,
   updateTicketStatus,
   uploadTicketBulkFile,
@@ -107,6 +112,9 @@ const CATEGORY_OPTIONS = ["All", ...getTicketCategoryOptions()];
 
 const ACCEPTED_EXTENSIONS = [".xls", ".xlsx"];
 
+const ACTIVE_WORK_STATUSES = new Set(["In Progress", "On Hold"]);
+const EMPLOYEE_WORK_STATUS_OPTIONS = getTicketStatusOptions("user");
+
 const isExcelFile = (file) => {
   if (!file) {
     return false;
@@ -114,6 +122,41 @@ const isExcelFile = (file) => {
 
   const name = String(file.name || "").toLowerCase();
   return ACCEPTED_EXTENSIONS.some((extension) => name.endsWith(extension));
+};
+
+const isTicketCompleted = (ticket) =>
+  normalizeTicketStatus(ticket?.status) === "Completed";
+
+const isTicketAssigned = (ticket) =>
+  normalizeTicketStatus(ticket?.status) === "Assigned";
+
+const hasTicketWorkStarted = (ticket) =>
+  Boolean(ticket?.workStarted || ticket?.startedDate);
+
+const hasTicketWorkStopped = (ticket) =>
+  Boolean(ticket?.stoppedDate || ticket?.completedDate);
+
+const isTicketWorkActive = (ticket) => {
+  if (!ticket || isTicketCompleted(ticket) || hasTicketWorkStopped(ticket)) {
+    return false;
+  }
+
+  return Boolean(
+    ticket.workActive ||
+      hasTicketWorkStarted(ticket) ||
+      ACTIVE_WORK_STATUSES.has(normalizeTicketStatus(ticket.status))
+  );
+};
+
+const getEmployeeRowStatusOptions = (ticket) => {
+  const currentStatus = normalizeTicketStatus(ticket?.status);
+  const options = [...EMPLOYEE_WORK_STATUS_OPTIONS];
+
+  if (currentStatus && !options.includes(currentStatus)) {
+    options.unshift(currentStatus);
+  }
+
+  return options;
 };
 
 const normalizeSummary = (payload = {}) => ({
@@ -323,6 +366,12 @@ function TicketEditorModal({
       setFormData(createEmptyTicketForm("admin"));
       setErrors({});
       setAttachmentLabel("");
+      return undefined;
+    }
+
+    if (!ticketId) {
+      setLoadingTicket(false);
+      setTicketRecord(null);
       return undefined;
     }
 
@@ -1134,7 +1183,7 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
   );
 }
 
-function TicketDetailsModal({ open, ticketId, onClose }) {
+function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState(null);
 
@@ -1178,7 +1227,7 @@ function TicketDetailsModal({ open, ticketId, onClose }) {
     return () => {
       active = false;
     };
-  }, [open, ticketId]);
+  }, [open, ticketId, refreshKey]);
 
   const commentItems = useMemo(() => {
     if (!ticket) {
@@ -1465,9 +1514,15 @@ function TicketDetailsModal({ open, ticketId, onClose }) {
   );
 }
 
-function AllTicketsPage() {
+function AllTicketsPage({ scope = "admin" }) {
   const { themeMode } = useTheme();
   const isDarkTheme = themeMode !== "light";
+  const isEmployeeScope = scope === "employee";
+  const portalLabel = isEmployeeScope ? "Employee portal" : "Admin portal";
+  const pageTitle = isEmployeeScope ? "My Tickets" : "All Tickets";
+  const pageDescription = isEmployeeScope
+    ? "Review your assigned tickets, track status updates, and open details when needed."
+    : "Manage tickets, assign work, upload spreadsheets, and review status updates from one place.";
 
   const [tickets, setTickets] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -1493,6 +1548,7 @@ function AllTicketsPage() {
     open: false,
     ticketId: "",
   });
+  const [detailsRefreshKey, setDetailsRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -1501,7 +1557,7 @@ function AllTicketsPage() {
   const loadTickets = async () => {
     try {
       setLoading(true);
-      const data = await fetchTickets();
+      const data = isEmployeeScope ? await fetchMyTickets() : await fetchTickets();
       setTickets(data);
     } catch (error) {
       console.error("Failed to load tickets:", error);
@@ -1518,7 +1574,7 @@ function AllTicketsPage() {
 
   useEffect(() => {
     loadTickets();
-  }, []);
+  }, [isEmployeeScope]);
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -1701,6 +1757,17 @@ function AllTicketsPage() {
     }
   };
 
+  const refreshTicketsAndDetails = async (ticketId) => {
+    await loadTickets();
+
+    if (
+      detailsState.open &&
+      String(detailsState.ticketId) === String(ticketId)
+    ) {
+      setDetailsRefreshKey((current) => current + 1);
+    }
+  };
+
   const handleStatusUpdate = async (ticket, nextStatus) => {
     const normalizedStatus = normalizeTicketStatus(nextStatus);
 
@@ -1712,12 +1779,56 @@ function AllTicketsPage() {
       setActionTicketId(ticket.ticketId);
       await updateTicketStatus(ticket.ticketId, normalizedStatus);
       toast.success("Ticket status updated.");
-      await loadTickets();
+      await refreshTicketsAndDetails(ticket.ticketId);
     } catch (error) {
       console.error("Status update failed:", error);
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to update the ticket status right now."
+      );
+      toast.error(errorMessage);
+    } finally {
+      setActionTicketId("");
+    }
+  };
+
+  const handleStartWork = async (ticket) => {
+    if (!ticket?.ticketId) {
+      return;
+    }
+
+    try {
+      setActionTicketId(ticket.ticketId);
+      await startTicketWork(ticket);
+      toast.success("Work started.");
+      await refreshTicketsAndDetails(ticket.ticketId);
+    } catch (error) {
+      console.error("Start work failed:", error);
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to start work on this ticket right now."
+      );
+      toast.error(errorMessage);
+    } finally {
+      setActionTicketId("");
+    }
+  };
+
+  const handleStopWork = async (ticket) => {
+    if (!ticket?.ticketId) {
+      return;
+    }
+
+    try {
+      setActionTicketId(ticket.ticketId);
+      await stopTicketWork(ticket);
+      toast.success("Work stopped.");
+      await refreshTicketsAndDetails(ticket.ticketId);
+    } catch (error) {
+      console.error("Stop work failed:", error);
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to stop work on this ticket right now."
       );
       toast.error(errorMessage);
     } finally {
@@ -1768,66 +1879,67 @@ function AllTicketsPage() {
 
       <div className="ticket-hero">
         <div className="ticket-hero-copy">
-          <span className="ticket-eyebrow">Admin portal</span>
-          <h2>All Tickets</h2>
-          <p>
-            Manage tickets, assign work, upload spreadsheets, and review status
-            updates from one place.
-          </p>
+          <span className="ticket-eyebrow">{portalLabel}</span>
+          <h2>{pageTitle}</h2>
+          <p>{pageDescription}</p>
         </div>
 
         <div className="ticket-hero-actions">
-          <button
-            type="button"
-            className="ticket-button secondary"
-            onClick={() =>
-              setEditorState({
-                open: true,
-                mode: "create",
-                ticketId: "",
-              })
-            }
-          >
-            <FaPlus aria-hidden="true" />
-            Create Ticket
-          </button>
+          {!isEmployeeScope ? (
+            <>
+              <button
+                type="button"
+                className="ticket-button secondary"
+                onClick={() =>
+                  setEditorState({
+                    open: true,
+                    mode: "create",
+                    ticketId: "",
+                  })
+                }
+              >
+                <FaPlus aria-hidden="true" />
+                Create Ticket
+              </button>
 
-          <button
-            type="button"
-            className="ticket-button secondary"
-            onClick={() => setBulkOpen(true)}
-          >
-            <FaUpload aria-hidden="true" />
-            Bulk Upload
-          </button>
+              <button
+                type="button"
+                className="ticket-button secondary"
+                onClick={() => setBulkOpen(true)}
+              >
+                <FaUpload aria-hidden="true" />
+                Bulk Upload
+              </button>
 
-          <button
-            type="button"
-            className="ticket-button secondary"
-            onClick={handleTemplateDownload}
-          >
-            <FaDownload aria-hidden="true" />
-            Download Template
-          </button>
-
-          <button
-            type="button"
-            className="ticket-button primary"
-            onClick={handleExportTickets}
-            disabled={exporting}
-          >
-            {exporting ? (
-              <>
-                <FaSpinner className="ticket-button-spinner" />
-                Exporting...
-              </>
-            ) : (
-              <>
+              <button
+                type="button"
+                className="ticket-button secondary"
+                onClick={handleTemplateDownload}
+              >
                 <FaDownload aria-hidden="true" />
-                Export Tickets
-              </>
-            )}
-          </button>
+                Download Template
+              </button>
+
+              <button
+                type="button"
+                className="ticket-button primary"
+                onClick={handleExportTickets}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <>
+                    <FaSpinner className="ticket-button-spinner" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <FaDownload aria-hidden="true" />
+                    Export Tickets
+                  </>
+                )}
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
 

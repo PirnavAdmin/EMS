@@ -81,6 +81,43 @@ const getMeaningfulMessage = (text) => {
   return normalizedText;
 };
 
+const resolveSalaryStructureCtc = (payload) => {
+  if (typeof payload === "number" && Number.isFinite(payload)) {
+    return payload;
+  }
+
+  if (typeof payload === "string" && payload.trim()) {
+    const numeric = Number(payload);
+    return Number.isFinite(numeric) ? numeric : payload.trim();
+  }
+
+  if (payload && typeof payload === "object") {
+    const ctcCandidates = [
+      payload.ctc,
+      payload.annualCtc,
+      payload.AnnualCtc,
+      payload.ctcAnnual,
+      payload.ctc_Annual,
+      payload.monthlyCtc,
+      payload.monthlyCTC,
+    ];
+
+    for (const candidate of ctcCandidates) {
+      if (candidate === null || candidate === undefined || candidate === "") {
+        continue;
+      }
+
+      const numeric = Number(candidate);
+
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+    }
+  }
+
+  return "";
+};
+
 export const getOfferLetterApiErrorMessage = async (
   error,
   fallbackMessage = "Unable to complete the offer letter request.",
@@ -171,11 +208,23 @@ export const generateOfferLetter = (payload, config = {}) =>
   );
 
 export const calculateOfferLetterBreakup = (payload, config = {}) =>
-  api.post(
-    API_ENDPOINTS.offerLetters.calculateBreakup,
-    payload,
-    withAuthHeaders(config)
-  );
+{
+  const ctc = resolveSalaryStructureCtc(payload);
+  const url = API_ENDPOINTS.offerLetters.calculateBreakup(ctc);
+  const headers = withAuthHeaders(config);
+
+  console.log({
+    url,
+    method: "GET",
+    body: undefined,
+    headers,
+  });
+
+  return api.get(url, {
+    ...headers,
+    dedupe: false,
+  });
+};
 
 export const previewOfferLetter = (id, config = {}) =>
   api.get(API_ENDPOINTS.offerLetters.preview(id), {

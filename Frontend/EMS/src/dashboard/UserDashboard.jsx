@@ -39,7 +39,7 @@ import {
 } from "../utils/performance";
 import {
   getAttendanceDashboardErrorMessage,
-  getAttendanceDashboardOverview,
+  getUserAttendanceDashboard,
 } from "../services/attendanceService";
 
 const DEFAULT_WEEK_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -834,7 +834,7 @@ function UserDashboard() {
             api.get(API_ENDPOINTS.userDashboard, {
               signal: controller.signal,
             }),
-            getAttendanceDashboardOverview({
+            getUserAttendanceDashboard({
               signal: controller.signal,
             }),
             api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
@@ -867,6 +867,16 @@ function UserDashboard() {
           if (attendanceResult.reason?.code === "ERR_CANCELED") {
             return;
           }
+
+          console.error("Attendance Dashboard Error", {
+            status: attendanceResult.reason?.response?.status,
+            message:
+              attendanceResult.reason?.response?.data ||
+              attendanceResult.reason?.message,
+            url: attendanceResult.reason?.config?.url,
+            params: attendanceResult.reason?.config?.params,
+            headers: attendanceResult.reason?.config?.headers,
+          });
 
           setAttendanceData({
             attendancePercentage: 0,

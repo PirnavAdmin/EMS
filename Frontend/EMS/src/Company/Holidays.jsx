@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Holidays.css";
 import { FaCalendarAlt } from "react-icons/fa";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
@@ -67,7 +66,7 @@ function Holidays() {
       setHolidays(formatted);
     } catch (err) {
       console.error("Fetch error:", err);
-      toast.error("Failed to load holidays.");
+      toastError("Failed to load holidays.");
     }
   };
 
@@ -194,12 +193,12 @@ function Holidays() {
         });
       }
 
-      toast.success(editMode ? "Holiday updated successfully." : "Holiday added successfully.");
+      toastSuccess(editMode ? "Holiday updated successfully." : "Holiday added successfully.");
       closeModal();
       await fetchHolidays();
     } catch (error) {
       console.error("Save error:", error);
-      toast.error("Unable to save holiday.");
+      toastError("Unable to save holiday.");
     } finally {
       setSaving(false);
     }
@@ -227,20 +226,18 @@ function Holidays() {
         },
       });
 
-      toast.success("Holiday deleted successfully.");
+      toastSuccess("Holiday deleted successfully.");
       setHolidayToDelete(null);
       await fetchHolidays();
     } catch (error) {
       console.error("Delete error:", error);
-      toast.error("Unable to delete holiday.");
+      toastError("Unable to delete holiday.");
     }
   };
 
   return (
     <div className="holiday-page holiday-page--admin">
-      <ToastContainer position="top-right" autoClose={2400} />
-
-      <div className="holiday-header">
+<div className="holiday-header">
         <div className="holiday-header-copy">
           <h2>Company Holidays</h2>
           <p>{holidays.length} Holidays This Year</p>

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./UserAttendance.css";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import {
@@ -340,7 +339,7 @@ function UserAttendance() {
   // this shape is intentionally identical to the original API contract.
   const resolveAccurateLocation = async () => {
     if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser.");
+      toastError("Geolocation is not supported by your browser.");
       return null;
     }
 
@@ -349,13 +348,13 @@ function UserAttendance() {
 
       // > 200m accuracy -> reject submission entirely
       if (!result.allowed) {
-        toast.error(result.warning);
+        toastError(result.warning);
         return null;
       }
 
       // 100m < accuracy <= 200m -> accept, but warn the user
       if (result.warning) {
-        toast.warning(result.warning);
+        toastWarning(result.warning);
       }
 
       const { latitude, longitude, accuracy } = result;
@@ -368,7 +367,7 @@ function UserAttendance() {
         Number.isNaN(latitude) ||
         Number.isNaN(longitude)
       ) {
-        toast.error("Latitude and Longitude are required for this action.");
+        toastError("Latitude and Longitude are required for this action.");
         return null;
       }
 
@@ -376,7 +375,7 @@ function UserAttendance() {
       return { latitude, longitude, accuracy };
     } catch (error) {
       console.error("Geolocation Error:", error);
-      toast.error(getGeolocationErrorMessage(error));
+      toastError(getGeolocationErrorMessage(error));
       return null;
     }
   };
@@ -385,7 +384,7 @@ function UserAttendance() {
   const handleCheckIn = async () => {
 
     if (checkedIn) {
-      toast.warning("Already checked in");
+      toastWarning("Already checked in");
       return;
     }
 
@@ -412,7 +411,7 @@ function UserAttendance() {
         }
       );
 
-      toast.success("Checked in successfully");
+      toastSuccess("Checked in successfully");
 
       setCheckedIn(true);
       setCheckedOut(false);
@@ -427,7 +426,7 @@ function UserAttendance() {
         err.message
       );
 
-      toast.error(
+      toastError(
         err?.response?.data?.message ||
         err?.response?.data ||
         "Check-in failed"
@@ -462,7 +461,7 @@ function UserAttendance() {
         }
       );
 
-      toast.success("Checked out successfully");
+      toastSuccess("Checked out successfully");
       setCheckedOut(true);
       await refreshAttendanceState();
     }
@@ -485,7 +484,7 @@ function UserAttendance() {
         ? Object.values(responseData.errors).flat().join(", ")
         : responseData?.message || "Server error during check-out";
 
-      toast.error(errorMsg);
+      toastError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -497,12 +496,12 @@ function UserAttendance() {
     const trimmedReason = reason.trim();
 
     if (trimmedReason.length < 10) {
-      toast.error("Reason must be at least 10 characters.");
+      toastError("Reason must be at least 10 characters.");
       return;
     }
 
     if (trimmedReason.length > 500) {
-      toast.error("Reason must be 500 characters or less.");
+      toastError("Reason must be 500 characters or less.");
       return;
     }
 
@@ -523,7 +522,7 @@ function UserAttendance() {
         }
       );
 
-      toast.success("Checked out successfully");
+      toastSuccess("Checked out successfully");
       setCheckedOut(true);
       setShowReasonPopup(false);
       setReason("");
@@ -540,7 +539,7 @@ function UserAttendance() {
       const errorMsg = responseData?.errors
         ? Object.values(responseData.errors).flat().join(", ")
         : responseData?.message || "Failed to submit checkout reason";
-      toast.error(errorMsg);
+      toastError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -581,9 +580,7 @@ function UserAttendance() {
   return (
     <>
       <div className="attendance-page">
-        <ToastContainer position="top-right" autoClose={3000} />
-
-        {/* --- REASON POPUP OVERLAY --- */}
+{/* --- REASON POPUP OVERLAY --- */}
         {showReasonPopup && (
           <div className="reason-popup-overlay">
             <div className="reason-popup">

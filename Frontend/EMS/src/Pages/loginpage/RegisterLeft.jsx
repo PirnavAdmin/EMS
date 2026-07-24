@@ -11,6 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
+import { toastSuccess } from "@/components/common/toast/toastService";
 
 import AuthField from "./AuthField";
 
@@ -438,9 +439,7 @@ else if (
 
       // SUCCESS POPUP
 
-      alert(
-        "Registration Successful!"
-      );
+      toastSuccess("Registration Successful!");
 
       // REDIRECT TO LOGIN
 

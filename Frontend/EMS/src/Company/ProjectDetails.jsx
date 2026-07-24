@@ -24,8 +24,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import EmptyState from "../components/EmptyState";
@@ -646,7 +645,7 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
     }
 
     if (!isExcelTicketFile(file)) {
-      toast.error("Please select an Excel file (.xls or .xlsx).");
+      toastError("Please select an Excel file (.xls or .xlsx).");
       return;
     }
 
@@ -666,20 +665,20 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
   const handleTemplateDownload = async () => {
     try {
       await downloadTicketTemplate();
-      toast.success("Template download started.");
+      toastSuccess("Template download started.");
     } catch (error) {
       console.error("Template download failed:", error);
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to download the template right now."
       );
-      toast.error(errorMessage);
+      toastError(errorMessage);
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      toast.error("Choose a file before uploading.");
+      toastError("Choose a file before uploading.");
       return;
     }
 
@@ -695,7 +694,7 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
     try {
       setUploading(true);
       await uploadTicketBulkFile(formData);
-      toast.success("Tickets uploaded successfully.");
+      toastSuccess("Tickets uploaded successfully.");
       await onUploaded?.();
       onClose?.();
     } catch (error) {
@@ -704,7 +703,7 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
         error,
         "Unable to upload the ticket file right now."
       );
-      toast.error(errorMessage);
+      toastError(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -928,7 +927,7 @@ function EmployeeTicketDetailsModal({ open, employee, onClose }) {
           error,
           "Unable to load employee tickets right now."
         );
-        toast.error(message);
+        toastError(message);
 
         if (active) {
           setTickets([]);
@@ -1170,7 +1169,7 @@ function ProjectDetails() {
         }
 
         if (!detailSucceeded && !collectionSucceeded) {
-          toast.error("Failed to load project details.");
+          toastError("Failed to load project details.");
         }
       } catch (error) {
         if (active && !normalizedInitialProject) {
@@ -1237,7 +1236,7 @@ function ProjectDetails() {
           error,
           "Unable to load project tickets right now."
         );
-        toast.error(message);
+        toastError(message);
 
         if (active) {
           setProjectTickets([]);
@@ -1347,7 +1346,7 @@ function ProjectDetails() {
 
   const handleAutoAssignConfirm = async () => {
     if (!projectId) {
-      toast.error("Project identifier is missing.");
+      toastError("Project identifier is missing.");
       return;
     }
 
@@ -1358,7 +1357,7 @@ function ProjectDetails() {
         ProjectId: projectId,
         project_Id: projectId,
       });
-      toast.success("Unassigned tickets auto assigned successfully.");
+      toastSuccess("Unassigned tickets auto assigned successfully.");
       setAutoAssignOpen(false);
       refreshProjectData();
     } catch (error) {
@@ -1367,7 +1366,7 @@ function ProjectDetails() {
         error,
         "Unable to auto assign tickets right now."
       );
-      toast.error(message);
+      toastError(message);
     } finally {
       setAutoAssignSaving(false);
     }
@@ -1439,13 +1438,7 @@ function ProjectDetails() {
   if (isLoading) {
     return (
       <div className="projects-page project-details-page">
-        <ToastContainer
-          position="top-right"
-          autoClose={2500}
-          theme={isDarkTheme ? "dark" : "light"}
-        />
-
-        <div className="project-details-hero">
+<div className="project-details-hero">
           <div className="project-details-hero-copy">
             <div className="project-details-skeleton-back" />
             <div className="project-details-skeleton-title" />
@@ -1479,13 +1472,7 @@ function ProjectDetails() {
   if (!projectData) {
     return (
       <div className="projects-page project-details-page">
-        <ToastContainer
-          position="top-right"
-          autoClose={2500}
-          theme={isDarkTheme ? "dark" : "light"}
-        />
-
-        <button type="button" className="project-details-back-btn" onClick={handleBack}>
+<button type="button" className="project-details-back-btn" onClick={handleBack}>
           <FaArrowLeft aria-hidden="true" />
           Back to Projects
         </button>
@@ -1500,13 +1487,7 @@ function ProjectDetails() {
 
   return (
     <div className="projects-page project-details-page">
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-        theme={isDarkTheme ? "dark" : "light"}
-      />
-
-      <div className="project-details-hero">
+<div className="project-details-hero">
         <div className="project-details-hero-copy">
           <button type="button" className="project-details-back-btn" onClick={handleBack}>
             <FaArrowLeft aria-hidden="true" />

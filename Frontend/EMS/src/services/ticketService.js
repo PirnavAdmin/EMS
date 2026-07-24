@@ -113,7 +113,26 @@ export const fetchEmployeeTickets = async (employeeId) => {
 };
 
 export const fetchTicketById = async (ticketId) => {
-  const response = await api.get(API_ENDPOINTS.tickets.byId(ticketId));
+  const normalizedTicketId = String(ticketId ?? "").trim();
+  const token = getStoredToken();
+  const url = API_ENDPOINTS.tickets.byId(ticketId);
+
+  console.log("Ticket ID:", ticketId);
+  console.log({
+    url,
+    method: "GET",
+    body: undefined,
+    headers: {
+      Authorization: token ? "Bearer <stored token>" : null,
+    },
+    token: token ? "present" : "missing",
+  });
+
+  if (!normalizedTicketId || ["undefined", "null"].includes(normalizedTicketId.toLowerCase())) {
+    throw new Error("Ticket ID is missing.");
+  }
+
+  const response = await api.get(url);
   return normalizeTicketDetails(response.data);
 };
 

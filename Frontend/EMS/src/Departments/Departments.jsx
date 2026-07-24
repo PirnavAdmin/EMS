@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FaUsers } from "react-icons/fa";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
+import { FaTimes, FaUsers } from "react-icons/fa";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import "./Departments.css";
 
 import api from "../api/axiosInstance";
@@ -204,7 +202,7 @@ function Departments() {
         err
       );
 
-      toast.error(
+      toastError(
         "Failed to load departments."
       );
 
@@ -239,7 +237,7 @@ function Departments() {
         err
       );
 
-      toast.error(
+      toastError(
         "Failed to load employees."
       );
 
@@ -696,7 +694,7 @@ function Departments() {
 
       }
 
-      toast.success(
+      toastSuccess(
         editId
           ? "Department updated successfully."
           : "Department added successfully."
@@ -715,7 +713,7 @@ function Departments() {
         error
       );
 
-      toast.error(
+      toastError(
         error.response?.data
           ?.message ||
         "Unable to save department."
@@ -741,7 +739,7 @@ function Departments() {
       getDepartmentRecordId(dept);
 
     if (!resolvedDepartmentId) {
-      toast.error(
+      toastError(
         "Unable to edit department."
       );
       setActiveMenu(null);
@@ -790,7 +788,7 @@ function Departments() {
       getDepartmentRecordId(dept);
 
     if (!resolvedDepartmentId) {
-      toast.error(
+      toastError(
         "Unable to delete department."
       );
       setActiveMenu(null);
@@ -815,7 +813,7 @@ function Departments() {
       );
 
     if (!resolvedDepartmentId) {
-      toast.error(
+      toastError(
         "Unable to delete department."
       );
       setShowDeleteModal(false);
@@ -845,7 +843,7 @@ function Departments() {
         }
       );
 
-      toast.success(
+      toastSuccess(
         "Department deleted successfully."
       );
 
@@ -864,7 +862,7 @@ function Departments() {
         error
       );
 
-      toast.error(
+      toastError(
         error?.response?.data
           ?.message ||
         "Unable to delete department."
@@ -878,16 +876,32 @@ function Departments() {
   // UI
   //--------------------------------------------------
 
+  useEffect(() => {
+    if (!selectedDept) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setSelectedDept(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [selectedDept]);
+
   return (
 
     <div className="dept-page">
-
-      <ToastContainer
-        position="top-right"
-        autoClose={2400}
-      />
-
-      {/* HEADER */}
+{/* HEADER */}
 
       <div className="dept-header">
 
@@ -1545,7 +1559,7 @@ function Departments() {
                 }
                 aria-label="Close department members"
               >
-                Ãƒâ€”
+                <FaTimes aria-hidden="true" />
               </button>
 
             </div>

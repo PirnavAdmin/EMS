@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaPlus, FaSearch, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import "./Teams.css";
 import AppPagination from "../components/AppPagination";
 import EmptyState from "../components/EmptyState";
@@ -131,23 +130,21 @@ function Teams() {
         }
       );
 
-      toast.success("Team Created");
+      toastSuccess("Team Created");
 
       await fetchTeams();
 
       return response.data;
     } catch (err) {
       console.log(err);
-      toast.error("Unable to create team");
+      toastError("Unable to create team");
     }
   };
 
   if (isLoading) {
     return (
       <div className="teams-page">
-        <ToastContainer position="top-right" autoClose={2500} />
-
-        <div className="teams-header">
+<div className="teams-header">
           <div className="teams-header-copy">
             <div className="teams-skeleton-title" />
             <div className="teams-skeleton-subtitle" />
@@ -171,9 +168,7 @@ function Teams() {
 
   return (
     <div className="teams-page">
-      <ToastContainer position="top-right" autoClose={2500} />
-
-      <div className="teams-header">
+<div className="teams-header">
         <div className="teams-header-copy">
           <h2 className="teams-title">Teams</h2>
           <p className="teams-subtitle">

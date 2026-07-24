@@ -50,8 +50,10 @@ export const TICKET_PRIORITY_OPTIONS = [
 ];
 
 export const ADMIN_TICKET_STATUS_OPTIONS = [
+  "Assigned",
   "Open",
   "In Progress",
+  "On Hold",
   "Completed",
   "Closed",
   "Pending",
@@ -60,8 +62,8 @@ export const ADMIN_TICKET_STATUS_OPTIONS = [
 ];
 
 export const EMPLOYEE_TICKET_STATUS_OPTIONS = [
-  "Open",
   "In Progress",
+  "On Hold",
   "Completed",
 ];
 
@@ -71,35 +73,45 @@ export const TICKET_STATUS_META = {
     label: "Open",
     order: 1,
   },
+  Assigned: {
+    tone: "open",
+    label: "Assigned",
+    order: 2,
+  },
   "In Progress": {
     tone: "progress",
     label: "In Progress",
-    order: 2,
+    order: 3,
+  },
+  "On Hold": {
+    tone: "pending",
+    label: "On Hold",
+    order: 4,
   },
   Completed: {
     tone: "completed",
     label: "Completed",
-    order: 3,
+    order: 5,
   },
   Pending: {
     tone: "pending",
     label: "Pending",
-    order: 4,
+    order: 6,
   },
   Resolved: {
     tone: "resolved",
     label: "Resolved",
-    order: 5,
+    order: 7,
   },
   Closed: {
     tone: "closed",
     label: "Closed",
-    order: 6,
+    order: 8,
   },
   Rejected: {
     tone: "rejected",
     label: "Rejected",
-    order: 7,
+    order: 9,
   },
 };
 
@@ -168,8 +180,16 @@ export const normalizeTicketStatus = (value) => {
     return "Open";
   }
 
+  if (compact === "assigned") {
+    return "Assigned";
+  }
+
   if (compact === "inprogress" || normalized.includes("progress")) {
     return "In Progress";
+  }
+
+  if (compact === "onhold" || normalized.includes("hold")) {
+    return "On Hold";
   }
 
   if (
@@ -519,6 +539,35 @@ export const normalizeTicketRecord = (ticket = {}) => {
     ticket.WorkCompletedAt ??
     "";
 
+  const stoppedDate =
+    ticket.stoppedDate ??
+    ticket.StoppedDate ??
+    ticket.stoppedAt ??
+    ticket.StoppedAt ??
+    ticket.workStoppedAt ??
+    ticket.WorkStoppedAt ??
+    ticket.stopWorkAt ??
+    ticket.StopWorkAt ??
+    "";
+
+  const workStarted =
+    ticket.workStarted ??
+    ticket.WorkStarted ??
+    ticket.isWorkStarted ??
+    ticket.IsWorkStarted ??
+    ticket.hasStartedWork ??
+    ticket.HasStartedWork ??
+    false;
+
+  const workActive =
+    ticket.workActive ??
+    ticket.WorkActive ??
+    ticket.isWorkActive ??
+    ticket.IsWorkActive ??
+    ticket.isWorking ??
+    ticket.IsWorking ??
+    false;
+
   const spentHours =
     ticket.spentHours ??
     ticket.SpentHours ??
@@ -581,7 +630,10 @@ export const normalizeTicketRecord = (ticket = {}) => {
     dueDate,
     assignedDate,
     startedDate,
+    stoppedDate,
     completedDate,
+    workStarted: Boolean(workStarted || startedDate),
+    workActive: Boolean(workActive),
     spentHours,
     notes: normalizeSpace(notes),
     remarks: normalizeSpace(notes),

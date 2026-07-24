@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./Notifications.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import { CardSkeleton } from "../components/Skeletons";
+import { toastError } from "@/components/common/toast/toastService";
 import {
   FaUserPlus,
   FaCheckCircle,
@@ -19,13 +20,9 @@ function Notifications() {
   const getToken = () =>
     localStorage.getItem("token") || sessionStorage.getItem("token");
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
   /* ================= FETCH ================= */
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -59,7 +56,11 @@ function Notifications() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   /* ================= MARK SINGLE ================= */
 
@@ -69,7 +70,7 @@ function Notifications() {
       setUpdatingId(id);
 
       if (!token) {
-        alert("User not authenticated");
+        toastError("User not authenticated");
         return;
       }
 
@@ -87,7 +88,7 @@ function Notifications() {
         err.message ||
         "Failed to update notification";
 
-      alert(message);
+      toastError(message);
 
     } finally {
       setUpdatingId(null);
@@ -101,7 +102,7 @@ function Notifications() {
       const token = getToken();
 
       if (!token) {
-        alert("User not authenticated");
+        toastError("User not authenticated");
         return;
       }
 
@@ -119,7 +120,7 @@ function Notifications() {
         err.message ||
         "Failed to update notifications";
 
-      alert(message);
+      toastError(message);
     }
   };
 

@@ -1,7 +1,6 @@
 ﻿import React, { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import "./AttendanceTable.css";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
@@ -1365,8 +1364,7 @@ function AttendanceTable({
         {
           signal,
           params: {
-            date: todayDate,
-            status: filter || "All"
+            date: todayDate
           },
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1398,7 +1396,7 @@ function AttendanceTable({
 
       logPerformanceError("Daily Error:", err?.response?.data || err.message);
       setAttendanceData([]);
-      toast.error("Failed to fetch daily attendance");
+      toastError("Failed to fetch daily attendance");
     } finally {
       endPerformanceTimer(timerLabel);
 
@@ -1406,7 +1404,7 @@ function AttendanceTable({
         setLoading(false);
       }
     }
-  }, [token, selectedDate, filter]);
+  }, [token, selectedDate]);
 
   const fetchMonthlyAttendance = useCallback(async (requestId, signal) => {
     let canceled = false;
@@ -1448,7 +1446,7 @@ function AttendanceTable({
 
       logPerformanceError("Monthly Error:", err?.response?.data || err.message);
       setAttendanceData([]);
-      toast.error("Failed to fetch monthly attendance");
+      toastError("Failed to fetch monthly attendance");
     } finally {
       endPerformanceTimer(timerLabel);
 
@@ -1503,6 +1501,59 @@ function AttendanceTable({
     },
     [normalizedSearch]
   );
+
+  const normalizedAttendanceFilter = useMemo(() => {
+    const normalizedValue = String(filter || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    if (!normalizedValue || normalizedValue === "all") {
+      return "All";
+    }
+
+    return normalizedValue;
+  }, [filter]);
+
+  const dailySummaryCounts = useMemo(() => {
+    const summary = {
+      present: 0,
+      absent: 0,
+      onLeave: 0,
+      late: 0,
+      halfDay: 0,
+      lossOfPay: 0,
+      missedCheckout: 0,
+      lateMissedCheckout: 0,
+      total: 0,
+    };
+
+    if (viewMode !== "daily") {
+      return summary;
+    }
+
+    const safeAttendanceData = Array.isArray(attendanceData)
+      ? attendanceData
+      : [];
+
+    safeAttendanceData.forEach((item) => {
+      const status = getResolvedStatus(item);
+
+      summary.total += 1;
+
+      if (status === "Present") summary.present += 1;
+      else if (status === "Absent") summary.absent += 1;
+      else if (status === "On Leave") summary.onLeave += 1;
+      else if (status === "Late") summary.late += 1;
+      else if (status === "Half Day") summary.halfDay += 1;
+      else if (status === "Loss Of Pay") summary.lossOfPay += 1;
+      else if (status === "Missed Checkout") summary.missedCheckout += 1;
+      else if (status === "Late & Missed Checkout") summary.lateMissedCheckout += 1;
+    });
+
+    return summary;
+  }, [attendanceData, viewMode]);
 
   // =========================
   // NORMALIZE MONTHLY DATA ONCE
@@ -1579,105 +1630,59 @@ function AttendanceTable({
   // =========================
   // FILTERED DATA
   // =========================
-  const filteredDailyData = useMemo(() => {
-
+  const dailyStatusFilteredData = useMemo(() => {
     if (viewMode !== "daily") {
       return [];
     }
 
-    const safeAttendanceData =
-      Array.isArray(attendanceData)
-        ? attendanceData
-        : [];
+    const safeAttendanceData = Array.isArray(attendanceData)
+      ? attendanceData
+      : [];
 
-    return safeAttendanceData.filter((item) => {
+    if (normalizedAttendanceFilter === "All") {
+      return safeAttendanceData;
+    }
 
-      const finalStatus = getResolvedStatus(item);
+    if (!normalizedAttendanceFilter) {
+      return [];
+    }
 
-      // SEARCH MATCH
-      const searchMatch =
-        matchesSearch(item);
+    return safeAttendanceData.filter((item) =>
+      getResolvedStatus(item).trim().toLowerCase() === normalizedAttendanceFilter
+    );
+  }, [attendanceData, normalizedAttendanceFilter, viewMode]);
 
-      // FILTER MATCH
-      const filterMatch =
-        filter === "All"
-        ||
-        finalStatus?.trim().toLowerCase() ===
-        filter?.trim().toLowerCase();
+  const filteredDailyData = useMemo(() => {
+    if (viewMode !== "daily") {
+      return [];
+    }
 
-      return searchMatch && filterMatch;
+    return dailyStatusFilteredData.filter(matchesSearch);
+  }, [dailyStatusFilteredData, matchesSearch, viewMode]);
 
-    });
-
-  }, [
-    attendanceData,
-    filter,
-    matchesSearch,
-    viewMode
-  ]);
-
-  const filteredMonthlyData = useMemo(() => {
-
+  const monthlyStatusFilteredData = useMemo(() => {
     if (viewMode !== "monthly") return [];
 
-    return normalizedMonthlyData.filter((emp) => {
+    if (normalizedAttendanceFilter === "All") {
+      return normalizedMonthlyData;
+    }
 
-      if (!matchesSearch(emp)) return false;
+    if (!normalizedAttendanceFilter) {
+      return [];
+    }
 
-      if (filter === "All") return true;
+    return normalizedMonthlyData.filter((emp) =>
+      Object.values(emp?.__dayMap || {}).some((dayRecord) =>
+        normalizeStatus(dayRecord?.status || "").trim().toLowerCase() === normalizedAttendanceFilter
+      )
+    );
+  }, [normalizedAttendanceFilter, normalizedMonthlyData, viewMode]);
 
-      const normalizedFilter =
-        normalizeStatus(filter);
+  const filteredMonthlyData = useMemo(() => {
+    if (viewMode !== "monthly") return [];
 
-      if (!normalizedFilter) {
-        return false;
-      }
-
-      const monthlyStatusCountKeyMap = {
-        Present: "present",
-        Absent: "absent",
-        "On Leave": "onLeave",
-        Late: "late",
-        "Half Day": "halfDay",
-        "Loss Of Pay": "lossOfPay",
-        "Missed Checkout": "missedCheckout",
-        "Late & Missed Checkout": "late&MissedCheckout"
-      };
-
-      const countKey =
-        monthlyStatusCountKeyMap[
-        normalizedFilter
-        ];
-
-      if (countKey) {
-
-        const today = new Date().getDate();
-
-        const currentDayStatus =
-          emp?.__dayMap?.[today]?.status;
-
-        return (
-          normalizeStatus(currentDayStatus) ===
-          normalizedFilter
-        );
-      }
-
-      return Object.values(
-        emp?.__dayMap || {}
-      ).some((dayRecord) =>
-        normalizeStatus(
-          dayRecord?.status
-        ) === normalizedFilter
-      );
-
-    });
-
-  }, [
-    normalizedMonthlyData,
-    filter,
-    matchesSearch,
-    viewMode
-  ]);
+    return monthlyStatusFilteredData.filter(matchesSearch);
+  }, [monthlyStatusFilteredData, matchesSearch, viewMode]);
 
   const dailyTotalPages = useMemo(() => {
     return Math.max(
@@ -1853,7 +1858,7 @@ function AttendanceTable({
 
   const handleAttendanceReportDownload = useCallback(async () => {
     if (!selectedReportMonthMeta && downloadReportType !== "Daily") {
-      toast.warning("Select a month to download attendance.");
+      toastWarning("Select a month to download attendance.");
       return;
     }
 
@@ -1861,7 +1866,7 @@ function AttendanceTable({
       downloadReportType === "Weekly" &&
       !selectedReportWeek
     ) {
-      toast.warning("Select a week to download attendance.");
+      toastWarning("Select a week to download attendance.");
       return;
     }
 
@@ -1892,7 +1897,7 @@ function AttendanceTable({
 
         window.URL.revokeObjectURL(url);
 
-        toast.success("Daily attendance downloaded successfully.");
+        toastSuccess("Daily attendance downloaded successfully.");
 
       }
       else if (downloadReportType === "Monthly") {
@@ -1907,7 +1912,7 @@ function AttendanceTable({
       else if (downloadReportType === "Weekly") {
 
         if (!selectedReportWeek) {
-          toast.warning("Select a week");
+          toastWarning("Select a week");
           return;
         }
 
@@ -1929,7 +1934,7 @@ function AttendanceTable({
           forceFallbackFileName: true,
         });
 
-        toast.success("Weekly attendance downloaded successfully.");
+        toastSuccess("Weekly attendance downloaded successfully.");
       }
 
       setDownloadModalOpen(false);
@@ -1939,7 +1944,7 @@ function AttendanceTable({
         error?.response?.data || error.message
       );
 
-      toast.error(
+      toastError(
         await getDownloadErrorMessage(
           error,
           "Failed to download attendance report."
@@ -1976,7 +1981,7 @@ function AttendanceTable({
     const selectedDate = formatDateForInput(checkIn || checkOut || new Date());
 
     if (isFutureDate(selectedDate)) {
-      toast.warning("You cannot edit attendance for a future date");
+      toastWarning("You cannot edit attendance for a future date");
       return;
     }
 
@@ -2000,7 +2005,7 @@ function AttendanceTable({
     const selectedDate = buildDateFromDay(dayNumber);
 
     if (isFutureDate(selectedDate)) {
-      toast.warning("You cannot edit attendance for a future date");
+      toastWarning("You cannot edit attendance for a future date");
       return;
     }
 
@@ -2101,7 +2106,7 @@ function AttendanceTable({
         error
       );
 
-      toast.error(
+      toastError(
         "Failed to fetch attendance details"
       );
 
@@ -2128,7 +2133,7 @@ function AttendanceTable({
     const { name, value } = e.target;
 
     if (name === "date" && isFutureDate(value)) {
-      toast.warning("Future attendance cannot be edited");
+      toastWarning("Future attendance cannot be edited");
       return;
     }
 
@@ -2143,13 +2148,13 @@ function AttendanceTable({
       const resolvedEmployeeId = resolveEmployeeId(editForm.employeeId);
 
       if (!resolvedEmployeeId || !editForm.date) {
-        toast.warning("Employee ID and Date are required");
+        toastWarning("Employee ID and Date are required");
         return;
 
       }
 
       if (isFutureDate(editForm.date)) {
-        toast.error("You cannot update attendance for a future date");
+        toastError("You cannot update attendance for a future date");
         return;
       }
 
@@ -2158,7 +2163,7 @@ function AttendanceTable({
         editForm.checkOut &&
         editForm.checkOut < editForm.checkIn
       ) {
-        toast.error("Check Out time cannot be earlier than Check In time");
+        toastError("Check Out time cannot be earlier than Check In time");
         return;
       }
 
@@ -2198,7 +2203,7 @@ function AttendanceTable({
         }
       );
 
-      toast.success("Attendance updated successfully");
+      toastSuccess("Attendance updated successfully");
       closeEditModal();
 
       if (viewMode === "daily") {
@@ -2224,9 +2229,9 @@ function AttendanceTable({
           .toLowerCase()
           .includes("future")
       ) {
-        toast.error("You cannot update attendance for a future date");
+        toastError("You cannot update attendance for a future date");
       } else {
-        toast.error(
+        toastError(
           backendMessage || "Failed to update attendance. Please check the values."
         );
       }
@@ -2877,18 +2882,7 @@ function AttendanceTable({
 
   return (
     <>
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        pauseOnHover
-        draggable
-        theme="colored"
-      />
-
-      <div className="attendance-table">
+<div className="attendance-table">
         {/* =========================================
     TOP SECTION
 ========================================= */}
@@ -2923,103 +2917,47 @@ function AttendanceTable({
 
                 <div className="attendance-summary-box present">
                   <span className="summary-label">Present</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "Present"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.present}</h3>
                 </div>
 
                 <div className="attendance-summary-box absent">
                   <span className="summary-label">Absent</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "Absent"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.absent}</h3>
                 </div>
 
                 <div className="attendance-summary-box leave">
                   <span className="summary-label">On Leave</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "On Leave"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.onLeave}</h3>
                 </div>
 
                 <div className="attendance-summary-box late">
                   <span className="summary-label">Late</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "Late"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.late}</h3>
                 </div>
 
                 <div className="attendance-summary-box halfday">
                   <span className="summary-label">Half Day</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "Half Day"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.halfDay}</h3>
                 </div>
 
                 <div className="attendance-summary-box lop">
                   <span className="summary-label">Loss Of Pay</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "Loss Of Pay"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.lossOfPay}</h3>
                 </div>
 
                 <div className="attendance-summary-box mc">
                   <span className="summary-label">Missed Checkout</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "Missed Checkout"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.missedCheckout}</h3>
                 </div>
 
                 <div className="attendance-summary-box lmc">
                   <span className="summary-label">Late & Missed Checkout</span>
-                  <h3>
-                    {
-                      filteredDailyData.filter(
-                        (emp) =>
-                          getResolvedStatus(emp) === "Late & Missed Checkout"
-                      ).length
-                    }
-                  </h3>
+                  <h3>{dailySummaryCounts.lateMissedCheckout}</h3>
                 </div>
 
                 <div className="attendance-summary-box total">
                   <span className="summary-label">Total</span>
-                  <h3>{filteredDailyData.length}</h3>
+                  <h3>{dailySummaryCounts.total}</h3>
                 </div>
               </div>
 
@@ -3109,7 +3047,7 @@ function AttendanceTable({
                     }
                   );
 
-                  toast.success(
+                  toastSuccess(
                     "Monthly attendance uploaded successfully"
                   );
 
@@ -3117,7 +3055,7 @@ function AttendanceTable({
 
                   console.error(error);
 
-                  toast.error(
+                  toastError(
                     "Failed to upload monthly attendance"
                   );
 
@@ -3596,7 +3534,7 @@ function AttendanceTable({
                                     status === "Holiday"
                                   ) {
 
-                                    toast.error(
+                                    toastError(
                                       `${status} attendance cannot be edited`
                                     );
 
@@ -3613,7 +3551,7 @@ function AttendanceTable({
 
                                   } else {
 
-                                    toast.warning(
+                                    toastWarning(
                                       "You cannot edit attendance for a future date"
                                     );
                                   }

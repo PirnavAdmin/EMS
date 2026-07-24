@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./Roles.css";
 import { FaShieldAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { TableSkeleton } from "../components/Skeletons";
@@ -65,7 +64,7 @@ function Roles() {
     } catch (error) {
       console.error(error);
       setRoles([]);
-      toast.error(error.response?.data?.message || "Failed to load roles");
+      toastError(error.response?.data?.message || "Failed to load roles");
     } finally {
       setLoading(false);
     }
@@ -155,7 +154,7 @@ function Roles() {
           }
         );
  
-        toast.success("Role updated successfully");
+        toastSuccess("Role updated successfully");
       } else {
         await api.post(API_ENDPOINTS.masters.roles.list, payload, {
           headers: {
@@ -163,14 +162,14 @@ function Roles() {
           }
         });
  
-        toast.success("Role added successfully");
+        toastSuccess("Role added successfully");
       }
  
       resetForm();
       fetchRoles();
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || "Something went wrong");
+      toastError(error.response?.data?.message || "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -180,7 +179,7 @@ function Roles() {
     try {
       await api.delete(API_ENDPOINTS.masters.roles.byId(id));
  
-      toast.success("Role deleted successfully");
+      toastSuccess("Role deleted successfully");
       fetchRoles();
     } catch (error) {
       console.error(error);
@@ -188,9 +187,9 @@ function Roles() {
       const msg = error.response?.data || "";
  
       if (msg.includes("assigned to users")) {
-        toast.error("This role is assigned to users");
+        toastError("This role is assigned to users");
       } else {
-        toast.error("Unable to delete role");
+        toastError("Unable to delete role");
       }
     }
   };
@@ -225,7 +224,7 @@ function Roles() {
       setRoleEmployees(employees);
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || "Failed to load role employees");
+      toastError(error.response?.data?.message || "Failed to load role employees");
     } finally {
       setEmployeesLoading(false);
     }
@@ -240,7 +239,7 @@ function Roles() {
 
   const handleEmployeeSelect = (employee) => {
     if (!employee.employeeId || !employeeModalRole) {
-      toast.error("Employee ID is missing");
+      toastError("Employee ID is missing");
       return;
     }
 
@@ -287,17 +286,7 @@ function Roles() {
  
   return (
     <div className="roles-page-container">
-      <ToastContainer
-        position="top-right"
-        autoClose={2000}
-        newestOnTop
-        closeOnClick
-        pauseOnHover
-        draggable
-        theme="colored"
-        style={{ zIndex: 9999 }}
-      />
-      <div className="roles-header-bar">
+<div className="roles-header-bar">
         <div>
           <h2>Roles & Permissions</h2>
         </div>
@@ -494,7 +483,7 @@ function Roles() {
                       type="button"
                       onClick={() => {
                         if (r.users > 0) {
-                          toast.warning("Role already assigned to users");
+                          toastWarning("Role already assigned to users");
                           return;
                         }
  

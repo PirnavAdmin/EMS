@@ -3,7 +3,7 @@ import {
   FaCloudUploadAlt,
   FaSpinner,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import "../../Employees/AddEmployee/AddEmployee.css";
 import AppDatePicker from "../../components/AppDatePicker";
 import {
@@ -124,7 +124,7 @@ function AgreementSettings({ disabled }) {
         error?.response?.data?.message || "We could not load agreements.";
 
       setLoadError(message);
-      toast.error(message);
+      toastError(message);
     } finally {
       setLoading(false);
     }
@@ -173,7 +173,7 @@ function AgreementSettings({ disabled }) {
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast.error("File size should be less than 10MB");
+      toastError("File size should be less than 10MB");
       resetFileInput();
       return;
     }
@@ -199,27 +199,27 @@ function AgreementSettings({ disabled }) {
       : Boolean(selectedAgreement?.assignToExistingEmployees);
 
     if (!selectedAgreement && !isOtherAgreement) {
-      toast.error("Please select an agreement type.");
+      toastError("Please select an agreement type.");
       return;
     }
 
     if (!agreementName) {
-      toast.error("Please enter agreement type name.");
+      toastError("Please enter agreement type name.");
       return;
     }
 
     if (!agreementCode) {
-      toast.error("Please enter agreement code.");
+      toastError("Please enter agreement code.");
       return;
     }
 
     if (!createdDate) {
-      toast.error("Please select created date.");
+      toastError("Please select created date.");
       return;
     }
 
     if (!selectedFile) {
-      toast.error("Please choose a file.");
+      toastError("Please choose a file.");
       return;
     }
 
@@ -236,11 +236,11 @@ function AgreementSettings({ disabled }) {
       formData.append("File", selectedFile);
 
       await uploadAgreement(formData);
-      toast.success("Agreement Uploaded Successfully");
+      toastSuccess("Agreement Uploaded Successfully");
       resetForm();
       await loadAgreements();
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Agreement upload failed.");
+      toastError(error?.response?.data?.message || "Agreement upload failed.");
     } finally {
       setUploading(false);
     }

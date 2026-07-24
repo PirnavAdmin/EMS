@@ -90,6 +90,12 @@ function TicketForm({
       return;
     }
 
+    if (!ticketId) {
+      setLoadingTicket(false);
+      setTicketRecord(null);
+      return;
+    }
+
     const loadTicket = async () => {
       try {
         setLoadingTicket(true);

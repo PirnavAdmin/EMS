@@ -1,12 +1,15 @@
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import {
+  getStoredIdentityParams,
+  getStoredTenantContextParams,
   getStoredJwtPayload,
   getStoredJwtRole,
   getStoredRole,
   getStoredRoleName,
   getStoredToken,
 } from "../utils/authStorage";
+import { getInputDateValue } from "../utils/date";
 
 const extractFirstNonEmptyValue = (values = []) =>
   values.find((value) => {
@@ -76,6 +79,60 @@ const buildAttendanceDashboardHeaders = (token) => ({
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
 });
 
+const getClientTimezone = () => {
+  try {
+    if (typeof Intl === "undefined" || typeof Intl.DateTimeFormat !== "function") {
+      return "";
+    }
+
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+};
+
+const getCurrentAttendanceWindow = () => {
+  const today = new Date();
+
+  return {
+    month: today.getMonth() + 1,
+    year: today.getFullYear(),
+    fromDate: getInputDateValue(new Date(today.getFullYear(), today.getMonth(), 1)),
+    toDate: getInputDateValue(today),
+  };
+};
+
+const resolveAttendanceRole = () =>
+  getStoredJwtRole() ||
+  getStoredRoleName() ||
+  getStoredRole();
+
+const buildAttendanceWindowParams = () => {
+  const { month, year, fromDate, toDate } = getCurrentAttendanceWindow();
+  const timezone = getClientTimezone();
+  const role = resolveAttendanceRole();
+
+  return {
+    ...(role ? { role } : {}),
+    ...(timezone ? { timezone } : {}),
+    month,
+    year,
+    fromDate,
+    toDate,
+  };
+};
+
+const buildUserAttendanceDashboardParams = () => ({
+  ...getStoredIdentityParams(),
+  ...getStoredTenantContextParams(),
+  ...buildAttendanceWindowParams(),
+});
+
+const buildAdminAttendanceOverviewParams = () => ({
+  ...getStoredTenantContextParams(),
+  ...buildAttendanceWindowParams(),
+});
+
 const getTokenClaims = () => {
   const payload = getStoredJwtPayload() || {};
 
@@ -109,6 +166,22 @@ const getTokenClaims = () => {
       payload.BranchId ||
       payload.Branch_Id ||
       payload.BranchID ||
+      "",
+    companyId:
+      payload.companyId ||
+      payload.company_Id ||
+      payload.companyID ||
+      payload.CompanyId ||
+      payload.Company_Id ||
+      payload.CompanyID ||
+      "",
+    tenantId:
+      payload.tenantId ||
+      payload.tenant_Id ||
+      payload.tenantID ||
+      payload.TenantId ||
+      payload.Tenant_Id ||
+      payload.TenantID ||
       "",
     role:
       payload.role ||
@@ -154,39 +227,80 @@ export const getAttendanceDashboardErrorMessage = (
   return fallbackMessage;
 };
 
-export const getAttendanceDashboardOverview = async ({
+const logAttendanceDashboardRequest = ({
+  label,
+  url,
+  params,
+  headers,
+  token,
+  userRole,
+  claims,
+}) => {
+  console.log(label, {
+    url,
+    method: "GET",
+    baseURL: api.defaults.baseURL,
+    params,
+    headers,
+    token,
+    body: undefined,
+    userRole,
+    claims,
+  });
+};
+
+export const getUserAttendanceDashboard = async ({
   signal,
 } = {}) => {
-  const url = API_ENDPOINTS.attendance.dashboardAttendance;
+  const url = API_ENDPOINTS.attendance.userDashboardOverview;
   const token = getStoredToken();
-  const userRole =
-    getStoredJwtRole() ||
-    getStoredRoleName() ||
-    getStoredRole();
-  const params = {};
+  const userRole = resolveAttendanceRole();
+  const params = buildUserAttendanceDashboardParams();
   const headers = buildAttendanceDashboardHeaders(token);
   const claims = getTokenClaims();
 
-  console.log("Dashboard Attendance Request");
-  console.log("URL:", url);
-  console.log("Method:", "GET");
-  console.log("Params:", params);
-  console.log("Headers:", headers);
-  console.log("JWT Token:", token);
-  console.log("User Role:", userRole);
-  console.log("Claims:", claims);
+  logAttendanceDashboardRequest({
+    label: "User Attendance Dashboard Request",
+    url,
+    params,
+    headers,
+    token,
+    userRole,
+    claims,
+  });
 
-  try {
-    return await api.get(url, {
-      signal,
-      headers,
-      dedupe: false,
-    });
-  } catch (error) {
-    if (error?.response?.data) {
-      console.error(error.response.data);
-    }
+  return api.get(url, {
+    signal,
+    params,
+    headers,
+    dedupe: false,
+  });
+};
 
-    throw error;
-  }
+export const getAdminAttendanceOverview = async ({
+  signal,
+} = {}) => {
+  const url = API_ENDPOINTS.attendance.adminDashboardOverview;
+  const token = getStoredToken();
+  const userRole = resolveAttendanceRole();
+  const params = buildAdminAttendanceOverviewParams();
+  const headers = buildAttendanceDashboardHeaders(token);
+  const claims = getTokenClaims();
+
+  logAttendanceDashboardRequest({
+    label: "Admin Attendance Overview Request",
+    url,
+    params,
+    headers,
+    token,
+    userRole,
+    claims,
+  });
+
+  return api.get(url, {
+    signal,
+    params,
+    headers,
+    dedupe: false,
+  });
 };

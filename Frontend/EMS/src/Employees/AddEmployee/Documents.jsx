@@ -15,7 +15,7 @@ import {
     FaSpinner,
     FaTrash,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
 import "./AddEmployee.css";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
@@ -1017,7 +1017,7 @@ function Documents({
                 setPendingAgreementCount(0);
                 setSignedAgreementCount(0);
                 setLoadError(message);
-                toast.error(message);
+                toastError(message);
             } finally {
                 if (!silent && isMountedRef.current) {
                     setAgreementLoading(false);
@@ -1057,7 +1057,7 @@ function Documents({
             clearSelectedFile();
             setFileValidationError(fileSizeValidation.message);
             setApiError("");
-            toast.error(fileSizeValidation.message);
+            toastError(fileSizeValidation.message);
             return;
         }
 
@@ -1077,7 +1077,7 @@ function Documents({
         if (!file.type?.startsWith("image/")) {
             const message = "Please upload a valid signature image.";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             event.target.value = "";
             return;
         }
@@ -1085,7 +1085,7 @@ function Documents({
         if (file.size > MAX_SIGNATURE_FILE_SIZE_BYTES) {
             const message = "Signature image should be less than 10MB";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             event.target.value = "";
             return;
         }
@@ -1099,28 +1099,28 @@ function Documents({
         if (!employeeKey) {
             const message = "Employee ID missing";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
         if (!selectedDocumentType) {
             const message = "Please select a document type.";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
         if (selectedDocumentTypeIsUploaded) {
             const message = `${selectedDocumentType} has already been uploaded. Delete the existing document before uploading again.`;
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
         if (!selectedFile) {
             const message = "Please select a file";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
@@ -1130,7 +1130,7 @@ function Documents({
             clearSelectedFile();
             setFileValidationError(fileSizeValidation.message);
             setApiError("");
-            toast.error(fileSizeValidation.message);
+            toastError(fileSizeValidation.message);
             return;
         }
 
@@ -1207,7 +1207,7 @@ function Documents({
             clearSelectedFile();
             setSelectedDocumentType("");
             setSuccessMsg("Document uploaded successfully.");
-            toast.success("Document uploaded successfully.");
+            toastSuccess("Document uploaded successfully.");
 
             loadDocuments({ silent: true });
         } catch (error) {
@@ -1219,7 +1219,7 @@ function Documents({
                 error?.response?.data?.message || "Upload failed";
 
             setApiError(message);
-            toast.error(message);
+            toastError(message);
         } finally {
             if (isMountedRef.current) {
                 setUploading(false);
@@ -1258,7 +1258,7 @@ function Documents({
             }
 
             setSuccessMsg("Document deleted successfully.");
-            toast.success("Document deleted successfully.");
+            toastSuccess("Document deleted successfully.");
             setShowDeleteModal(false);
             setSelectedDeleteDocument(null);
         } catch (error) {
@@ -1273,7 +1273,7 @@ function Documents({
                 error?.response?.data?.message || "Failed to delete document";
 
             setApiError(message);
-            toast.error(message);
+            toastError(message);
         } finally {
             if (isMountedRef.current) {
                 setDeletingId("");
@@ -1318,7 +1318,7 @@ function Documents({
         const serverId = getDocumentServerId(doc);
 
         if (!serverId) {
-            toast.error("Document ID missing");
+            toastError("Document ID missing");
             return;
         }
 
@@ -1349,7 +1349,7 @@ function Documents({
         });
 
         if (!viewKey) {
-            toast.error("Agreement ID missing");
+            toastError("Agreement ID missing");
             return;
         }
 
@@ -1384,7 +1384,7 @@ function Documents({
                 blob: null,
             });
             setApiError(message);
-            toast.error(message);
+            toastError(message);
         } finally {
             if (isMountedRef.current) {
                 setAgreementActionLoading("");
@@ -1417,7 +1417,7 @@ function Documents({
         console.log("Request URL:", requestUrl);
 
         if (!previewKey) {
-            toast.error("Agreement ID missing");
+            toastError("Agreement ID missing");
             return;
         }
 
@@ -1452,7 +1452,7 @@ function Documents({
                 blob: null,
             });
             setApiError(message);
-            toast.error(message);
+            toastError(message);
         } finally {
             if (isMountedRef.current) {
                 setAgreementActionLoading("");
@@ -1480,7 +1480,7 @@ function Documents({
         });
 
         if (!downloadKey) {
-            toast.error("Agreement ID missing");
+            toastError("Agreement ID missing");
             return;
         }
 
@@ -1501,7 +1501,7 @@ function Documents({
             );
 
             setApiError(message);
-            toast.error(message);
+            toastError(message);
         } finally {
             if (isMountedRef.current) {
                 setAgreementDownloadLoading("");
@@ -1516,35 +1516,35 @@ function Documents({
         if (!employeeIdForSignature) {
             const message = "Employee ID missing";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
         if (!agreement?.agreementCode) {
             const message = "Agreement code missing";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
         if (!signatureName.trim()) {
             const message = "Please enter signature name.";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
         if (!signedLocation.trim()) {
             const message = "Please enter signed location.";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
         if (!signatureImage) {
             const message = "Please upload signature image.";
             setApiError(message);
-            toast.error(message);
+            toastError(message);
             return;
         }
 
@@ -1594,7 +1594,7 @@ function Documents({
             setSignedLocation("");
             setSignatureImage(null);
             setSuccessMsg("Agreement Signed Successfully");
-            toast.success("Agreement Signed Successfully");
+            toastSuccess("Agreement Signed Successfully");
             await loadAgreements({ silent: true });
 
             const refreshedPending = await getPendingAgreementCount(employeeIdForSignature);
@@ -1625,7 +1625,7 @@ function Documents({
                 error?.response?.data?.message || "Agreement signing failed";
 
             setApiError(message);
-            toast.error(message);
+            toastError(message);
         } finally {
             if (isMountedRef.current) {
                 setSigningAgreement(false);
@@ -1645,7 +1645,7 @@ function Documents({
         if (agreementCategory === "documents" && documentCount === 0) {
             const message = "Upload documents to continue.";
             setApiError(message);
-            toast.warning(message);
+            toastWarning(message);
             return;
         }
 
@@ -1665,7 +1665,7 @@ function Documents({
                     ? "Moving to the next section."
                     : "Documents saved successfully."
             );
-            toast.success(
+            toastSuccess(
                 viewMode
                     ? "Moving to the next section."
                     : "Documents saved successfully."
@@ -1680,7 +1680,7 @@ function Documents({
                 "Unable to move to the next section.";
 
             setApiError(message);
-            toast.error(message);
+            toastError(message);
         } finally {
             if (isMountedRef.current) {
                 setSavingNext(false);

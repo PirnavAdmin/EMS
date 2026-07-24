@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Assets.css";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
 import AppPagination from "../components/AppPagination";
@@ -476,7 +475,7 @@ export default function Assets() {
         console.error("Error Response Headers:", err.response.headers);
       }
 
-      toast.error("Failed to load assets.");
+      toastError("Failed to load assets.");
     }
   };
 
@@ -504,7 +503,7 @@ export default function Assets() {
       setEmployeeLoadError(
         "Unable to load employee codes. Refresh the page and try again."
       );
-      toast.error("Failed to load employee codes for asset assignment.");
+      toastError("Failed to load employee codes for asset assignment.");
     } finally {
       setEmployeesLoaded(true);
     }
@@ -814,13 +813,13 @@ export default function Assets() {
     const oversizedFile = files.find((file) => file.size > MAX_IMAGE_SIZE_BYTES);
 
     if (invalidFile) {
-      toast.error("Upload valid image files only: PNG, JPG, WEBP, GIF or SVG.");
+      toastError("Upload valid image files only: PNG, JPG, WEBP, GIF or SVG.");
       event.target.value = "";
       return;
     }
 
     if (oversizedFile) {
-      toast.error(
+      toastError(
         `"${oversizedFile.name}" is larger than 5 MB. Upload a smaller image.`
       );
       event.target.value = "";
@@ -860,7 +859,7 @@ export default function Assets() {
     setApiError("");
 
     if (!validateForm(trimmedAsset)) {
-      toast.error("Please correct the highlighted asset fields.");
+      toastError("Please correct the highlighted asset fields.");
       return;
     }
 
@@ -889,7 +888,7 @@ export default function Assets() {
           ...prev,
           assigned: employeeError,
         }));
-        toast.error(employeeError);
+        toastError(employeeError);
         return;
       }
 
@@ -956,7 +955,7 @@ export default function Assets() {
         await api.post(API_ENDPOINTS.masters.assets.list, formData);
       }
 
-      toast.success(editId ? "Asset updated successfully." : "Asset saved successfully.");
+      toastSuccess(editId ? "Asset updated successfully." : "Asset saved successfully.");
       closeForm();
       await fetchAssets();
     } catch (error) {
@@ -977,7 +976,7 @@ export default function Assets() {
       }
 
       setApiError(backendMessage);
-      toast.error(backendMessage || "Unable to save asset.");
+      toastError(backendMessage || "Unable to save asset.");
     } finally {
       setSaving(false);
     }
@@ -1005,13 +1004,13 @@ export default function Assets() {
 
     try {
       await api.delete(API_ENDPOINTS.masters.assets.byId(assetToDelete.assetId));
-      toast.success("Asset deleted successfully.");
+      toastSuccess("Asset deleted successfully.");
       setShowDeletePopup(false);
       setAssetToDelete(null);
       await fetchAssets();
     } catch (error) {
       console.error("Error deleting asset:", error);
-      toast.error("Unable to delete asset.");
+      toastError("Unable to delete asset.");
     }
   };
 
@@ -1091,9 +1090,7 @@ export default function Assets() {
 
   return (
     <div className="assets-page">
-      <ToastContainer position="top-right" autoClose={2400} />
-
-      <div className="assets-header">
+<div className="assets-header">
         <div className="assets-header-copy">
           <h2>Asset Management</h2>
           <p>Track and manage company assets</p>

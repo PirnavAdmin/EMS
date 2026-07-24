@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "react-toastify";
+import { toastError } from "@/components/common/toast/toastService";
 import { getOfferLetterApiErrorMessage } from "../services/offerLetterService";
 
 const SENT_STATUS_VALUES = new Set([
@@ -562,7 +562,7 @@ export const useDocumentSendStatus = ({
           normalizedErrorLabel
         );
 
-        toast.error(message);
+        toastError(message);
 
         if (typeof onError === "function") {
           onError(firstError, message);

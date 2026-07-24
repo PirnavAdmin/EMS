@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS, buildApiUrl } from "../../api/endpoints";
 import {
@@ -197,14 +196,14 @@ function AddEmployee() {
 
       if (!latestEmployee) {
         setReviewError("Unable to refresh the latest employee details.");
-        toast.error("Unable to refresh the latest employee details.");
+        toastError("Unable to refresh the latest employee details.");
         return;
       }
 
       setIsEditing(false);
       setMaxStep((prev) => Math.max(prev, 6));
       setReviewSuccess("Profile reviewed and submitted successfully.");
-      toast.success("Profile reviewed and submitted successfully.");
+      toastSuccess("Profile reviewed and submitted successfully.");
       setTimeout(() => {
         setStep(1);
         setMaxStep(1);
@@ -241,7 +240,7 @@ function AddEmployee() {
           message: "",
         });
       }, 3000);
-      toast.error(message);
+      toastError(message);
       return;
     }
 
@@ -253,7 +252,7 @@ function AddEmployee() {
         type: "error",
         message,
       });
-      toast.error(message);
+      toastError(message);
       return;
     }
 
@@ -287,7 +286,7 @@ function AddEmployee() {
         });
       }, 3000);
 
-      toast.success(message);
+      toastSuccess(message);
     } catch (error) {
       const message = error?.response
         ? await getDownloadErrorMessage(
@@ -300,7 +299,7 @@ function AddEmployee() {
         type: "error",
         message,
       });
-      toast.error(message);
+      toastError(message);
     } finally {
       setProfilePdfLoading(false);
     }
@@ -317,17 +316,7 @@ function AddEmployee() {
 
   return (
     <div className="add-employee">
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-        hideProgressBar
-        newestOnTop
-        closeButton={false}
-        pauseOnHover
-        theme="light"
-      />
-
-      <div className="page-header-row profile-card">
+<div className="page-header-row profile-card">
         <div className="profile-header-copy">
           <h2 className="page-title profile-title">{viewMode ? "Employee Details" : "My Profile"}</h2>
 

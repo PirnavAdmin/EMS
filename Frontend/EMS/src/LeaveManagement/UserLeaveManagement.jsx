@@ -8,8 +8,7 @@ import {
   FaRegCalendarAlt,
   FaTrash
 } from "react-icons/fa";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import { formatDate, isDateRangeValid } from "../utils/date";
 import { extractCollection, sortByRecency } from "../utils/collections";
@@ -156,7 +155,7 @@ function UserLeaveManagement() {
   //     setBalance(formattedBalance);
   //   } catch (error) {
   //     console.error("❌ Error fetching leave balance:", error);
-  //     toast.error("Failed to fetch balance");
+  //     toastError("Failed to fetch balance");
   //   }
   // };
 
@@ -191,7 +190,7 @@ function UserLeaveManagement() {
         err.response?.data ||
         "Error applying leave";
 
-      toast.error(message);
+      toastError(message);
     }
   };
 
@@ -213,7 +212,7 @@ function UserLeaveManagement() {
 
     if (!endpoint) {
       setWfhData([]);
-      toast.error("WFH endpoint is not configured. Showing leave data only.");
+      toastError("WFH endpoint is not configured. Showing leave data only.");
       return [];
     }
 
@@ -271,7 +270,7 @@ function UserLeaveManagement() {
 
       setWfhData([]);
 
-      toast.error(
+      toastError(
         "Unable to load Work From Home requests. Showing leave data only."
       );
 
@@ -320,22 +319,22 @@ function UserLeaveManagement() {
 
   const handleSubmit = async () => {
     if (!form.fromDate || !form.toDate || !form.reason.trim()) {
-      toast.error("Please fill all fields");
+      toastError("Please fill all fields");
       return;
     }
 
     if (!isDateRangeValid(form.fromDate, form.toDate)) {
-      toast.error("From date cannot be after To date");
+      toastError("From date cannot be after To date");
       return;
     }
     if (isWeekendOnlyRange(form.fromDate, form.toDate)) {
-      toast.error("Leave cannot be applied for weekends");
+      toastError("Leave cannot be applied for weekends");
       return;
     }
 
     const token = getToken();
     if (!token) {
-      toast.error("User not authenticated");
+      toastError("User not authenticated");
       return;
     }
 
@@ -370,7 +369,7 @@ function UserLeaveManagement() {
 
       console.log("📄 Apply Leave Response:", res.data);
 
-      toast.success("Leave applied successfully ✅");
+      toastSuccess("Leave applied successfully ✅");
 
       await fetchLeaves();
       await fetchMyWFH();
@@ -390,7 +389,7 @@ function UserLeaveManagement() {
         err.response?.data ||
         "Error applying leave";
 
-      toast.error(message);
+      toastError(message);
     } finally {
       setLoading(false);
     }
@@ -404,7 +403,7 @@ function UserLeaveManagement() {
 
     const token = getToken();
     if (!token) {
-      toast.error("User not authenticated");
+      toastError("User not authenticated");
       return;
     }
 
@@ -417,7 +416,7 @@ function UserLeaveManagement() {
       leaveIdentifierFields.id;
 
     if (!resolvedLeaveId) {
-      toast.error("Unable to delete leave");
+      toastError("Unable to delete leave");
       return;
     }
 
@@ -431,13 +430,13 @@ function UserLeaveManagement() {
         data: leaveIdentifierFields,
       });
 
-      toast.success("Leave deleted successfully 🗑️");
+      toastSuccess("Leave deleted successfully 🗑️");
 
       await fetchLeaves();
       // await fetchBalance();
     } catch (err) {
       console.error(err);
-      toast.error(
+      toastError(
         err?.response?.data?.message ||
         "Error deleting leave"
       );
@@ -457,7 +456,7 @@ function UserLeaveManagement() {
         }
       );
 
-      toast.success("WFH cancelled");
+      toastSuccess("WFH cancelled");
 
       await fetchMyWFH();
 
@@ -465,7 +464,7 @@ function UserLeaveManagement() {
 
       console.error(err);
 
-      toast.error("Unable to cancel WFH");
+      toastError("Unable to cancel WFH");
 
     }
   };
@@ -528,9 +527,7 @@ function UserLeaveManagement() {
           marginTop: "-20px",
         }}
       >
-        <ToastContainer position="top-right" autoClose={3000} />
-
-        <h2
+<h2
           className="leave-main-title"
           style={{
             marginTop: "0px",
@@ -569,9 +566,7 @@ function UserLeaveManagement() {
           marginTop: "-20px",
         }}
       >
-        <ToastContainer position="top-right" autoClose={3000} />
-
-        <h2
+<h2
           className="leave-main-title"
           style={{
             marginTop: "0px",

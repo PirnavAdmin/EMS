@@ -7,8 +7,7 @@ import {
   FaSitemap,
 } from "react-icons/fa";
 import "./CompanyDetails.css";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
@@ -140,7 +139,7 @@ function CompanyDetails() {
       });
     } catch (error) {
       console.error("Company fetch error:", error);
-      toast.error("Failed to load company details.");
+      toastError("Failed to load company details.");
     }
   };
 
@@ -160,7 +159,7 @@ function CompanyDetails() {
       setBranches(mappedBranches);
     } catch (error) {
       console.error("Branches fetch error:", error);
-      toast.error("Failed to load branches.");
+      toastError("Failed to load branches.");
     }
   };
 
@@ -610,12 +609,12 @@ const updateCompany = async () => {
     };
 
     await api.put(API_ENDPOINTS.company.update(COMPANY_ID), payload);
-    toast.success("Company details updated successfully.");
+    toastSuccess("Company details updated successfully.");
     closeModal();
     await fetchCompany();
   } catch (error) {
     console.error("Update error:", error.response?.data || error.message);
-    toast.error("Unable to update company details.");
+    toastError("Unable to update company details.");
   } finally {
     setCompanySaving(false);
   }
@@ -650,12 +649,12 @@ const handleSaveBranch = async () => {
       });
     }
 
-    toast.success(editingBranchId ? "Branch updated successfully." : "Branch added successfully.");
+    toastSuccess(editingBranchId ? "Branch updated successfully." : "Branch added successfully.");
     closeModal();
     await fetchBranches();
   } catch (error) {
     console.error("Branch save error:", error.response?.data || error.message);
-    toast.error("Unable to save branch.");
+    toastError("Unable to save branch.");
   } finally {
     setBranchSaving(false);
   }
@@ -685,21 +684,19 @@ const handleDeleteBranch = async () => {
 
   try {
     await api.delete(API_ENDPOINTS.company.branches.byId(selectedBranch.id));
-    toast.success("Branch deleted successfully.");
+    toastSuccess("Branch deleted successfully.");
     setShowDeleteModal(false);
     closeBranchPopup();
     await fetchBranches();
   } catch (error) {
     console.error("Delete error:", error.response?.data || error.message);
-    toast.error("Unable to delete branch.");
+    toastError("Unable to delete branch.");
   }
 };
 
 return (
   <div className="company-page">
-    <ToastContainer position="top-right" autoClose={2400} />
-
-    <div className="company-card">
+<div className="company-card">
       <div className="company-header">
         <div className="company-header-copy">
           <h2>{company.name || "Company"}</h2>

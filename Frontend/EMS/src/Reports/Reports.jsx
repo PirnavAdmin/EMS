@@ -12,8 +12,7 @@ import {
   FaUserTimes,
   FaUsers,
 } from "react-icons/fa";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastError } from "@/components/common/toast/toastService";
 import "./Reports.css";
 
 import api from "../api/axiosInstance";
@@ -31,7 +30,6 @@ function Reports() {
   const token = getStoredToken();
   const navigate = useNavigate();
   const { themeMode } = useTheme();
-  const isDarkTheme = themeMode !== "light";
 
   const [reportCards, setReportCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -284,7 +282,7 @@ function Reports() {
         `Failed to download ${report.title.toLowerCase()}.`;
 
       console.error(`Download failed for ${report.title}:`, downloadError);
-      toast.error(downloadMessage);
+      toastError(downloadMessage);
     } finally {
       if (downloadLockRef.current === downloadKey) {
         downloadLockRef.current = "";
@@ -310,13 +308,7 @@ function Reports() {
 
   return (
     <div className="reports-page">
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-        theme={isDarkTheme ? "dark" : "light"}
-      />
-
-      <div className="reports-header">
+<div className="reports-header">
         <h2 className="reports-title">Reports</h2>
         <p className="reports-subtitle">Generate and view reports</p>
       </div>

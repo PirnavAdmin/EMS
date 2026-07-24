@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaArrowLeft, FaUsers } from "react-icons/fa";
-import { ToastContainer, toast } from "react-toastify";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import { useNavigate, useParams } from "react-router-dom";
-import "react-toastify/dist/ReactToastify.css";
 import "./Teams.css";
 import EmptyState from "../components/EmptyState";
 import { CardSkeleton, TableSkeleton } from "../components/Skeletons";
@@ -97,7 +96,7 @@ function TeamDetails() {
   const handleSaveReportingDays = async () => {
 
     if (draftReportingDays.length === 0) {
-      toast.error("Select at least one reporting day");
+      toastError("Select at least one reporting day");
       return;
     }
 
@@ -119,7 +118,7 @@ function TeamDetails() {
           }
         }
       );
-      toast.success("Reporting days updated");
+      toastSuccess("Reporting days updated");
 
       setIsEditingReportingDays(false);
 
@@ -132,7 +131,7 @@ function TeamDetails() {
       console.log("URL:", err.config?.baseURL + err.config?.url);
       console.log("Request:", JSON.parse(err.config?.data || "{}"));
       console.log("Response:", err.response?.data);
-      toast.error("Unable to update reporting days");
+      toastError("Unable to update reporting days");
 
     }
   };
@@ -217,9 +216,7 @@ function TeamDetails() {
   if (isLoading) {
     return (
       <div className="teams-page">
-        <ToastContainer position="top-right" autoClose={2500} />
-
-        <div className="teams-details-back-row">
+<div className="teams-details-back-row">
           <div className="teams-skeleton-back-button" />
         </div>
 
@@ -247,9 +244,7 @@ function TeamDetails() {
   if (!team) {
     return (
       <div className="teams-page">
-        <ToastContainer position="top-right" autoClose={2500} />
-
-        <button
+<button
           type="button"
           className="teams-back-btn"
           onClick={() => navigate("/teams")}
@@ -268,9 +263,7 @@ function TeamDetails() {
 
   return (
     <div className="teams-page">
-      <ToastContainer position="top-right" autoClose={2500} />
-
-      <button
+<button
         type="button"
         className="teams-back-btn"
         onClick={() => navigate("/teams")}
@@ -425,7 +418,7 @@ function TeamDetails() {
               }
             );
 
-            toast.success("Team updated successfully");
+            toastSuccess("Team updated successfully");
 
             setIsEditTeamOpen(false);
 
@@ -438,7 +431,7 @@ function TeamDetails() {
             console.log("Response:", err.response?.data);
             console.log("Request:", JSON.parse(err.config?.data || "{}"));
 
-            toast.error(err.response?.data || "Unable to update team");
+            toastError(err.response?.data || "Unable to update team");
           }
         }}
       />
@@ -464,7 +457,7 @@ function TeamDetails() {
               }
             );
 
-            toast.success("Members added");
+            toastSuccess("Members added");
 
             setIsAddMemberOpen(false);
 
@@ -474,7 +467,7 @@ function TeamDetails() {
 
             console.log(err);
 
-            toast.error("Unable to add members");
+            toastError("Unable to add members");
 
           }
 
@@ -498,7 +491,7 @@ function TeamDetails() {
               }
             );
 
-            toast.success("Team deleted");
+            toastSuccess("Team deleted");
 
             navigate("/teams");
 
@@ -506,7 +499,7 @@ function TeamDetails() {
 
             console.log(err);
 
-            toast.error("Unable to delete team");
+            toastError("Unable to delete team");
 
           }
 
@@ -533,7 +526,7 @@ function TeamDetails() {
               }
             );
 
-            toast.success("Member removed");
+            toastSuccess("Member removed");
 
             setRemoveMember(null);
 
@@ -543,7 +536,7 @@ function TeamDetails() {
 
             console.log(err);
 
-            toast.error("Unable to remove member");
+            toastError("Unable to remove member");
 
           }
 

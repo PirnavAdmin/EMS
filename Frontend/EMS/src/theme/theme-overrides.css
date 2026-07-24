@@ -849,60 +849,6 @@ html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
   color: var(--theme-on-primary);
 }
 
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast,
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast-theme--light,
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast-theme--dark,
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast-theme--colored {
-  --toast-bg: var(--card-bg);
-  --toast-border: var(--border-color);
-  --toast-text: var(--text-primary);
-  --toast-progress: var(--theme-primary);
-}
-
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast--success {
-  --toast-bg: var(--surface-success-soft);
-  --toast-border: var(--theme-success);
-  --toast-text: var(--theme-success-strong);
-  --toast-progress: var(--theme-success);
-}
-
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast--error {
-  --toast-bg: var(--surface-danger-soft);
-  --toast-border: var(--theme-danger);
-  --toast-text: var(--theme-danger-strong);
-  --toast-progress: var(--theme-danger);
-}
-
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast--warning {
-  --toast-bg: var(--surface-warning-soft);
-  --toast-border: var(--theme-warning);
-  --toast-text: var(--theme-warning-strong);
-  --toast-progress: var(--theme-warning);
-}
-
-html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
-  [data-theme="executive-dark-blue"]
-) .Toastify__toast--info {
-  --toast-bg: var(--surface-info-soft);
-  --toast-border: var(--theme-info);
-  --toast-text: var(--theme-info-strong);
-  --toast-progress: var(--theme-info);
-}
-
 html body :is(
   button:not(.auth-field-action),
   [role="button"],

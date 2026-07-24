@@ -12,9 +12,7 @@ import {
   normalizePermissionList,
   saveUserPermission,
 } from "../../services/permissionService";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 const MODULES = [
   { moduleId: 46, moduleName: "Dashboard" },
   { moduleId: 47, moduleName: "Employees" },
@@ -249,7 +247,7 @@ function ScreenPermissions() {
         }
       } catch (error) {
         console.error(error);
-        toast.error("Unable to load permissions.");
+        toastError("Unable to load permissions.");
       } finally {
         if (active) {
           setLoading(false);
@@ -359,11 +357,11 @@ function ScreenPermissions() {
 
       const nextSignature = permissionsSignature(editablePermissions);
       setInitialSignature(nextSignature);
-      toast.success("Permissions saved successfully.");
+      toastSuccess("Permissions saved successfully.");
       setTimeout(() => navigate("/roles"), 1000);
     } catch (error) {
       console.error(error);
-      toast.error("Unable to save permissions.");
+      toastError("Unable to save permissions.");
     } finally {
       setSaving(false);
     }
@@ -379,9 +377,7 @@ function ScreenPermissions() {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} />
-
-      <div className="permission-page">
+<div className="permission-page">
         <div className="permission-top">
           <div>
             {isEmployeeMode ? (

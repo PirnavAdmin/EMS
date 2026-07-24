@@ -32,8 +32,7 @@ import {
   previewOfferLetter,
   sendOfferLetter,
 } from "../services/offerLetterService";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError, toastInfo } from "@/components/common/toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import DocumentSendStatusButton from "../components/documentSendStatus/DocumentSendStatusButton";
 import SendAgainModal from "../components/documentSendStatus/SendAgainModal";
@@ -213,6 +212,12 @@ const formatRelievingTableValue = (value) => {
   return normalizedValue || "-";
 };
 
+const RELIEVING_TITLE_OPTIONS = [
+  { label: "Mr", value: "Mr" },
+  { label: "Ms", value: "Ms" },
+  { label: "Mrs", value: "Mrs" },
+];
+
 const getOfferLetterId = (letter) =>
   letter?.id ||
   letter?.offerLetterId ||
@@ -220,12 +225,60 @@ const getOfferLetterId = (letter) =>
   letter?.offerLetterID ||
   "";
 
-const getOfferLetterEmployeeId = (letter) =>
-  letter?.employeeId ||
-  letter?.employee_Id ||
-  letter?.employee_id ||
-  letter?.employeeID ||
-  "";
+const SALARY_FIELD_NAMES = [
+  "monthlyCTC",
+  "basic",
+  "hra",
+  "conveyance",
+  "medicalAllowance",
+  "otherAllowance",
+  "providentFund",
+  "professionalTax",
+  "gross",
+  "netTakeHome",
+];
+
+const unwrapSalaryBreakupResponse = (response) =>
+  response?.data?.data ||
+  response?.data ||
+  response ||
+  {};
+
+const parseSalaryAmount = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const normalizedValue = String(value).replace(/,/g, "").trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const numericValue = Number(normalizedValue);
+
+  return Number.isFinite(numericValue) ? numericValue : null;
+};
+
+const toSalaryInputValue = (value) => {
+  const numericValue = parseSalaryAmount(value);
+
+  if (numericValue === null) {
+    return "";
+  }
+
+  return String(numericValue);
+};
+
+const formatSalaryAmount = (value) => {
+  const numericValue = parseSalaryAmount(value);
+
+  if (numericValue === null) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("en-IN").format(numericValue);
+};
 
 function OfferLetters() {
   const [letterType, setLetterType] = useState("offer");
@@ -265,6 +318,7 @@ function OfferLetters() {
     employeeId: "",
     title: "",
     relievingDate: "",
+    designation: "",
   });
   const [generatedRelievingLetters, setGeneratedRelievingLetters] = useState([]);
   const [loadingRelievingLetters, setLoadingRelievingLetters] = useState(false);
@@ -383,6 +437,25 @@ function OfferLetters() {
     ],
     [employees]
   );
+
+  const selectedRelievingEmployee = useMemo(() => {
+    const selectedEmployeeId = String(relievingForm.employeeId || "")
+      .trim()
+      .toLowerCase();
+
+    if (!selectedEmployeeId) {
+      return null;
+    }
+
+    return (
+      employees.find(
+        (employee) =>
+          String(getEmployeeId(employee) || "")
+            .trim()
+            .toLowerCase() === selectedEmployeeId
+      ) || null
+    );
+  }, [employees, relievingForm.employeeId]);
 
   const findEmployeeForRelievingLetter = useCallback(
     (letter) => {
@@ -561,14 +634,14 @@ HR Team`,
       const numericValue = value
         .replace(/\D/g, "")
         .slice(0, 8);
-      const annualCTC = Number(numericValue);
+      const annualCTC = parseSalaryAmount(numericValue);
 
       setFormData((prev) => ({
         ...prev,
-        ctc_Annual: new Intl.NumberFormat("en-IN").format(annualCTC),
+        ctc_Annual: numericValue,
       }));
 
-      if (!annualCTC || annualCTC <= 0) return;
+      if (annualCTC === null || annualCTC <= 0) return;
 
       try {
         const response = await calculateOfferLetterBreakup({
@@ -576,54 +649,29 @@ HR Team`,
           ManualOverrideFields: [],
         });
 
-        const data = response.data;
+        const data = unwrapSalaryBreakupResponse(response);
+
+        const nextSalaryState = {
+          ctc_Annual: toSalaryInputValue(annualCTC),
+        };
+
+        SALARY_FIELD_NAMES.forEach((fieldName) => {
+          nextSalaryState[fieldName] = toSalaryInputValue(
+            data?.[fieldName]
+          );
+        });
+
+        console.log("Salary Breakup Response", {
+          response,
+          responseData: response?.data,
+          responseDataData: response?.data?.data,
+        });
+
+        console.log("Salary Structure State", nextSalaryState);
 
         setFormData((prev) => ({
           ...prev,
-
-          ctc_Annual: new Intl.NumberFormat("en-IN").format(
-            annualCTC
-          ),
-
-          monthlyCTC: new Intl.NumberFormat("en-IN").format(
-            data.monthlyCTC || 0
-          ),
-
-          basic: new Intl.NumberFormat("en-IN").format(
-            data.basic || 0
-          ),
-
-          hra: new Intl.NumberFormat("en-IN").format(
-            data.hra || 0
-          ),
-
-          conveyance: new Intl.NumberFormat("en-IN").format(
-            data.conveyance || 0
-          ),
-
-          medicalAllowance: new Intl.NumberFormat("en-IN").format(
-            data.medicalAllowance || 0
-          ),
-
-          otherAllowance: new Intl.NumberFormat("en-IN").format(
-            data.otherAllowance || 0
-          ),
-
-          providentFund: new Intl.NumberFormat("en-IN").format(
-            data.providentFund || 0
-          ),
-
-          professionalTax: new Intl.NumberFormat("en-IN").format(
-            data.professionalTax || 0
-          ),
-
-          gross: new Intl.NumberFormat("en-IN").format(
-            data.gross || 0
-          ),
-
-          netTakeHome: new Intl.NumberFormat("en-IN").format(
-            data.netTakeHome || 0
-          ),
+          ...nextSalaryState,
         }));
 
       } catch (error) {
@@ -636,11 +684,16 @@ HR Team`,
     /* ================= FORMAT SALARY INPUTS ================= */
     if (
       [
+        "monthlyCTC",
         "basic",
         "hra",
         "conveyance",
         "medicalAllowance",
         "otherAllowance",
+        "providentFund",
+        "professionalTax",
+        "gross",
+        "netTakeHome",
       ].includes(name)
     ) {
       const numericValue = value
@@ -649,9 +702,7 @@ HR Team`,
 
       setFormData((prev) => ({
         ...prev,
-        [name]: new Intl.NumberFormat("en-IN").format(
-          numericValue
-        ),
+        [name]: numericValue,
       }));
 
       return;
@@ -670,7 +721,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toast.error("Session expired. Please login again.");
+        toastError("Session expired. Please login again.");
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
@@ -702,7 +753,7 @@ HR Team`,
         "Unable to load offer letters.",
         "offer letter"
       );
-      toast.error(message);
+      toastError(message);
       return [];
     }
   }, [currentPage, lettersPerPage]);
@@ -720,7 +771,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toast.error("Session expired. Please login again.");
+        toastError("Session expired. Please login again.");
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
@@ -744,7 +795,7 @@ HR Team`,
         "Unable to load relieving letters.",
         "relieving letter"
       );
-      toast.error(message);
+      toastError(message);
     } finally {
       setLoadingRelievingLetters(false);
     }
@@ -757,7 +808,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toast.error("Session expired. Please login again.");
+        toastError("Session expired. Please login again.");
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
@@ -779,7 +830,7 @@ HR Team`,
       setEmployees(normalizeEmployeesForDropdown(data));
     } catch (error) {
       console.error("Employees Fetch Error:", error);
-      toast.error("Failed to fetch employees");
+      toastError("Failed to fetch employees");
     } finally {
       setEmployeesLoading(false);
     }
@@ -949,7 +1000,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toast.error("Session expired. Please login again.");
+        toastError("Session expired. Please login again.");
 
         setTimeout(() => {
           redirectToLogin();
@@ -1009,7 +1060,7 @@ HR Team`,
 
       await generateOfferLetter(payload);
 
-      toast.success(
+      toastSuccess(
         "Offer Letter Generated Successfully"
       );
 
@@ -1064,7 +1115,7 @@ HR Team`,
         "offer letter"
       );
 
-      toast.error(message);
+      toastError(message);
 
       if (error.response?.status === 401) {
         setTimeout(() => {
@@ -1082,7 +1133,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toast.error("Session expired. Please login again.");
+        toastError("Session expired. Please login again.");
 
         setTimeout(() => {
           redirectToLogin();
@@ -1142,7 +1193,7 @@ HR Team`,
 
       window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
-      toast.success("Offer Letter Downloaded");
+      toastSuccess("Offer Letter Downloaded");
     } catch (error) {
       console.error("Download Error:", error);
       const message = await getOfferLetterApiErrorMessage(
@@ -1150,7 +1201,7 @@ HR Team`,
         "Unable to download the selected offer letter.",
         "offer letter"
       );
-      toast.error(message);
+      toastError(message);
     } finally {
       setDownloadingId(null);
     }
@@ -1169,7 +1220,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(offerLetter);
 
     if (!offerLetterId) {
-      toast.error("Unable to preview this offer letter.");
+      toastError("Unable to preview this offer letter.");
       return;
     }
 
@@ -1219,7 +1270,7 @@ HR Team`,
 
       setPreviewOfferLetterError(message);
       setPreviewOfferLetterLoading(false);
-      toast.error(message);
+      toastError(message);
     }
   };
 
@@ -1258,12 +1309,12 @@ HR Team`,
     const offerLetterId = Number(getOfferLetterId(offerLetter));
 
     if (!offerLetterId) {
-      toast.error("Unable to send this offer letter.");
+      toastError("Unable to send this offer letter.");
       return false;
     }
 
     if (!allowResend && isOfferLetterAlreadySent(offerLetter)) {
-      toast.info("Offer Letter Already Sent");
+      toastInfo("Offer Letter Already Sent");
       return false;
     }
 
@@ -1289,7 +1340,7 @@ HR Team`,
         body,
       });
 
-      toast.success(successMessage);
+      toastSuccess(successMessage);
       onSuccess?.();
       return true;
     } catch (error) {
@@ -1298,7 +1349,7 @@ HR Team`,
         "Unable to send the selected offer letter."
       );
 
-      toast.error(message);
+      toastError(message);
       return false;
     } finally {
       setSendingOfferLetterId(null);
@@ -1314,7 +1365,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(offerLetter);
 
     if (!offerLetterId) {
-      toast.error("Unable to send this offer letter.");
+      toastError("Unable to send this offer letter.");
       return;
     }
 
@@ -1373,7 +1424,7 @@ HR Team`,
     const offerLetterId = Number(getOfferLetterId(sendOfferLetterTarget));
 
     if (!offerLetterId) {
-      toast.error("Unable to send this offer letter.");
+      toastError("Unable to send this offer letter.");
       return;
     }
 
@@ -1422,12 +1473,12 @@ HR Team`,
     const relievingLetterId = Number(getRelievingLetterId(relievingLetter));
 
     if (!relievingLetterId) {
-      toast.error("Unable to send this relieving letter.");
+      toastError("Unable to send this relieving letter.");
       return false;
     }
 
     if (!allowResend && isRelievingLetterAlreadySent(relievingLetter)) {
-      toast.info("Relieving Letter Already Sent");
+      toastInfo("Relieving Letter Already Sent");
       return false;
     }
 
@@ -1453,7 +1504,7 @@ HR Team`,
         body,
       });
 
-      toast.success(successMessage);
+      toastSuccess(successMessage);
       onSuccess?.();
       return true;
     } catch (error) {
@@ -1463,7 +1514,7 @@ HR Team`,
         "relieving letter"
       );
 
-      toast.error(message);
+      toastError(message);
       return false;
     } finally {
       setSendingRelievingLetterId(null);
@@ -1562,7 +1613,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(offerLetter);
 
     if (!offerLetterId) {
-      toast.error("Unable to delete this offer letter.");
+      toastError("Unable to delete this offer letter.");
       return;
     }
 
@@ -1577,7 +1628,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(deleteOfferLetterTarget);
 
     if (!offerLetterId) {
-      toast.error("Unable to delete this offer letter.");
+      toastError("Unable to delete this offer letter.");
       return;
     }
 
@@ -1590,7 +1641,7 @@ HR Team`,
     try {
       await deleteOfferLetter(offerLetterId);
 
-      toast.success("Offer letter deleted successfully.");
+      toastSuccess("Offer letter deleted successfully.");
       setLetters((prev) =>
         prev.filter(
           (letter) => String(getOfferLetterId(letter)) !== String(offerLetterId)
@@ -1604,7 +1655,7 @@ HR Team`,
         "Unable to delete the selected offer letter."
       );
 
-      toast.error(message);
+      toastError(message);
     } finally {
       setDeletingOfferLetterId(null);
     }
@@ -1640,15 +1691,19 @@ HR Team`,
     const newErrors = {};
 
     if (!relievingForm.employeeId) {
-      newErrors.employeeId = "Employee is required";
+      newErrors.employeeId = "Employee is required.";
     }
 
     if (!relievingForm.title.trim()) {
-      newErrors.title = "Title is required";
+      newErrors.title = "Title is required.";
     }
 
     if (!relievingForm.relievingDate) {
-      newErrors.relievingDate = "Relieving date is required";
+      newErrors.relievingDate = "Relieving Date is required.";
+    }
+
+    if (!relievingForm.designation.trim()) {
+      newErrors.designation = "Designation is required.";
     }
 
     setRelievingErrors(newErrors);
@@ -1662,20 +1717,23 @@ HR Team`,
       setRelievingLoading(true);
 
       const payload = {
-        employeeId: relievingForm.employeeId,
+        employeeId:
+          selectedRelievingEmployee?.employeeId || relievingForm.employeeId,
         title: relievingForm.title.trim(),
         relievingDate: relievingForm.relievingDate,
+        designation: relievingForm.designation.trim(),
       };
 
       await generateRelievingLetter(payload);
 
-      toast.success("Relieving Letter Generated Successfully");
+      toastSuccess("Relieving Letter Generated Successfully");
       await loadRelievingLetters();
 
       setRelievingForm({
         employeeId: "",
         title: "",
         relievingDate: "",
+        designation: "",
       });
       setRelievingErrors({});
     } catch (error) {
@@ -1685,7 +1743,7 @@ HR Team`,
         "Failed to generate relieving letter.",
         "relieving letter"
       );
-      toast.error(message);
+      toastError(message);
     } finally {
       setRelievingLoading(false);
     }
@@ -1721,7 +1779,7 @@ HR Team`,
 
       window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
-      toast.success("Relieving Letter Downloaded");
+      toastSuccess("Relieving Letter Downloaded");
     } catch (error) {
       console.error("Relieving Download Error:", error);
       const message = await getOfferLetterApiErrorMessage(
@@ -1729,7 +1787,7 @@ HR Team`,
         "Unable to download the selected relieving letter.",
         "relieving letter"
       );
-      toast.error(message);
+      toastError(message);
     } finally {
       setRelievingDownloadingId(null);
     }
@@ -1748,7 +1806,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(relievingLetter);
 
     if (!relievingLetterId) {
-      toast.error("Unable to preview this relieving letter.");
+      toastError("Unable to preview this relieving letter.");
       return;
     }
 
@@ -1795,7 +1853,7 @@ HR Team`,
 
       setPreviewRelievingLetterError(message);
       setPreviewRelievingLetterLoading(false);
-      toast.error(message);
+      toastError(message);
     }
   };
 
@@ -1815,7 +1873,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(relievingLetter);
 
     if (!relievingLetterId) {
-      toast.error("Unable to send this relieving letter.");
+      toastError("Unable to send this relieving letter.");
       return;
     }
 
@@ -1874,7 +1932,7 @@ HR Team`,
     const relievingLetterId = Number(getRelievingLetterId(sendRelievingLetterTarget));
 
     if (!relievingLetterId) {
-      toast.error("Unable to send this relieving letter.");
+      toastError("Unable to send this relieving letter.");
       return;
     }
 
@@ -1924,7 +1982,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(relievingLetter);
 
     if (!relievingLetterId) {
-      toast.error("Unable to delete this relieving letter.");
+      toastError("Unable to delete this relieving letter.");
       return;
     }
 
@@ -1939,7 +1997,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(deleteRelievingLetterTarget);
 
     if (!relievingLetterId) {
-      toast.error("Unable to delete this relieving letter.");
+      toastError("Unable to delete this relieving letter.");
       return;
     }
 
@@ -1948,7 +2006,7 @@ HR Team`,
     try {
       await deleteRelievingLetter(relievingLetterId);
 
-      toast.success("Relieving letter deleted successfully.");
+      toastSuccess("Relieving letter deleted successfully.");
       setGeneratedRelievingLetters((prev) =>
         prev.filter(
           (letter) =>
@@ -1964,7 +2022,7 @@ HR Team`,
         "relieving letter"
       );
 
-      toast.error(message);
+      toastError(message);
     } finally {
       setDeletingRelievingLetterId(null);
     }
@@ -1973,12 +2031,7 @@ HR Team`,
   /* ================= UI ================= */
   return (
     <div className="offer-container">
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-      />
-
-      {letterType === "offer" ? (
+{letterType === "offer" ? (
         <>
       <div
         style={{
@@ -2136,7 +2189,7 @@ HR Team`,
               type="text"
               name="ctc_Annual"
               className="no-spinner"
-              value={formData.ctc_Annual}
+              value={formatSalaryAmount(formData.ctc_Annual)}
               onChange={handleChange}
               placeholder="Enter annual CTC"
               inputMode="numeric"
@@ -2259,7 +2312,7 @@ HR Team`,
                   <input
                     type="text"
                     name="monthlyCTC"
-                    value={formData.monthlyCTC}
+                    value={formatSalaryAmount(formData.monthlyCTC)}
                     onChange={handleChange}
                     placeholder="Enter Monthly CTC"
                     disabled={!isEditMode}
@@ -2278,7 +2331,7 @@ HR Team`,
                     ref={fieldRefs.hra}
                     type="text"
                     name="hra"
-                    value={formData.hra}
+                    value={formatSalaryAmount(formData.hra)}
                     onChange={handleChange}
                     placeholder="Enter HRA"
                     disabled={!isEditMode}
@@ -2310,7 +2363,7 @@ HR Team`,
                     ref={fieldRefs.conveyance}
                     type="text"
                     name="conveyance"
-                    value={formData.conveyance}
+                    value={formatSalaryAmount(formData.conveyance)}
                     onChange={handleChange}
                     placeholder="Enter Conveyance"
                     disabled={!isEditMode}
@@ -2342,7 +2395,7 @@ HR Team`,
                     ref={fieldRefs.medicalAllowance}
                     type="text"
                     name="medicalAllowance"
-                    value={formData.medicalAllowance}
+                    value={formatSalaryAmount(formData.medicalAllowance)}
                     onChange={handleChange}
                     placeholder="Enter Medical Allowance"
                     disabled={!isEditMode}
@@ -2374,7 +2427,7 @@ HR Team`,
                     ref={fieldRefs.otherAllowance}
                     type="text"
                     name="otherAllowance"
-                    value={formData.otherAllowance}
+                    value={formatSalaryAmount(formData.otherAllowance)}
                     onChange={handleChange}
                     placeholder="Enter Other Allowances"
                     disabled={!isEditMode}
@@ -2405,7 +2458,7 @@ HR Team`,
                   <input
                     type="text"
                     name="providentFund"
-                    value={formData.providentFund}
+                    value={formatSalaryAmount(formData.providentFund)}
                     onChange={handleChange}
                     placeholder="Enter Provident Fund"
                     disabled={!isEditMode}
@@ -2423,7 +2476,7 @@ HR Team`,
                   <input
                     type="text"
                     name="professionalTax"
-                    value={formData.professionalTax}
+                    value={formatSalaryAmount(formData.professionalTax)}
                     onChange={handleChange}
                     placeholder="Enter Professional Tax"
                     disabled={!isEditMode}
@@ -2441,7 +2494,7 @@ HR Team`,
                   <input
                     type="text"
                     name="gross"
-                    value={formData.gross}
+                    value={formatSalaryAmount(formData.gross)}
                     onChange={handleChange}
                     placeholder="Enter Gross Salary"
                     disabled={!isEditMode}
@@ -2459,7 +2512,7 @@ HR Team`,
                   <input
                     type="text"
                     name="netTakeHome"
-                    value={formData.netTakeHome}
+                    value={formatSalaryAmount(formData.netTakeHome)}
                     onChange={handleChange}
                     placeholder="Enter Net Take Home"
                     disabled={!isEditMode}
@@ -2851,13 +2904,18 @@ HR Team`,
                   <FaBriefcase /> Title
                 </label>
 
-                <input
-                  type="text"
+                <select
                   name="title"
                   value={relievingForm.title}
                   onChange={handleRelievingChange}
-                  placeholder="Enter title"
-                />
+                >
+                  <option value="">Select Title</option>
+                  {RELIEVING_TITLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
                 {relievingErrors.title && (
                   <p className="field-error">
@@ -2880,6 +2938,26 @@ HR Team`,
                 {relievingErrors.relievingDate && (
                   <p className="field-error">
                     {relievingErrors.relievingDate}
+                  </p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <FaBriefcase /> Designation
+                </label>
+
+                <input
+                  type="text"
+                  name="designation"
+                  value={relievingForm.designation}
+                  onChange={handleRelievingChange}
+                  placeholder="Enter designation"
+                />
+
+                {relievingErrors.designation && (
+                  <p className="field-error">
+                    {relievingErrors.designation}
                   </p>
                 )}
               </div>

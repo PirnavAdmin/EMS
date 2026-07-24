@@ -3,7 +3,6 @@ import api from "../api/axiosInstance";
 import {
   SALARY_BREAKUP_FIELDS,
   SALARY_MIN,
-  buildSalaryBreakupPayload,
   calculateSalaryBreakup,
   clampAnnualCtc,
   createManualSalaryFieldMap,
@@ -147,8 +146,15 @@ function useSalaryStructure({
     manualSalaryFields[name] ? `${name}:${salaryBreakup[name]}` : `${name}:auto`
   ).join("|");
 
+  const hasManualOverrides = Object.values(manualSalaryFields).some(Boolean);
+
   useEffect(() => {
-    if (!allowServerCalculation || !calculateEndpoint || !allowRemoteCalculationRef.current) {
+    if (
+      !allowServerCalculation ||
+      !calculateEndpoint ||
+      !allowRemoteCalculationRef.current ||
+      hasManualOverrides
+    ) {
       return undefined;
     }
 
@@ -163,14 +169,18 @@ function useSalaryStructure({
             ? requestHeadersRef.current()
             : requestHeadersRef.current;
 
-        const response = await api.post(
-          calculateEndpoint,
-          buildSalaryBreakupPayload(
-            ctcValue,
-            salaryBreakupRef.current,
-            manualSalaryFieldsRef.current
-          ),
-          headerValue ? { headers: headerValue } : undefined
+        const requestUrl =
+          typeof calculateEndpoint === "function"
+            ? calculateEndpoint(ctcValue)
+            : String(calculateEndpoint)
+                .replace(/\{ctc\}/gi, encodeURIComponent(String(ctcValue)));
+
+        const response = await api.get(
+          requestUrl,
+          {
+            ...(headerValue ? { headers: headerValue } : {}),
+            dedupe: false,
+          }
         );
 
         if (requestId !== requestIdRef.current) {
@@ -206,6 +216,7 @@ function useSalaryStructure({
     calculateEndpoint,
     ctcValue,
     manualSignature,
+    hasManualOverrides,
   ]);
 
   const isSalaryValid = Object.keys(salaryErrors).length === 0;

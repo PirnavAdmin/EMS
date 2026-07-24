@@ -7,9 +7,12 @@ import {
   useLocation,
 } from "react-router-dom";
 import "./App.css";
+import { ToastContainer } from "react-toastify";
 import AdminRoute from "./routes/AdminRoute";
 
 import GlobalUiController from "./components/GlobalUiController";
+import "./components/common/toast/toast.css";
+import { toastTransition } from "./components/common/toast/toastService";
 import {
   getStoredPermissions,
   getStoredToken,
@@ -75,7 +78,6 @@ const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVeri
 const ResetPassword = lazyRoute("reset-password", () => import("./Pages/loginpage/ResetPassword"));
 
 const Dashboard = lazyRoute("dashboard", () => import("./dashboard/Dashboard"));
-const UserDashboard = lazyRoute("user-dashboard", () => import("./dashboard/UserDashboard"));
 
 const EmployeeList = lazyRoute("employees", () => import("./Employees/EmployeeList"));
 const AddEmployee = lazyRoute("add-employee", () => import("./Employees/AddEmployee/AddEmployee"));
@@ -102,6 +104,8 @@ const TeamDetails = lazyRoute("team-details", () => import("./Teams/TeamDetails"
 
 const TicketManagement = lazyRoute("ticket-management", () => import("./TicketManagement/TicketManagement"));
 const MyTickets = lazyRoute("my-tickets", () => import("./TicketManagement/MyTickets"));
+const TicketDetails = lazyRoute("ticket-details", () => import("./TicketManagement/TicketDetails"));
+const EditTicket = lazyRoute("edit-ticket", () => import("./TicketManagement/EditTicket"));
 
 const Notifications = lazyRoute("notifications", () => import("./Notifications/Notifications"));
 const UserNotifications = lazyRoute("user-notifications", () => import("./Notifications/UserNotifications"));
@@ -249,6 +253,25 @@ const PermissionRoute = ({ module, children }) => {
 function App() {
   return (
     <BrowserRouter>
+      <ToastContainer
+        autoClose={4000}
+        closeButton={false}
+        closeOnClick={true}
+        containerClassName="ems-toast-container"
+        draggable
+        draggablePercent={60}
+        hideProgressBar={false}
+        limit={1}
+        newestOnTop={true}
+        pauseOnFocusLoss={false}
+        pauseOnHover={true}
+        position="top-right"
+        theme="dark"
+        toastClassName={({ type }) =>
+          `ems-toast ems-toast--${type || "info"}`
+        }
+        transition={toastTransition}
+      />
       <GlobalUiController />
       <SessionController />
       <Suspense fallback={<RouteFallback />}>
@@ -271,15 +294,11 @@ function App() {
             {/* DASHBOARD */}
             <Route
               path="/dashboard"
-              element={
-                <PermissionRoute module="Dashboard">
-                  <Dashboard />
-                </PermissionRoute>
-              }
+              element={<Dashboard />}
             />
 
             {/* USER DASHBOARD */}
-            <Route path="/user-dashboard" element={<UserDashboard />} />
+            <Route path="/user-dashboard" element={<Dashboard />} />
 
             {/* EMPLOYEES */}
             <Route
@@ -469,10 +488,46 @@ function App() {
             />
 
             <Route
+              path="/admin/tickets/:ticketId"
+              element={
+                <PermissionRoute module="All Tickets">
+                  <TicketDetails />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/admin/tickets/edit/:ticketId"
+              element={
+                <PermissionRoute module="All Tickets">
+                  <EditTicket />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
               path="/employee/my-tickets"
               element={
                 <PermissionRoute module="My Tickets">
                   <MyTickets />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/employee/my-tickets/:ticketId"
+              element={
+                <PermissionRoute module="My Tickets">
+                  <MyTickets />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/employee/my-tickets/edit/:ticketId"
+              element={
+                <PermissionRoute module="My Tickets">
+                  <EditTicket />
                 </PermissionRoute>
               }
             />

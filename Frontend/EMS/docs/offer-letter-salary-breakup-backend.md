@@ -4,6 +4,12 @@ This frontend now sends a full `salaryStructure` object with manual override met
 The backend project is not present in this workspace, so this file captures the exact
 DTO/controller/PDF integration expected by the updated UI.
 
+Live API note:
+
+- The deployed backend currently exposes `GET /api/OfferLetter/salary-structure/{ctc}`.
+- The older `POST /api/OfferLetter/calculate-salary-breakup` path returns `405 Method Not Allowed`
+  in the live environment because it is not the active salary-breakup route.
+
 ## Request Payload
 
 ```json
@@ -81,54 +87,35 @@ public class SalaryStructureCalculationRequestDto
 
 ## Calculation Endpoint
 
-Route expected by the frontend:
+Route exposed by the live backend:
+
+Only the verb and route below are confirmed from the live Swagger spec. The body of
+this sample is illustrative.
 
 ```csharp
-[HttpPost("calculate-salary-breakup")]
-public ActionResult<SalaryStructureDto> CalculateSalaryBreakup(
-    [FromBody] SalaryStructureCalculationRequestDto request)
+[HttpGet("salary-structure/{ctc}")]
+public ActionResult<SalaryStructureDto> GetSalaryStructure(decimal ctc)
 {
-    var annualCtc = request.AnnualCtc;
-
-    var basic = request.ManualOverrideFields.Contains("basic")
-        ? request.Basic
-        : Math.Round(annualCtc * 0.40m, 0);
-
-    var hra = request.ManualOverrideFields.Contains("hra")
-        ? request.Hra
-        : Math.Round(annualCtc * 0.20m, 0);
-
-    var conveyance = request.ManualOverrideFields.Contains("conveyance")
-        ? request.Conveyance
-        : 19200m;
-
-    var medicalAllowance = request.ManualOverrideFields.Contains("medicalAllowance")
-        ? request.MedicalAllowance
-        : 15000m;
-
-    var otherAllowance = request.ManualOverrideFields.Contains("otherAllowance")
-        ? request.OtherAllowance
-        : annualCtc - (basic + hra + conveyance + medicalAllowance);
+    var basic = Math.Round(ctc * 0.40m, 0);
+    var hra = Math.Round(ctc * 0.20m, 0);
+    var conveyance = 19200m;
+    var medicalAllowance = 15000m;
+    var otherAllowance = Math.Max(ctc - (basic + hra + conveyance + medicalAllowance), 0);
 
     otherAllowance = Math.Max(otherAllowance, 0);
 
     var total = basic + hra + conveyance + medicalAllowance + otherAllowance;
 
-    if (total > annualCtc)
-    {
-        return BadRequest("Salary breakup total cannot exceed Annual CTC.");
-    }
-
     return Ok(new SalaryStructureDto
     {
-        AnnualCtc = annualCtc,
+        AnnualCtc = ctc,
         Basic = basic,
         Hra = hra,
         Conveyance = conveyance,
         MedicalAllowance = medicalAllowance,
         OtherAllowance = otherAllowance,
         TotalCtc = total,
-        ManualOverrideFields = request.ManualOverrideFields
+        ManualOverrideFields = new List<string>()
     });
 }
 ```

@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "./Projects.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import AppPagination from "../components/AppPagination";
 import { TableSkeleton } from "../components/Skeletons";
@@ -360,7 +359,7 @@ function Projects() {
       setProjectRecords(extractCollection(response));
     } catch (error) {
       console.error("Project fetch error:", error);
-      toast.error("Failed to load projects.");
+      toastError("Failed to load projects.");
     } finally {
       setProjectsLoading(false);
     }
@@ -372,7 +371,7 @@ function Projects() {
       setClients(normalizeClients(response));
     } catch (error) {
       console.error("Client fetch error:", error);
-      toast.error("Failed to load clients.");
+      toastError("Failed to load clients.");
     }
   };
 
@@ -641,7 +640,7 @@ function Projects() {
       const teamMembersArray = Object.values(selectedTeamMembers);
       const invalidMember = teamMembersArray.find(m => !m.role || (m.role === 'Other' && !m.customRole?.trim()));
       if (invalidMember) {
-        toast.error("Please assign valid roles to all team members.");
+        toastError("Please assign valid roles to all team members.");
       }
       return;
     }
@@ -707,7 +706,7 @@ function Projects() {
 
         if (!projectRouteId) {
           setApiError("Project identifier is missing.");
-          toast.error("Unable to save project.");
+          toastError("Unable to save project.");
           return;
         }
 
@@ -741,7 +740,7 @@ function Projects() {
       } else {
         await api.post(API_ENDPOINTS.company.projects.list, payload, { headers: { "Content-Type": "application/json" } });
       }
-      toast.success(projectsEditMode ? "Project updated successfully." : "Project saved successfully.");
+      toastSuccess(projectsEditMode ? "Project updated successfully." : "Project saved successfully.");
       await fetchProjects();
       closeProjectModal(true);
     } catch (error) {
@@ -777,7 +776,7 @@ function Projects() {
           setApiError("Please fix the highlighted fields and try again.");
         }
 
-        toast.error("Please fix the highlighted fields.");
+        toastError("Please fix the highlighted fields.");
         return;
       }
 
@@ -792,7 +791,7 @@ function Projects() {
         setFormErrors((prev) => ({ ...prev, id: "Project ID already exists" }));
       }
       setApiError(String(backendMessage));
-      toast.error("Unable to save project.");
+      toastError("Unable to save project.");
     } finally {
       setIsSubmitting(false);
     }
@@ -865,12 +864,12 @@ function Projects() {
     if (!projectToDelete) return;
     try {
       await api.delete(API_ENDPOINTS.company.projects.byId(projectToDelete.id));
-      toast.success("Project deleted successfully.");
+      toastSuccess("Project deleted successfully.");
       await fetchProjects();
       closeDeletePopup();
     } catch (error) {
       console.error("Delete error:", error);
-      toast.error("Unable to delete project.");
+      toastError("Unable to delete project.");
     }
   };
 
@@ -938,9 +937,7 @@ function Projects() {
 
   return (
     <div className="projects-page">
-      <ToastContainer position="top-right" autoClose={2600} />
-
-      <div className="projects-header">
+<div className="projects-header">
         <div>
           <h2>Projects</h2>
           <p>{projectsList.length} projects tracked across the company</p>

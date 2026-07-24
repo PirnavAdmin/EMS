@@ -444,6 +444,7 @@ body {
 }
  
 .dept-members-modal {
+  position: relative;
   width: min(520px, 100%);
   max-height: 82vh;
   overflow-y: auto;
@@ -476,14 +477,32 @@ body {
 }
  
 .dept-members-close {
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-  background: var(--bg-muted);
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #dbe5ea;
+  border-radius: 50%;
+  background: #ffffff;
   color: var(--text-strong);
   cursor: pointer;
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+  transition: 0.2s;
+}
+
+.dept-members-close svg {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+
+.dept-members-close:hover {
+  background: #f5f7fa;
+  color: #dc2626;
 }
  
 .dept-members-list {

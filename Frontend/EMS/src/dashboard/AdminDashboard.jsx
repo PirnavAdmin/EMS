@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaBirthdayCake, FaChevronRight, FaRedo } from "react-icons/fa";
 import "./Dashboard.css";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
+import { toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
 import { PageSkeleton } from "../components/Skeletons";
@@ -18,7 +16,7 @@ import {
 import { handleAutoLogout } from "../utils/sessionManager";
 import {
   getAttendanceDashboardErrorMessage,
-  getAttendanceDashboardOverview,
+  getAdminAttendanceOverview,
 } from "../services/attendanceService";
 
 import TopCharts from "./TopCharts";
@@ -221,9 +219,6 @@ function AdminDashboard() {
   const [attendanceError, setAttendanceError] = useState("");
   const [attendanceData, setAttendanceData] = useState({});
   const [reloadTick, setReloadTick] = useState(0);
-  const isDarkMode =
-    typeof document !== "undefined" &&
-    document.documentElement.getAttribute("data-theme-mode") === "dark";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -301,12 +296,12 @@ function AdminDashboard() {
       }
     };
 
-    const loadAttendanceOverview = async () => {
+    const loadAdminAttendanceOverview = async () => {
       try {
         setAttendanceLoading(true);
         setAttendanceError("");
 
-        const response = await getAttendanceDashboardOverview({
+        const response = await getAdminAttendanceOverview({
           signal: controller.signal,
         });
 
@@ -325,9 +320,13 @@ function AdminDashboard() {
           error.response?.data || error.message
         );
 
-        if (error?.response?.data) {
-          console.error(error.response.data);
-        }
+        console.error("Attendance Dashboard Error", {
+          status: error?.response?.status,
+          message: error?.response?.data || error?.message,
+          url: error?.config?.url,
+          params: error?.config?.params,
+          headers: error?.config?.headers,
+        });
 
         const status = error?.response?.status;
         const message = getAttendanceDashboardErrorMessage(
@@ -347,24 +346,24 @@ function AdminDashboard() {
 
         if (status === 403) {
           setAttendanceError("You do not have permission to access attendance.");
-          toast.error("You do not have permission to access attendance.");
+          toastError("You do not have permission to access attendance.");
           return;
         }
 
         if (status === 404) {
           setAttendanceError("Attendance endpoint not found.");
-          toast.error("Attendance endpoint not found.");
+          toastError("Attendance endpoint not found.");
           return;
         }
 
         if (typeof status === "number" && status >= 500) {
           setAttendanceError("Internal Server Error.");
-          toast.error("Internal Server Error.");
+          toastError("Internal Server Error.");
           return;
         }
 
         setAttendanceError(message);
-        toast.error(message);
+        toastError(message);
       } finally {
         if (!controller.signal.aborted) {
           setAttendanceLoading(false);
@@ -373,7 +372,7 @@ function AdminDashboard() {
     };
 
     loadDashboard();
-    loadAttendanceOverview();
+    loadAdminAttendanceOverview();
 
     return () => controller.abort();
   }, [reloadTick]);
@@ -393,20 +392,10 @@ function AdminDashboard() {
     [birthdays]
   );
 
-  const toastContainer = (
-    <ToastContainer
-      position="top-right"
-      autoClose={2600}
-      newestOnTop
-      theme={isDarkMode ? "dark" : "light"}
-    />
-  );
-
   if (loading) {
     return (
       <div className="dashboard">
         <PageSkeleton variant="dashboard" />
-        {toastContainer}
       </div>
     );
   }
@@ -448,7 +437,6 @@ function AdminDashboard() {
           <QuickActions />
         </div>
       </div>
-      {toastContainer}
     </div>
   );
 }

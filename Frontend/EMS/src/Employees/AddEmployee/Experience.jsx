@@ -4,6 +4,7 @@ import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import AppDatePicker from "../../components/AppDatePicker";
 import { parseDate, toIsoDateString } from "../../utils/date";
+import { toastError } from "@/components/common/toast/toastService";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -214,7 +215,7 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
     console.log("🗑️ Remove clicked:", index);
  
     if (!employeeId) {
-      alert("Employee ID missing");
+      toastError("Employee ID missing");
       return;
     }
  
@@ -237,7 +238,7 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
  
     } catch (err) {
       console.error("🔥 Delete error:", err);
-      alert("Something went wrong");
+      toastError("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -247,7 +248,7 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   console.log("🚀 Save clicked");
  
   if (!employeeId) {
-    alert("Employee ID missing");
+    toastError("Employee ID missing");
     return;
   }
  
@@ -303,7 +304,7 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
  
   } catch (err) {
     console.error("🔥 Save error:", err);
-    alert("Something went wrong");
+    toastError("Something went wrong");
   } finally {
     setLoading(false);
   }

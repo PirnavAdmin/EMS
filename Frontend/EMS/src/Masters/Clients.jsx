@@ -6,8 +6,7 @@ import {
   FaEnvelope,
   FaEllipsisV,
 } from "react-icons/fa";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
@@ -56,7 +55,7 @@ function Clients() {
       setClients(extractCollection(res.data));
     } catch (err) {
       console.error("Fetch Error:", err);
-      toast.error("Failed to load clients.");
+      toastError("Failed to load clients.");
     }
   };
 
@@ -74,7 +73,7 @@ function Clients() {
       setProjectCounts(counts);
     } catch (err) {
       console.error("Project Count Error:", err);
-      toast.error("Failed to load client project counts.");
+      toastError("Failed to load client project counts.");
     }
   };
 
@@ -388,7 +387,7 @@ function Clients() {
           }
         );
 
-        toast.success("Client updated successfully.");
+        toastSuccess("Client updated successfully.");
       } else {
         await api.post(
           API_ENDPOINTS.masters.clients.list,
@@ -406,7 +405,7 @@ function Clients() {
           }
         );
 
-        toast.success("Client added successfully.");
+        toastSuccess("Client added successfully.");
       }
 
       closeModal();
@@ -414,7 +413,7 @@ function Clients() {
       await loadProjectCounts();
     } catch (error) {
       console.error("Save Error:", error);
-      toast.error(error.response?.data?.message || "Unable to save client.");
+      toastError(error.response?.data?.message || "Unable to save client.");
     } finally {
       setSaving(false);
     }
@@ -428,13 +427,13 @@ function Clients() {
         )
       );
 
-      toast.success("Client deleted successfully.");
+      toastSuccess("Client deleted successfully.");
       setClients((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
       setMenuOpenIndex(null);
       await loadProjectCounts();
     } catch (error) {
       console.error("Delete Error:", error);
-      toast.error("Unable to delete client.");
+      toastError("Unable to delete client.");
     }
   };
 
@@ -477,9 +476,7 @@ function Clients() {
 
   return (
     <div className="clients-page">
-      <ToastContainer position="top-right" autoClose={2400} />
-
-      <div className="clients-header">
+<div className="clients-header">
         <div className="clients-header-copy">
           <h2>Clients</h2>
           <p>Manage client relationships</p>

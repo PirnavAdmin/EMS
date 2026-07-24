@@ -180,7 +180,25 @@ const shouldForceLogout = (
   !config?.skipAuth &&
   getStoredToken() &&
   isAuthenticationFailureResponse(status, data);
- 
+
+const isNetworkOrTimeoutError = (error) => {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code === "ECONNABORTED") {
+    return true;
+  }
+
+  const message = String(error.message || "").toLowerCase();
+
+  return (
+    message.includes("timeout") ||
+    message.includes("network error") ||
+    (!error.response && Boolean(error.request))
+  );
+};
+
 // =========================
 // REQUEST INTERCEPTOR
 // =========================
@@ -217,12 +235,16 @@ api.interceptors.request.use(
       }
     }
 
-    console.log("URL:", requestUrl);
-    console.log("Method:", method);
-    console.log("Params:", config.params || {});
-    console.log("Headers:", headersForLogging(config.headers));
-    console.log("JWT:", token);
-    console.log("User Role:", userRole);
+    console.log("API Request", {
+      url: requestUrl,
+      method,
+      baseURL: config.baseURL || BASE_URL,
+      params: config.params || {},
+      headers: headersForLogging(config.headers),
+      token,
+      body: config.data ?? null,
+      userRole,
+    });
  
     config.metadata = {
       ...(config.metadata || {}),
@@ -334,17 +356,30 @@ api.interceptors.response.use(
  
     const data =
       error?.response?.data;
- 
+
     endPerformanceTimer(
       config?.metadata
         ?.performanceLabel
     );
 
-    console.error("API Error:", error);
-    if (error?.response) {
-      console.log("Response:", error.response);
-      console.error(error.response.data);
+    if (error?.code === "ERR_CANCELED") {
+      return Promise.reject(error);
     }
+
+    console.error("API Error", {
+      status,
+      message: error?.response?.data || error?.message,
+      url: resolveRequestUrl(
+        config?.url || error?.response?.config?.url || "",
+        config?.baseURL || error?.response?.config?.baseURL || BASE_URL
+      ),
+      method: String(config?.method || error?.response?.config?.method || "get").toUpperCase(),
+      params: config?.params || error?.response?.config?.params || {},
+      headers: headersForLogging(config?.headers || error?.response?.config?.headers),
+      token: getStoredToken(),
+      body: config?.data ?? error?.response?.config?.data ?? null,
+      responseData: data,
+    });
 
     if (
       shouldForceLogout(
