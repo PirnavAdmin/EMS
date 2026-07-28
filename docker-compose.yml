@@ -1,5 +1,5 @@
 services:
-
+ 
   backend:
 
     build:
@@ -7,38 +7,38 @@ services:
       context: ./Backend
 
       dockerfile: Dockerfile
-
+ 
     image: ems-pirnav-backend:${IMAGE_TAG:-latest}
-
+ 
     restart: unless-stopped
-
+ 
     env_file:
 
       - ./.env
-
+ 
     environment:
 
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
 
       ASPNETCORE_URLS: http://+:8080
-
+ 
     extra_hosts:
 
       - "host.docker.internal:host-gateway"
-
+ 
     ports:
 
       - "${BACKEND_PORT:-5007}:8080"
-
+ 
     volumes:
 
-      - backend_generated_letters:/app/GeneratedLetters
+      - /home/ubuntu/ems-storage/GeneratedLetters:/app/GeneratedLetters
 
-      - backend_generated_payslips:/app/GeneratedPayslips
+      - /home/ubuntu/ems-storage/GeneratedPayslips:/app/GeneratedPayslips
 
-      - backend_wwwroot_generated_payslips:/app/wwwroot/GeneratedPayslips
+      - /home/ubuntu/ems-storage/uploads:/app/wwwroot/uploads
 
-      - backend_uploads:/app/wwwroot/uploads
+      - /home/ubuntu/ems-storage/Agreements:/app/wwwroot/Agreements
 
       - ./Backend/Templates:/app/Templates
  
@@ -52,30 +52,18 @@ services:
 
       args:
 
-        # Browser code should use the public HRMS domain for API calls.
-
         VITE_API_ORIGIN: ${VITE_API_ORIGIN:-https://hrms.pirnav.com}
-
+ 
     image: ems-pirnav-frontend:${IMAGE_TAG:-latest}
-
+ 
     restart: unless-stopped
-
+ 
     depends_on:
 
       - backend
-
+ 
     ports:
 
       - "${FRONTEND_PORT:-3000}:8080"
- 
-volumes:
-
-  backend_generated_letters:
-
-  backend_generated_payslips:
-
-  backend_wwwroot_generated_payslips:
-
-  backend_uploads:
 
  
