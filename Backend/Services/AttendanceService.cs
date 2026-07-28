@@ -627,9 +627,9 @@ namespace EmployeeManagementSystem.Services
             await CheckMissingCheckouts();
 
             var employees = await _context.Employees
-    .AsNoTracking()
-    .OrderBy(e => e.Employee_Id)
-    .ToListAsync();
+                .AsNoTracking()
+                .OrderBy(e => e.Employee_Id)
+                .ToListAsync();
 
             var attendanceData = await _context.Attendance
                 .AsNoTracking()
@@ -648,10 +648,48 @@ namespace EmployeeManagementSystem.Services
                 .Where(l => l.Status.StartsWith("Approved"))
                 .ToListAsync();
 
+            var leaveSettings = await _context.LeaveSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            int totalLeaves = leaveSettings?.MaxLeaveDays ?? 12;
+
+            // Load all monthly balances once
+            var leaveBalances = await _context.EmployeeMonthlyLeaveBalances
+                .AsNoTracking()
+                .Where(x => x.LeaveYear == year)
+                .ToListAsync();
+
             var result = new List<AdminEmployeeAttendanceDto>();
 
             foreach (var emp in employees)
             {
+                // Employee yearly leave balance
+                // Employee yearly leave balance
+                var employeeBalances = leaveBalances
+                    .Where(x => x.Employee_Id == emp.Employee_Id);
+
+                // Paid leaves from monthly balance
+                int paidLeaves = employeeBalances.Sum(x => x.UsedLeaves);
+
+                // LOP days from approved leave records
+                int lopLeaves = leaves
+                    .Where(x =>
+                        x.EmployeeId == emp.Employee_Id &&
+                        x.Status != null &&
+                        x.Status.StartsWith("Approved"))
+                    .Sum(x => x.LOPDays);
+
+                // Total used leaves = Paid + LOP
+                int usedLeaves = paidLeaves + lopLeaves;
+
+                // Remaining balance
+                int balanceLeaves = totalLeaves - usedLeaves;
+
+                if (balanceLeaves < 0)
+                {
+                    balanceLeaves = 0;
+                }
                 var days = new List<AdminAttendanceDayDto>();
 
                 for (int d = 1; d <= DateTime.DaysInMonth(year, month); d++)
@@ -684,9 +722,7 @@ namespace EmployeeManagementSystem.Services
                         continue;
                     }
 
-                    // ==========================
-                    // ATTENDANCE (FIRST PRIORITY)
-                    // ==========================
+                    // Attendance
                     var att = attendanceData.FirstOrDefault(x =>
                         x.Employee_Id == emp.Employee_Id &&
                         x.Attendance_Date.Date == date.Date);
@@ -714,9 +750,7 @@ namespace EmployeeManagementSystem.Services
                         continue;
                     }
 
-                    // ==========================
-                    // FALLBACK FOR OLD LEAVES
-                    // ==========================
+                    // Approved Leave
                     var leave = leaves.FirstOrDefault(l =>
                         l.EmployeeId == emp.Employee_Id &&
                         date.Date >= l.FromDate.Date &&
@@ -733,9 +767,7 @@ namespace EmployeeManagementSystem.Services
                         continue;
                     }
 
-                    // ==========================
-                    // NO ATTENDANCE
-                    // ==========================
+                    // Absent / Future
                     days.Add(new AdminAttendanceDayDto
                     {
                         Day = d,
@@ -753,14 +785,17 @@ namespace EmployeeManagementSystem.Services
                 {
                     EmployeeId = emp.Employee_Id,
                     EmployeeName = emp.Name,
+
+                    TL = totalLeaves,
+                    UL = usedLeaves,
+                    BL = balanceLeaves,
+
                     Days = days
                 });
             }
 
             return result;
-        }
-
-        //---------------------------------------
+        }  //---------------------------------------
 
         // REQUIRED METHODS (UNCHANGED)
 
@@ -1034,20 +1069,21 @@ namespace EmployeeManagementSystem.Services
 
                     CheckIn = checkIn?.ToString("hh:mm tt"),
                     CheckOut = checkOut?.ToString("hh:mm tt"),
-                    Hours = att != null
-    ? FormatHours(
-        att.Check_Out != null
-            ? att.WorkingMinutes
-            : Math.Max(
-                0,
-               Math.Min(
-    (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes,
-    720
-)
-                  - att.TotalBreakMinutes
-              )
-      )
-    : "0h 0m"
+                    Hours = att == null
+    ? "0h 0m"
+    : att.Check_In == null
+        ? "0h 0m"
+        : FormatHours(
+            att.Check_Out != null
+                ? att.WorkingMinutes
+                : Math.Max(
+                    0,
+                    Math.Min(
+                        (int)(DateTime.UtcNow - att.Check_In.Value).TotalMinutes,
+                        720
+                    ) - att.TotalBreakMinutes
+                  )
+          )
 
                 });
 

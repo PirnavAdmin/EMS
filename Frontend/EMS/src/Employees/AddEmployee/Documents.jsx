@@ -207,6 +207,65 @@ const buildDocumentTypeGroups = (uploadedDocumentTypes = new Set()) =>
         }),
     }));
 
+const getDocumentCategoryForType = (documentType) => {
+    const normalizedDocumentType = normalizeDocumentTypeKey(documentType);
+    const matchingGroup = BASE_DOCUMENT_TYPE_GROUPS.find((group) =>
+        group.options.some(
+            (option) => normalizeDocumentTypeKey(option.value) === normalizedDocumentType
+        )
+    );
+
+    return matchingGroup?.label || "Documents";
+};
+
+const getApiMessage = (data, fallback) =>
+    data?.message ||
+    data?.Message ||
+    data?.error ||
+    data?.Error ||
+    data?.title ||
+    data?.Title ||
+    fallback;
+
+const hasExplicitUploadFailure = (data) => {
+    if (!data || typeof data !== "object") {
+        return false;
+    }
+
+    const successValue =
+        data.success ??
+        data.Success ??
+        data.isSuccess ??
+        data.IsSuccess ??
+        data.succeeded ??
+        data.Succeeded;
+
+    if (successValue === false || String(successValue).toLowerCase() === "false") {
+        return true;
+    }
+
+    const statusValue = String(data.status ?? data.Status ?? "").toLowerCase();
+
+    return ["failed", "failure", "error", "invalid", "rejected"].includes(statusValue);
+};
+
+const buildFormDataDebugPayload = (formData) =>
+    Array.from(formData.entries()).map(([key, value]) => {
+        if (value instanceof File) {
+            return {
+                key,
+                fileName: value.name,
+                fileType: value.type,
+                fileSize: value.size,
+            };
+        }
+
+        return {
+            key,
+            value,
+        };
+    });
+
 const getEmployeeKey = (employeeId, employeeCode) =>
     String(employeeCode || employeeId || "").trim();
 
@@ -220,6 +279,8 @@ const getDocumentServerId = (document) =>
     document?.id ||
     document?.documentId ||
     document?.employeeDocumentId ||
+    document?.fileId ||
+    document?.FileId ||
     null;
 
 const toText = (value, fallback = "") => {
@@ -231,6 +292,17 @@ const toNumber = (value) => {
     const numericValue = Number(value);
     return Number.isFinite(numericValue) ? numericValue : 0;
 };
+
+const getDocumentStatus = (document = {}) =>
+    toText(
+        document.status ??
+        document.Status ??
+        document.documentStatus ??
+        document.DocumentStatus ??
+        document.verificationStatus ??
+        document.VerificationStatus,
+        "Uploaded"
+    );
 
 const normalizeAgreement = (agreement = {}) => {
     const agreementCode = toText(
@@ -686,6 +758,7 @@ function Documents({
     const fileInputRef = useRef(null);
     const signatureImageInputRef = useRef(null);
     const isMountedRef = useRef(true);
+    const uploadInFlightRef = useRef(false);
     const clearSelectedFile = useCallback(() => {
         setSelectedFile(null);
         setFileValidationError("");
@@ -696,9 +769,10 @@ function Documents({
     }, []);
 
     const visibleDocuments = useMemo(
-        () => mergeDocumentRecords(documents, []),
-        [documents]
+        () => documents.map((document) => normalizeDocumentRecord(document, employeeKey)),
+        [documents, employeeKey]
     );
+
     const uploadedDocumentTypes = useMemo(
         () =>
             new Set(
@@ -764,6 +838,16 @@ function Documents({
         ? `${selectedDocumentType} has already been uploaded. Delete the existing document before uploading again.`
         : "";
     const documentCount = visibleDocuments.length;
+
+    useEffect(() => {
+        console.log("[Employee Documents] Uploaded documents state", {
+            employeeId: employeeKey,
+            documents,
+            visibleDocuments,
+            documentCount,
+        });
+    }, [documentCount, documents, employeeKey, visibleDocuments]);
+
     const isAgreementCategory = agreementCategory === "agreements";
     const normalizedAgreementList = useMemo(
         () => agreementList.map((agreement) => normalizeAgreement(agreement)),
@@ -831,7 +915,7 @@ function Documents({
     }, [successMsg]);
 
     const loadDocuments = useCallback(
-        async ({ silent = false } = {}) => {
+        async ({ silent = false, fallbackDocuments = [], throwOnError = false } = {}) => {
             if (!employeeKey) {
                 if (isMountedRef.current) {
                     setDocuments([]);
@@ -839,7 +923,7 @@ function Documents({
                     setLoadError("");
                 }
 
-                return;
+                return [];
             }
 
             if (!silent && isMountedRef.current) {
@@ -851,28 +935,59 @@ function Documents({
             }
 
             try {
-                const serverDocuments = await api
-                    .get(API_ENDPOINTS.employeeDocuments.byEmployeeId(employeeKey))
-                    .then((response) => extractDocumentRecords(response.data))
-                    .catch(() => []);
+                const documentsEndpoint =
+                    API_ENDPOINTS.employeeDocuments.byEmployeeId(employeeKey);
 
-                setDocuments(serverDocuments);
+                console.log("[Employee Documents] Employee ID", employeeKey);
+                console.log("[Employee Documents] GET request", {
+                    url: documentsEndpoint,
+                    employeeId: employeeKey,
+                });
+
+                const response = await api.get(documentsEndpoint);
+                const extractedDocuments = extractDocumentRecords(response.data);
+                const mappedDocuments = mergeDocumentRecords(
+                    extractedDocuments.map((document) =>
+                        normalizeDocumentRecord(document, employeeKey)
+                    ),
+                    fallbackDocuments.map((document) =>
+                        normalizeDocumentRecord(document, employeeKey)
+                    )
+                );
+
+                console.log("[Employee Documents] Documents GET response", {
+                    employeeId: employeeKey,
+                    response: response.data,
+                    returnedCount: extractedDocuments.length,
+                });
+                console.log("[Employee Documents] Mapped documents", {
+                    employeeId: employeeKey,
+                    renderedCount: mappedDocuments.length,
+                    documents: mappedDocuments,
+                });
 
                 if (!isMountedRef.current) {
-                    return;
+                    return mappedDocuments;
                 }
 
-                setDocuments(serverDocuments);
+                setDocuments(mappedDocuments);
                 setLoadError("");
+                return mappedDocuments;
             } catch (error) {
                 if (!isMountedRef.current) {
-                    return;
+                    return [];
                 }
 
                 const message =
                     error?.response?.data?.message || "Failed to load documents";
 
                 setLoadError(message);
+
+                if (throwOnError) {
+                    throw error;
+                }
+
+                return [];
             } finally {
                 if (!silent && isMountedRef.current) {
                     setLoading(false);
@@ -1096,6 +1211,10 @@ function Documents({
 
 
     const handleUpload = async () => {
+        if (uploadInFlightRef.current) {
+            return;
+        }
+
         if (!employeeKey) {
             const message = "Employee ID missing";
             setApiError(message);
@@ -1135,14 +1254,31 @@ function Documents({
         }
 
         try {
+            uploadInFlightRef.current = true;
             setUploading(true);
             setApiError("");
             setFileValidationError("");
 
+            const documentCategory = getDocumentCategoryForType(selectedDocumentType);
+            const uploadCandidate = buildLocalDocumentRecord(
+                selectedFile,
+                selectedDocumentType,
+                employeeKey
+            );
+            const previousDocumentCount = visibleDocuments.length;
             const formData = new FormData();
             formData.append("EmployeeId", employeeKey);
             formData.append("DocumentType", selectedDocumentType);
+            formData.append("Category", documentCategory);
+            formData.append("File", selectedFile);
             formData.append("Files", selectedFile);
+
+            console.log("[Employee Documents] Upload request payload", {
+                employeeId: employeeKey,
+                documentType: selectedDocumentType,
+                category: documentCategory,
+                payload: buildFormDataDebugPayload(formData),
+            });
 
             const response = await api.post(
                 API_ENDPOINTS.employeeDocuments.upload,
@@ -1154,73 +1290,92 @@ function Documents({
                 }
             );
 
-            const fallbackDocument = buildLocalDocumentRecord(
-                selectedFile,
-                selectedDocumentType,
-                employeeKey
-            );
-            const responseDocument = getBestMatchingResponseDocument(
-                response.data,
-                fallbackDocument
-            );
-            const storedDocument = normalizeDocumentRecord(
-                {
-                    ...fallbackDocument,
-                    ...(responseDocument || {}),
-                    employeeKey,
-                    documentType:
-                        selectedDocumentType ||
-                        responseDocument?.documentType ||
-                        fallbackDocument.documentType,
-                    fileName:
-                        responseDocument?.fileName || fallbackDocument.fileName,
-                    fileType:
-                        responseDocument?.fileType || fallbackDocument.fileType,
-                    size: responseDocument?.size || fallbackDocument.size,
-                    uploadedAt:
-                        responseDocument?.uploadedAt ||
-                        fallbackDocument.uploadedAt,
-                    fileUrl: responseDocument?.fileUrl || fallbackDocument.fileUrl,
-                    downloadUrl:
-                        responseDocument?.downloadUrl ||
-                        responseDocument?.fileUrl ||
-                        fallbackDocument.downloadUrl,
-                    lastModified:
-                        responseDocument?.lastModified ||
-                        fallbackDocument.lastModified,
-                    serverId: responseDocument?.serverId || fallbackDocument.serverId,
-                    blob: selectedFile,
-                    source: responseDocument?.serverId ? "server" : "local",
-                },
-                employeeKey
-            );
-
-            await saveStoredDocument(employeeKey, storedDocument);
+            console.log("[Employee Documents] Upload response", {
+                employeeId: employeeKey,
+                status: response.status,
+                response: response.data,
+            });
 
             if (!isMountedRef.current) {
                 return;
             }
 
-            setDocuments((currentDocuments) =>
-                mergeDocumentRecords([storedDocument], currentDocuments)
+            if (hasExplicitUploadFailure(response.data)) {
+                const message = getApiMessage(response.data, "Upload failed");
+                console.warn("[Employee Documents] Backend validation response", {
+                    employeeId: employeeKey,
+                    response: response.data,
+                    message,
+                });
+                throw new Error(message);
+            }
+
+            const responseDocument = getBestMatchingResponseDocument(
+                response.data,
+                uploadCandidate
             );
+            const refreshedDocuments = await loadDocuments({
+                silent: true,
+                throwOnError: true,
+            });
+            const uploadedDocumentTypeKey = normalizeDocumentTypeKey(selectedDocumentType);
+            const refreshedHasUploadedDocument = refreshedDocuments.some((document) =>
+                responseDocument
+                    ? areDocumentRecordsEquivalent(document, responseDocument)
+                    : normalizeDocumentTypeKey(document.documentType) === uploadedDocumentTypeKey
+            );
+            const refreshedCountIncreased =
+                refreshedDocuments.length > previousDocumentCount;
+
+            console.log("[Employee Documents] Upload verification", {
+                employeeId: employeeKey,
+                documentType: selectedDocumentType,
+                previousDocumentCount,
+                refreshedDocumentCount: refreshedDocuments.length,
+                refreshedHasUploadedDocument,
+                refreshedCountIncreased,
+            });
+
+            if (!refreshedHasUploadedDocument && !refreshedCountIncreased) {
+                const message = getApiMessage(
+                    response.data,
+                    "Upload could not be verified. Please check the uploaded documents list."
+                );
+
+                console.warn("[Employee Documents] Backend validation response", {
+                    employeeId: employeeKey,
+                    response: response.data,
+                    message,
+                });
+                throw new Error(message);
+            }
+
             clearSelectedFile();
             setSelectedDocumentType("");
-            setSuccessMsg("Document uploaded successfully.");
-            toastSuccess("Document uploaded successfully.");
-
-            loadDocuments({ silent: true });
+            const successMessage = getApiMessage(
+                response.data,
+                "Document uploaded successfully."
+            );
+            setSuccessMsg(successMessage);
+            toastSuccess(successMessage);
         } catch (error) {
             if (!isMountedRef.current) {
                 return;
             }
 
             const message =
-                error?.response?.data?.message || "Upload failed";
+                getApiMessage(error?.response?.data, error?.message || "Upload failed");
 
+            console.warn("[Employee Documents] Backend validation response", {
+                employeeId: employeeKey,
+                response: error?.response?.data,
+                message,
+            });
             setApiError(message);
             toastError(message);
         } finally {
+            uploadInFlightRef.current = false;
+
             if (isMountedRef.current) {
                 setUploading(false);
             }
@@ -2011,14 +2166,17 @@ function Documents({
 
                                             <div className="uploaded-document-body">
                                                 <div className="document-title">
-                                                    {document.documentType || "Document"}
-                                                </div>
-
-                                                <div className="document-filename">
                                                     {document.fileName || "Uploaded file"}
                                                 </div>
 
+                                                <div className="document-filename">
+                                                    Type: {document.documentType || "Document"}
+                                                </div>
+
                                                 <div className="document-meta-row">
+                                                    <span className="document-meta-chip">
+                                                        Status: {getDocumentStatus(document)}
+                                                    </span>
                                                     <span className="document-meta-chip">
                                                         {document.fileType || "File"}
                                                     </span>
@@ -2030,7 +2188,7 @@ function Documents({
 
                                                     {document.uploadedAt && (
                                                         <span className="document-meta-chip">
-                                                            {formatDateTime(document.uploadedAt)}
+                                                            Uploaded: {formatDateTime(document.uploadedAt)}
                                                         </span>
                                                     )}
                                                 </div>

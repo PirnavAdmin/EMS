@@ -130,8 +130,11 @@ namespace EmployeeManagementSystem.Services
                 ReplaceBookmark(wordDoc, "RelievingDate",
      GetOrdinalDate(dto.RelievingDate));
 
-                ReplaceBookmark(wordDoc, "Designation",
-                    personalInfo.Designation ?? "");
+                var designation = string.IsNullOrWhiteSpace(dto.Designation)
+    ? (personalInfo.Designation ?? "")
+    : dto.Designation;
+
+                ReplaceBookmark(wordDoc, "Designation", designation);
             }
 
             // =====================================

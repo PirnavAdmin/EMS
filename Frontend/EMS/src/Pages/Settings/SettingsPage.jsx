@@ -525,6 +525,10 @@ function SettingsPage() {
     } catch (error) {
       console.error("Settings Save Error:", error);
       console.trace();
+      const errorMessage = getSettingsErrorMessage(
+        error,
+        "Failed to update settings."
+      );
 
       setSections((previousSections) => ({
         ...previousSections,
@@ -534,7 +538,7 @@ function SettingsPage() {
         },
       }));
 
-      toastError("Failed to update settings.");
+      toastError(errorMessage);
     }
   };
 

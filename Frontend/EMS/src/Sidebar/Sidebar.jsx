@@ -501,12 +501,18 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
         return false;
       }
 
+      // Hide My Tickets for Admin
+      if (isAdmin() && item.label === "My Tickets") {
+        return false;
+      }
+
+      // Hide All Tickets for Employee/User
+      if (hasRole("employee", "user") && item.label === "All Tickets") {
+        return false;
+      }
+
       return hasPermission(item.permission);
     });
-
-    if (visibleItems.length === 0) {
-      return null;
-    }
 
     const submenuDirection = submenuDirections[menu.key] || "down";
 
@@ -531,11 +537,10 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
 
     return (
       <div
-        className={`menu-section ${
-          submenuDirection === "up"
+        className={`menu-section ${submenuDirection === "up"
             ? "submenu-open-up"
             : "submenu-open-down"
-        }`}
+          }`}
         key={menu.key}
       >
         <button

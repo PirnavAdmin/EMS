@@ -165,17 +165,37 @@ namespace EmployeeManagementSystem.Controllers
 
             var ws = workbook.Worksheets.Add("Tickets");
 
-            ws.Cell(1, 1).Value = "ProjectId";
+            // Headers
+            ws.Cell(1, 1).Value = "Project Name";
             ws.Cell(1, 2).Value = "Title";
             ws.Cell(1, 3).Value = "Description";
             ws.Cell(1, 4).Value = "Technology";
             ws.Cell(1, 5).Value = "Priority";
-            ws.Cell(1, 6).Value = "AssignedTo";
-            ws.Cell(1, 7).Value = "StartDate";
-            ws.Cell(1, 8).Value = "DueDate";
-            ws.Cell(1, 9).Value = "EstimatedHours";
+            ws.Cell(1, 6).Value = "Module";
+            ws.Cell(1, 7).Value = "Start Date";
+            ws.Cell(1, 8).Value = "Due Date";
+            ws.Cell(1, 9).Value = "Estimated Hours";
 
-            ws.Range("A1:I1").Style.Font.Bold = true;
+            // Header Style
+            var header = ws.Range("A1:I1");
+            header.Style.Font.Bold = true;
+            header.Style.Fill.BackgroundColor = XLColor.LightBlue;
+            header.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            // Sample Data
+            ws.Cell(2, 1).Value = "Employee Management System";
+            ws.Cell(2, 2).Value = "Create Login API";
+            ws.Cell(2, 3).Value = "Develop secure JWT Login API";
+            ws.Cell(2, 4).Value = "Backend";
+            ws.Cell(2, 5).Value = "High";
+            ws.Cell(2, 6).Value = "Authentication";
+            ws.Cell(2, 7).Value = DateTime.Today;
+            ws.Cell(2, 8).Value = DateTime.Today.AddDays(5);
+            ws.Cell(2, 9).Value = 8;
+
+            // Date Format
+            ws.Column(7).Style.DateFormat.Format = "dd-MM-yyyy";
+            ws.Column(8).Style.DateFormat.Format = "dd-MM-yyyy";
 
             ws.Columns().AdjustToContents();
 

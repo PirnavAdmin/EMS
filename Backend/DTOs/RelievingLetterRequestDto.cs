@@ -10,5 +10,6 @@
 
         // Last Working Date
         public DateTime RelievingDate { get; set; }
+        public string? Designation { get; set; }
     }
 }

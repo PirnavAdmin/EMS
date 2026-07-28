@@ -15,6 +15,19 @@
     string toEmail,
     string subject,
     string body);
+
+        Task SendPayslipEmail(
+    string toEmail,
+    string employeeName,
+    string month,
+    int year,
+    string attachmentPath);
+
+        //    Task SendEmailWithAttachmentAsync(
+        //string to,
+        //string subject,
+        //string body,
+        //string attachmentPath);
         Task SendLocationMismatchEmail(
     string adminEmail,
     string employeeId,

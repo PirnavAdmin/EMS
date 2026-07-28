@@ -1301,6 +1301,26 @@
   background: var(--theme-warning-strong);
 }
 
+.legend-dot.leave-total {
+  background: #2563eb;
+}
+
+.legend-dot.leave-on-leave {
+  background: #16a34a;
+}
+
+.legend-dot.leave-used {
+  background: #eab308;
+}
+
+.legend-dot.leave-balance {
+  background: #7c3aed;
+}
+
+.legend-dot.working-days {
+  background: #0891b2;
+}
+
 
 /* =========================
    SUMMARY SKELETON

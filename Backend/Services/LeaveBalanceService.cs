@@ -227,6 +227,7 @@ x.Status.StartsWith("Approved") &&
                     }
                     else
                     {
+                        balance.LopLeaves++;
                         attendance.Status = "LOP";
 
                         lopDays++;

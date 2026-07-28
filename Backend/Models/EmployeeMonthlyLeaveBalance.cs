@@ -7,7 +7,6 @@ public class EmployeeMonthlyLeaveBalance
     [Key]
     public int Id { get; set; }
 
-    [Column("Employee_Id")]
     public string Employee_Id { get; set; }
 
     public int LeaveYear { get; set; }
@@ -21,6 +20,8 @@ public class EmployeeMonthlyLeaveBalance
     public int AvailableLeaves { get; set; } = 1;
 
     public int UsedLeaves { get; set; } = 0;
+
+    public int LopLeaves { get; set; } = 0;   // <-- Add this
 
     public int RemainingLeaves { get; set; } = 1;
 

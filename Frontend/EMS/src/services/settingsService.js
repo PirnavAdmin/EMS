@@ -240,8 +240,22 @@ export const extractSettingsTimestamp = (...sources) => {
 export const getSettingsErrorMessage = (
   error,
   fallback = "Unable to save settings."
-) =>
-  (
+) => {
+  const validationErrors = error?.response?.data?.errors;
+
+  if (validationErrors && typeof validationErrors === "object") {
+    const messages = Object.values(validationErrors)
+      .flat()
+      .filter(Boolean)
+      .map((message) => String(message).trim())
+      .filter(Boolean);
+
+    if (messages.length > 0) {
+      return messages.join(" ");
+    }
+  }
+
+  return (
     [
       error?.response?.data?.message,
       error?.response?.data?.error,
@@ -252,6 +266,7 @@ export const getSettingsErrorMessage = (
   )
     .toString()
     .trim();
+};
 
 const toNullableNumber = (value) => {
   const normalizedValue = normalizeNumberString(value);

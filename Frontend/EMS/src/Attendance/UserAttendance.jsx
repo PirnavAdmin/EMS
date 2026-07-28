@@ -43,7 +43,9 @@ function UserAttendance() {
 
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkedOut, setCheckedOut] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // keep for page/history if needed
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkOutLoading, setCheckOutLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [viewType, setViewType] = useState("week");
@@ -388,12 +390,12 @@ function UserAttendance() {
       return;
     }
 
-    setLoading(true);
+    setCheckInLoading(true);
 
     const payload = await resolveAccurateLocation();
 
     if (!payload) {
-      setLoading(false);
+      setCheckInLoading(false);
       return;
     }
 
@@ -433,17 +435,17 @@ function UserAttendance() {
       );
     }
 
-    setLoading(false);
+    setCheckInLoading(false);
   };
 
   // --- HANDLE CHECKOUT WITH RELIABLE GEOLOCATION ---
   const handleCheckOut = async () => {
-    setLoading(true);
+    setCheckOutLoading(true);
 
     const payload = await resolveAccurateLocation();
 
     if (!payload) {
-      setLoading(false);
+      setCheckOutLoading(false);
       return;
     }
 
@@ -486,7 +488,7 @@ function UserAttendance() {
 
       toastError(errorMsg);
     } finally {
-      setLoading(false);
+      setCheckOutLoading(false);
     }
   };
   // ------------------------------------------------
@@ -580,7 +582,7 @@ function UserAttendance() {
   return (
     <>
       <div className="attendance-page">
-{/* --- REASON POPUP OVERLAY --- */}
+        {/* --- REASON POPUP OVERLAY --- */}
         {showReasonPopup && (
           <div className="reason-popup-overlay">
             <div className="reason-popup">
@@ -621,16 +623,16 @@ function UserAttendance() {
                     setReason("");
                     setPendingCheckoutData(null);
                   }}
-                  disabled={loading}
+                  disabled={checkOutLoading}
                 >
                   Cancel
                 </button>
                 <button
                   className="btn-submit"
                   onClick={submitCheckoutReason}
-                  disabled={loading || reason.trim().length < 10}
+                  disabled={checkOutLoading || reason.trim().length < 10}
                 >
-                  {loading ? "Submitting..." : "Submit Reason"}
+                  {checkOutLoading ? "Submitting..." : "Submit Reason"}
                 </button>
               </div>
             </div>
@@ -661,7 +663,8 @@ function UserAttendance() {
               }}
               disabled={
                 checkedIn ||
-                loading ||
+                checkInLoading ||
+                checkOutLoading ||
                 isBefore855
               }
               title={
@@ -672,11 +675,11 @@ function UserAttendance() {
             >
               <FaSignInAlt />
 
-              {isBefore855
-                ? "Check In Opens 8:55 AM"
-                : loading
-                  ? "Processing..."
-                  : "Check In"}
+              {/* {isBefore855
+                ? "Check In Opens 8:55 AM" :*/}
+              {checkInLoading
+                ? "Processing..."
+                : "Check In"}
             </button>
 
             <button
@@ -691,13 +694,14 @@ function UserAttendance() {
               disabled={
                 !checkedIn ||
                 checkedOut ||
-                loading
+                checkInLoading ||
+                checkOutLoading
               }
               title=""
             >
               <FaSignOutAlt />
 
-              {loading
+              {checkOutLoading
                 ? "Processing..."
                 : "Check Out"}
             </button>

@@ -427,9 +427,9 @@
   right: 0;
   inset-inline-end: 0;
   left: auto;
-  width: 300px;
-  min-width: 300px;
-  max-width: 300px;
+  width: 380px;
+  min-width: 380px;
+  max-width: 380px;
   z-index: 20;
   background: inherit;
   background-clip: padding-box;
@@ -1770,5 +1770,4 @@
     grid-template-columns: 1fr;
   }
 }
-
 

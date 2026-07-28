@@ -212,37 +212,51 @@ namespace EmployeeManagementSystem.Controllers
         } // ================= FORGOT PASSWORD =================
 
         [HttpPost("forgot-password")]
-
-        public async Task<object> ForgotPassword(string email)
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
-            var user = await _context.Employees
-                .FirstOrDefaultAsync(x =>
-                    x.Email.ToLower() == email.ToLower());
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            if (user == null)
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.ToLower());
+
+            if (employee == null)
             {
-                return new
+                return BadRequest(new
                 {
                     Status = false,
                     Message = "Employee not found."
-                };
+                });
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.ToLower());
+
+            if (user == null)
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "User account not found."
+                });
             }
 
             var otp = Random.Shared.Next(100000, 999999).ToString();
 
-            // Save OTP logic here
+            user.OtpCode = otp;
+            user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+            user.IsOtpVerified = false;
 
-            await _emailService.SendOtpAsync(
-                user.Email,
-                otp);
+            await _context.SaveChangesAsync();
 
-            return new
+            await _emailService.SendOtpAsync(user.Email, otp);
+
+            return Ok(new
             {
                 Status = true,
                 Message = "OTP sent successfully."
-            };
+            });
         }
-
         // ================= VERIFY OTP =================
 
         [HttpPost("verify-otp")]

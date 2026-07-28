@@ -36,6 +36,44 @@ const getPayslipEmployeeKey = (payslip) =>
     payslip?.employeeID ??
     payslip?.employee_id
   );
+const getPayslipId = (payslip) =>
+  payslip?.id ??
+  payslip?.payslipId ??
+  payslip?.paySlipId ??
+  payslip?.paySlipID ??
+  payslip?.paySlip_Id ??
+  payslip?.payslip_Id;
+
+const getPayrollApiErrorMessage = (
+  error,
+  fallback = "Unable to complete the payroll request."
+) => {
+  if (!error?.response) {
+    return "Something went wrong. Please try again.";
+  }
+
+  const data = error.response.data;
+
+  if (typeof data === "string" && data.trim()) {
+    return data;
+  }
+
+  const message =
+    data?.message ||
+    data?.Message ||
+    data?.error ||
+    data?.Error ||
+    data?.title ||
+    data?.Title ||
+    data?.detail ||
+    data?.Detail;
+
+  if (message) {
+    return message;
+  }
+
+  return fallback;
+};
 
 function parseDateSafely(dateString) {
   if (!dateString) return null;
@@ -125,6 +163,7 @@ function normalizePayslipRecords(responseData, months) {
 
       return {
         ...p,
+        id: getPayslipId(p),
         netPay: p.netPay || p.netSalary || p.totalNet || (p.ctc ? p.ctc / 12 : 0),
         generatedDate,
         parsedGeneratedDate: parsedDate,
@@ -559,7 +598,7 @@ function Payroll() {
   }, [fetchEmployeePayslips, fetchRecentPayslips, selectedEmployees]);
 
   const handleOpenDeleteModal = (payslip) => {
-    if (payslip?.id == null || deletingPayslipId) {
+    if (getPayslipId(payslip) == null || deletingPayslipId) {
       return;
     }
 
@@ -577,7 +616,7 @@ function Payroll() {
   };
 
   const handleDeletePayslip = async () => {
-    const payslipId = deleteTarget?.id;
+    const payslipId = getPayslipId(deleteTarget);
 
     if (payslipId == null || deletingPayslipId) {
       return;
@@ -602,7 +641,12 @@ function Payroll() {
       await refreshPayslipsAfterDelete();
     } catch (error) {
       logPerformanceError("Delete payslip error:", error.response?.data || error.message);
-      setErrorMsg("Unable to delete payslip. Please try again.");
+      setErrorMsg(
+        getPayrollApiErrorMessage(
+          error,
+          "Unable to delete payslip. Please try again."
+        )
+      );
     } finally {
       setDeletingPayslipId(null);
     }

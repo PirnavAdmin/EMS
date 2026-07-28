@@ -11,7 +11,7 @@ using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    [Authorize]
+    //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class OfferLetterController : ControllerBase
@@ -72,15 +72,28 @@ namespace EmployeeManagementSystem.Controllers
 
         //[Permission(ModuleIds.OfferLetters, PermissionAction.Add)]
         [HttpPost("send")]
-        public async Task<IActionResult> SendOfferLetter(
-    SendOfferLetterDto dto)
+        public async Task<IActionResult> SendOfferLetter(SendOfferLetterDto dto)
         {
-            await _offerLetterService.SendOfferLetterAsync(dto);
-
-            return Ok(new
+            try
             {
-                message = "Offer Letter Sent Successfully."
-            });
+                await _offerLetterService.SendOfferLetterAsync(dto);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Offer Letter Sent Successfully."
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = ex.Message,
+                    innerException = ex.InnerException?.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
         }
         //---------------------------------------
         // GET ALL OFFER LETTERS (Admin View)

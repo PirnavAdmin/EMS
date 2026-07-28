@@ -15,10 +15,14 @@ namespace EmployeeManagementSystem.Services
     public class ManualPayslipService : IManualPayslipService
     {
         private readonly AppDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public ManualPayslipService(AppDbContext context)
+        public ManualPayslipService(
+            AppDbContext context,
+            IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public async Task<string> GenerateManualPaySlip(ManualPaySlipDto dto)
@@ -142,7 +146,7 @@ namespace EmployeeManagementSystem.Services
             {
                 ReplaceBookmark(wordDoc, "CandidateName", employee.Name);
                 ReplaceBookmark(wordDoc, "EmployeeID", employee.Employee_Id);
-                
+
                 ReplaceBookmark(wordDoc, "Department", employee.Department);
                 ReplaceBookmark(wordDoc, "Month", $"{dto.Month.ToUpper()} {dto.Year}");
 
@@ -204,7 +208,7 @@ namespace EmployeeManagementSystem.Services
                 //--------------------------------
                 // TOTALS
                 //--------------------------------
-                ReplaceBookmark(wordDoc, "TotalEarnings", totalEarnings.ToString(   "N2"));
+                ReplaceBookmark(wordDoc, "TotalEarnings", totalEarnings.ToString("N2"));
                 ReplaceBookmark(
      wordDoc,
      "DeductionType",
@@ -294,6 +298,20 @@ namespace EmployeeManagementSystem.Services
             _context.PaySlips.Add(payslip);
             await _context.SaveChangesAsync();
 
+            _context.PaySlips.Add(payslip);
+            await _context.SaveChangesAsync();
+
+            var employeeName = personalInfo == null
+                ? employee.Name
+                : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+
+            await _emailService.SendPayslipEmail(
+                employee.Email,
+                employeeName,
+                dto.Month,
+                dto.Year,
+                pdfPath);
+
             return $"/GeneratedPayslips/{Path.GetFileName(pdfPath)}";
         }
 
@@ -304,22 +322,22 @@ namespace EmployeeManagementSystem.Services
         //{
         //    var sofficePath = @"C:\Program Files\LibreOffice\program\soffice.exe";
 
-        //    var process = new Process();
+            //    var process = new Process();
 
-        //    process.StartInfo.FileName = sofficePath;
-        //    process.StartInfo.Arguments =
-        //        $"--headless --convert-to pdf --outdir \"{Path.GetDirectoryName(pdfPath)}\" \"{docxPath}\"";
+            //    process.StartInfo.FileName = sofficePath;
+            //    process.StartInfo.Arguments =
+            //        $"--headless --convert-to pdf --outdir \"{Path.GetDirectoryName(pdfPath)}\" \"{docxPath}\"";
 
-        //    process.StartInfo.CreateNoWindow = true;
-        //    process.StartInfo.UseShellExecute = false;
+            //    process.StartInfo.CreateNoWindow = true;
+            //    process.StartInfo.UseShellExecute = false;
 
-        //    process.Start();
-        //    process.WaitForExit();
-        //}
+            //    process.Start();
+            //    process.WaitForExit();
+            //}
 
-        //--------------------------------
-        // NUMBER TO WORDS
-        //--------------------------------
+            //--------------------------------
+            // NUMBER TO WORDS
+            //--------------------------------
 
         private DateTime GetIndianTime()
         {

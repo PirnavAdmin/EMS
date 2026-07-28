@@ -17,15 +17,18 @@ namespace EmployeeManagementSystem.Services
         private readonly AppDbContext _context;
         private readonly IAttendanceService _attendanceService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IEmailService _emailService;
 
         public PaySlipService(
-            AppDbContext context,
-            IAttendanceService attendanceService,
-            IHttpContextAccessor httpContextAccessor)
+    AppDbContext context,
+    IAttendanceService attendanceService,
+    IHttpContextAccessor httpContextAccessor,
+    IEmailService emailService)
         {
             _context = context;
             _attendanceService = attendanceService;
             _httpContextAccessor = httpContextAccessor;
+            _emailService = emailService;
         }
 
         //--------------------------------
@@ -436,7 +439,16 @@ namespace EmployeeManagementSystem.Services
             _context.PaySlips.Add(payslip);
 
             await _context.SaveChangesAsync();
+            var employeeName = personalInfo == null
+    ? employee.Name
+    : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
 
+            await _emailService.SendPayslipEmail(
+     employee.Email,
+     employeeName,
+     month,
+     year,
+     pdfPath);
             //--------------------------------
             // RETURN URL
             //--------------------------------
@@ -455,6 +467,8 @@ namespace EmployeeManagementSystem.Services
                    $"/GeneratedPayslips/{fileNameOnly}";
         }
 
+
+       
         //--------------------------------
         // BULK GENERATION
         //--------------------------------

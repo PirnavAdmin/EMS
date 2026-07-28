@@ -109,8 +109,7 @@ namespace EmployeeManagementSystem.Services
             }
 
             // Create unique file name
-
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.File.FileName);
+            var fileName = Path.GetFileName(dto.File.FileName);
 
             var filePath = Path.Combine(folderPath, fileName);
 

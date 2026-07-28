@@ -22,6 +22,7 @@ import {
   FaSortUp,
   FaSpinner,
   FaStop,
+  FaSyncAlt,
   FaTicketAlt,
   FaTimes,
   FaTrash,
@@ -39,6 +40,7 @@ import CompactSearchableDropdown from "../components/CompactSearchableDropdown";
 import EmptyState from "../components/EmptyState";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection } from "../utils/collections";
+import { hasRole } from "../utils/authorization";
 import {
   compareDatesAsc,
   compareDatesDesc,
@@ -69,7 +71,11 @@ import {
   TICKET_PRIORITY_OPTIONS,
   truncateTicketText,
 } from "./ticketConfig";
+import AutoAssignConfirmModal from "./AutoAssignConfirmModal";
 import {
+  AUTO_ASSIGN_SUCCESS_MESSAGE,
+  autoAssignTickets,
+  buildAutoAssignPayload,
   createTicket,
   deleteTicket,
   downloadTicketTemplate,
@@ -77,6 +83,7 @@ import {
   fetchMyTickets,
   fetchTicketById,
   fetchTickets,
+  getAutoAssignErrorMessage,
   getTicketApiErrorMessage,
   startTicketWork,
   stopTicketWork,
@@ -98,7 +105,7 @@ const TABLE_COLUMNS = [
   { key: "assignedTo", label: "Assigned To", width: "180px" },
   { key: "createdDate", label: "Created Date", width: "130px" },
   { key: "updatedDate", label: "Updated Date", width: "130px" },
-  { key: "actions", label: "Actions", width: "340px" },
+  { key: "actions", label: "Actions", width: "380px" },
 ];
 
 const DEFAULT_SORT = {
@@ -1550,9 +1557,12 @@ function AllTicketsPage({ scope = "admin" }) {
   });
   const [detailsRefreshKey, setDetailsRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [autoAssignOpen, setAutoAssignOpen] = useState(false);
+  const [autoAssignSaving, setAutoAssignSaving] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const deferredSearch = useDeferredValue(search);
+  const canAutoAssignTickets = !isEmployeeScope && !hasRole("employee", "user");
 
   const loadTickets = async () => {
     try {
@@ -1768,6 +1778,16 @@ function AllTicketsPage({ scope = "admin" }) {
     }
   };
 
+  const runAutoAssignAfterCompletion = async (ticket) => {
+    try {
+      await autoAssignTickets(buildAutoAssignPayload(ticket?.projectId));
+    } catch (error) {
+      console.error("Auto assign after completion failed:", error);
+      const message = await getAutoAssignErrorMessage(error);
+      toast.error(message);
+    }
+  };
+
   const handleStatusUpdate = async (ticket, nextStatus) => {
     const normalizedStatus = normalizeTicketStatus(nextStatus);
 
@@ -1780,6 +1800,10 @@ function AllTicketsPage({ scope = "admin" }) {
       await updateTicketStatus(ticket.ticketId, normalizedStatus);
       toast.success("Ticket status updated.");
       await refreshTicketsAndDetails(ticket.ticketId);
+      if (isEmployeeScope && normalizedStatus === "Completed") {
+        await runAutoAssignAfterCompletion(ticket);
+        await loadTickets();
+      }
     } catch (error) {
       console.error("Status update failed:", error);
       const errorMessage = await getTicketApiErrorMessage(
@@ -1800,6 +1824,7 @@ function AllTicketsPage({ scope = "admin" }) {
     try {
       setActionTicketId(ticket.ticketId);
       await startTicketWork(ticket);
+      await updateTicketStatus(ticket.ticketId, "In Progress");
       toast.success("Work started.");
       await refreshTicketsAndDetails(ticket.ticketId);
     } catch (error) {
@@ -1822,8 +1847,13 @@ function AllTicketsPage({ scope = "admin" }) {
     try {
       setActionTicketId(ticket.ticketId);
       await stopTicketWork(ticket);
+      await updateTicketStatus(ticket.ticketId, "Completed");
       toast.success("Work stopped.");
       await refreshTicketsAndDetails(ticket.ticketId);
+      if (isEmployeeScope) {
+        await runAutoAssignAfterCompletion(ticket);
+        await loadTickets();
+      }
     } catch (error) {
       console.error("Stop work failed:", error);
       const errorMessage = await getTicketApiErrorMessage(
@@ -1838,6 +1868,27 @@ function AllTicketsPage({ scope = "admin" }) {
 
   const handleUploadComplete = async () => {
     await loadTickets();
+  };
+
+  const handleAutoAssignConfirm = async () => {
+    if (autoAssignSaving) {
+      return;
+    }
+
+    try {
+      setAutoAssignSaving(true);
+      await autoAssignTickets(buildAutoAssignPayload());
+      toast.success(AUTO_ASSIGN_SUCCESS_MESSAGE);
+      setAutoAssignOpen(false);
+      await loadTickets();
+      setDetailsRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Auto assign failed:", error);
+      const message = await getAutoAssignErrorMessage(error);
+      toast.error(message);
+    } finally {
+      setAutoAssignSaving(false);
+    }
   };
 
   const handleTemplateDownload = async () => {
@@ -1919,6 +1970,27 @@ function AllTicketsPage({ scope = "admin" }) {
                 <FaDownload aria-hidden="true" />
                 Download Template
               </button>
+
+              {canAutoAssignTickets ? (
+                <button
+                  type="button"
+                  className="ticket-button primary"
+                  onClick={() => setAutoAssignOpen(true)}
+                  disabled={autoAssignSaving}
+                >
+                  {autoAssignSaving ? (
+                    <>
+                      <FaSpinner className="ticket-button-spinner" />
+                      Auto Assigning...
+                    </>
+                  ) : (
+                    <>
+                      <FaSyncAlt aria-hidden="true" />
+                      Auto Assign
+                    </>
+                  )}
+                </button>
+              ) : null}
 
               <button
                 type="button"
@@ -2128,7 +2200,7 @@ function AllTicketsPage({ scope = "admin" }) {
         )
       }
 
-      <div className="ticket-table-card">
+      <div className={`ticket-table-card ${isEmployeeScope ? "ticket-user-table-card" : ""}`.trim()}>
         <div className="ticket-table-scroll">
           {/* Title and Description cells use a fixed 20-character display cap with full-value tooltips. */}
           <table className="ticket-table">
@@ -2182,7 +2254,16 @@ function AllTicketsPage({ scope = "admin" }) {
               ) : (
                 paginatedTickets.map((ticket) => {
                   const isUpdating = actionTicketId === ticket.ticketId;
-                  const rowStatusOptions = getTicketStatusOptions("admin");
+                  const rowStatusOptions = isEmployeeScope
+                    ? getEmployeeRowStatusOptions(ticket)
+                    : getTicketStatusOptions("admin");
+                  const showStartWork =
+                    isEmployeeScope &&
+                    isTicketAssigned(ticket) &&
+                    !isTicketCompleted(ticket);
+                  const showStopWork =
+                    isEmployeeScope &&
+                    isTicketWorkActive(ticket);
 
                   return (
                     <tr key={ticket.ticketId}>
@@ -2260,6 +2341,30 @@ function AllTicketsPage({ scope = "admin" }) {
                             <FaTrash aria-hidden="true" />
                           </button>
 
+                          {showStartWork ? (
+                            <button
+                              type="button"
+                              className="ticket-action-button start"
+                              onClick={() => handleStartWork(ticket)}
+                              title="Start Work"
+                              disabled={isUpdating}
+                            >
+                              <FaPlay aria-hidden="true" />
+                            </button>
+                          ) : null}
+
+                          {showStopWork ? (
+                            <button
+                              type="button"
+                              className="ticket-action-button stop"
+                              onClick={() => handleStopWork(ticket)}
+                              title="Stop Work"
+                              disabled={isUpdating}
+                            >
+                              <FaStop aria-hidden="true" />
+                            </button>
+                          ) : null}
+
                           <select
                             className="ticket-status-select"
                             value={ticket.status}
@@ -2320,6 +2425,7 @@ function AllTicketsPage({ scope = "admin" }) {
       <TicketDetailsModal
         open={detailsState.open}
         ticketId={detailsState.ticketId}
+        refreshKey={detailsRefreshKey}
         onClose={() =>
           setDetailsState({
             open: false,
@@ -2332,6 +2438,18 @@ function AllTicketsPage({ scope = "admin" }) {
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         onUploaded={handleUploadComplete}
+      />
+
+      <AutoAssignConfirmModal
+        open={autoAssignOpen}
+        saving={autoAssignSaving}
+        badge="All Tickets"
+        onClose={() => {
+          if (!autoAssignSaving) {
+            setAutoAssignOpen(false);
+          }
+        }}
+        onConfirm={handleAutoAssignConfirm}
       />
 
       {deleteCandidate ? (

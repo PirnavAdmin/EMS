@@ -246,46 +246,131 @@ EMS Team
         }
         public async Task<IEnumerable<TicketResponseDto>> GetAllTickets()
         {
-            return await
-            (
-                from t in _context.Tickets
+            var normalTickets =
+                await (
+                    from t in _context.Tickets
 
-                join p in _context.Projects
-                    on t.ProjectId equals p.Id
+                    join p in _context.Projects
+                        on t.ProjectId equals p.Id
 
-                join e1 in _context.Employees
-                    on t.AssignedTo equals e1.Employee_Id
+                    join assignedTo in _context.Employees
+                        on t.AssignedTo equals assignedTo.Employee_Id
 
-                join e2 in _context.Employees
-                    on t.AssignedBy equals e2.Employee_Id
+                    join assignedBy in _context.Employees
+                        on t.AssignedBy equals assignedBy.Employee_Id
 
-                where t.IsActive
+                    where t.IsActive
+                          && !t.Technology.Equals("Training")
 
-                orderby t.CreatedAt descending
+                    select new TicketResponseDto
+                    {
+                        Id = t.Id,
+                        TicketNumber = t.TicketNumber,
 
-                select new TicketResponseDto
-                {
-                    Id = t.Id,
-                    TicketNumber = t.TicketNumber,
-                    ProjectId = t.ProjectId,
-                    ProjectName = p.Project_Name,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Technology = t.Technology,
-                    Priority = t.Priority,
-                    Status = t.Status,
-                    AssignedTo = t.AssignedTo,
-                    AssignedToName = e1.Name,
-                    AssignedBy = t.AssignedBy,
-                    AssignedByName = e2.Name,
-                    StartDate = t.StartDate,
-                    DueDate = t.DueDate,
-                    EstimatedHours = t.EstimatedHours,
-                    CreatedAt = t.CreatedAt
-                }
-            ).ToListAsync();
+                        ProjectId = t.ProjectId,
+                        ProjectName = p.Project_Name,
+
+                        Title = t.Title,
+                        Description = t.Description,
+
+                        Technology = t.Technology,
+                        Module = t.Module,
+
+                        Priority = t.Priority,
+                        Status = t.Status,
+
+                        AssignedTo = t.AssignedTo,
+                        AssignedToName = assignedTo.Name,
+
+                        AssignedBy = t.AssignedBy,
+                        AssignedByName = assignedBy.Name,
+
+                        AssignedDate = t.AssignedDate,
+                        OpenedDate = t.OpenedDate,
+                        CompletedDate = t.CompletedDate,
+
+                        StartDate = t.StartDate,
+                        DueDate = t.DueDate,
+                        Deadline = t.Deadline,
+
+                        EstimatedHours = t.EstimatedHours,
+                        ActualHours = t.ActualHours,
+                        RemainingHours = t.RemainingHours,
+
+                        SLAStatus = t.SLAStatus,
+
+                        CreatedAt = t.CreatedAt,
+                        UpdatedAt = t.UpdatedAt
+                    }
+                ).ToListAsync();
+
+            var trainingTickets =
+                await (
+                    from t in _context.Tickets
+
+                    join p in _context.Projects
+                        on t.ProjectId equals p.Id
+
+                    join ta in _context.TicketAssignments
+                        on t.Id equals ta.TicketId
+
+                    join assignedTo in _context.Employees
+                        on ta.EmployeeId equals assignedTo.Employee_Id
+
+                    join assignedBy in _context.Employees
+                        on t.AssignedBy equals assignedBy.Employee_Id
+
+                    where t.IsActive
+                          && t.Technology == "Training"
+
+                    select new TicketResponseDto
+                    {
+                        Id = t.Id,
+                        TicketNumber = t.TicketNumber,
+
+                        ProjectId = t.ProjectId,
+                        ProjectName = p.Project_Name,
+
+                        Title = t.Title,
+                        Description = t.Description,
+
+                        Technology = t.Technology,
+                        Module = t.Module,
+
+                        Priority = t.Priority,
+                        Status = ta.Status,     // Assignment status
+
+                        AssignedTo = ta.EmployeeId,
+                        AssignedToName = assignedTo.Name,
+
+                        AssignedBy = t.AssignedBy,
+                        AssignedByName = assignedBy.Name,
+
+                        AssignedDate = ta.AssignedDate,
+
+                        OpenedDate = t.OpenedDate,
+                        CompletedDate = t.CompletedDate,
+
+                        StartDate = t.StartDate,
+                        DueDate = t.DueDate,
+                        Deadline = t.Deadline,
+
+                        EstimatedHours = t.EstimatedHours,
+                        ActualHours = t.ActualHours,
+                        RemainingHours = t.RemainingHours,
+
+                        SLAStatus = t.SLAStatus,
+
+                        CreatedAt = t.CreatedAt,
+                        UpdatedAt = t.UpdatedAt
+                    }
+                ).ToListAsync();
+
+            return normalTickets
+                .Concat(trainingTickets)
+                .OrderByDescending(x => x.CreatedAt)
+                .ToList();
         }
-
         public async Task<TicketResponseDto?> GetTicketById(int id)
         {
             return await
@@ -313,7 +398,13 @@ EMS Team
                     Description = t.Description,
                     Technology = t.Technology,
                     Priority = t.Priority,
-                    Status = t.Status,
+                    Status = t.Technology == "Training"
+    ? _context.TicketAssignments
+        .Where(x => x.TicketId == t.Id &&
+                    x.EmployeeId == t.AssignedTo)
+        .Select(x => x.Status)
+        .FirstOrDefault() ?? t.Status
+    : t.Status,
                     AssignedTo = t.AssignedTo,
                     AssignedToName = e1.Name,
                     AssignedBy = t.AssignedBy,
@@ -343,14 +434,31 @@ EMS Team
                 join p in _context.Projects
                     on t.ProjectId equals p.Id
 
-                join assignedTo in _context.Employees
-                    on t.AssignedTo equals assignedTo.Employee_Id
-
                 join assignedBy in _context.Employees
                     on t.AssignedBy equals assignedBy.Employee_Id
 
-                where t.AssignedTo == employee.Employee_Id
-                      && t.IsActive
+                // LEFT JOIN TicketAssignments
+                join ta in _context.TicketAssignments
+                    on t.Id equals ta.TicketId into ticketAssignments
+
+                from ta in ticketAssignments.DefaultIfEmpty()
+
+                    // LEFT JOIN Assigned Employee
+                join assignedEmployee in _context.Employees
+                    on t.AssignedTo equals assignedEmployee.Employee_Id into assignedEmployees
+
+                from assignedEmployee in assignedEmployees.DefaultIfEmpty()
+
+                where t.IsActive &&
+                      (
+                          // Normal Ticket
+                          t.AssignedTo == employee.Employee_Id
+
+                          ||
+
+                          // Training Ticket
+                          ta.EmployeeId == employee.Employee_Id
+                      )
 
                 orderby t.CreatedAt descending
 
@@ -360,6 +468,7 @@ EMS Team
                     TicketNumber = t.TicketNumber,
                     ProjectId = t.ProjectId,
                     ProjectName = p.Project_Name,
+
                     Title = t.Title,
                     Description = t.Description,
                     Technology = t.Technology,
@@ -367,7 +476,9 @@ EMS Team
                     Status = t.Status,
 
                     AssignedTo = t.AssignedTo,
-                    AssignedToName = assignedTo.Name,
+                    AssignedToName = assignedEmployee != null
+                                        ? assignedEmployee.Name
+                                        : employee.Name,
 
                     AssignedBy = t.AssignedBy,
                     AssignedByName = assignedBy.Name,
@@ -377,9 +488,11 @@ EMS Team
                     EstimatedHours = t.EstimatedHours,
                     CreatedAt = t.CreatedAt
                 }
-            ).ToListAsync();
-        }
 
+            )
+            .Distinct()
+            .ToListAsync();
+        }
         public async Task<string> UpdateTicketStatus(int ticketId, string status, ClaimsPrincipal user)
         {
             var ticket = await _context.Tickets
@@ -577,8 +690,8 @@ EMS Team
         }
 
         public async Task<BulkUploadResultDto> BulkUploadTickets(
-     IFormFile file,
-     ClaimsPrincipal user)
+       IFormFile file,
+       ClaimsPrincipal user)
         {
             var result = new BulkUploadResultDto();
 
@@ -592,14 +705,10 @@ EMS Team
                     x.Email.ToLower() == email);
 
             if (manager == null)
-            {
                 throw new Exception("Manager not found.");
-            }
 
             if (file == null || file.Length == 0)
-            {
                 throw new Exception("Please select an Excel file.");
-            }
 
             using var stream = new MemoryStream();
 
@@ -611,25 +720,40 @@ EMS Team
 
             var worksheet = workbook.Worksheet(1);
 
-            var rows = worksheet
-                .RowsUsed()
-                .Skip(1);
+            var rows = worksheet.RowsUsed().Skip(1);
 
             foreach (var row in rows)
             {
                 if (row.Cells(1, 9).All(c => c.IsEmpty()))
-                {
                     continue;
-                }
 
                 result.TotalRecords++;
 
                 try
                 {
+                    // ===========================================
+                    // PROJECT NAME
+                    // ===========================================
+                    var projectName = row.Cell(1)
+                        .GetString()
+                        .Trim();
+
+                    if (string.IsNullOrWhiteSpace(projectName))
+                        throw new Exception("Project Name is required.");
+
+                    var project = await _context.Projects
+                        .FirstOrDefaultAsync(x =>
+                            x.Project_Name.ToLower() == projectName.ToLower());
+
+                    if (project == null)
+                        throw new Exception($"Project '{projectName}' not found.");
+
+                    // ===========================================
+                    // DTO
+                    // ===========================================
                     var dto = new CreateTicketDto
                     {
-                        ProjectId = row.Cell(1)
-                            .GetValue<int>(),
+                        ProjectId = project.Id,
 
                         Title = row.Cell(2)
                             .GetString()
@@ -647,6 +771,9 @@ EMS Team
                             .GetString()
                             .Trim(),
 
+                        // Uncomment if your DTO contains Module
+                        // Module = row.Cell(6).GetString().Trim(),
+
                         AssignedTo = null,
 
                         StartDate = ParseExcelDate(
@@ -659,63 +786,61 @@ EMS Team
                             row.Cell(9))
                     };
 
+                    // ===========================================
+                    // VALIDATION
+                    // ===========================================
+
                     if (string.IsNullOrWhiteSpace(dto.Title))
-                    {
-                        throw new Exception(
-                            "Title is required.");
-                    }
+                        throw new Exception("Title is required.");
 
                     if (string.IsNullOrWhiteSpace(dto.Technology))
-                    {
-                        throw new Exception(
-                            "Technology is required.");
-                    }
+                        throw new Exception("Technology is required.");
 
                     if (string.IsNullOrWhiteSpace(dto.Priority))
-                    {
-                        throw new Exception(
-                            "Priority is required.");
-                    }
+                        throw new Exception("Priority is required.");
 
                     if (dto.StartDate.HasValue &&
                         dto.DueDate.HasValue &&
-                        dto.DueDate.Value.Date <
-                        dto.StartDate.Value.Date)
+                        dto.DueDate.Value.Date < dto.StartDate.Value.Date)
                     {
                         throw new Exception(
                             "Due Date cannot be earlier than Start Date.");
                     }
 
                     if (dto.EstimatedHours.HasValue &&
-                        dto.EstimatedHours.Value <= 0)
+                        dto.EstimatedHours <= 0)
                     {
                         throw new Exception(
                             "Estimated Hours must be greater than zero.");
                     }
 
-                    var response = await CreateTicket(
-                        dto,
-                        user);
+                    // ===========================================
+                    // DUPLICATE CHECK
+                    // ===========================================
+
                     var duplicateTicket = await _context.Tickets
-    .AsNoTracking()
-    .AnyAsync(t =>
-        t.ProjectId == dto.ProjectId &&
-        t.Title.ToLower() == dto.Title.ToLower() &&
-        t.Technology.ToLower() == dto.Technology.ToLower() &&
-        t.IsActive);
+                        .AsNoTracking()
+                        .AnyAsync(t =>
+                            t.ProjectId == dto.ProjectId &&
+                            t.Title.ToLower() == dto.Title.ToLower() &&
+                            t.Technology.ToLower() == dto.Technology.ToLower() &&
+                            t.IsActive);
 
                     if (duplicateTicket)
                     {
                         throw new Exception(
-                            $"Ticket already exists for ProjectId " +
-                            $"{dto.ProjectId}, Title '{dto.Title}' " +
-                            $"and Technology '{dto.Technology}'.");
+                            $"Ticket already exists for Project '{projectName}', Title '{dto.Title}' and Technology '{dto.Technology}'.");
                     }
+
+                    // ===========================================
+                    // CREATE
+                    // ===========================================
+
+                    var response = await CreateTicket(dto, user);
+
                     if (response.Success)
                     {
-                        await _assignmentEngine
-                            .AssignTicketAsync(
-                                response.TicketId);
+                        await _assignmentEngine.AssignTicketAsync(response.TicketId);
 
                         result.SuccessCount++;
                     }
@@ -732,24 +857,42 @@ EMS Team
                     result.FailedCount++;
 
                     result.Errors.Add(
-                        $"Row {row.RowNumber()} : " +
-                        $"{ex.GetBaseException().Message}");
+                        $"Row {row.RowNumber()} : {ex.GetBaseException().Message}");
                 }
             }
 
             return result;
         }
-
-        public async Task<bool> AcceptTicketAsync(
-    AcceptTicketDto dto)
+        public async Task<bool> AcceptTicketAsync(AcceptTicketDto dto)
         {
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x =>
                     x.Id == dto.TicketId &&
-                    x.AssignedTo == dto.EmployeeId);
+                    x.IsActive);
 
             if (ticket == null)
                 return false;
+
+            // Training Ticket
+            if (ticket.Technology.Equals("Training",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                var assignment = await _context.TicketAssignments
+                    .FirstOrDefaultAsync(x =>
+                        x.TicketId == dto.TicketId &&
+                        x.EmployeeId == dto.EmployeeId);
+
+                if (assignment == null)
+                    return false;
+
+                assignment.Status = "Accepted";
+                assignment.IsAccepted = true;
+            }
+            else
+            {
+                if (ticket.AssignedTo != dto.EmployeeId)
+                    return false;
+            }
 
             ticket.Status = "Accepted";
             ticket.UpdatedAt = DateTime.UtcNow;
@@ -766,20 +909,37 @@ EMS Team
 
             return true;
         }
-        public async Task<bool> RejectTicketAsync(
-    RejectTicketDto dto)
+        public async Task<bool> RejectTicketAsync(RejectTicketDto dto)
         {
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x =>
                     x.Id == dto.TicketId &&
-                    x.AssignedTo == dto.EmployeeId);
+                    x.IsActive);
 
             if (ticket == null)
                 return false;
 
-            ticket.Status = "Pending Assignment";
+            if (ticket.Technology.Equals("Training",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                var assignment = await _context.TicketAssignments
+                    .FirstOrDefaultAsync(x =>
+                        x.TicketId == dto.TicketId &&
+                        x.EmployeeId == dto.EmployeeId);
 
-            ticket.AssignedTo = null;
+                if (assignment == null)
+                    return false;
+
+                assignment.Status = "Rejected";
+            }
+            else
+            {
+                if (ticket.AssignedTo != dto.EmployeeId)
+                    return false;
+
+                ticket.Status = "Pending Assignment";
+                ticket.AssignedTo = null;
+            }
 
             ticket.UpdatedAt = DateTime.UtcNow;
 
@@ -799,9 +959,32 @@ EMS Team
         public async Task<bool> StartWorkAsync(StartWorkDto dto)
         {
             var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(t =>
-                    t.Id == dto.TicketId &&
-                    t.AssignedTo == dto.EmployeeId);
+    .FirstOrDefaultAsync(t =>
+        t.Id == dto.TicketId &&
+        t.IsActive);
+
+            if (ticket == null)
+                return false;
+
+            if (ticket.Technology.Equals("Training",
+     StringComparison.OrdinalIgnoreCase))
+            {
+                var assignment = await _context.TicketAssignments
+                    .FirstOrDefaultAsync(x =>
+                        x.TicketId == dto.TicketId &&
+                        x.EmployeeId == dto.EmployeeId);
+
+                if (assignment == null)
+                    return false;
+
+                assignment.Status = "In Progress";
+            }
+            else
+            {
+                if (ticket.AssignedTo != dto.EmployeeId)
+                    return false;
+            }
+          
 
             if (ticket == null)
                 return false;
@@ -863,10 +1046,31 @@ EMS Team
                 return false;
 
             var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(x =>
-                    x.Id == dto.TicketId &&
-                    x.AssignedTo == dto.EmployeeId &&
-                    x.IsActive);
+    .FirstOrDefaultAsync(x =>
+        x.Id == dto.TicketId &&
+        x.IsActive);
+
+            if (ticket == null)
+                return false;
+
+            if (ticket.Technology.Equals("Training",
+     StringComparison.OrdinalIgnoreCase))
+            {
+                var assignment = await _context.TicketAssignments
+                    .FirstOrDefaultAsync(x =>
+                        x.TicketId == dto.TicketId &&
+                        x.EmployeeId == dto.EmployeeId);
+
+                if (assignment == null)
+                    return false;
+
+                assignment.Status = "Completed";
+            }
+            else
+            {
+                if (ticket.AssignedTo != dto.EmployeeId)
+                    return false;
+            }
 
             if (ticket == null)
                 return false;
@@ -955,11 +1159,28 @@ EMS Team
                 join p in _context.Projects
                     on t.ProjectId equals p.Id
 
+                // Left Join Assigned Employee
                 join e in _context.Employees
-                    on t.AssignedTo equals e.Employee_Id
+                    on t.AssignedTo equals e.Employee_Id into employeeJoin
+                from e in employeeJoin.DefaultIfEmpty()
 
-                where t.AssignedTo == employeeId
-                      && t.IsActive
+                    // Left Join TicketAssignments
+                join ta in _context.TicketAssignments
+                    on t.Id equals ta.TicketId into assignmentJoin
+                from ta in assignmentJoin.DefaultIfEmpty()
+
+                where t.IsActive
+                      &&
+                      (
+                          // Normal Technologies
+                          t.AssignedTo == employeeId
+
+                          ||
+
+                          // Training Technology
+                          (t.Technology == "Training"
+                           && ta.EmployeeId == employeeId)
+                      )
 
                 orderby t.CreatedAt descending
 
@@ -967,6 +1188,7 @@ EMS Team
                 {
                     Id = t.Id,
                     TicketNumber = t.TicketNumber,
+
                     ProjectId = t.ProjectId,
                     ProjectName = p.Project_Name,
 
@@ -977,10 +1199,20 @@ EMS Team
                     Module = t.Module,
 
                     Priority = t.Priority,
-                    Status = t.Status,
+                    Status = t.Technology == "Training"
+            ? ta.Status
+            : t.Status,
 
-                    AssignedTo = t.AssignedTo,
-                    AssignedToName = e.Name,
+                    AssignedTo = t.Technology == "Training"
+                                    ? ta.EmployeeId
+                                    : t.AssignedTo,
+
+                    AssignedToName = t.Technology == "Training"
+                                        ? _context.Employees
+                                            .Where(x => x.Employee_Id == ta.EmployeeId)
+                                            .Select(x => x.Name)
+                                            .FirstOrDefault()
+                                        : e.Name,
 
                     AssignedBy = t.AssignedBy,
 
@@ -1001,12 +1233,13 @@ EMS Team
                     CreatedAt = t.CreatedAt,
                     UpdatedAt = t.UpdatedAt
                 }
-            ).ToListAsync();
-        }
+
+            )
+            .Distinct()
+            .ToListAsync();
+        }  // Helper Methods
 
         // Helper Methods
-
-                // Helper Methods
 
         private DateTime? ParseExcelDate(IXLCell cell)
         {

@@ -196,6 +196,31 @@ export const startTicketWork = (ticket) => {
 export const stopTicketWork = (ticket) =>
   api.post(API_ENDPOINTS.tickets.stopWork, buildActionPayload(ticket));
 
+export const AUTO_ASSIGN_SUCCESS_MESSAGE = "Tickets assigned successfully.";
+export const AUTO_ASSIGN_FAILURE_MESSAGE = "Unable to auto assign tickets.";
+export const AUTO_ASSIGN_NETWORK_ERROR_MESSAGE =
+  "Something went wrong. Please try again.";
+
+export const buildAutoAssignPayload = (projectId) => {
+  if (!projectId) {
+    return {};
+  }
+
+  return {
+    projectId,
+    ProjectId: projectId,
+    project_Id: projectId,
+  };
+};
+
+export const getAutoAssignErrorMessage = async (error) => {
+  if (!error?.response) {
+    return AUTO_ASSIGN_NETWORK_ERROR_MESSAGE;
+  }
+
+  return getTicketApiErrorMessage(error, AUTO_ASSIGN_FAILURE_MESSAGE);
+};
+
 export const autoAssignTickets = (payload = {}) =>
   api.post(API_ENDPOINTS.tickets.autoAssign, payload);
 

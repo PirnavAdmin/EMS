@@ -71,6 +71,157 @@ const isCanceledRequest = (error) =>
   error?.code === "ERR_CANCELED" ||
   error?.name === "CanceledError";
 
+const pickFirstNumericValue = (values = []) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") {
+      continue;
+    }
+
+    const numericValue = Number(value);
+
+    if (Number.isFinite(numericValue)) {
+      return numericValue;
+    }
+  }
+
+  return null;
+};
+
+const hasOwn = (value, key) =>
+  Boolean(value) &&
+  typeof value === "object" &&
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const pickFirstPresentNumericValue = (sources = []) => {
+  for (const [source, key] of sources) {
+    if (!hasOwn(source, key)) {
+      continue;
+    }
+
+    const value = source[key];
+
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+
+    const numericValue = Number(value);
+
+    return Number.isFinite(numericValue) ? numericValue : 0;
+  }
+
+  return null;
+};
+
+const getUsedLeavesForMonth = (emp, counts = {}) => {
+  const backendUsedLeaves = pickFirstNumericValue([
+    emp?.ul,
+    emp?.UL,
+    emp?.usedLeaves,
+    emp?.UsedLeaves,
+    emp?.usedLeave,
+    emp?.UsedLeave,
+    emp?.monthlyUsedLeaves,
+    emp?.MonthlyUsedLeaves,
+    emp?.totalLeavesUsed,
+    emp?.TotalLeavesUsed,
+    emp?.takenLeaves,
+    emp?.TakenLeaves,
+    emp?.leavesTaken,
+    emp?.LeavesTaken,
+    emp?.leaveDaysUsed,
+    emp?.LeaveDaysUsed,
+    emp?.approvedLeaveDays,
+    emp?.ApprovedLeaveDays,
+    emp?.leaveBalance?.used,
+    emp?.leaveBalance?.Used,
+    emp?.LeaveBalance?.used,
+    emp?.LeaveBalance?.Used,
+    emp?.employee?.usedLeaves,
+    emp?.employee?.UsedLeaves,
+    emp?.employee?.leaveBalance?.used,
+    emp?.employee?.leaveBalance?.Used,
+  ]);
+
+  return backendUsedLeaves ?? (counts.onLeave || 0);
+};
+
+const getBackendLeaveMetric = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const getTotalLeavesForEmployee = (emp) =>
+  pickFirstPresentNumericValue([
+    [emp, "tl"],
+    [emp, "TL"],
+    [emp, "totalLeaves"],
+    [emp, "TotalLeaves"],
+    [emp?.leaveBalance, "total"],
+    [emp?.leaveBalance, "Total"],
+    [emp?.employee, "tl"],
+    [emp?.employee, "TL"],
+    [emp?.employee?.leaveBalance, "total"],
+    [emp?.employee?.leaveBalance, "Total"],
+  ]) ?? getBackendLeaveMetric(emp?.tl);
+
+const getBalanceLeavesForEmployee = (emp, leaveSummary = {}) => {
+  const backendBalanceLeaves = pickFirstPresentNumericValue([
+    [emp, "bl"],
+    [emp, "BL"],
+    [emp, "balanceLeaves"],
+    [emp, "BalanceLeaves"],
+    [emp?.leaveBalance, "balance"],
+    [emp?.leaveBalance, "Balance"],
+    [emp?.employee, "bl"],
+    [emp?.employee, "BL"],
+    [emp?.employee?.leaveBalance, "balance"],
+    [emp?.employee?.leaveBalance, "Balance"],
+  ]);
+
+  if (backendBalanceLeaves !== null) {
+    return Math.max(0, backendBalanceLeaves);
+  }
+
+  const totalLeaves = Number(leaveSummary.totalLeaves) || 0;
+  const usedLeaves = Number(leaveSummary.usedLeaves) || 0;
+
+  return Math.max(0, totalLeaves - usedLeaves);
+};
+
+const getTotalWorkingDaysForEmployee = (emp, counts = {}) => {
+  const backendWorkingDays = pickFirstPresentNumericValue([
+    [emp, "tw"],
+    [emp, "TW"],
+    [emp, "totalWorkingDays"],
+    [emp, "TotalWorkingDays"],
+    [emp, "workingDays"],
+    [emp, "WorkingDays"],
+  ]);
+
+  if (backendWorkingDays !== null) {
+    return Math.max(0, backendWorkingDays);
+  }
+
+  return [
+    counts.present,
+    counts.absent,
+    counts.late,
+    counts.halfDay,
+    counts.onLeave,
+    counts.lossOfPay,
+    counts.missedCheckout,
+    counts.lateMissedCheckout,
+  ].reduce((total, value) => total + (Number(value) || 0), 0);
+};
+
+const formatLeaveSummaryValue = (value) =>
+  value === null || value === undefined ? 0 : value;
+
 const buildReportMonthOptions = (yearValue) =>
   Array.from({ length: 12 }, (item, monthIndex) => {
     const monthValue = monthIndex + 1;
@@ -1608,6 +1759,23 @@ function AttendanceTable({
         else if (normalizedDay.status === "Holiday") holiday++;
       });
 
+      const totalLeaves = getTotalLeavesForEmployee(emp);
+      const usedLeaves = getUsedLeavesForMonth(emp, { onLeave });
+      const balanceLeaves = getBalanceLeavesForEmployee(emp, {
+        totalLeaves,
+        usedLeaves,
+      });
+      const totalWorkingDays = getTotalWorkingDaysForEmployee(emp, {
+        present,
+        absent,
+        onLeave,
+        late,
+        halfDay,
+        lossOfPay,
+        missedCheckout,
+        lateMissedCheckout,
+      });
+
       return {
         ...emp,
         __dayMap: dayMap,
@@ -1615,6 +1783,10 @@ function AttendanceTable({
           present,
           absent,
           onLeave,
+          totalLeaves,
+          usedLeaves,
+          balanceLeaves,
+          totalWorkingDays,
           late,
           lossOfPay,
           missedCheckout,
@@ -2989,6 +3161,16 @@ function AttendanceTable({
 
               <span><i className="legend-dot upcoming"></i> Upcoming</span>
 
+              <span><i className="legend-dot leave-total"></i> TL - Total Leaves</span>
+
+              <span><i className="legend-dot leave-on-leave"></i> OL - On Leave</span>
+
+              <span><i className="legend-dot leave-used"></i> UL - Used Leaves</span>
+
+              <span><i className="legend-dot leave-balance"></i> BL - Balance Leaves</span>
+
+              <span><i className="legend-dot working-days"></i> TW - Total Working Days</span>
+
             </div>
 
           )}
@@ -3228,7 +3410,7 @@ function AttendanceTable({
                   <div
                     className="monthly-grid"
                     style={{
-                      gridTemplateColumns: `260px repeat(${daysArray.length}, 34px) 42px 42px 42px 42px 42px 46px 46px 52px 42px 42px 76px`
+                      gridTemplateColumns: `260px repeat(${daysArray.length}, 34px) 42px 42px 42px 42px 42px 42px 42px 42px 46px 46px 52px 42px 42px 42px 76px`
                     }}
                   >
                     <div
@@ -3367,7 +3549,61 @@ function AttendanceTable({
                         color: "var(--attendance-text)",
                       }}
                     >
+                      TL
+                    </div>
+
+                    <div
+                      className="monthly-head summary-head"
+                      style={{
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 999,
+                        background: "var(--attendance-summary)",
+                        height: "72px",
+                        minHeight: "72px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--attendance-text)",
+                      }}
+                    >
                       OL
+                    </div>
+
+                    <div
+                      className="monthly-head summary-head"
+                      style={{
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 999,
+                        background: "var(--attendance-summary)",
+                        height: "72px",
+                        minHeight: "72px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--attendance-text)",
+                      }}
+                    >
+                      UL
+                    </div>
+
+                    <div
+                      className="monthly-head summary-head"
+                      style={{
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 999,
+                        background: "var(--attendance-summary)",
+                        height: "72px",
+                        minHeight: "72px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--attendance-text)",
+                      }}
+                    >
+                      BL
                     </div>
 
                     <div
@@ -3458,6 +3694,24 @@ function AttendanceTable({
                       }}
                     >
                       H
+                    </div>
+
+                    <div
+                      className="monthly-head summary-head"
+                      style={{
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 999,
+                        background: "var(--attendance-summary)",
+                        height: "72px",
+                        minHeight: "72px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--attendance-text)",
+                      }}
+                    >
+                      TW
                     </div>
 
                     <div
@@ -3599,7 +3853,25 @@ function AttendanceTable({
                           <div
                             className="monthly-count"
                           >
+                            {formatLeaveSummaryValue(counts.totalLeaves)}
+                          </div>
+
+                          <div
+                            className="monthly-count"
+                          >
                             {counts.onLeave || 0}
+                          </div>
+
+                          <div
+                            className="monthly-count"
+                          >
+                            {formatLeaveSummaryValue(counts.usedLeaves)}
+                          </div>
+
+                          <div
+                            className="monthly-count"
+                          >
+                            {formatLeaveSummaryValue(counts.balanceLeaves)}
                           </div>
 
                           <div
@@ -3630,6 +3902,12 @@ function AttendanceTable({
                             className="monthly-count"
                           >
                             {counts.holiday || 0}
+                          </div>
+
+                          <div
+                            className="monthly-count"
+                          >
+                            {formatLeaveSummaryValue(counts.totalWorkingDays)}
                           </div>
 
                           <div

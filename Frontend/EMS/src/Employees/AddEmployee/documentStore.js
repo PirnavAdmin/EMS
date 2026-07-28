@@ -73,67 +73,117 @@ const getTimestamp = (value) => {
 
 const getDocumentServerId = (document = {}) =>
   document.serverId ??
+  document.ServerId ??
   document.id ??
+  document.Id ??
   document.documentId ??
+  document.DocumentId ??
   document.employeeDocumentId ??
+  document.EmployeeDocumentId ??
+  document.employeeDocumentID ??
+  document.EmployeeDocumentID ??
+  document.fileId ??
+  document.FileId ??
+  document.fileID ??
+  document.FileID ??
   null;
 
 const getDocumentFileName = (document = {}) =>
   toSafeString(
     document.file_Name ||
+    document.File_Name ||
     document.fileName ||
+    document.FileName ||
     document.name ||
+    document.Name ||
     document.originalFileName ||
-    document.originalName
+    document.OriginalFileName ||
+    document.originalName ||
+    document.OriginalName ||
+    document.documentName ||
+    document.DocumentName
   );
 
 const getDocumentType = (document = {}) =>
   toSafeString(
     document.documentType ||
+    document.DocumentType ||
     document.documentTypeName ||
+    document.DocumentTypeName ||
     document.document_type ||
+    document.Document_Type ||
     document.category ||
-    document.type
+    document.Category ||
+    document.type ||
+    document.Type
   );
 
 const getDocumentFileType = (document = {}, fileName = "") =>
   toSafeString(
     document.fileType ||
+    document.FileType ||
     document.mimeType ||
+    document.MimeType ||
     document.contentType ||
+    document.ContentType ||
     document.fileMimeType ||
+    document.FileMimeType ||
     (fileName.includes(".") ? fileName.split(".").pop() : "")
   );
 
 const getDocumentSize = (document = {}) =>
   Number(
     document.size ??
+    document.Size ??
     document.fileSize ??
+    document.FileSize ??
     document.file_Size ??
+    document.File_Size ??
     document.file_size ??
+    document.File_size ??
     0
   ) || 0;
 
 const getDocumentUploadedAt = (document = {}) =>
   document.uploadedAt ||
+  document.UploadedAt ||
   document.createdAt ||
+  document.CreatedAt ||
   document.uploadDate ||
+  document.UploadDate ||
+  document.uploadedDate ||
+  document.UploadedDate ||
   document.created_At ||
+  document.Created_At ||
   document.updatedAt ||
+  document.UpdatedAt ||
   "";
 
 const getDocumentFileUrl = (document = {}) =>
   toSafeString(
     document.fileUrl ||
+    document.FileUrl ||
     document.url ||
+    document.Url ||
     document.fileURL ||
+    document.FileURL ||
     document.downloadUrl ||
     document.downloadURL ||
+    document.DownloadUrl ||
+    document.DownloadURL ||
+    document.filePath ||
+    document.FilePath ||
     ""
   );
 
 const getDocumentLastModified = (document = {}) =>
-  Number(document.lastModified ?? document.fileLastModified ?? 0) || 0;
+  Number(
+    document.lastModified ??
+    document.LastModified ??
+    document.fileLastModified ??
+    document.FileLastModified ??
+    0
+  ) || 0;
 
 const getDocumentIdentitySignatures = (document = {}) => {
   const normalizedDocument = normalizeDocumentRecord(document);
@@ -486,28 +536,127 @@ const openDatabase = () => {
 };
 
 export const extractDocumentRecords = (responseData) => {
+  const unwrapCollection = (value, seen = new Set()) => {
+    if (!value || seen.has(value)) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (typeof value !== "object") {
+      return [];
+    }
+
+    seen.add(value);
+
+    const collectionKeys = [
+      "$values",
+      "Data",
+      "data",
+      "Documents",
+      "documents",
+      "items",
+      "Items",
+      "result",
+      "Result",
+      "records",
+      "Records",
+    ];
+
+    for (const key of collectionKeys) {
+      const nestedValue = value[key];
+      const nestedCollection = unwrapCollection(nestedValue, seen);
+
+      if (nestedCollection.length > 0) {
+        return nestedCollection;
+      }
+    }
+
+    return [];
+  };
+
+  const unwrappedCollection = unwrapCollection(responseData);
+
+  if (unwrappedCollection.length > 0) {
+    return unwrappedCollection;
+  }
+
   if (Array.isArray(responseData)) {
     return responseData;
+  }
+
+  if (Array.isArray(responseData?.Data)) {
+    return responseData.Data;
   }
 
   if (Array.isArray(responseData?.data)) {
     return responseData.data;
   }
 
+  if (Array.isArray(responseData?.Documents)) {
+    return responseData.Documents;
+  }
+
   if (Array.isArray(responseData?.documents)) {
     return responseData.documents;
+  }
+
+  if (Array.isArray(responseData?.items)) {
+    return responseData.items;
+  }
+
+  if (Array.isArray(responseData?.Items)) {
+    return responseData.Items;
+  }
+
+  if (Array.isArray(responseData?.result)) {
+    return responseData.result;
+  }
+
+  if (Array.isArray(responseData?.Result)) {
+    return responseData.Result;
+  }
+
+  if (Array.isArray(responseData?.data?.Documents)) {
+    return responseData.data.Documents;
   }
 
   if (Array.isArray(responseData?.data?.documents)) {
     return responseData.data.documents;
   }
 
+  if (Array.isArray(responseData?.Data?.documents)) {
+    return responseData.Data.documents;
+  }
+
+  if (Array.isArray(responseData?.Data?.Documents)) {
+    return responseData.Data.Documents;
+  }
+
+  if (responseData?.Document) {
+    return [responseData.Document];
+  }
+
   if (responseData?.document) {
     return [responseData.document];
   }
 
+  if (responseData?.data?.Document) {
+    return [responseData.data.Document];
+  }
+
   if (responseData?.data?.document) {
     return [responseData.data.document];
+  }
+
+  if (responseData?.Data?.Document) {
+    return [responseData.Data.Document];
+  }
+
+  if (responseData?.Data?.document) {
+    return [responseData.Data.document];
   }
 
   if (responseData && typeof responseData === "object") {
@@ -604,6 +753,8 @@ export const normalizeDocumentRecord = (
   const downloadUrl = toSafeString(
     document.downloadUrl ||
     document.downloadURL ||
+    document.DownloadUrl ||
+    document.DownloadURL ||
     fileUrl
   );
   const blob = document.blob instanceof Blob ? document.blob : null;
@@ -611,10 +762,16 @@ export const normalizeDocumentRecord = (
   const cacheKey =
     toSafeString(
       document.cacheKey ||
+      document.CacheKey ||
       document.localId ||
+      document.LocalId ||
       serverId ||
       document.documentId ||
-      document.employeeDocumentId
+      document.DocumentId ||
+      document.employeeDocumentId ||
+      document.EmployeeDocumentId ||
+      document.fileId ||
+      document.FileId
     ) ||
     createFallbackKey(employeeKey, {
       fileName,

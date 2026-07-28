@@ -143,7 +143,7 @@ namespace EmployeeManagementSystem.Data
       
 
         public DbSet<TicketTimer> TicketTimers { get; set; }
-
+        public DbSet<TicketAssignment> TicketAssignments { get; set; }
         public DbSet<SchedulerLog> SchedulerLogs { get; set; }
 
         public DbSet<RoundRobinState> RoundRobinStates { get; set; }
@@ -187,6 +187,8 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<Asset>().ToTable("assets");
 
             modelBuilder.Entity<TaskManagement>().ToTable("taskmanagement");
+            modelBuilder.Entity<EmployeeMonthlyLeaveBalance>()
+    .ToTable("EmployeeMonthlyLeaveBalance");
 
             modelBuilder.Entity<Branch>().ToTable("branches");
 
@@ -273,6 +275,18 @@ namespace EmployeeManagementSystem.Data
 
                 .HasForeignKey(rp => rp.ModuleId);
 
+            modelBuilder.Entity<TicketAssignment>()
+    .HasOne(x => x.Ticket)
+    .WithMany()
+    .HasForeignKey(x => x.TicketId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TicketAssignment>()
+                .HasOne(x => x.Employee)
+                .WithMany()
+                .HasForeignKey(x => x.EmployeeId)
+                .HasPrincipalKey(x => x.Employee_Id)
+                .OnDelete(DeleteBehavior.Cascade);
             // Optimization: safe read-path indexes for dashboard, attendance, payroll, and report filters.
             modelBuilder.Entity<Attendance>()
                 .HasIndex(a => new { a.Employee_Id, a.Attendance_Date });

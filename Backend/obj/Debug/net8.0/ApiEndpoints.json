@@ -4052,9 +4052,9 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "email",
-        "Type": "System.String",
-        "IsRequired": false
+        "Name": "dto",
+        "Type": "EmployeeManagementSystem.DTOs.ForgotPasswordDto",
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []

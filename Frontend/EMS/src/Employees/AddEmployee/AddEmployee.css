@@ -2835,6 +2835,27 @@
   font-weight: 800;
 }
 
+.add-employee .uploaded-documents-list {
+  max-height: min(52vh, 520px);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.add-employee .uploaded-documents-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.add-employee .uploaded-documents-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.add-employee .uploaded-documents-list::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
 .add-employee .document-filename {
   color: var(--text-muted);
   font-size: 12px;

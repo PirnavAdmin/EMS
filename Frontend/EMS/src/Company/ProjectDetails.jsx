@@ -33,11 +33,15 @@ import useTheme from "../theme/useTheme";
 import { formatDate } from "../utils/date";
 import "./../TicketManagement/TicketManagement.css";
 import "./ProjectDetails.css";
+import AutoAssignConfirmModal from "../TicketManagement/AutoAssignConfirmModal";
 import {
+  AUTO_ASSIGN_SUCCESS_MESSAGE,
   autoAssignTickets,
+  buildAutoAssignPayload,
   downloadTicketTemplate,
   fetchEmployeeTickets,
   fetchProjectTickets,
+  getAutoAssignErrorMessage,
   getTicketApiErrorMessage,
   uploadTicketBulkFile,
 } from "../services/ticketService";
@@ -823,71 +827,6 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
   );
 }
 
-function AutoAssignConfirmModal({
-  open,
-  saving = false,
-  onClose,
-  onConfirm,
-}) {
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <ModalShell
-      open
-      title="Auto Assign Tickets"
-      subtitle="Are you sure you want to auto assign all unassigned tickets?"
-      headerActions={<span className="ticket-modal-badge">Project</span>}
-      onClose={() => {
-        if (!saving) {
-          onClose?.();
-        }
-      }}
-      className="ticket-modal-narrow"
-      footer={
-        <>
-          <button
-            type="button"
-            className="ticket-button secondary"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            className="ticket-button primary"
-            onClick={onConfirm}
-            disabled={saving}
-          >
-            {saving ? (
-              <>
-                <FaSpinner className="ticket-button-spinner" />
-                Assigning...
-              </>
-            ) : (
-              <>
-                <FaSyncAlt aria-hidden="true" />
-                Assign
-              </>
-            )}
-          </button>
-        </>
-      }
-    >
-      <div className="ticket-details-section ticket-confirm-section">
-        <div className="ticket-detail-chips">
-          <span className="ticket-pill detail-chip">
-            Unassigned tickets will be distributed automatically.
-          </span>
-        </div>
-      </div>
-    </ModalShell>
-  );
-}
-
 function EmployeeTicketDetailsModal({ open, employee, onClose }) {
   const [loading, setLoading] = useState(false);
   const [tickets, setTickets] = useState([]);
@@ -1352,20 +1291,13 @@ function ProjectDetails() {
 
     try {
       setAutoAssignSaving(true);
-      await autoAssignTickets({
-        projectId,
-        ProjectId: projectId,
-        project_Id: projectId,
-      });
-      toastSuccess("Unassigned tickets auto assigned successfully.");
+      await autoAssignTickets(buildAutoAssignPayload(projectId));
+      toastSuccess(AUTO_ASSIGN_SUCCESS_MESSAGE);
       setAutoAssignOpen(false);
       refreshProjectData();
     } catch (error) {
       console.error("Auto assign failed:", error);
-      const message = await getTicketApiErrorMessage(
-        error,
-        "Unable to auto assign tickets right now."
-      );
+      const message = await getAutoAssignErrorMessage(error);
       toastError(message);
     } finally {
       setAutoAssignSaving(false);

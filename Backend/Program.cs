@@ -39,16 +39,18 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<JwtHelper>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-
+{
     options.UseMySql(
-
         builder.Configuration.GetConnectionString("DefaultConnection"),
-
-        new MySqlServerVersion(new Version(8, 0, 36))
-
-    )
-
-);
+        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection")),
+        mysqlOptions =>
+        {
+            mysqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+        });
+});
 
 builder.Services.AddScoped<IOfferLetterService, OfferLetterService>();
 
@@ -257,7 +259,31 @@ builder.Services.AddSwaggerGen(options =>
 
 // ================= BUILD =================
 QuestPDF.Settings.License = LicenseType.Community;
+
+Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    try
+    {
+        Console.WriteLine("Testing database connection...");
+
+        if (db.Database.CanConnect())
+        {
+            Console.WriteLine("Database Connected Successfully.");
+        }
+        else
+        {
+            Console.WriteLine("Database Connection Failed.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.ToString());
+    }
+}
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders =
