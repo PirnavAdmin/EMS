@@ -11,7 +11,7 @@ import { ToastContainer } from "react-toastify";
 import AdminRoute from "./routes/AdminRoute";
 
 import GlobalUiController from "./components/GlobalUiController";
-import "./components/common/toast/toast.css";
+// import "./components/common/toast/toast.css";
 import { toastTransition } from "./components/common/toast/toastService";
 import {
   getStoredPermissions,
