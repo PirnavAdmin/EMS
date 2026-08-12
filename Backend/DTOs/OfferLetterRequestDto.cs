@@ -31,39 +31,39 @@
         public DateTime Joining_Date { get; set; }
 
         // NEW
-        public string? ReportingManager { get; set; }
+        //public string? ReportingManager { get; set; }
 
-        // NEW
-        public string? OfficeLocation { get; set; }
+        //// NEW
+        //public string? OfficeLocation { get; set; }
 
-        // NEW
-        public string? WorkLocation { get; set; }
+        //// NEW
+        //public string? WorkLocation { get; set; }
 
 
-        // ============================
-        // OFFER TERMS
-        // ============================
+        //// ============================
+        //// OFFER TERMS
+        //// ============================
 
-        // Example: "6 Months"
-        public string? ProbationPeriod { get; set; }
+        //// Example: "6 Months"
+        //public string? ProbationPeriod { get; set; }
 
-        // Example: "1 Month"
-        public string? ProbationNoticePeriod { get; set; }
+        //// Example: "1 Month"
+        //public string? ProbationNoticePeriod { get; set; }
 
-        // Example: "2 Months"
-        public string? PostConfirmationNoticePeriod { get; set; }
+        //// Example: "2 Months"
+        //public string? PostConfirmationNoticePeriod { get; set; }
 
-        // Offer must be accepted before this date
-        public DateTime? AcceptanceDeadline { get; set; }
+        //// Offer must be accepted before this date
+        //public DateTime? AcceptanceDeadline { get; set; }
 
-        public string? Phone { get; set; }
-        // ============================
-        // AUTHORIZED SIGNATORY
-        // ============================
+        //public string? Phone { get; set; }
+        //// ============================
+        //// AUTHORIZED SIGNATORY
+        //// ============================
 
-        public string? AuthorizedSignatory { get; set; }
+        //public string? AuthorizedSignatory { get; set; }
 
-        public string? AuthorizedSignatoryDesignation { get; set; }
+        //public string? AuthorizedSignatoryDesignation { get; set; }
 
 
         // ============================
@@ -96,10 +96,10 @@
         // NEW ANNEXURE COMPONENTS
         // ============================
 
-        public decimal? Gratuity { get; set; }
+        //public decimal? Gratuity { get; set; }
 
-        public decimal? PerformanceIncentive { get; set; }
+        //public decimal? PerformanceIncentive { get; set; }
 
-        public int Company_Id { get; set; }//vishnu change for multiple companies (multi-tenant),
+        //public int Company_Id { get; set; }//vishnu change for multiple companies (multi-tenant),
     }
 }

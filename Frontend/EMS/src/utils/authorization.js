@@ -5,6 +5,7 @@ import {
   getStoredPermissions,
   getStoredAuthValue,
 } from "./authStorage";
+import { getCurrentAdminAllowedModules } from "./adminPermissionState";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { toBoolean } from "./boolean";
 
@@ -232,9 +233,25 @@ const normalizeModuleName = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
+const MODULE_PERMISSION_ALIASES = new Map([
+  ["offerletters", "offerletters"],
+  ["offerletter", "offerletters"],
+  ["viewpurpose", "offerletters"],
+]);
+
+const normalizeModulePermissionName = (value) => {
+  const normalized = normalizeModuleName(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  return MODULE_PERMISSION_ALIASES.get(normalized) || normalized;
+};
+
 export const modulePermissionMatches = (permissionModule, requestedModule) => {
-  const storedModule = normalizeModuleName(permissionModule);
-  const targetModule = normalizeModuleName(requestedModule);
+  const storedModule = normalizeModulePermissionName(permissionModule);
+  const targetModule = normalizeModulePermissionName(requestedModule);
 
   if (!storedModule || !targetModule) {
     return false;
@@ -254,6 +271,48 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
 
   if (isOnboardingUser()) {
     return false;
+  }
+
+  const activeRole = getUserRole() || getUserRoleName();
+
+  if (activeRole === "admin") {
+    const permissions = getCurrentAdminAllowedModules();
+
+    if (!Array.isArray(permissions) || permissions.length === 0) {
+      return false;
+    }
+
+    return permissions.some((permission) => {
+      const permissionModule = permission.moduleName ?? permission.ModuleName;
+
+      if (
+        !modulePermissionMatches(permissionModule, moduleName) &&
+        !ticketPermissionMatches(permissionModule, moduleName)
+      ) {
+        return false;
+      }
+
+      const canAccess =
+        permission.canAccess ??
+        permission.CanAccess ??
+        permission.canView ??
+        permission.CanView ??
+        true;
+
+      if (canAccess !== true) {
+        return false;
+      }
+
+      if (!action || action === "canAccess") {
+        return true;
+      }
+
+      return (
+        permission[action] ??
+        permission[action[0].toUpperCase() + action.slice(1)] ??
+        canAccess
+      ) === true;
+    });
   }
 
   const permissions = getStoredPermissions();

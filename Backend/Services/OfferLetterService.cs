@@ -50,9 +50,9 @@ namespace EmployeeManagementSystem.Services
 //"OFFER");
 
 
-//            if (template == null)
+            //if (template == null)
 
-//                throw new Exception("Offer Letter template not found.");
+            //    throw new Exception("Offer Letter template not found.");
 
 
             var templatePath = Path.Combine(
@@ -225,27 +225,6 @@ namespace EmployeeManagementSystem.Services
             decimal monthlyCTC =
                 Math.Round(annualCTC / 12, 2);
 
-            // ======================================
-            // NEW ANNEXURE BENEFITS
-            // ======================================
-
-            decimal gratuityMonthly =
-                Math.Round(
-                    dto.Gratuity ?? 0m,
-                    0,
-                    MidpointRounding.AwayFromZero);
-
-            decimal performanceIncentiveMonthly =
-                Math.Round(
-                    dto.PerformanceIncentive ?? 0m,
-                    0,
-                    MidpointRounding.AwayFromZero);
-
-            decimal gratuityYearly =
-                gratuityMonthly * 12;
-
-            decimal performanceIncentiveYearly =
-                performanceIncentiveMonthly * 12;
             // ================================
             // EARNINGS - FROM FRONTEND OR DEFAULT
             // ================================
@@ -280,31 +259,23 @@ namespace EmployeeManagementSystem.Services
             // GROSS BALANCED WITH ANNUAL CTC
             // ================================
 
-            decimal totalBenefitsMonthly =
-     employerPfMonthly +
-     gratuityMonthly +
-     performanceIncentiveMonthly;
-
             decimal gross =
-                Math.Round(
-                    monthlyCTC - totalBenefitsMonthly,
-                    2);
+                Math.Round(monthlyCTC - employerPfMonthly, 2);
 
             // ================================
             // OTHER ALLOWANCE AUTO BALANCING
             // ================================
 
             decimal otherAllowance =
-     dto.OtherAllowance ??
-     Math.Round(
-         gross -
-         (
-             basic +
-             hra +
-             conveyance +
-             medicalAllowance
-         ),
-         2);
+                Math.Round(
+                    gross -
+                    (
+                        basic +
+                        hra +
+                        conveyance +
+                        medicalAllowance
+                    ),
+                    2);
 
             // ================================
             // NET TAKE HOME
@@ -340,25 +311,6 @@ namespace EmployeeManagementSystem.Services
             netMonthly = Math.Round(netMonthly, 0, MidpointRounding.AwayFromZero);
 
             employerPfMonthly = Math.Round(employerPfMonthly, 0, MidpointRounding.AwayFromZero);
-            gratuityMonthly =
-    Math.Round(
-        gratuityMonthly,
-        0,
-        MidpointRounding.AwayFromZero);
-
-            performanceIncentiveMonthly =
-                Math.Round(
-                    performanceIncentiveMonthly,
-                    0,
-                    MidpointRounding.AwayFromZero);
-
-            totalBenefitsMonthly =
-                Math.Round(
-                    employerPfMonthly +
-                    gratuityMonthly +
-                    performanceIncentiveMonthly,
-                    0,
-                    MidpointRounding.AwayFromZero);
 
             // ================================
             // NOW CALCULATE YEARLY VALUES
@@ -377,444 +329,136 @@ namespace EmployeeManagementSystem.Services
             decimal employerPfAnnual = employerPfMonthly * 12;
 
             decimal netAnnual = netMonthly * 12;
-            gratuityYearly =
-    gratuityMonthly * 12;
-
-            performanceIncentiveYearly =
-                performanceIncentiveMonthly * 12;
-
-            decimal totalBenefitsYearly =
-                totalBenefitsMonthly * 12;
 
             // =============================
             // Replace Bookmarks
             // =============================
             var candidateFullName =
-      $"{dto.Candidate_Title} {dto.Candidate_Name}".Trim();
-
-            // Auto generated reference serial number
-            string serialNo =
-                DateTime.Now.ToString("yyyyMMddHHmmss");
-
-            // CTC in words
-            string ctcInWords =
-                NumberToWords(
-                    (long)Math.Round(annualCTC));
+    $"{dto.Candidate_Title} {dto.Candidate_Name}".Trim();
 
             using (WordprocessingDocument wordDoc =
                 WordprocessingDocument.Open(outputPath, true))
             {
-                string joiningDate =
-                    dto.Joining_Date.ToString("dd MMM yyyy");
-
-                string acceptanceDeadline =
-                    dto.AcceptanceDeadline.HasValue
-                        ? dto.AcceptanceDeadline.Value.ToString("dd MMM yyyy")
-                        : "-";
-
+                var joiningDate = dto.Joining_Date.ToString("dd MMM yyyy");
 
-                // ==========================================
-                // OFFER DETAILS
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Date",
-                    DateTime.Now.ToString("dd MMM yyyy"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "SerialNo",
-                    serialNo);
-
-
-                // ==========================================
-                // CANDIDATE NAME - ALL PLACES
-                // ==========================================
-
-                ReplaceBookmark(
-     wordDoc,
-     "CandidateName",
-     candidateFullName);
+                ReplaceBookmark(wordDoc, "Date", DateTime.Now.ToString("dd MMM yyyy"));
+                ReplaceBookmark(wordDoc, "CandidateName", candidateFullName);
+                ReplaceBookmark(wordDoc, "Address", dto.Address); // ✅ multi-line supported
+                ReplaceBookmark(wordDoc, "JoiningDate", joiningDate);
+                ReplaceBookmark(wordDoc, "DateOfJoining", joiningDate);
+                ReplaceBookmark(wordDoc, "Position", dto.Position);
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "CandidateName2",
-                    candidateFullName);
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "CandidateName3",
-                    candidateFullName);
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "CandidateName4",
-                    candidateFullName);
-
-
-                // ==========================================
-                // ADDRESS
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Address",
-                    dto.Address);
-
-
-                // ==========================================
-                // POSITION - ALL PLACES
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Position",
-                    dto.Position);
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Position2",
-                    dto.Position);
+                ReplaceBookmark(wordDoc, "CTCAnnual",
+                   annualCTC.ToString("N2", new CultureInfo("en-IN")) + "/-");
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "Position3",
-                    dto.Position);
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Position4",
-                    dto.Position);
-
-
-                // ==========================================
-                // EMPLOYMENT DETAILS
-                // ==========================================
+                ReplaceBookmark(wordDoc, "MonthlySalary",
+                    monthlyCTC.ToString("N2", new CultureInfo("en-IN")) + "/-");
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "Department",
-                    dto.Department ?? "-");
+                ReplaceBookmark(wordDoc, "Basic", basic.ToString("N2"));
+                ReplaceBookmark(wordDoc, "BasicYearly", basicYearly.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "JoiningDate",
-                    joiningDate);
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "ReportingManager",
-                    dto.ReportingManager ?? "-");
+                ReplaceBookmark(wordDoc, "HRA", hra.ToString("N2"));
+                ReplaceBookmark(wordDoc, "HRAYearly", hraYearly.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "OfficeLocation",
-                    dto.OfficeLocation ?? "-");
+                ReplaceBookmark(wordDoc, "Conveyance", conveyance.ToString("N2"));
+                ReplaceBookmark(wordDoc, "ConveyanceYearly", conveyanceYearly.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "WorkLocation",
-                    dto.WorkLocation ?? "-");
+                ReplaceBookmark(wordDoc, "MedicalAllowance", medicalAllowance.ToString("N2"));
+                ReplaceBookmark(wordDoc, "MedicalAllowanceYearly", medicalAllowanceYearly.ToString("N2"));
 
-
-                // ==========================================
-                // CTC
-                // ==========================================
+                ReplaceBookmark(wordDoc, "OtherAllowance", otherAllowance.ToString("N2"));
+                ReplaceBookmark(wordDoc, "OtherAllowanceYearly", otherAllowanceYearly.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "CTCAnnual",
-                    annualCTC.ToString(
-                        "N2",
-                        new CultureInfo("en-IN")));
+                ReplaceBookmark(wordDoc, "Gross", gross.ToString("N2"));
+                ReplaceBookmark(wordDoc, "GrossYearly", grossYearly.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "CTCInWords",
-                    ctcInWords);
-
+                ReplaceBookmark(wordDoc, "Gross1", gross.ToString("N2"));
+                ReplaceBookmark(wordDoc, "GrossYearly1", grossYearly.ToString("N2"));
 
-                // ==========================================
-                // EMPLOYMENT TERMS
-                // ==========================================
+                ReplaceBookmark(wordDoc, "ProfessionalTax", professionaltaxMonthly.ToString("N2"));
+                ReplaceBookmark(wordDoc, "ProfessionalTaxYearly", professionaltaxAnnual.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "ProbationPeriod",
-                    dto.ProbationPeriod ?? "6 Months");
+                ReplaceBookmark(wordDoc, "ProvidentFund", providentfundMonthly.ToString("N2"));
+                ReplaceBookmark(wordDoc, "ProvidentFundYearly", providentfundAnnual.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "ProbationNoticePeriod",
-                    dto.ProbationNoticePeriod ?? "1 Month");
+                ReplaceBookmark(wordDoc, "NetTakeHome", netMonthly.ToString("N2"));
+                ReplaceBookmark(wordDoc, "NetTakeHomeYearly", netAnnual.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "PostConfirmationNoticePeriod",
-                    dto.PostConfirmationNoticePeriod ?? "2 Months");
+                ReplaceBookmark(wordDoc, "ProvidentFund1", employerPfMonthly.ToString("N2"));
+                ReplaceBookmark(wordDoc, "ProvidentFund1Yearly", employerPfAnnual.ToString("N2"));
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "AcceptanceDeadline",
-                    acceptanceDeadline);
+                ReplaceBookmark(wordDoc, "MonthlyCTC", monthlyCTC.ToString("N2"));
+                ReplaceBookmark(wordDoc, "CTCAnnual1", annualCTC.ToString("N2"));
+            }
 
-
-                // ==========================================
-                // AUTHORIZED SIGNATORY
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "AuthorizedSignatory",
-                    dto.AuthorizedSignatory ?? "-");
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "AuthorizedSignatoryDesignation",
-                    dto.AuthorizedSignatoryDesignation ?? "-");
-
-
-                // ==========================================
-                // BASIC
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Basic",
-                    basic.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "BasicYearly",
-                    basicYearly.ToString("N2"));
-
-
-                // ==========================================
-                // HRA
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "HRA",
-                    hra.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "HRAYearly",
-                    hraYearly.ToString("N2"));
-
-
-                // ==========================================
-                // SPECIAL / OTHER ALLOWANCE
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "OtherAllowance",
-                    otherAllowance.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "OtherAllowanceYearly",
-                    otherAllowanceYearly.ToString("N2"));
-
-
-                // ==========================================
-                // CONVEYANCE
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Conveyance",
-                    conveyance.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "ConveyanceYearly",
-                    conveyanceYearly.ToString("N2"));
-
-
-                // ==========================================
-                // MEDICAL
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "MedicalAllowance",
-                    medicalAllowance.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "MedicalAllowanceYearly",
-                    medicalAllowanceYearly.ToString("N2"));
-
-
-                // ==========================================
-                // GROSS
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Gross",
-                    gross.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "GrossYearly",
-                    grossYearly.ToString("N2"));
-
-
-                // ==========================================
-                // EMPLOYER PF
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "ProvidentFund1",
-                    employerPfMonthly.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "ProvidentFund1Yearly",
-                    employerPfAnnual.ToString("N2"));
-
-
-                // ==========================================
-                // GRATUITY
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "Gratuity",
-                    gratuityMonthly.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "GratuityYearly",
-                    gratuityYearly.ToString("N2"));
-
-
-                // ==========================================
-                // PERFORMANCE INCENTIVE
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "PerformanceIncentive",
-                    performanceIncentiveMonthly.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "PerformanceIncentiveYearly",
-                    performanceIncentiveYearly.ToString("N2"));
-
-
-                // ==========================================
-                // TOTAL BENEFITS
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "TotalBenefits",
-                    totalBenefitsMonthly.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "TotalBenefitsYearly",
-                    totalBenefitsYearly.ToString("N2"));
-                ReplaceBookmark(
-    wordDoc,
-    "CandidateEmail",
-    dto.Email ?? "-");
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "CandidatePhone",
-                    dto.Phone ?? "-");
-
-
-                // ==========================================
-                // TOTAL CTC
-                // ==========================================
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "MonthlyCTC",
-                    monthlyCTC.ToString("N2"));
-
-                ReplaceBookmark(
-                    wordDoc,
-                    "CTCAnnual1",
-                    annualCTC.ToString("N2"));
-            }  // =============================
+            // =============================
             // Convert DOCX to PDF
             // =============================
 
             var pdfPath = outputPath.Replace(".docx", ".pdf");
 
-           var process = new Process();
- 
-var sofficePath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            var process = new Process();
 
-    ? @"C:\Program Files\LibreOffice\program\soffice.exe"
+            var sofficePath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
 
-    : "/usr/bin/soffice";
- 
-var fontPath = Path.Combine(
+                ? @"C:\Program Files\LibreOffice\program\soffice.exe"
 
-    Directory.GetCurrentDirectory(),
+                : "/usr/bin/soffice";
 
-    "Fonts"
+            var fontPath = Path.Combine(
 
-);
- 
-process.StartInfo.FileName = sofficePath;
- 
-// IMPORTANT FOR LINUX FONT RENDERING
+                Directory.GetCurrentDirectory(),
 
-process.StartInfo.EnvironmentVariables["FONTCONFIG_PATH"] = fontPath;
- 
-process.StartInfo.Arguments =
+                "Fonts"
 
-    $"--headless --nologo --nofirststartwizard " +
+            );
 
-    $"--convert-to pdf \"{outputPath}\" " +
+            process.StartInfo.FileName = sofficePath;
 
-    $"--outdir \"{outputFolder}\"";
- 
-process.StartInfo.RedirectStandardOutput = true;
+            // IMPORTANT FOR LINUX FONT RENDERING
 
-process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.EnvironmentVariables["FONTCONFIG_PATH"] = fontPath;
 
-process.StartInfo.UseShellExecute = false;
+            process.StartInfo.Arguments =
 
-process.StartInfo.CreateNoWindow = true;
- 
-process.Start();
- 
-string output = await process.StandardOutput.ReadToEndAsync();
+                $"--headless --nologo --nofirststartwizard " +
 
-string error = await process.StandardError.ReadToEndAsync();
- 
-process.WaitForExit();
- 
-if (process.ExitCode != 0)
+                $"--convert-to pdf \"{outputPath}\" " +
 
-{
+                $"--outdir \"{outputFolder}\"";
 
-    throw new Exception(
+            process.StartInfo.RedirectStandardOutput = true;
 
-        $"LibreOffice PDF conversion failed.\n" +
+            process.StartInfo.RedirectStandardError = true;
 
-        $"Output: {output}\n" +
+            process.StartInfo.UseShellExecute = false;
 
-        $"Error: {error}"
+            process.StartInfo.CreateNoWindow = true;
 
-    );
+            process.Start();
 
-}
- 
+            string output = await process.StandardOutput.ReadToEndAsync();
+
+            string error = await process.StandardError.ReadToEndAsync();
+
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+
+            {
+
+                throw new Exception(
+
+                    $"LibreOffice PDF conversion failed.\n" +
+
+                    $"Output: {output}\n" +
+
+                    $"Error: {error}"
+
+                );
+
+            }
+
             if (!File.Exists(pdfPath))
             {
                 throw new Exception("PDF generation failed. LibreOffice not installed or wrong path.");
@@ -857,6 +501,14 @@ if (process.ExitCode != 0)
             _context.OfferLetters.Add(offerLetter);
             await _context.SaveChangesAsync();
 
+            return new OfferLetterResponseDto
+            {
+                Success = true,
+                Message = "Offer Letter Generated Successfully",
+                OfferLetterId = offerLetter.Id,
+                PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}"
+            };
+        
             return new OfferLetterResponseDto
             {
                 Success = true,

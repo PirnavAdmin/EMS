@@ -9,10 +9,14 @@ import { normalizePermissionList as normalizeEditablePermissionList } from "./pe
 import {
   getStoredAdminEmail,
   getStoredAdminId,
-  getStoredAdminPermissionSnapshot,
   getStoredToken,
   persistAdminPermissions,
 } from "../utils/authStorage";
+import {
+  clearCurrentAdminAllowedModules,
+  getCurrentAdminAllowedModules,
+  setCurrentAdminAllowedModules,
+} from "../utils/adminPermissionState";
 
 const ADMIN_PERMISSION_STORAGE_KEYS = [
   "adminPermissions",
@@ -52,7 +56,8 @@ const resolvePermissionRole = (role) =>
 const getPermissionEndpointForRole = (role) => {
   const normalizedRole = resolvePermissionRole(role);
   const adminPermissionEndpoint =
-    API_ENDPOINTS.adminPermission.allowedModules || "";
+    API_ENDPOINTS.adminPermission.allowedModules ||
+    "/AdminPermission/allowed-modules";
 
   if (normalizedRole !== "admin") {
     return "";
@@ -156,10 +161,14 @@ const getFriendlyErrorMessage = (
 };
 
 const getCachedPermissionSnapshot = () => {
-  const snapshot = getStoredAdminPermissionSnapshot();
+  const modules = getCurrentAdminAllowedModules();
 
-  if (snapshot && Array.isArray(snapshot.modules) && snapshot.modules.length > 0) {
-    return snapshot;
+  if (Array.isArray(modules) && modules.length > 0) {
+    return {
+      adminId: getStoredAdminId() || "",
+      adminEmail: getStoredAdminEmail() || "",
+      modules,
+    };
   }
 
   return null;
@@ -172,6 +181,8 @@ export const hasCachedAllowedModules = () =>
   getCachedAllowedModules().length > 0;
 
 export const clearAdminPermissionCache = () => {
+  clearCurrentAdminAllowedModules();
+
   if (typeof window === "undefined") {
     return;
   }
@@ -208,8 +219,14 @@ const requestAllowedModules = async ({
     params,
   });
 
-  console.log("Authenticated Role:", normalizedRole || "unknown");
-  console.log("Selected Permission Flow:", permissionFlow);
+  console.log(
+    "[Admin Permission] Authenticated Role:",
+    normalizedRole || "unknown"
+  );
+  console.log(
+    "[Admin Permission] Selected Permission Flow:",
+    permissionFlow
+  );
 
   if (normalizedRole === "superadmin") {
     console.log("Skipping permission API for Super Admin");
@@ -221,25 +238,25 @@ const requestAllowedModules = async ({
       })
     );
 
-    console.log("Selected Permission API:", "none");
-    console.log("Permission API Response:", snapshot.modules);
-    console.log("Visible Modules:", snapshot.modules);
+    console.log("[Admin Permission] Selected Permission API:", "none");
+    console.log("[Admin Permission] Permission API Response:", snapshot.modules);
+    console.log("[Admin Permission] Allowed Modules:", snapshot.modules);
 
     return snapshot;
   }
 
   if (normalizedRole !== "admin") {
-    const emptySnapshot = persistAdminPermissions({
+    clearCurrentAdminAllowedModules();
+
+    console.log("[Admin Permission] Selected Permission API:", "none");
+    console.log("[Admin Permission] Permission API Response:", []);
+    console.log("[Admin Permission] Allowed Modules:", []);
+
+    return {
       adminId: getStoredAdminId() || "",
       adminEmail: getStoredAdminEmail() || "",
       modules: [],
-    });
-
-    console.log("Selected Permission API:", "none");
-    console.log("Permission API Response:", []);
-    console.log("Visible Modules:", []);
-
-    return emptySnapshot;
+    };
   }
 
   if (!force && !requestParams.adminId && !requestParams.adminEmail) {
@@ -248,6 +265,10 @@ const requestAllowedModules = async ({
     if (cached) {
       return cached;
     }
+  }
+
+  if (force) {
+    clearCurrentAdminAllowedModules();
   }
 
   let lastError = null;
@@ -263,21 +284,42 @@ const requestAllowedModules = async ({
           modules: [],
         });
 
-        console.log("Authenticated Role:", normalizedRole);
-        console.log("Selected Permission Flow:", permissionFlow);
-        console.log("Selected Permission API:", "none");
-        console.log("Permission API Response:", []);
-        console.log("Visible Modules:", []);
+        console.log(
+          "[Admin Permission] Authenticated Role:",
+          normalizedRole
+        );
+        console.log(
+          "[Admin Permission] Selected Permission Flow:",
+          permissionFlow
+        );
+        console.log("[Admin Permission] Selected Permission API:", "none");
+        console.log("[Admin Permission] Permission API Response:", []);
+        console.log("[Admin Permission] Allowed Modules:", []);
 
         return emptySnapshot;
       }
 
-      console.log("Authenticated Role:", normalizedRole);
-      console.log("Selected Permission Flow:", permissionFlow);
-      console.log("Selected Permission API:", endpoint);
-      console.log("Admin ID:", requestParams.adminId || getStoredAdminId() || "");
-      console.log("Token:", getStoredToken() || "");
-      console.log("Calling:", endpoint);
+      const permissionApi = `/api${endpoint}`;
+
+      console.log(
+        "[Admin Permission] Authenticated Role:",
+        normalizedRole
+      );
+      console.log(
+        "[Admin Permission] Selected Permission Flow:",
+        permissionFlow
+      );
+      console.log("[Admin Permission] Selected Permission API:", permissionApi);
+      console.log(
+        "[Admin Permission] Admin ID:",
+        requestParams.adminId || getStoredAdminId() || ""
+      );
+      console.log("[Admin Permission] Token:", getStoredToken() || "");
+      console.log("[Admin Permission] Calling:", permissionApi);
+      console.log(
+        "[Admin Permission] Fetching allowed modules:",
+        "/api/AdminPermission/allowed-modules"
+      );
 
       const response = await api.get(endpoint, {
         headers: {
@@ -286,22 +328,26 @@ const requestAllowedModules = async ({
         skipAuthFailureHandling: true,
       });
 
-      console.log("Permission API Response:", response.data);
+      console.log("[Admin Permission] Permission API Response:", response.data);
+      console.log("[Admin Permission] Allowed modules response:", response.data);
 
       const normalizedSnapshot = normalizePermissionSnapshot(response.data, {
         adminId: requestParams.adminId || getStoredAdminId() || "",
         adminEmail: requestParams.adminEmail || getStoredAdminEmail() || "",
       });
 
-      console.log("Visible Modules:", normalizedSnapshot.modules);
-
-      const persistedSnapshot = persistAdminPermissions({
+      const snapshot = {
         adminId: normalizedSnapshot.adminId || getStoredAdminId() || "",
         adminEmail: normalizedSnapshot.adminEmail || getStoredAdminEmail() || "",
         modules: normalizedSnapshot.modules,
-      });
+      };
 
-      return persistedSnapshot;
+      const allowedModules = snapshot.modules;
+
+      setCurrentAdminAllowedModules(allowedModules);
+      console.log("[Admin Permission] Stored allowed modules:", allowedModules);
+
+      return snapshot;
     } catch (error) {
       lastError = error;
 
@@ -341,11 +387,11 @@ export const fetchAllowedAdminModules = async ({
 };
 
 export const fetchAllowedUserModules = async () => {
-  console.log("Authenticated Role:", "user");
-  console.log("Selected Permission Flow:", "no-permission-api");
-  console.log("Selected Permission API:", "none");
-  console.log("Permission API Response:", []);
-  console.log("Visible Modules:", []);
+  console.log("[Admin Permission] Authenticated Role:", "user");
+  console.log("[Admin Permission] Selected Permission Flow:", "no-permission-api");
+  console.log("[Admin Permission] Selected Permission API:", "none");
+  console.log("[Admin Permission] Permission API Response:", []);
+  console.log("[Admin Permission] Allowed Modules:", []);
 
   return [];
 };
@@ -362,8 +408,14 @@ export const fetchAllowedModulesForRole = async (
         ? "admin-permission"
         : "no-permission-api";
 
-  console.log("Authenticated Role:", normalizedRole || "unknown");
-  console.log("Selected Permission Flow:", permissionFlow);
+  console.log(
+    "[Admin Permission] Authenticated Role:",
+    normalizedRole || "unknown"
+  );
+  console.log(
+    "[Admin Permission] Selected Permission Flow:",
+    permissionFlow
+  );
 
   if (normalizedRole === "superadmin") {
     console.log("Skipping permission API for Super Admin");
@@ -373,16 +425,16 @@ export const fetchAllowedModulesForRole = async (
         adminEmail: adminEmail || getStoredAdminEmail() || "",
       })
     );
-    console.log("Selected Permission API:", "none");
-    console.log("Permission API Response:", snapshot.modules);
-    console.log("Visible Modules:", snapshot.modules);
+    console.log("[Admin Permission] Selected Permission API:", "none");
+    console.log("[Admin Permission] Permission API Response:", snapshot.modules);
+    console.log("[Admin Permission] Allowed Modules:", snapshot.modules);
     return snapshot.modules || [];
   }
 
   if (normalizedRole !== "admin") {
-    console.log("Selected Permission API:", "none");
-    console.log("Permission API Response:", []);
-    console.log("Visible Modules:", []);
+    console.log("[Admin Permission] Selected Permission API:", "none");
+    console.log("[Admin Permission] Permission API Response:", []);
+    console.log("[Admin Permission] Allowed Modules:", []);
     return [];
   }
 
@@ -405,12 +457,12 @@ export const fetchAllowedSuperAdminModules = async (options = {}) => {
     })
   );
 
-  console.log("Authenticated Role:", "superadmin");
-  console.log("Selected Permission Flow:", "superadmin-bypass");
-  console.log("Skipping permission API for Super Admin");
-  console.log("Selected Permission API:", "none");
-  console.log("Permission API Response:", snapshot.modules);
-  console.log("Visible Modules:", snapshot.modules);
+  console.log("[Admin Permission] Authenticated Role:", "superadmin");
+  console.log("[Admin Permission] Selected Permission Flow:", "superadmin-bypass");
+  console.log("[Admin Permission] Skipping permission API for Super Admin");
+  console.log("[Admin Permission] Selected Permission API:", "none");
+  console.log("[Admin Permission] Permission API Response:", snapshot.modules);
+  console.log("[Admin Permission] Allowed Modules:", snapshot.modules);
 
   return snapshot.modules || [];
 };

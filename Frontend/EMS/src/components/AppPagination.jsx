@@ -1,28 +1,21 @@
 import React, { useMemo } from "react";
 
-const buildPaginationItems = (currentPage, totalPages) => {
-  if (totalPages <= 7) {
+const buildPaginationItems = (currentPage, totalPages, pageNumberDisplay) => {
+  if (pageNumberDisplay === "first-and-current") {
+    if (totalPages <= 1 || currentPage === 1) {
+      return [1];
+    }
+
+    return [1, currentPage];
+  }
+
+  if (totalPages <= 3) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
   }
 
-  const items = [1];
-  const leftSibling = Math.max(2, currentPage - 1);
-  const rightSibling = Math.min(totalPages - 1, currentPage + 1);
+  const compactPage = currentPage > 1 ? currentPage : totalPages;
 
-  if (leftSibling > 2) {
-    items.push("left-ellipsis");
-  }
-
-  for (let page = leftSibling; page <= rightSibling; page += 1) {
-    items.push(page);
-  }
-
-  if (rightSibling < totalPages - 1) {
-    items.push("right-ellipsis");
-  }
-
-  items.push(totalPages);
-  return items;
+  return [1, "ellipsis", compactPage];
 };
 
 function AppPagination({
@@ -35,6 +28,7 @@ function AppPagination({
   className = "",
   itemLabel = "records",
   pageSizeLabel = "Rows per page",
+  pageNumberDisplay = "compact",
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
@@ -45,8 +39,8 @@ function AppPagination({
     typeof onPageSizeChange === "function" && pageSizeOptions.length > 0;
 
   const pageItems = useMemo(
-    () => buildPaginationItems(safeCurrentPage, totalPages),
-    [safeCurrentPage, totalPages]
+    () => buildPaginationItems(safeCurrentPage, totalPages, pageNumberDisplay),
+    [safeCurrentPage, totalPages, pageNumberDisplay]
   );
 
   const handlePageChange = (nextPage) => {

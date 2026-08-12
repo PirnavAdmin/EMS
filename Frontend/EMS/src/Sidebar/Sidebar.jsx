@@ -230,7 +230,7 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
   {
     to: "/offer-letters",
     icon: FaFileSignature,
-    label: "Offer Letters",
+    label: "Official Letter",
     permission: "Offer Letters",
   },
   {

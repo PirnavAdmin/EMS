@@ -691,10 +691,29 @@ button:disabled {
   border-top: 1px solid var(--border-soft);
 }
 
+.payroll-page .app-pagination-bar {
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding-inline: 4px;
+  box-sizing: border-box;
+}
+
 .app-pagination-info {
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.payroll-page .app-pagination-info {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .app-pagination-info strong {
@@ -709,11 +728,30 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.payroll-page .app-pagination-controls {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  overflow: visible;
+  row-gap: 8px;
+  box-sizing: border-box;
+}
+
+.payroll-page .app-pagination-controls > * {
+  flex: 0 0 auto;
+}
+
 .app-pagination-page-size-group {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
+}
+
+.payroll-page .app-pagination-page-size-group {
+  flex: 0 0 auto;
 }
 
 .app-pagination-page-size-label {

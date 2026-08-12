@@ -23,6 +23,8 @@ const PAYROLL_YEARS = Array.from({ length: 10 }, (_, i) => 2022 + i);
 const STANDARD_PERIODS = [1, 3, 6, 12];
 const PAYSLIP_BATCH_SIZE = 50;
 const PAYSLIP_CONCURRENCY = 50;
+const PAYROLL_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_PAYROLL_PAGE_SIZE = 25;
 const MAX_FAILED_ITEMS_TO_SHOW = 5;
 const MANUAL_FIELDS = [
   ["totalWorkingDays", "Total Working Days"],
@@ -747,6 +749,8 @@ function Payroll() {
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 250);
+  const [employeePage, setEmployeePage] = useState(1);
+  const [employeePageSize, setEmployeePageSize] = useState(DEFAULT_PAYROLL_PAGE_SIZE);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -770,7 +774,7 @@ function Payroll() {
   const [recentFilterYear, setRecentFilterYear] = useState(String(currentYearValue));
 
   const [recentPage, setRecentPage] = useState(1);
-  const RECENT_ROWS_PER_PAGE = 30;
+  const [recentPageSize, setRecentPageSize] = useState(DEFAULT_PAYROLL_PAGE_SIZE);
   const [recentLoading, setRecentLoading] = useState(false);
   const [isSalaryDownloading, setIsSalaryDownloading] = useState(false);
   const [isSendingPayslipEmails, setIsSendingPayslipEmails] = useState(false);
@@ -942,6 +946,33 @@ function Payroll() {
     });
   }, [employees, debouncedSearch]);
 
+  const totalEmployeePages = Math.max(
+    1,
+    Math.ceil(filteredEmployees.length / employeePageSize)
+  );
+
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (employeePage - 1) * employeePageSize;
+    const endIndex = startIndex + employeePageSize;
+
+    return filteredEmployees.slice(startIndex, endIndex);
+  }, [employeePage, employeePageSize, filteredEmployees]);
+
+  useEffect(() => {
+    setEmployeePage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    if (employeePage > totalEmployeePages) {
+      setEmployeePage(totalEmployeePages);
+    }
+  }, [employeePage, totalEmployeePages]);
+
+  const handleEmployeePageSizeChange = (nextPageSize) => {
+    setEmployeePageSize(nextPageSize);
+    setEmployeePage(1);
+  };
+
   const employeesById = useMemo(() => {
     // Optimization: avoid repeated employees.find calls while rendering payslip rows.
     return new Map(
@@ -1026,17 +1057,22 @@ function Payroll() {
   }, [filteredPayslips, selectedEmployeeSet, selectedEmployees]);
 
   const recentTotalCount = displayedPayslips.length;
-  const totalRecentPages = Math.max(1, Math.ceil(recentTotalCount / RECENT_ROWS_PER_PAGE));
+  const totalRecentPages = Math.max(1, Math.ceil(recentTotalCount / recentPageSize));
 
   const paginatedRecentPayslips = useMemo(() => {
-    const startIndex = (recentPage - 1) * RECENT_ROWS_PER_PAGE;
-    const endIndex = startIndex + RECENT_ROWS_PER_PAGE;
+    const startIndex = (recentPage - 1) * recentPageSize;
+    const endIndex = startIndex + recentPageSize;
     return displayedPayslips.slice(startIndex, endIndex);
-  }, [displayedPayslips, recentPage]);
+  }, [displayedPayslips, recentPage, recentPageSize]);
 
   useEffect(() => {
     if (recentPage > totalRecentPages) setRecentPage(totalRecentPages);
   }, [recentPage, totalRecentPages]);
+
+  const handleRecentPageSizeChange = (nextPageSize) => {
+    setRecentPageSize(nextPageSize);
+    setRecentPage(1);
+  };
 
   const handleToggleEmployee = (employeeId) => {
     if (generating) return;
@@ -1949,7 +1985,7 @@ function Payroll() {
             </div>
 
         <div className="employee-list">
-          {filteredEmployees.map((emp) => {
+          {paginatedEmployees.map((emp) => {
             const normalizedEmployeeKey = normalizeEmployeeIdentifier(emp.employee_Id);
             const isChecked = selectedEmployeeSet.has(normalizedEmployeeKey);
             const isActive = isChecked && selectedEmployees.length === 1;
@@ -1984,6 +2020,18 @@ function Payroll() {
             );
           })}
         </div>
+
+        <AppPagination
+          totalItems={filteredEmployees.length}
+          currentPage={employeePage}
+          pageSize={employeePageSize}
+          onPageChange={setEmployeePage}
+          onPageSizeChange={handleEmployeePageSizeChange}
+          pageSizeOptions={PAYROLL_PAGE_SIZE_OPTIONS}
+          itemLabel="employees"
+          pageNumberDisplay="first-and-current"
+          className="payroll-employee-pagination"
+        />
       </div>
 
       {/* RIGHT PANEL */}
@@ -2461,8 +2509,12 @@ function Payroll() {
           <AppPagination
             totalItems={recentTotalCount}
             currentPage={recentPage}
+            pageSize={recentPageSize}
             onPageChange={setRecentPage}
+            onPageSizeChange={handleRecentPageSizeChange}
+            pageSizeOptions={PAYROLL_PAGE_SIZE_OPTIONS}
             itemLabel="payslips"
+            pageNumberDisplay="first-and-current"
           />
         </div>
 

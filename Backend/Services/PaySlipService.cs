@@ -1,4 +1,5 @@
-﻿using ClosedXML.Excel;
+﻿
+using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
@@ -1215,7 +1216,7 @@ namespace EmployeeManagementSystem.Services
                 var parallelOptions =
                     new ParallelOptions
                     {
-                        MaxDegreeOfParallelism = 6
+                        MaxDegreeOfParallelism = 4
                     };
 
                 // ========================================================

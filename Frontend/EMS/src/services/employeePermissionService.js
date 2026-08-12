@@ -15,8 +15,15 @@ import {
 
 const normalizeId = (value) => String(value ?? "").trim();
 
-const getEmployeePermissionEndpoint = () =>
-  API_ENDPOINTS.rolePermission.allowedModules || "";
+const getEmployeePermissionEndpoint = (employeeId = "") => {
+  const normalizedEmployeeId = normalizeId(employeeId || getStoredEmployeeId() || "");
+
+  if (!normalizedEmployeeId) {
+    return "";
+  }
+
+  return API_ENDPOINTS.userPermission.get(normalizedEmployeeId) || "";
+};
 
 const resolveLoggedInRole = (role = "") =>
   String(role || getStoredRoleName() || getStoredRole() || "").trim();
@@ -154,7 +161,8 @@ const requestAllowedModules = async ({
 } = {}) => {
   const loggedInRole = resolveLoggedInRole(role);
   const permissionFlow = resolvePermissionFlow(loggedInRole);
-  const endpoint = getEmployeePermissionEndpoint();
+  const resolvedEmployeeId = normalizeId(userId || getStoredEmployeeId() || "");
+  const endpoint = getEmployeePermissionEndpoint(resolvedEmployeeId);
   const normalizedRole = String(loggedInRole ?? "")
     .trim()
     .toLowerCase()
@@ -171,6 +179,18 @@ const requestAllowedModules = async ({
     console.log("Selected Permission API:", "none");
     console.log("Permission Response:", []);
     console.log("Visible modules:", []);
+    return persistEmployeePermissions({
+      userId: getStoredEmployeeId() || "",
+      userEmail: getStoredEmployeeEmail() || "",
+      modules: [],
+    });
+  }
+
+  if (!resolvedEmployeeId) {
+    console.log("Selected Permission API:", "none");
+    console.log("Permission Response:", []);
+    console.log("Visible modules:", []);
+
     return persistEmployeePermissions({
       userId: getStoredEmployeeId() || "",
       userEmail: getStoredEmployeeEmail() || "",
@@ -213,7 +233,7 @@ const requestAllowedModules = async ({
   console.log("Permission Response:", response.data);
 
   const normalizedSnapshot = normalizeEmployeePermissionSnapshot(response.data, {
-    userId: userId || getStoredEmployeeId() || "",
+    userId: resolvedEmployeeId,
     userEmail: userEmail || getStoredEmployeeEmail() || "",
   });
 

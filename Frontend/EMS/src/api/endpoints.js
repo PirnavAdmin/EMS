@@ -72,6 +72,7 @@ export const API = {
   ADMIN_PERMISSION: {
     SAVE: "/AdminPermission/save",
     GET: (adminId) => `/AdminPermission/${adminId}`,
+    ALLOWED_MODULES: "/AdminPermission/allowed-modules",
   },
 
   // ================= ADMIN SUBSCRIPTIONS =================
@@ -748,6 +749,7 @@ export const API_ENDPOINTS = {
   adminPermission: {
     save: API.ADMIN_PERMISSION.SAVE,
     get: API.ADMIN_PERMISSION.GET,
+    allowedModules: API.ADMIN_PERMISSION.ALLOWED_MODULES,
   },
   adminSubscription: {
     create: API.ADMIN_SUBSCRIPTION.CREATE,

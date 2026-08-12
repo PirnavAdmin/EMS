@@ -1566,13 +1566,13 @@ namespace EmployeeManagementSystem.Services
                 {
                     Day = day,
                     Status = date.Date > DateTime.UtcNow.Date
-           ? "-"
-           : (att != null
-               ? (att.Status == "Half Day" ? "HD"
-                 : att.Status == "Present" ? "P"
-                 : att.Status == "Late" ? "P"
-                 : att.Status)
-               : "A"),
+    ? "-"
+    : (att != null
+        ? (att.Status == "Half Day" ? "HD"
+          : att.Status == "Present" ? "P"
+          : att.Status == "Late" ? "LT"
+          : att.Status)
+        : "A"),
 
                     CheckIn = checkIn?.ToString("hh:mm tt"),
                     CheckOut = checkOut?.ToString("hh:mm tt"),
@@ -1705,14 +1705,13 @@ namespace EmployeeManagementSystem.Services
                 {
                     Day = day,
                     Status = date.Date > DateTime.UtcNow.Date
-            ? "-"
-            : (att != null
-                ? (att.Status == "Half Day" ? "HD"
-                  : att.Status == "Present" ? "P"
-                  : att.Status == "Late" ? "P"
-                  : att.Status)
-                : "A"),
-
+    ? "-"
+    : (att != null
+        ? (att.Status == "Half Day" ? "HD"
+          : att.Status == "Present" ? "P"
+          : att.Status == "Late" ? "LT"
+          : att.Status)
+        : "A"),
                     CheckIn = checkIn?.ToString("hh:mm tt"),
                     CheckOut = checkOut?.ToString("hh:mm tt"),
 
@@ -1739,12 +1738,16 @@ namespace EmployeeManagementSystem.Services
             var istNow = ConvertToIST(DateTime.UtcNow);
             var today = istNow.Date;
 
+            // Only records that actually have a check-in,
+            // but do NOT have a checkout.
+            //
+            // Only Present and Late are eligible for MC/LMC.
             var records = await _context.Attendance
                 .Where(a =>
-                    a.Attendance_Date.Date < today &&
                     a.Check_In != null &&
                     a.Check_Out == null &&
-                    (a.Status == "Present" || a.Status == "Late"))
+                    (a.Status == "Present" ||
+                     a.Status == "Late"))
                 .ToListAsync();
 
             if (!records.Any())
@@ -1752,71 +1755,94 @@ namespace EmployeeManagementSystem.Services
 
             var settings = GetAttendanceSettings();
 
-            foreach (var record in records)
+            bool changed = false;
+
+            foreach (var attendance in records)
             {
-                var shift = await GetApplicableShiftAsync(record.Employee_Id);
+                // ---------------------------------------------
+                // Attendance date
+                // ---------------------------------------------
 
-                DateTime cutoffTime;
+                var attendanceDate =
+                    attendance.Attendance_Date.Date;
 
-                if (shift != null && shift.IsNightShift)
+                // ---------------------------------------------
+                // Get applicable shift
+                // ---------------------------------------------
+
+                var shift = await GetApplicableShiftAsync(
+                    attendance.Employee_Id);
+
+                TimeSpan checkoutTime;
+                int graceMinutes;
+
+                if (shift != null)
                 {
-                    cutoffTime = record.Attendance_Date.Date
-                        .AddDays(1)
-                        .Add(shift.EndTime)
-                        .AddMinutes(shift.GraceTimeMinutes);
+                    checkoutTime = shift.EndTime;
+                    graceMinutes = shift.GraceTimeMinutes;
                 }
                 else
                 {
-                    TimeSpan checkoutTime =
-                        shift?.EndTime ?? settings.CheckoutTime;
+                    checkoutTime = settings.CheckoutTime;
+                    graceMinutes = 0;
+                }
 
-                    int graceMinutes =
-                        shift?.GraceTimeMinutes ?? 0;
+                // ---------------------------------------------
+                // Calculate checkout cutoff
+                // ---------------------------------------------
 
-                    cutoffTime = record.Attendance_Date.Date
+                DateTime cutoffTimeIst;
+
+                if (shift != null && shift.IsNightShift)
+                {
+                    cutoffTimeIst = attendanceDate
+                        .AddDays(1)
+                        .Add(checkoutTime)
+                        .AddMinutes(graceMinutes);
+                }
+                else
+                {
+                    cutoffTimeIst = attendanceDate
                         .Add(checkoutTime)
                         .AddMinutes(graceMinutes);
                 }
 
-                // Attendance business time is IST
-                if (istNow >= cutoffTime)
+                // ---------------------------------------------
+                // IMPORTANT
+                // If checkout cutoff has NOT passed,
+                // do absolutely nothing.
+                // ---------------------------------------------
+
+                if (istNow < cutoffTimeIst)
+                    continue;
+
+                // ---------------------------------------------
+                // ONLY CHANGE:
+                //
+                // Present + no checkout -> MC
+                // Late    + no checkout -> LMC
+                // ---------------------------------------------
+
+                if (attendance.Status == "Present")
                 {
-                    /*
-                     * Present + missed checkout -> MC
-                     * Late    + missed checkout -> LMC
-                     */
-
-                    //vishnu
-
-                    var istCheckIn = ConvertToIST(record.Check_In.Value);
-
-                    // Determine LateAfter based on Shift or Attendance Settings
-
-                    TimeSpan lateAfter = settings.LateAfterTime;
-
-                    if (shift != null)
-
-                    {
-
-                        lateAfter = shift.StartTime.Add(
-
-                            TimeSpan.FromMinutes(shift.GraceTimeMinutes));
-
-                    }
-
-
-                    if (record.Status == "Late")
-                    {
-                        record.Status = "LMC";
-                    }
-                    else
-                    {
-                        record.Status = "MC";
-                    }
+                    attendance.Status = "MC";
+                    changed = true;
+                }
+                else if (attendance.Status == "Late")
+                {
+                    attendance.Status = "LMC";
+                    changed = true;
                 }
             }
 
-            await _context.SaveChangesAsync();
+            // ---------------------------------------------
+            // Save only when MC/LMC was changed
+            // ---------------------------------------------
+
+            if (changed)
+            {
+                await _context.SaveChangesAsync();
+            }
         }
 
 

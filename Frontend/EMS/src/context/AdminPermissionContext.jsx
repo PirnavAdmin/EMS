@@ -22,7 +22,6 @@ import {
   getAuthenticatedUserSnapshot,
   getStoredAdminEmail,
   getStoredAdminId,
-  getStoredAdminPermissionSnapshot,
   getStoredRefreshToken,
   getStoredRole,
   getStoredRoleName,
@@ -30,6 +29,11 @@ import {
   getStoredUserRecord,
   persistAdminPermissions,
 } from "../utils/authStorage";
+import {
+  clearCurrentAdminAllowedModules,
+  getCurrentAdminAllowedModules,
+  setCurrentAdminAllowedModules,
+} from "../utils/adminPermissionState";
 import {
   isAdmin,
   modulePermissionMatches,
@@ -104,10 +108,14 @@ const normalizeSnapshot = (snapshot = {}) => {
 };
 
 const readCachedSnapshot = () => {
-  const snapshot = getStoredAdminPermissionSnapshot();
+  const modules = getCurrentAdminAllowedModules();
 
-  if (snapshot && Array.isArray(snapshot.modules) && snapshot.modules.length > 0) {
-    return snapshot;
+  if (Array.isArray(modules) && modules.length > 0) {
+    return {
+      adminId: getStoredAdminId() || "",
+      adminEmail: getStoredAdminEmail() || "",
+      modules,
+    };
   }
 
   return null;
@@ -223,6 +231,7 @@ export const AdminPermissionProvider = ({ children }) => {
     setAllowedModules(normalizedSnapshot.modules);
     setAdminId(normalizedSnapshot.adminId || "");
     setAdminEmail(normalizedSnapshot.adminEmail || "");
+    setCurrentAdminAllowedModules(normalizedSnapshot.modules);
     setStatus("ready");
     setError("");
     setErrorStatus(0);
@@ -233,6 +242,7 @@ export const AdminPermissionProvider = ({ children }) => {
   const clearPermissionState = useCallback(() => {
     hasSyncedPermissionsRef.current = false;
     clearAdminPermissionCache();
+    clearCurrentAdminAllowedModules();
     clearAuthData();
     setStatus("ready");
     setError("");
@@ -360,11 +370,17 @@ export const AdminPermissionProvider = ({ children }) => {
       }
 
       if (!isAdmin(currentRole) && !isSuperAdmin(currentRole)) {
+        clearCurrentAdminAllowedModules();
         setAllowedModules([]);
         setStatus("ready");
         setError("");
         setErrorStatus(0);
         return [];
+      }
+
+      if (force) {
+        clearCurrentAdminAllowedModules();
+        setAllowedModules([]);
       }
 
       if (!force) {
@@ -403,7 +419,6 @@ export const AdminPermissionProvider = ({ children }) => {
         };
 
         applySnapshot(snapshot);
-        persistAdminPermissions(snapshot);
 
         console.log("Allowed Modules:", modules);
 

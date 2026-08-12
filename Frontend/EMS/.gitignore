@@ -1,24 +1,212 @@
+# =========================
+
 # Logs
-logs
+
+# =========================
+
+logs/
+
 *.log
+
 npm-debug.log*
+
 yarn-debug.log*
+
 yarn-error.log*
+
 pnpm-debug.log*
+
 lerna-debug.log*
+ 
+# =========================
 
-node_modules
-dist
-dist-ssr
+# Node / React / Vite
+
+# =========================
+
+node_modules/
+
+dist/
+
+dist-ssr/
+
 *.local
+ 
+# =========================
 
-# Editor directories and files
+# Environment / Secrets
+
+# =========================
+
+.env
+
+.env.*
+
+!.env.example
+ 
+# =========================
+
+# Build / Runtime
+
+# =========================
+
+bin/
+
+obj/
+
+publish/
+
+out/
+
+build/
+ 
+# =========================
+
+# Generated EMS Files
+
+# =========================
+
+GeneratedPayslips/
+
+GeneratedLetters/
+
+GeneratedOffers/
+
+uploads/
+
+wwwroot/uploads/
+
+wwwroot/GeneratedPayslips/
+
+wwwroot/GeneratedLetters/
+ 
+# =========================
+
+# Documents / Generated Files
+
+# =========================
+
+*.pdf
+
+*.docx
+
+*.doc
+
+*.xlsx
+
+*.xls
+ 
+# =========================
+
+# Database Backups
+
+# =========================
+
+*.sql
+
+*.sql.gz
+
+*.bak
+
+*.backup
+
+*.dump
+ 
+# =========================
+
+# Docker
+
+# =========================
+
+*.tar
+
+*.tar.gz
+ 
+# =========================
+
+# Temporary Files
+
+# =========================
+
+*.tmp
+
+*.temp
+
+*.cache
+
+*.swp
+
+*.swo
+
+*~
+ 
+# =========================
+
+# Editor directories/files
+
+# =========================
+
 .vscode/*
+
 !.vscode/extensions.json
-.idea
+ 
+.idea/
+
 .DS_Store
+
 *.suo
+
+*.user
+
+*.userosscache
+
+*.sln.docstates
+
 *.ntvs*
+
 *.njsproj
+
 *.sln
+
 *.sw?
+ 
+# =========================
+
+# OS files
+
+# =========================
+
+Thumbs.db
+
+Desktop.ini
+ 
+# =========================
+
+# Coverage
+
+# =========================
+
+coverage/
+
+.nyc_output/
+ 
+# =========================
+
+# Test / Reports
+
+# =========================
+
+test-results/
+
+reports/
+ 
+# =========================
+
+# ASP.NET
+
+# =========================
+
+wwwroot/*.log
+
+Properties/ServiceDependencies/
+ 

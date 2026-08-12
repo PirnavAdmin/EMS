@@ -455,6 +455,28 @@
   transform: none !important;
 }
 
+.payroll-page .payroll-employee-pagination .app-pagination-controls {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  box-sizing: border-box;
+}
+
+.payroll-page .payroll-employee-pagination .app-pagination-page-size-group {
+  order: 2;
+  flex: 1 0 100%;
+  justify-content: center;
+}
+
+.payroll-page .payroll-employee-pagination .app-pagination-button,
+.payroll-page .payroll-employee-pagination .pagination-btn {
+  min-width: 34px;
+  padding: 0 8px;
+}
+
 .payroll-period-btn:hover,
 .payroll-period-btn:focus,
 .payroll-period-btn:focus-visible,

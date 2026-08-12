@@ -1,25 +1,38 @@
-import { Navigate } from "react-router-dom";
-import { getStoredPermissions } from "../utils/authStorage";
+import { Navigate, useLocation } from "react-router-dom";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
-import { isPlatformAdmin } from "../utils/authorization";
+import { usePermissionScope } from "../context/usePermissionScope";
+import { isSuperAdmin, modulePermissionMatches } from "../utils/authorization";
 
 const PermissionRoute = ({ children, module }) => {
-  const permissions = getStoredPermissions();
+  const { loadingPermissions, allowedModules = [], permissionScope } = usePermissionScope();
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const currentRole = String(permissionScope || "").trim().toLowerCase();
 
-  if (isPlatformAdmin()) {
+  if (isSuperAdmin()) {
     return children;
   }
 
-  if (!Array.isArray(permissions) || permissions.length === 0) {
-    return <Navigate to="/unauthorized" replace />;
+  if (loadingPermissions) {
+    return null;
   }
 
-  const hasAccess = permissions.some((permission) => {
-    if ((permission.canAccess ?? permission.CanAccess ?? true) !== true) {
+  if (currentRole === "admin") {
+    console.log("[Admin Permission] Checking route permission:", {
+      currentRole,
+      currentPath,
+      allowedModules,
+    });
+  }
+
+  const hasAccess = allowedModules.some((permission) => {
+    const canAccess = permission?.canAccess ?? permission?.CanAccess ?? false;
+
+    if (canAccess !== true) {
       return false;
     }
 
-    const normalizedModuleName = String(permission.moduleName || "")
+    const normalizedModuleName = String(permission.moduleName || permission.ModuleName || "")
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");
 
@@ -27,11 +40,22 @@ const PermissionRoute = ({ children, module }) => {
       return true;
     }
 
-    return ticketPermissionMatches(permission.moduleName, module);
+    return (
+      modulePermissionMatches(permission.moduleName || permission.ModuleName || "", module) ||
+      ticketPermissionMatches(permission.moduleName || permission.ModuleName || "", module)
+    );
   });
 
   if (hasAccess) {
+    if (currentRole === "admin") {
+      console.log("[Admin Permission] Access granted:", currentPath);
+    }
+
     return children;
+  }
+
+  if (currentRole === "admin") {
+    console.log("[Admin Permission] Access denied:", currentPath);
   }
 
   return <Navigate to="/unauthorized" replace />;
