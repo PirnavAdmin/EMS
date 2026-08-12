@@ -1,0 +1,292 @@
+.permission-page {
+  padding: 20px;
+  background: var(--bg-muted);
+  min-height: 100vh;
+  font-family: var(--font-sans);
+}
+
+.permission-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 25px;
+}
+
+.permission-top h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-body);
+}
+
+.permission-top h2 span {
+  color: var(--theme-primary);
+}
+
+.permission-employee-header {
+  display: grid;
+  gap: 12px;
+}
+
+.permission-employee-header dl {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.permission-employee-header div {
+  display: grid;
+  gap: 4px;
+}
+
+.permission-employee-header dt {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.permission-employee-header dd {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.select-all-btn {
+  min-height: 40px;
+  background: var(--theme-success);
+  color: var(--theme-on-primary);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: 0.2s;
+}
+
+.select-all-btn:hover {
+  background: var(--success);
+}
+
+.permission-secondary-btn {
+  background: var(--bg-page);
+  color: var(--text-strong);
+  border: 1px solid var(--border-soft);
+}
+
+.permission-secondary-btn:hover:not(:disabled) {
+  background: var(--bg-muted);
+}
+
+.permission-loading {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.permission-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  border-radius: 999px;
+  background: #d1d5db;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.permission-switch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.permission-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s ease;
+}
+
+.permission-slider::before {
+  position: absolute;
+  content: none;
+}
+
+.permission-switch.active {
+  background: #22c55e;
+}
+
+.permission-switch.active .permission-slider,
+.permission-switch input:checked + .permission-slider {
+  transform: translateX(24px);
+}
+
+.permission-switch:hover {
+  transform: scale(1.03);
+}
+
+.permission-switch:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.permission-access-col {
+  width: 180px;
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+.permission-matrix th.permission-access-col,
+.permission-matrix td.permission-access-col {
+  text-align: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.permission-switch {
+  display: inline-block;
+}
+
+.permission-group {
+  background: var(--bg-page);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  padding: 10px;
+  box-shadow: 0 3px 10px var(--shadow-color-xs);
+}
+
+.group-header {
+  background: var(--surface-info-soft);
+  color: var(--theme-primary);
+  font-weight: 700;
+  padding: 10px 15px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.permission-matrix-wrap {
+  overflow-x: auto;
+}
+
+.permission-matrix {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.permission-matrix th,
+.permission-matrix td {
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-body);
+  font-size: 14px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.permission-matrix th {
+  color: var(--text-strong);
+  font-weight: 800;
+  background: var(--bg-muted);
+}
+
+.permission-matrix th:first-child,
+.permission-matrix td:first-child {
+  text-align: left;
+  width: 34%;
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.permission-matrix tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.permission-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--theme-primary);
+  cursor: pointer;
+}
+
+.permission-checkbox:focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 3px;
+}
+
+.permission-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.permission-actions button {
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: 0.2s;
+}
+
+.permission-actions button:first-child {
+  background: var(--bg-page);
+  color: var(--text-strong);
+  border: 1px solid var(--border-soft);
+}
+
+.permission-actions button:last-child {
+  background: var(--theme-success);
+  color: var(--theme-on-primary);
+}
+
+.permission-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.permission-actions button:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 720px) {
+  .permission-page {
+    padding: 14px 12px;
+  }
+
+  .permission-top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .select-all-btn {
+    width: 100%;
+  }
+
+  .permission-actions {
+    flex-direction: column-reverse;
+  }
+
+  .permission-actions button {
+    width: 100%;
+  }
+}

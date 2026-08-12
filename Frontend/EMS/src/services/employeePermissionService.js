@@ -1,0 +1,253 @@
+import api from "../api/axiosInstance";
+import { API_ENDPOINTS } from "../api/endpoints";
+import { isEmployee, normalizePermissionList } from "../utils/authorization";
+import {
+  clearEmployeePermissionCache,
+  getStoredEmployeeEmail,
+  getStoredEmployeeId,
+  getStoredEmployeePermissionSnapshot,
+  getStoredRole,
+  getStoredRoleName,
+  getStoredToken,
+  getStoredUserRecord,
+  persistEmployeePermissions,
+} from "../utils/authStorage";
+
+const normalizeId = (value) => String(value ?? "").trim();
+
+const getEmployeePermissionEndpoint = () =>
+  API_ENDPOINTS.rolePermission.allowedModules || "";
+
+const resolveLoggedInRole = (role = "") =>
+  String(role || getStoredRoleName() || getStoredRole() || "").trim();
+
+const resolvePermissionFlow = (role = "") => {
+  const normalizedRole = String(role ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+  if (["employee", "user", "manager"].includes(normalizedRole)) {
+    return "role-permission";
+  }
+
+  if (normalizedRole === "superadmin") {
+    return "superadmin-bypass";
+  }
+
+  return "no-permission-api";
+};
+
+const normalizeEmployeePermissionSnapshot = (payload = {}, fallback = {}) => {
+  const response = payload?.data ?? payload ?? {};
+
+  return {
+    userId: normalizeId(
+      response.userId ??
+        response.UserId ??
+        response.employeeId ??
+        response.EmployeeId ??
+        response.employeeID ??
+        response.data?.userId ??
+        response.data?.UserId ??
+        response.data?.employeeId ??
+        response.data?.EmployeeId ??
+        response.data?.employeeID ??
+        fallback.userId ??
+        getStoredEmployeeId() ??
+        ""
+    ),
+    userEmail: String(
+      response.userEmail ??
+        response.UserEmail ??
+        response.employeeEmail ??
+        response.EmployeeEmail ??
+        response.email ??
+        response.Email ??
+        response.data?.userEmail ??
+        response.data?.UserEmail ??
+        response.data?.employeeEmail ??
+        response.data?.EmployeeEmail ??
+        response.data?.email ??
+        response.data?.Email ??
+        fallback.userEmail ??
+        getStoredEmployeeEmail() ??
+        ""
+    ).trim(),
+    modules: normalizePermissionList(response),
+  };
+};
+
+const getCachedEmployeePermissionSnapshot = () => {
+  const snapshot = getStoredEmployeePermissionSnapshot();
+
+  if (snapshot && Array.isArray(snapshot.modules) && snapshot.modules.length > 0) {
+    return snapshot;
+  }
+
+  const storedUser = getStoredUserRecord();
+
+  if (storedUser) {
+    const normalizedUserSnapshot = normalizeEmployeePermissionSnapshot(storedUser);
+
+    if (Array.isArray(normalizedUserSnapshot.modules) && normalizedUserSnapshot.modules.length > 0) {
+      return persistEmployeePermissions({
+        userId: normalizedUserSnapshot.userId || getStoredEmployeeId() || "",
+        userEmail: normalizedUserSnapshot.userEmail || getStoredEmployeeEmail() || "",
+        modules: normalizedUserSnapshot.modules,
+      });
+    }
+  }
+
+  return null;
+};
+
+const getFriendlyEmployeePermissionErrorMessage = (
+  error,
+  fallback = "We could not load employee permissions right now."
+) => {
+  const status = error?.response?.status;
+  const validationErrors = error?.response?.data?.errors;
+
+  if (status === 401) {
+    return "Your session has expired or you are no longer authorized. Please sign in again.";
+  }
+
+  if (status === 403) {
+    return "You do not have permission to access this resource.";
+  }
+
+  if (validationErrors && typeof validationErrors === "object") {
+    const messages = Object.values(validationErrors)
+      .flat()
+      .filter(Boolean)
+      .map((message) => String(message).trim())
+      .filter(Boolean);
+
+    if (messages.length > 0) {
+      return messages.join(" ");
+    }
+  }
+
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.title ||
+    error?.message ||
+    fallback
+  );
+};
+
+const isAuthFailure = (error) =>
+  error?.response?.status === 401 ||
+  error?.name === "CanceledError" ||
+  error?.code === "ERR_CANCELED" ||
+  /session\s+expired|sign\s*in|token\s+expired|expired\s+token/i.test(
+    String(error?.message || "")
+  );
+
+const requestAllowedModules = async ({
+  force = false,
+  userId = "",
+  userEmail = "",
+  role = "",
+} = {}) => {
+  const loggedInRole = resolveLoggedInRole(role);
+  const permissionFlow = resolvePermissionFlow(loggedInRole);
+  const endpoint = getEmployeePermissionEndpoint();
+  const normalizedRole = String(loggedInRole ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+  console.log("Authenticated Role:", normalizedRole || "unknown");
+  console.log("Selected Permission Flow:", permissionFlow);
+
+  if (!isEmployee(loggedInRole)) {
+    if (permissionFlow === "superadmin-bypass") {
+      console.log("Skipping permission API for Super Admin");
+    }
+
+    console.log("Selected Permission API:", "none");
+    console.log("Permission Response:", []);
+    console.log("Visible modules:", []);
+    return persistEmployeePermissions({
+      userId: getStoredEmployeeId() || "",
+      userEmail: getStoredEmployeeEmail() || "",
+      modules: [],
+    });
+  }
+
+  if (!force) {
+    const cached = getCachedEmployeePermissionSnapshot();
+
+    if (cached) {
+      return cached;
+    }
+  }
+
+  if (!endpoint) {
+    const emptySnapshot = persistEmployeePermissions({
+      userId: getStoredEmployeeId() || "",
+      userEmail: getStoredEmployeeEmail() || "",
+      modules: [],
+    });
+
+    console.log("Selected Permission API:", "none");
+    console.log("Permission Response:", []);
+    console.log("Visible modules:", []);
+
+    return emptySnapshot;
+  }
+
+  console.log("Selected Permission API:", endpoint);
+  console.log("JWT Token:", getStoredToken() || "");
+
+  const response = await api.get(endpoint, {
+    headers: {
+      Accept: "application/json",
+    },
+    skipAuthFailureHandling: true,
+  });
+
+  console.log("Permission Response:", response.data);
+
+  const normalizedSnapshot = normalizeEmployeePermissionSnapshot(response.data, {
+    userId: userId || getStoredEmployeeId() || "",
+    userEmail: userEmail || getStoredEmployeeEmail() || "",
+  });
+
+  console.log("Visible modules:", normalizedSnapshot.modules);
+
+  const persistedSnapshot = persistEmployeePermissions({
+    userId: normalizedSnapshot.userId || getStoredEmployeeId() || "",
+    userEmail: normalizedSnapshot.userEmail || getStoredEmployeeEmail() || "",
+    modules: normalizedSnapshot.modules,
+  });
+
+  return persistedSnapshot;
+};
+
+export const fetchAllowedEmployeeModules = async ({
+  force = false,
+  userId = "",
+  userEmail = "",
+  role = "",
+} = {}) => {
+  const snapshot = await requestAllowedModules({
+    force,
+    userId,
+    userEmail,
+    role,
+  });
+
+  return snapshot.modules || [];
+};
+
+export const getEmployeePermissionErrorMessage =
+  getFriendlyEmployeePermissionErrorMessage;
+
+export const isEmployeePermissionAuthFailure = isAuthFailure;
+
+export { clearEmployeePermissionCache };
+export const clearEmployeePermissions = clearEmployeePermissionCache;

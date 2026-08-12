@@ -1,0 +1,1001 @@
+.project-details-page {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 1.8vw, 20px);
+  min-width: 0;
+}
+
+.project-details-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: clamp(12px, 1.2vw, 16px);
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--card-bg), var(--bg-soft));
+  box-shadow: var(--shadow-sm);
+}
+
+.project-details-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.project-details-back-btn {
+  width: fit-content;
+  min-height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--bg-page);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.project-details-back-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: var(--button-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.project-details-kicker {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.project-details-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-details-title-row h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(28px, 2vw, 38px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.project-details-hero-meta {
+  width: min(100%, 360px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-self: center;
+  padding: 12px;
+  margin: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: var(--bg-page);
+  box-shadow: var(--shadow-sm);
+}
+
+.project-details-hero-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: var(--bg-soft);
+}
+
+.project-details-hero-meta-item dt {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.project-details-hero-meta-item dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-details-id-badge,
+.project-details-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.project-details-id-badge {
+  border-color: var(--border-soft);
+  background: var(--bg-page);
+  color: var(--text-muted);
+}
+
+.project-details-status-badge.planned,
+.project-details-status-badge.progress,
+.project-details-status-badge.completed,
+.project-details-status-badge.hold {
+  min-width: 100px;
+}
+
+.project-details-status-badge.planned {
+  background: var(--surface-warning-soft);
+  color: var(--theme-warning-strong);
+}
+
+.project-details-status-badge.progress {
+  background: var(--surface-info-soft);
+  color: var(--theme-info-strong);
+}
+
+.project-details-status-badge.completed {
+  background: var(--surface-success-soft);
+  color: var(--success);
+}
+
+.project-details-status-badge.hold {
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
+}
+
+.project-details-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.project-details-summary-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 108px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.project-details-summary-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 3px;
+  background: var(--primary);
+}
+
+.project-details-summary-card.is-success::before {
+  background: var(--success);
+}
+
+.project-details-summary-card.is-danger::before {
+  background: var(--danger);
+}
+
+.project-details-summary-card.is-info::before {
+  background: var(--theme-info);
+}
+
+.project-details-summary-topline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.project-details-summary-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.project-details-summary-card.is-success .project-details-summary-icon {
+  color: var(--success);
+}
+
+.project-details-summary-card.is-danger .project-details-summary-icon {
+  color: var(--danger);
+}
+
+.project-details-summary-card.is-info .project-details-summary-icon {
+  color: var(--theme-info);
+}
+
+.project-details-summary-label {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.project-details-summary-value {
+  color: var(--text-primary);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin-top: 5px;
+}
+
+.project-details-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.75fr);
+  gap: 18px;
+  min-width: 0;
+}
+
+.project-details-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(18px, 2vw, 24px);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.project-details-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.project-details-card-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.project-details-card-header p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.project-details-card-kicker {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.project-details-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.project-details-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: var(--bg-soft);
+}
+
+.project-details-info-item dt {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.project-details-info-item dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.project-details-info-item--full {
+  grid-column: 1 / -1;
+}
+
+.project-details-description {
+  white-space: pre-wrap;
+  font-weight: 500;
+  color: var(--text-body);
+}
+
+.project-details-card--tech {
+  align-self: start;
+}
+
+.project-details-tech-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.project-details-tech-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-soft);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.project-details-empty-inline {
+  padding: 18px 0 6px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.project-details-card--table {
+  gap: 16px;
+}
+
+.project-details-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.2fr) minmax(220px, 0.8fr) minmax(260px, 1fr);
+  gap: 14px;
+  align-items: end;
+}
+
+.project-details-search,
+.project-details-select-wrap,
+.project-details-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.project-details-search {
+  position: relative;
+}
+
+.project-details-search input,
+.project-details-select-wrap select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 44px 0 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: var(--bg-page);
+  color: var(--text-strong);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.project-details-select-wrap select {
+  padding: 0 16px;
+}
+
+.project-details-search input:focus,
+.project-details-select-wrap select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+.project-details-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.project-details-clear-btn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.project-details-clear-btn:hover {
+  color: var(--theme-danger);
+  background: var(--surface-danger-soft);
+}
+
+.project-details-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.project-details-status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.project-details-status-filter {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--bg-page);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.project-details-status-filter:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.project-details-status-filter.is-active {
+  border-color: var(--primary);
+  background: var(--button-primary);
+  color: var(--theme-on-primary);
+}
+
+.project-details-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: var(--bg-page);
+  box-shadow: var(--shadow-sm);
+}
+
+.project-details-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.project-details-table thead {
+  background: var(--bg-muted);
+}
+
+.project-details-table th,
+.project-details-table td {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: left;
+  vertical-align: middle;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.project-details-table th {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.project-details-table th:nth-child(1),
+.project-details-table td:nth-child(1) {
+  width: 34%;
+}
+
+.project-details-table th:nth-child(2),
+.project-details-table td:nth-child(2) {
+  width: 18%;
+}
+
+.project-details-table th:nth-child(3),
+.project-details-table td:nth-child(3) {
+  width: 32%;
+}
+
+.project-details-table th:nth-child(4),
+.project-details-table td:nth-child(4) {
+  width: 16%;
+}
+
+.project-details-table tbody tr:hover {
+  background: var(--bg-soft);
+}
+
+.project-details-card-header--stack {
+  align-items: flex-start;
+}
+
+.project-details-card--tickets {
+  gap: 16px;
+}
+
+.project-details-ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-details-ticket-actions .ticket-button {
+  min-height: 42px;
+}
+
+/* ============================================
+   COMPACT TICKET TABLE STYLES
+   ============================================ */
+
+/* Compact ticket table layout */
+.project-details-ticket-table.ticket-table,
+.project-details-employee-ticket-table.ticket-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+/* Reduce padding for ticket table headers and cells */
+.project-details-ticket-table.ticket-table th,
+.project-details-ticket-table.ticket-table td,
+.project-details-employee-ticket-table.ticket-table th,
+.project-details-employee-ticket-table.ticket-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-details-ticket-table.ticket-table th,
+.project-details-employee-ticket-table.ticket-table th {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+}
+
+/* Project ticket table column widths */
+.project-details-ticket-table.ticket-table th:nth-child(1),
+.project-details-ticket-table.ticket-table td:nth-child(1) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(2),
+.project-details-ticket-table.ticket-table td:nth-child(2) {
+  width: auto;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(3),
+.project-details-ticket-table.ticket-table td:nth-child(3) {
+  width: auto;
+  min-width: 100px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(4),
+.project-details-ticket-table.ticket-table td:nth-child(4) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(5),
+.project-details-ticket-table.ticket-table td:nth-child(5) {
+  width: auto;
+  min-width: 110px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(6),
+.project-details-ticket-table.ticket-table td:nth-child(6) {
+  width: auto;
+  min-width: 130px;
+}
+
+.project-details-ticket-table.ticket-table th:nth-child(7),
+.project-details-ticket-table.ticket-table td:nth-child(7),
+.project-details-ticket-table.ticket-table th:nth-child(8),
+.project-details-ticket-table.ticket-table td:nth-child(8) {
+  width: auto;
+  min-width: 100px;
+}
+
+/* Employee ticket table column widths */
+.project-details-employee-ticket-table.ticket-table th:nth-child(1),
+.project-details-employee-ticket-table.ticket-table td:nth-child(1) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(2),
+.project-details-employee-ticket-table.ticket-table td:nth-child(2) {
+  width: auto;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(3),
+.project-details-employee-ticket-table.ticket-table td:nth-child(3) {
+  width: auto;
+  min-width: 180px;
+  max-width: 300px;
+  white-space: normal;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(4),
+.project-details-employee-ticket-table.ticket-table td:nth-child(4),
+.project-details-employee-ticket-table.ticket-table th:nth-child(5),
+.project-details-employee-ticket-table.ticket-table td:nth-child(5) {
+  width: auto;
+  min-width: 90px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(6),
+.project-details-employee-ticket-table.ticket-table td:nth-child(6) {
+  width: auto;
+  min-width: 110px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(7),
+.project-details-employee-ticket-table.ticket-table td:nth-child(7),
+.project-details-employee-ticket-table.ticket-table th:nth-child(8),
+.project-details-employee-ticket-table.ticket-table td:nth-child(8),
+.project-details-employee-ticket-table.ticket-table th:nth-child(9),
+.project-details-employee-ticket-table.ticket-table td:nth-child(9),
+.project-details-employee-ticket-table.ticket-table th:nth-child(10),
+.project-details-employee-ticket-table.ticket-table td:nth-child(10) {
+  width: auto;
+  min-width: 100px;
+}
+
+.project-details-employee-ticket-table.ticket-table th:nth-child(11),
+.project-details-employee-ticket-table.ticket-table td:nth-child(11) {
+  width: auto;
+  min-width: 90px;
+}
+
+/* Ensure consistent row spacing */
+.project-details-ticket-table.ticket-table tbody tr,
+.project-details-employee-ticket-table.ticket-table tbody tr {
+  height: auto;
+}
+
+/* Maintain hover effect */
+.project-details-ticket-table.ticket-table tbody tr:hover td,
+.project-details-employee-ticket-table.ticket-table tbody tr:hover td {
+  background: var(--bg-soft);
+}
+
+/* Adjust pill sizes for compact layout */
+.project-details-ticket-table.ticket-table .ticket-pill,
+.project-details-employee-ticket-table.ticket-table .ticket-pill {
+  padding: 4px 10px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+/* Update the existing min-width values to be more flexible */
+.project-details-ticket-table.ticket-table {
+  min-width: 900px;
+}
+
+.project-details-employee-ticket-table.ticket-table {
+  min-width: 1200px;
+}
+
+/* ============================================
+   END COMPACT TICKET TABLE STYLES
+   ============================================ */
+
+.project-details-member-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.project-details-member-avatar {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--primary), var(--theme-secondary));
+  color: var(--theme-on-primary);
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.project-details-member-name-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.project-details-member-name-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.project-details-member-name-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.project-details-member-name-btn:hover .project-details-member-name,
+.project-details-member-name-btn:focus-visible .project-details-member-name {
+  color: var(--primary);
+}
+
+.project-details-member-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: normal;
+}
+
+.project-details-table-value {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-details-activity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.project-details-activity-badge.is-active {
+  background: var(--surface-success-soft);
+  color: var(--success);
+}
+
+.project-details-activity-badge.is-inactive {
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
+}
+
+.project-details-activity-badge.is-custom,
+.project-details-activity-badge.is-unknown {
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  border-color: var(--border-soft);
+}
+
+.project-details-empty-state {
+  padding: 28px 20px;
+}
+
+.project-details-skeleton-back,
+.project-details-skeleton-title,
+.project-details-skeleton-subtitle {
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--skeleton-bg), var(--skeleton-highlight), var(--skeleton-bg));
+  background-size: 200% 100%;
+  animation: projectDetailsShimmer 1.4s ease-in-out infinite;
+}
+
+.project-details-skeleton-back {
+  width: 148px;
+  height: 40px;
+}
+
+.project-details-skeleton-title {
+  width: min(440px, 72vw);
+  height: 34px;
+}
+
+.project-details-skeleton-subtitle {
+  width: min(620px, 86vw);
+  height: 16px;
+}
+
+@keyframes projectDetailsShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 991px) {
+  .project-details-overview-grid,
+  .project-details-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .project-details-card--tech {
+    align-self: stretch;
+  }
+
+  .project-details-hero-meta {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .project-details-hero {
+    flex-direction: column;
+  }
+
+  .project-details-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-details-hero-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .project-details-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-details-ticket-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .project-details-ticket-actions .ticket-button {
+    flex: 1 1 220px;
+  }
+
+  .project-details-table th,
+  .project-details-table td {
+    padding: 14px 16px;
+  }
+
+  /* Responsive adjustments for compact ticket tables */
+  .project-details-ticket-table.ticket-table th,
+  .project-details-ticket-table.ticket-table td,
+  .project-details-employee-ticket-table.ticket-table th,
+  .project-details-employee-ticket-table.ticket-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .project-details-ticket-table.ticket-table .ticket-pill,
+  .project-details-employee-ticket-table.ticket-table .ticket-pill {
+    padding: 3px 8px;
+    font-size: 11px;
+    min-height: 26px;
+  }
+}
+
+@media (max-width: 576px) {
+  .project-details-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-details-hero-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .project-details-card-header {
+    flex-direction: column;
+  }
+
+  .project-details-ticket-actions .ticket-button {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .project-details-status-filters {
+    width: 100%;
+  }
+
+  .project-details-status-filter {
+    flex: 1 1 0;
+  }
+
+  .project-details-summary-card {
+    min-height: 120px;
+  }
+
+  .project-details-member-avatar {
+    width: 40px;
+    height: 40px;
+  }
+}

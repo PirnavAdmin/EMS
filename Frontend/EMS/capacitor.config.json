@@ -1,0 +1,12 @@
+{
+  "appId": "com.ems.mobile",
+  "appName": "EMS Mobile",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0F172A"
+    }
+  }
+}
