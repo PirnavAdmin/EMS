@@ -3184,7 +3184,7 @@ function AttendanceTable({
               className="attendance-download-btn attendance-primary-report-btn"
               onClick={openDownloadModal}
             >
-              Download Attendance
+              Download 
             </button>
 
             <button
