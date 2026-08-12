@@ -10,7 +10,7 @@ import { AdminPermissionProvider } from "./context/AdminPermissionContext";
 import { EmployeePermissionProvider } from "./context/EmployeePermissionContext";
 import "react-toastify/dist/ReactToastify.css";
 import "./components/common/Toast/toast.css";
-import GlobalToastContainer from "./components/common/Toast/GlobalToastContainer";
+import GlobalToastContainer from "./components/common/toast/GlobalToastContainer";
 import { getStoredToken } from "./utils/authStorage";
 import { hasRole } from "./utils/authorization";
 import {
