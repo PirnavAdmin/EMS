@@ -9,13 +9,11 @@ import {
   FaTrash,
   FaUser,
 } from "react-icons/fa";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
 import EmptyState from "../components/EmptyState";
 import { PageSkeleton } from "../components/Skeletons";
-import useTheme from "../theme/useTheme";
 import { buildServerUrl } from "../api/endpoints";
 import { formatDate, formatDateTime } from "../utils/date";
 import {
@@ -42,8 +40,6 @@ function TicketDetails() {
   const location = useLocation();
   const role = getStoredRole();
   const isAdminUser = isAdmin();
-  const { themeMode } = useTheme();
-  const isDarkTheme = themeMode !== "light";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -260,7 +256,6 @@ function TicketDetails() {
   if (loading) {
     return (
       <div className="ticket-page">
-        <ToastContainer position="top-right" autoClose={2500} theme={isDarkTheme ? "dark" : "light"} />
         <PageSkeleton variant="dashboard" cardCount={3} tableRows={0} />
       </div>
     );
@@ -269,7 +264,6 @@ function TicketDetails() {
   if (!ticket) {
     return (
       <div className="ticket-page">
-        <ToastContainer position="top-right" autoClose={2500} theme={isDarkTheme ? "dark" : "light"} />
         <EmptyState
           className="ticket-empty-state"
           message="Ticket details are unavailable."
@@ -280,8 +274,6 @@ function TicketDetails() {
 
   return (
     <div className="ticket-page ticket-details-page">
-      <ToastContainer position="top-right" autoClose={2500} theme={isDarkTheme ? "dark" : "light"} />
-
       <div className="ticket-hero">
         <div className="ticket-hero-copy">
           <span className="ticket-eyebrow">

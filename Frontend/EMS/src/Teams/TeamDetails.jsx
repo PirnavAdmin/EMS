@@ -14,7 +14,7 @@ import DeleteTeamModal from "./DeleteTeamModal";
 import RemoveMemberModal from "./RemoveMemberModal";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
-import { isEmployee } from "../utils/authorization";
+import { hasModulePermission, isEmployee } from "../utils/authorization";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
 
 function TeamDetails() {
@@ -31,6 +31,7 @@ function TeamDetails() {
   const [isDeleteTeamOpen, setIsDeleteTeamOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [removeMember, setRemoveMember] = useState(null);
+  const canManageTeams = !isEmployee() && hasModulePermission("Teams");
 
   const getToken = useCallback(
     () =>
@@ -288,7 +289,7 @@ function TeamDetails() {
               </p>
             </div>
 
-            {!isEmployee() && (
+            {canManageTeams && (
               <div className="team-summary-actions">
 
                 <button
@@ -354,7 +355,7 @@ function TeamDetails() {
         </aside>
       </div>
 
-      {!isEmployee() && (
+      {canManageTeams && (
         <TeamReportingDays
           teamName={team.teamName}
           days={team.reportingDays}
@@ -375,6 +376,7 @@ function TeamDetails() {
         teamProjectName={team.projectName}
         teamEngagementType={team.engagementType}
         reportingDays={team.reportingDays}
+        canManage={canManageTeams}
         onOverrideMember={handleOpenOverride}
         onAddMember={handleAddMembers}
         onRemoveMember={handleRemoveMember}

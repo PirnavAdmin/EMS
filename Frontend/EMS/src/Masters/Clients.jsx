@@ -428,7 +428,11 @@ function Clients() {
       );
 
       toastSuccess("Client deleted successfully.");
-      setClients((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+      setClients((prev) =>
+        prev.filter(
+          (item) => item.client_Name !== client.client_Name
+        )
+      );
       setMenuOpenIndex(null);
       await loadProjectCounts();
     } catch (error) {

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { forwardRef, useEffect, useRef, useState } from "react";
 import { shift } from "@floating-ui/react";
+import { CalendarDays } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -177,6 +178,50 @@ function CalendarHeader({
   );
 }
 
+const DatePickerInput = forwardRef(function DatePickerInput(
+  {
+    value,
+    onClick,
+    onChange,
+    onBlur,
+    onFocus,
+    placeholder,
+    disabled,
+    id,
+    name,
+    className,
+    "aria-describedby": ariaDescribedBy,
+    "aria-invalid": ariaInvalid,
+  },
+  ref
+) {
+  return (
+    <span
+      className={`app-date-input-control${disabled ? " is-disabled" : ""}`}
+      onClick={disabled ? undefined : onClick}
+    >
+      <input
+        ref={ref}
+        id={id}
+        name={name}
+        type="text"
+        value={value || ""}
+        onClick={onClick}
+        onChange={onChange}
+        onBlur={onBlur}
+        onFocus={onFocus}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={className}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
+        autoComplete="off"
+      />
+      <CalendarDays className="app-date-input-icon" aria-hidden="true" />
+    </span>
+  );
+});
+
 function AppDatePicker({
   id,
   name,
@@ -214,6 +259,7 @@ function AppDatePicker({
         }
       }}
       openOnFocus
+      customInput={<DatePickerInput />}
       preventOpenOnFocus={false}
       shouldCloseOnSelect
       closeOnScroll

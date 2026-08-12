@@ -1,13 +1,13 @@
 import React from "react";
 import { FaBell, FaCheck, FaPen, FaTimes, FaEdit } from "react-icons/fa";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
-import { isEmployee } from "../utils/authorization";
 
 function TeamReportingDays({
   teamName,
   days = TEAM_DAY_OPTIONS,
   draftDays = TEAM_DAY_OPTIONS,
   isEditing = false,
+  canManage = false,
   onEdit,
   onCancel,
   onSave,
@@ -47,7 +47,7 @@ function TeamReportingDays({
               </button>
             </>
          ) : (
-  !isEmployee() && (
+  canManage && (
     <button
       type="button"
       className="team-action-btn secondary"

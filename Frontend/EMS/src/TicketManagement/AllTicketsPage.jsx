@@ -28,8 +28,7 @@ import {
   FaTrash,
   FaUpload,
 } from "react-icons/fa";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
 import api from "../api/axiosInstance";
@@ -50,7 +49,6 @@ import {
   getTodayInputValue,
   parseDate,
 } from "../utils/date";
-import useTheme from "../theme/useTheme";
 import {
   buildTicketPayload,
   createEmptyTicketForm,
@@ -1522,8 +1520,6 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
 }
 
 function AllTicketsPage({ scope = "admin" }) {
-  const { themeMode } = useTheme();
-  const isDarkTheme = themeMode !== "light";
   const isEmployeeScope = scope === "employee";
   const portalLabel = isEmployeeScope ? "Employee portal" : "Admin portal";
   const pageTitle = isEmployeeScope ? "My Tickets" : "All Tickets";
@@ -1907,11 +1903,6 @@ function AllTicketsPage({ scope = "admin" }) {
 
   const loadingView = loading ? (
     <div className="ticket-page">
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-        theme={isDarkTheme ? "dark" : "light"}
-      />
       <TableSkeleton rows={8} columns={TABLE_COLUMNS.length} />
     </div>
   ) : null;
@@ -1922,12 +1913,6 @@ function AllTicketsPage({ scope = "admin" }) {
 
   return (
     <div className="ticket-page ticket-admin-page">
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-        theme={isDarkTheme ? "dark" : "light"}
-      />
-
       <div className="ticket-hero">
         <div className="ticket-hero-copy">
           <span className="ticket-eyebrow">{portalLabel}</span>

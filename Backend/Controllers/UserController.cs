@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using System.IdentityModel.Tokens.Jwt;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
 
@@ -53,6 +54,20 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
+
+        private async Task<string> GenerateOnboardingId()
+        {
+            var lastCandidate = await _context.OnboardingCandidates
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+
+            if (lastCandidate == null)
+                return "OB001";
+
+            int number = int.Parse(lastCandidate.OnboardingId.Replace("OB", ""));
+
+            return $"OB{(number + 1):D3}";
+        }
         // ================= REGISTER =================
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
@@ -66,14 +81,33 @@ namespace EmployeeManagementSystem.Controllers
             if (await _context.Users.AnyAsync(x => x.Email == dto.Email))
                 return BadRequest("Email already exists");
 
-            var employeeExists = await _context.Employees
-                .AnyAsync(e => e.Email == dto.Email);
+            var employee = await _context.Employees
+     .FirstOrDefaultAsync(e => e.Email == dto.Email);
 
-            if (!employeeExists)
+            if (employee == null)
             {
-                return NotFound(new
+                if (await _context.OnboardingCandidates.AnyAsync(x => x.Email == dto.Email))
                 {
-                    message = "Email does not exist in the employee list"
+                    return BadRequest("Email already registered.");
+                }
+
+                var onboarding = new OnboardingCandidate
+                {
+                    OnboardingId = await GenerateOnboardingId(),
+                    FullName = $"{dto.FirstName} {dto.LastName}".Trim(),
+                    Email = dto.Email,
+                    Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                    Status = "Pending"
+                };
+
+                _context.OnboardingCandidates.Add(onboarding);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    Status = true,
+                    Message = "Registration successful. Your onboarding request has been submitted.",
+                    OnboardingId = onboarding.OnboardingId
                 });
             }
 
@@ -113,16 +147,55 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
+            // First check normal users
             var user = await _context.Users
                 .FirstOrDefaultAsync(x => x.Email == dto.Email);
 
-            if (user == null ||
-                !BCrypt.Net.BCrypt.Verify(dto.Password, user.Password))
+
+            if (user == null)
             {
-                return Unauthorized(new
+                // Check onboarding candidates
+                var candidate = await _context.OnboardingCandidates
+                    .FirstOrDefaultAsync(x => x.Email == dto.Email);
+
+                if (candidate == null)
                 {
-                    Status = false,
-                    Message = "Invalid credentials."
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message = "Invalid credentials."
+                    });
+                }
+
+                if (!BCrypt.Net.BCrypt.Verify(dto.Password, candidate.Password))
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message = "Invalid credentials."
+                    });
+                }
+
+                // Don't allow already converted candidates to login through onboarding
+                if (candidate.Status == "Approved")
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message = "Your onboarding has been completed. Please login using your employee account."
+                    });
+                }
+
+                var onboardingToken = _jwtHelper.GenerateOnboardingToken(candidate);
+
+                return Ok(new
+                {
+                    Status = true,
+                    Message = "Login successful.",
+                    UserType = "Onboarding",
+                    token = onboardingToken,
+                    onboardingId = candidate.OnboardingId,
+                    email = candidate.Email
                 });
             }
 
@@ -159,7 +232,12 @@ namespace EmployeeManagementSystem.Controllers
 
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Email == user.Email);
-           
+            string employeeId =
+    employee?.Employee_Id ?? string.Empty;
+
+            int? adminId =
+                employee?.AdminId;
+
 
             if (employee == null)
             {
@@ -193,10 +271,10 @@ namespace EmployeeManagementSystem.Controllers
             await _context.SaveChangesAsync();
 
             var token = _jwtHelper.GenerateToken(
-                user,
-                role.Name,
-                employee.Employee_Id
-            );
+      user,
+      role.Name,
+      employeeId,
+      adminId);
 
             return Ok(new
             {
@@ -207,6 +285,7 @@ namespace EmployeeManagementSystem.Controllers
                 userId = user.Id,
                 employeeId = employee.Employee_Id,
                 roleId = user.RoleId,
+                adminId = employee.AdminId,
                 roleName = role.Name
             });
         } // ================= FORGOT PASSWORD =================

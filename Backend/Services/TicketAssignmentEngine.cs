@@ -30,65 +30,104 @@ namespace EmployeeManagementSystem.Services
         // =========================================================
         public async Task<List<Ticket>> GetPendingTicketsAsync()
         {
-            return await _context.Tickets
+            var tickets = await _context.Tickets
                 .Where(t =>
-                    t.IsActive
-                    &&
+                    t.IsActive &&
                     (
-                        t.Status == "Pending"
-                        ||
+                        t.Status == "Pending" ||
                         t.Status == "Pending Assignment"
-                    )
-                    &&
-                    (
-                        // Normal Tickets
-                        (
-                            !t.Technology.Equals("Training") &&
-                            t.AssignedTo == null
-                        )
-
-                        ||
-
-                        // Training Tickets
-                        (
-                            t.Technology.Equals("Training") &&
-                            !_context.TicketAssignments
-                                .Any(a => a.TicketId == t.Id)
-                        )
-                    )
-                )
+                    ))
                 .OrderBy(t => t.CreatedAt)
                 .ThenBy(t => t.Id)
                 .ToListAsync();
-        }
 
+            var pendingTickets = new List<Ticket>();
+
+            foreach (var ticket in tickets)
+            {
+                bool isTraining =
+                    string.Equals(
+                        ticket.Technology?.Trim(),
+                        "Training",
+                        StringComparison.OrdinalIgnoreCase);
+
+                // =============================================
+                // NORMAL TICKET
+                // =============================================
+                if (!isTraining)
+                {
+                    if (string.IsNullOrWhiteSpace(ticket.AssignedTo))
+                    {
+                        pendingTickets.Add(ticket);
+                    }
+
+                    continue;
+                }
+
+                // =============================================
+                // TRAINING TICKET
+                // =============================================
+
+                bool hasAssignment =
+                    await _context.TicketAssignments
+                        .AnyAsync(x =>
+                            x.TicketId == ticket.Id);
+
+                if (!hasAssignment)
+                {
+                    pendingTickets.Add(ticket);
+                }
+            }
+
+            return pendingTickets;
+        }
         // =========================================================
         // GET ELIGIBLE EMPLOYEES
         // Project + Technology
         // =========================================================
         public async Task<List<Employee>> GetEligibleEmployeesAsync(
-            Ticket ticket)
+      Ticket ticket)
         {
-            var employeeIds = await _context.ProjectTeamMembers
-                .Where(x =>
-                    x.ProjectId == ticket.ProjectId &&
-                    x.Technology == ticket.Technology)
-                .Select(x => x.EmployeeId)
-                .Distinct()
-                .ToListAsync();
+            if (ticket == null ||
+                string.IsNullOrWhiteSpace(ticket.Technology))
+            {
+                return new List<Employee>();
+            }
+
+            var technology =
+                ticket.Technology.Trim().ToLower();
+
+            // =============================================
+            // PROJECT + TECHNOLOGY
+            // =============================================
+
+            var employeeIds =
+                await _context.ProjectTeamMembers
+                    .Where(x =>
+                        x.ProjectId == ticket.ProjectId &&
+                        x.Technology != null &&
+                        x.Technology.Trim().ToLower() == technology)
+                    .Select(x => x.EmployeeId)
+                    .Distinct()
+                    .ToListAsync();
+
+            if (!employeeIds.Any())
+                return new List<Employee>();
+
+            // =============================================
+            // ACTIVE USERS
+            // =============================================
 
             return await _context.Employees
                 .Where(x =>
                     employeeIds.Contains(x.Employee_Id) &&
                     x.Status == "Active")
                 .ToListAsync();
-        }
-
-        // =========================================================
-        // GET PRESENT EMPLOYEES
-        // =========================================================
+        }  // =========================================================
+           // GET PRESENT EMPLOYEES
+           // =========================================================
         public async Task<List<Employee>> GetPresentEmployeesAsync(
-            List<Employee> employees)
+     List<Employee> employees)
         {
             if (employees == null || !employees.Any())
             {
@@ -108,7 +147,8 @@ namespace EmployeeManagementSystem.Services
                     a.Check_In != null &&
                     (
                         a.Status == "Present" ||
-                        a.Status == "Late"
+                        a.Status == "Late" ||
+                        a.Status == "LOP"
                     ))
                 .Select(a => a.Employee_Id)
                 .Distinct()
@@ -189,119 +229,204 @@ namespace EmployeeManagementSystem.Services
                 .ToList();
         }
         private async Task AssignTrainingTicketAsync(
-    Ticket ticket,
-    List<Employee> employees)
+      Ticket ticket,
+      List<Employee> employees)
         {
             if (employees == null || !employees.Any())
                 return;
 
-            bool assignedAny = false;
+            var assignedEmployees =
+                new List<Employee>();
+
+
+            // =============================================
+            // ASSIGN ALL ELIGIBLE FREE EMPLOYEES
+            // =============================================
 
             foreach (var employee in employees)
             {
-                var alreadyAssigned = await _context.TicketAssignments
-                    .AnyAsync(x =>
-                        x.TicketId == ticket.Id &&
-                        x.EmployeeId == employee.Employee_Id);
+                var alreadyAssigned =
+                    await _context.TicketAssignments
+                        .AnyAsync(x =>
+                            x.TicketId == ticket.Id &&
+                            x.EmployeeId == employee.Employee_Id);
 
                 if (alreadyAssigned)
                     continue;
 
-                _context.TicketAssignments.Add(new TicketAssignment
-                {
-                    TicketId = ticket.Id,
-                    EmployeeId = employee.Employee_Id,
-                    Status = "Assigned",
-                    AssignedDate = DateTime.UtcNow,
-                    IsAccepted = false
-                });
 
-                assignedAny = true;
+                // =========================================
+                // TRAINING ASSIGNMENT
+                // =========================================
 
-                // Save History
-                await SaveHistoryAsync(
-                    ticket.Id,
-                    "Assigned",
-                    ticket.Status,
-                    "Assigned",
-                    employee.Employee_Id,
-                    "Training ticket automatically assigned");
+                var assignment =
+                    new TicketAssignment
+                    {
+                        TicketId = ticket.Id,
 
-                // Notification
+                        EmployeeId =
+                            employee.Employee_Id,
+
+                        Status =
+                            "Assigned",
+
+                        AssignedDate =
+                            DateTime.UtcNow,
+
+                        IsAccepted =
+                            false
+                    };
+
+
+                _context.TicketAssignments.Add(
+                    assignment);
+
+                assignedEmployees.Add(employee);
+            }
+
+
+            // =============================================
+            // NOBODY ASSIGNED
+            // =============================================
+
+            if (!assignedEmployees.Any())
+                return;
+
+
+            // =============================================
+            // UPDATE MAIN TRAINING TICKET
+            // =============================================
+
+            ticket.Status =
+                "Assigned";
+
+            ticket.AssignmentType =
+                "Training Assignment";
+
+            ticket.AssignedDate =
+                DateTime.UtcNow;
+
+            ticket.UpdatedAt =
+                DateTime.UtcNow;
+
+
+            // =============================================
+            // SAVE
+            //
+            // Training assignment/status is stored in
+            // TicketAssignments.
+            //
+            // NO TicketHistory INSERT.
+            // =============================================
+
+            await _context.SaveChangesAsync();
+
+
+            // =============================================
+            // NOTIFICATION + EMAIL
+            // =============================================
+
+            foreach (var employee in assignedEmployees)
+            {
                 await _notificationService.CreateNotification(
                     new UserNotificationDto
                     {
-                        Employee_Id = employee.Employee_Id,
-                        Title = "New Training Ticket Assigned",
-                        Message = $"Training Ticket '{ticket.Title}' has been assigned to you."
+                        Employee_Id =
+                            employee.Employee_Id,
+
+                        Title =
+                            "New Training Ticket Assigned",
+
+                        Message =
+                            $"Training Ticket '{ticket.Title}' has been assigned to you."
                     });
 
-                // Email
-                if (!string.IsNullOrWhiteSpace(employee.Email))
+
+                if (!string.IsNullOrWhiteSpace(
+                    employee.Email))
                 {
-                    string subject = $"Training Ticket Assigned - {ticket.TicketNumber}";
+                    string subject =
+                        $"Training Ticket Assigned - {ticket.TicketNumber}";
+
 
                     string body = $@"
-            <html>
-            <body style='font-family:Segoe UI'>
-                <h3>New Training Ticket Assigned</h3>
+<html>
+<body style='font-family:Segoe UI'>
 
-                <p>Hello <b>{employee.Name}</b>,</p>
+<h3>New Training Ticket Assigned</h3>
 
-                <p>A new Training ticket has been assigned to you.</p>
+<p>Hello <b>{employee.Name}</b>,</p>
 
-                <table border='1' cellpadding='8' cellspacing='0'>
-                    <tr>
-                        <td><b>Ticket Number</b></td>
-                        <td>{ticket.TicketNumber}</td>
-                    </tr>
+<p>
+A new Training ticket has been assigned to you.
+</p>
 
-                    <tr>
-                        <td><b>Title</b></td>
-                        <td>{ticket.Title}</td>
-                    </tr>
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'>
 
-                    <tr>
-                        <td><b>Project</b></td>
-                        <td>{ticket.ProjectId}</td>
-                    </tr>
+<tr>
+<td><b>Ticket Number</b></td>
+<td>{ticket.TicketNumber}</td>
+</tr>
 
-                    <tr>
-                        <td><b>Technology</b></td>
-                        <td>{ticket.Technology}</td>
-                    </tr>
+<tr>
+<td><b>Title</b></td>
+<td>{ticket.Title}</td>
+</tr>
 
-                    <tr>
-                        <td><b>Priority</b></td>
-                        <td>{ticket.Priority}</td>
-                    </tr>
+<tr>
+<td><b>Project</b></td>
+<td>{ticket.ProjectId}</td>
+</tr>
 
-                    <tr>
-                        <td><b>Start Date</b></td>
-                        <td>{ticket.StartDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                    </tr>
+<tr>
+<td><b>Technology</b></td>
+<td>{ticket.Technology}</td>
+</tr>
 
-                    <tr>
-                        <td><b>Due Date</b></td>
-                        <td>{ticket.DueDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                    </tr>
+<tr>
+<td><b>Priority</b></td>
+<td>{ticket.Priority}</td>
+</tr>
 
-                    <tr>
-                        <td><b>Description</b></td>
-                        <td>{ticket.Description}</td>
-                    </tr>
-                </table>
+<tr>
+<td><b>Start Date</b></td>
+<td>
+{ticket.StartDate?.ToString("dd-MMM-yyyy") ?? "-"}
+</td>
+</tr>
 
-                <br/>
+<tr>
+<td><b>Due Date</b></td>
+<td>
+{ticket.DueDate?.ToString("dd-MMM-yyyy") ?? "-"}
+</td>
+</tr>
 
-                <p>Please login to EMS and accept the ticket.</p>
+<tr>
+<td><b>Description</b></td>
+<td>{ticket.Description}</td>
+</tr>
 
-                <br/>
+</table>
 
-                <p>Regards,<br/>EMS Team</p>
+<br/>
 
-            </body>
-            </html>";
+<p>
+Please login to EMS and accept the ticket.
+</p>
+
+<br/>
+
+<p>
+Regards,<br/>
+EMS Team
+</p>
+
+</body>
+</html>";
+
 
                     await _emailService.SendEmailAsync(
                         employee.Email,
@@ -309,18 +434,7 @@ namespace EmployeeManagementSystem.Services
                         body);
                 }
             }
-
-            if (assignedAny)
-            {
-                ticket.Status = "Assigned";
-                ticket.AssignmentType = "Training Assignment";
-                ticket.AssignedDate = DateTime.UtcNow;
-                ticket.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-            }
-        }
-        // =========================================================
+        }  // =========================================================
         // ASSIGN SINGLE TICKET
         // =========================================================
         // =========================================================
@@ -336,10 +450,12 @@ namespace EmployeeManagementSystem.Services
             if (ticket == null)
                 return;
 
-            // =====================================================
-            // Accept Pending & Pending Assignment
-            // =====================================================
-            var isPending =
+
+            // =============================================
+            // PENDING CHECK
+            // =============================================
+
+            bool isPending =
                 string.Equals(
                     ticket.Status?.Trim(),
                     "Pending",
@@ -353,46 +469,68 @@ namespace EmployeeManagementSystem.Services
             if (!isPending)
                 return;
 
-            // =====================================================
-            // Already assigned (Normal Tickets)
-            // =====================================================
-            if (!ticket.Technology.Equals("Training", StringComparison.OrdinalIgnoreCase) &&
+
+            // =============================================
+            // TRAINING OR NORMAL
+            // =============================================
+
+            bool isTraining =
+                string.Equals(
+                    ticket.Technology?.Trim(),
+                    "Training",
+                    StringComparison.OrdinalIgnoreCase);
+
+
+            // =============================================
+            // NORMAL TICKET ALREADY ASSIGNED
+            // =============================================
+
+            if (!isTraining &&
                 !string.IsNullOrWhiteSpace(ticket.AssignedTo))
             {
                 return;
             }
 
-            // =====================================================
-            // Get Eligible Employees
-            // =====================================================
-            var employees = await GetEligibleEmployeesAsync(ticket);
+
+            // =============================================
+            // PROJECT + TECHNOLOGY + ACTIVE
+            // =============================================
+
+            var employees =
+                await GetEligibleEmployeesAsync(ticket);
 
             if (!employees.Any())
                 return;
 
-            // =====================================================
-            // Only Present Employees
-            // =====================================================
-            employees = await GetPresentEmployeesAsync(employees);
+
+            // =============================================
+            // PRESENT TODAY
+            // =============================================
+
+            employees =
+                await GetPresentEmployeesAsync(employees);
 
             if (!employees.Any())
                 return;
 
-            // =====================================================
-            // Only Employees Without Active Tickets
-            // =====================================================
-            employees = await FilterFreeEmployeesAsync(employees);
+
+            // =============================================
+            // FREE USERS
+            // =============================================
+
+            employees =
+                await FilterFreeEmployeesAsync(employees);
 
             if (!employees.Any())
                 return;
 
-            // =====================================================
-            // TRAINING TICKET
-            // Assign to all eligible employees
-            // =====================================================
-            if (ticket.Technology.Equals(
-                "Training",
-                StringComparison.OrdinalIgnoreCase))
+
+            // =============================================
+            // TRAINING
+            // Assign ALL free employees
+            // =============================================
+
+            if (isTraining)
             {
                 await AssignTrainingTicketAsync(
                     ticket,
@@ -401,12 +539,20 @@ namespace EmployeeManagementSystem.Services
                 return;
             }
 
+
+            // =============================================
+            // NORMAL
+            // Assign ONE employee
+            // =============================================
+
             Employee? selectedEmployee = null;
             string assignmentType = string.Empty;
 
-            // =====================================================
-            // PRIORITY 1 : MODULE CONTINUITY
-            // =====================================================
+
+            // =============================================
+            // PRIORITY 1 - MODULE CONTINUITY
+            // =============================================
+
             selectedEmployee =
                 await FindModuleContinuationEmployeeAsync(
                     ticket,
@@ -414,13 +560,15 @@ namespace EmployeeManagementSystem.Services
 
             if (selectedEmployee != null)
             {
-                assignmentType = "Module Continuity";
+                assignmentType =
+                    "Module Continuity";
             }
             else
             {
-                // =================================================
-                // PRIORITY 2 : ROUND ROBIN
-                // =================================================
+                // =========================================
+                // PRIORITY 2 - ROUND ROBIN
+                // =========================================
+
                 selectedEmployee =
                     await FindRoundRobinEmployeeAsync(
                         ticket,
@@ -428,22 +576,25 @@ namespace EmployeeManagementSystem.Services
 
                 if (selectedEmployee != null)
                 {
-                    assignmentType = "Round Robin";
+                    assignmentType =
+                        "Round Robin";
                 }
             }
+
 
             if (selectedEmployee == null)
                 return;
 
-            // =====================================================
-            // SAVE ASSIGNMENT
-            // =====================================================
+
+            // =============================================
+            // NORMAL TICKET SAVE
+            // =============================================
+
             await SaveAssignmentAsync(
                 ticket,
                 selectedEmployee,
                 assignmentType);
         }
-
         // =========================================================
         // AUTO ASSIGN ALL PENDING TICKETS
         // =========================================================
@@ -950,11 +1101,21 @@ namespace EmployeeManagementSystem.Services
             // ASSIGN NEXT TICKET
             // =====================================================
 
-            if (selectedTicket.Technology.Equals("Training", StringComparison.OrdinalIgnoreCase))
+            bool isTraining =
+      string.Equals(
+          selectedTicket.Technology?.Trim(),
+          "Training",
+          StringComparison.OrdinalIgnoreCase);
+
+            if (isTraining)
             {
-                await AssignTrainingTicketAsync(
-                    selectedTicket,
-                    new List<Employee> { employee });
+                // Goes through:
+                // Project + Technology
+                // Active
+                // Present
+                // Free
+                // Assign ALL
+                await AssignTicketAsync(selectedTicket.Id);
             }
             else
             {

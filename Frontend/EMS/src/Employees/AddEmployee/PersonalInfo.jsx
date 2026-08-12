@@ -8,7 +8,6 @@ import { formatEmployeeCode } from "../../utils/formatters";
 import { toIsoDateString } from "../../utils/date";
 import {
   normalizeWhitespace,
-  sanitizeAlphaNumericInput,
   sanitizeEmailInput,
   sanitizeLettersAndSpaces,
   sanitizePhoneInput,
@@ -44,7 +43,7 @@ const INITIAL_FORM_DATA = {
   pincode: "",
 };
 
-function PersonalInfo({ onNext, viewMode, data }) {
+function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
   // Temporarily hidden until finalized
   const isWorkExperienceFieldHidden = true;
 
@@ -54,42 +53,51 @@ function PersonalInfo({ onNext, viewMode, data }) {
   const [apiError, setApiError] = useState("");
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState([]);
-
   useEffect(() => {
-    if (!data) {
-      return;
-    }
-
-    setFormData({
+    setFormData((prev) => ({
       ...INITIAL_FORM_DATA,
-      employeeId: String(data.employee_Id ?? ""),
-      firstName: String(data.firstName ?? ""),
-      middleName: String(data.middleName ?? ""),
-      lastName: String(data.lastName ?? ""),
-      dob: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : "",
-      gender: String(data.gender ?? ""),
-      maritalStatus: String(data.marital_Status ?? ""),
-      phone: String(data.phoneNumber ?? ""),
-      email: String(data.email ?? ""),
-      aadhaar: String(data.aadhaarNumber ?? ""),
-      pan: String(data.panNumber ?? ""),
-      department: String(data.department ?? ""),
-      designation: String(data.designation ?? ""),
-      joiningDate: data.joiningDate ? data.joiningDate.split("T")[0] : "",
+
+      // Automatically get Employee ID from profile data or route/prop
+      employeeId: String(
+        data?.employee_Id ??
+        data?.employeeId ??
+        employeeId ??
+        prev.employeeId ??
+        ""
+      ),
+
+      firstName: String(data?.firstName ?? ""),
+      middleName: String(data?.middleName ?? ""),
+      lastName: String(data?.lastName ?? ""),
+      dob: data?.dateOfBirth
+        ? data.dateOfBirth.split("T")[0]
+        : "",
+      gender: String(data?.gender ?? ""),
+      maritalStatus: String(data?.marital_Status ?? ""),
+      phone: String(data?.phoneNumber ?? ""),
+      email: String(data?.email ?? ""),
+      aadhaar: String(data?.aadhaarNumber ?? ""),
+      pan: String(data?.panNumber ?? ""),
+      department: String(data?.department ?? ""),
+      designation: String(data?.designation ?? ""),
+      joiningDate: data?.joiningDate
+        ? data.joiningDate.split("T")[0]
+        : "",
       workExperience:
-        data.workExperience !== undefined && data.workExperience !== null
+        data?.workExperience !== undefined &&
+          data?.workExperience !== null
           ? String(data.workExperience)
           : "",
-      bloodGroup: String(data.bloodGroup ?? ""),
-      houseNo: String(data.houseNo ?? ""),
-      street: String(data.street ?? ""),
-      city: String(data.city ?? ""),
-      district: String(data.district ?? ""),
-      state: String(data.state ?? ""),
-      country: String(data.country ?? ""),
-      pincode: String(data.pincode ?? ""),
-    });
-  }, [data]);
+      bloodGroup: String(data?.bloodGroup ?? ""),
+      houseNo: String(data?.houseNo ?? ""),
+      street: String(data?.street ?? ""),
+      city: String(data?.city ?? ""),
+      district: String(data?.district ?? ""),
+      state: String(data?.state ?? ""),
+      country: String(data?.country ?? ""),
+      pincode: String(data?.pincode ?? ""),
+    }));
+  }, [data, employeeId]);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -438,7 +446,14 @@ function PersonalInfo({ onNext, viewMode, data }) {
         <div className="form-grid">
           <div className="form-group">
             <label>Employee ID<span className="required">*</span></label>
-            <input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} className={getFieldClassName("employeeId")} disabled={viewMode} />
+           <input
+              type="text"
+              name="employeeId"
+              value={formData.employeeId}
+              className={getFieldClassName("employeeId")}
+              readOnly
+              disabled
+            />
             {renderError("employeeId")}
           </div>
 
@@ -543,7 +558,7 @@ function PersonalInfo({ onNext, viewMode, data }) {
             </select>
             {renderError("designation")}
           </div>
- 
+
 
           <div className="form-group">
             <label>Date of Joining<span className="required">*</span></label>

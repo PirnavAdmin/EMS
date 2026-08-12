@@ -44,8 +44,8 @@ namespace EmployeeManagementSystem.Services
             }
 
             var outputFolder = IOPath.Combine(
-                _environment.WebRootPath,
-                "SignedAgreements");
+    _environment.WebRootPath,
+    "Agreements");
 
             Directory.CreateDirectory(outputFolder);
 
@@ -157,7 +157,7 @@ namespace EmployeeManagementSystem.Services
                     pdfPath,
                     employeeAgreement.SignatureImagePath);
 
-                return "/SignedAgreements/" +
+                return "/Agreements/" +
                        IOPath.GetFileName(pdfPath);
             }
             finally

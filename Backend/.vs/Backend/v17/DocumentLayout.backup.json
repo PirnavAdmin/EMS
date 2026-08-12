@@ -1,10 +1,317 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS Pirnav\\Backend\\",
+  "WorkspaceRootPath": "C:\\Backend\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS Pirnav\\Backend\\DTOs\\AdminAttendanceDayDto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:DTOs\\AdminAttendanceDayDto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\interfaces\\ipayslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:interfaces\\ipayslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\payslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\payslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\payslipcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\payslipcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\generateallpayslipdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\generateallpayslipdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\bulkpayslipgenerationresultdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\bulkpayslipgenerationresultdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\reportsservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\reportsservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\payslippdfdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\payslippdfdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\documents\\payslippdfdocument.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:documents\\payslippdfdocument.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\generatebulkpayslipdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\generatebulkpayslipdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\templateservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\templateservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\employeeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\employeeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\offerletterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\offerletterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\manualpayslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\manualpayslipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\models\\policysettings.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:models\\policysettings.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\uploadagreementdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\uploadagreementdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\attendanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\attendanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\settingscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\settingscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\models\\templatemaster.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:models\\templatemaster.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\templatecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\templatecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\models\\templatemodulemaster.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:models\\templatemodulemaster.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\templatemodulecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\templatemodulecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\interfaces\\itemplateservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:interfaces\\itemplateservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\offerletterrequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\offerletterrequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\relievinglettersrivice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\relievinglettersrivice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\createshiftdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\createshiftdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\updateshiftdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\updateshiftdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\shiftresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\shiftresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\shiftservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\shiftservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\employeeshiftservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\employeeshiftservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\interfaces\\iemployeeshiftservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:interfaces\\iemployeeshiftservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\employeeweeklyoffservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\employeeweeklyoffservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\shiftplannerservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\shiftplannerservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\shiftrosterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\shiftrosterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\shiftrotationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\shiftrotationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\shiftswapservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\shiftswapservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\shiftchangerequestservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\shiftchangerequestservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\brandingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\brandingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ADMIN\\AppData\\Local\\SourceServer\\f51130cb0d590256d7fffd458f4a81c74b126514f9c90f87f553009c9f28007b\\src\\MySqlConnector\\MySqlConnection.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\employeeleaveservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\employeeleaveservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\experienceletterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\experienceletterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\employeepersonalinfocontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\employeepersonalinfocontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\userpermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\userpermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\rolepermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\rolepermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\upcomingbirthdaydto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\upcomingbirthdaydto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\bulkpayslipemailresultdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\bulkpayslipemailresultdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\leavebalanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\leavebalanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\rolepermissioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\rolepermissioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\interfaces\\irolepermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:interfaces\\irolepermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\usercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\usercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\helpers\\jwthelpers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:helpers\\jwthelpers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\relievinglettercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\relievinglettercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\relievingletterrequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\relievingletterrequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\adminpermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\adminpermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\adminemployeeattendancedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\adminemployeeattendancedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\employeesalarystructureservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\employeesalarystructureservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\employeesalarystructurecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\employeesalarystructurecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\interfaces\\iemployeesalarystructureservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:interfaces\\iemployeesalarystructureservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\employeesalarystructuredto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\employeesalarystructuredto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\models\\employeesalarystructure.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:models\\employeesalarystructure.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\saveadminpermissiondto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\saveadminpermissiondto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\emailservices.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\emailservices.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\experiencelettercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\experiencelettercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\services\\superadminservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:services\\superadminservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\models\\superadmin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:models\\superadmin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\models\\admin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:models\\admin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\controllers\\adminpermissioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:controllers\\adminpermissioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\interfaces\\iexperienceletterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:interfaces\\iexperienceletterservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\experiencelettersendstatusdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\experiencelettersendstatusdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\sendexperienceletterdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\sendexperienceletterdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\experienceletterrequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\experienceletterrequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\models\\experienceletter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:models\\experienceletter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\experienceletterdownloaddto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\experienceletterdownloaddto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\interfaces\\iadminpermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:interfaces\\iadminpermissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\manualpayslipdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\manualpayslipdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|c:\\backend\\dtos\\adminattendancedaydto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7B2099DD-198E-5C04-7A7A-C64E7BEA8B4D}|EmployeeManagementSystem.csproj|solutionrelative:dtos\\adminattendancedaydto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,20 +321,952 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 75,
           "Children": [
             {
               "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "GenerateAllPayslipDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\GenerateAllPayslipDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\GenerateAllPayslipDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\GenerateAllPayslipDto.cs",
+              "RelativeToolTip": "DTOs\\GenerateAllPayslipDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-11T17:55:39.595Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "BulkPayslipGenerationResultDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\BulkPayslipGenerationResultDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\BulkPayslipGenerationResultDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\BulkPayslipGenerationResultDto.cs",
+              "RelativeToolTip": "DTOs\\BulkPayslipGenerationResultDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-11T16:35:56.067Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "ReportsService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ReportsService.cs",
+              "RelativeDocumentMoniker": "Services\\ReportsService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ReportsService.cs",
+              "RelativeToolTip": "Services\\ReportsService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-11T13:24:59.526Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Backend\\appsettings.json",
+              "RelativeDocumentMoniker": "appsettings.json",
+              "ToolTip": "C:\\Backend\\appsettings.json",
+              "RelativeToolTip": "appsettings.json",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABMAAAAOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-08-11T10:54:13.293Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "GenerateBulkPayslipDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\GenerateBulkPayslipDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\GenerateBulkPayslipDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\GenerateBulkPayslipDto.cs",
+              "RelativeToolTip": "DTOs\\GenerateBulkPayslipDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-11T07:47:03.896Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "PolicySettings.cs",
+              "DocumentMoniker": "C:\\Backend\\Models\\PolicySettings.cs",
+              "RelativeDocumentMoniker": "Models\\PolicySettings.cs",
+              "ToolTip": "C:\\Backend\\Models\\PolicySettings.cs",
+              "RelativeToolTip": "Models\\PolicySettings.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAA+AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T17:03:17.886Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "UploadAgreementDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\UploadAgreementDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\UploadAgreementDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\UploadAgreementDto.cs",
+              "RelativeToolTip": "DTOs\\UploadAgreementDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:59:52.101Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "TemplateMaster.cs",
+              "DocumentMoniker": "C:\\Backend\\Models\\TemplateMaster.cs",
+              "RelativeDocumentMoniker": "Models\\TemplateMaster.cs",
+              "ToolTip": "C:\\Backend\\Models\\TemplateMaster.cs",
+              "RelativeToolTip": "Models\\TemplateMaster.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABoAAAAmAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:34:38.468Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "TemplateController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\TemplateController.cs",
+              "RelativeDocumentMoniker": "Controllers\\TemplateController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\TemplateController.cs",
+              "RelativeToolTip": "Controllers\\TemplateController.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAAzwIkBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:30:40.132Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "TemplateModuleMaster.cs",
+              "DocumentMoniker": "C:\\Backend\\Models\\TemplateModuleMaster.cs",
+              "RelativeDocumentMoniker": "Models\\TemplateModuleMaster.cs",
+              "ToolTip": "C:\\Backend\\Models\\TemplateModuleMaster.cs",
+              "RelativeToolTip": "Models\\TemplateModuleMaster.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:27:35.12Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "TemplateModuleController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\TemplateModuleController.cs",
+              "RelativeDocumentMoniker": "Controllers\\TemplateModuleController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\TemplateModuleController.cs",
+              "RelativeToolTip": "Controllers\\TemplateModuleController.cs",
+              "ViewState": "AgIAAH4AAAAAAAAAAAAiwIsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:24:30.442Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "ITemplateService.cs",
+              "DocumentMoniker": "C:\\Backend\\Interfaces\\ITemplateService.cs",
+              "RelativeDocumentMoniker": "Interfaces\\ITemplateService.cs",
+              "ToolTip": "C:\\Backend\\Interfaces\\ITemplateService.cs",
+              "RelativeToolTip": "Interfaces\\ITemplateService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAiwAkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:23:18.368Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "TemplateService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\TemplateService.cs",
+              "RelativeDocumentMoniker": "Services\\TemplateService.cs",
+              "ToolTip": "C:\\Backend\\Services\\TemplateService.cs",
+              "RelativeToolTip": "Services\\TemplateService.cs",
+              "ViewState": "AgIAABAAAAAAAAAAAAAQwE0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:19:35.521Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "CreateShiftDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\CreateShiftDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\CreateShiftDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\CreateShiftDto.cs",
+              "RelativeToolTip": "DTOs\\CreateShiftDto.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAYwBwAAAAzAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:10:12.059Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 28,
+              "Title": "UpdateShiftDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\UpdateShiftDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\UpdateShiftDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\UpdateShiftDto.cs",
+              "RelativeToolTip": "DTOs\\UpdateShiftDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:08:43.507Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 29,
+              "Title": "ShiftResponseDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\ShiftResponseDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\ShiftResponseDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\ShiftResponseDto.cs",
+              "RelativeToolTip": "DTOs\\ShiftResponseDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:07:42.12Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 30,
+              "Title": "ShiftService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ShiftService.cs",
+              "RelativeDocumentMoniker": "Services\\ShiftService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ShiftService.cs",
+              "RelativeToolTip": "Services\\ShiftService.cs",
+              "ViewState": "AgIAAKwAAAAAAAAAAAAkwMQAAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:06:43.95Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 31,
+              "Title": "EmployeeShiftService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\EmployeeShiftService.cs",
+              "RelativeDocumentMoniker": "Services\\EmployeeShiftService.cs",
+              "ToolTip": "C:\\Backend\\Services\\EmployeeShiftService.cs",
+              "RelativeToolTip": "Services\\EmployeeShiftService.cs",
+              "ViewState": "AgIAAOkAAAAAAAAAAAAgwAABAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:04:57.126Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 32,
+              "Title": "IEmployeeShiftService.cs",
+              "DocumentMoniker": "C:\\Backend\\Interfaces\\IEmployeeShiftService.cs",
+              "RelativeDocumentMoniker": "Interfaces\\IEmployeeShiftService.cs",
+              "ToolTip": "C:\\Backend\\Interfaces\\IEmployeeShiftService.cs",
+              "RelativeToolTip": "Interfaces\\IEmployeeShiftService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:03:25.434Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 33,
+              "Title": "EmployeeWeeklyOffService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\EmployeeWeeklyOffService.cs",
+              "RelativeDocumentMoniker": "Services\\EmployeeWeeklyOffService.cs",
+              "ToolTip": "C:\\Backend\\Services\\EmployeeWeeklyOffService.cs",
+              "RelativeToolTip": "Services\\EmployeeWeeklyOffService.cs",
+              "ViewState": "AgIAALkAAAAAAAAAAAAswHMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:02:00.908Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 34,
+              "Title": "ShiftPlannerService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ShiftPlannerService.cs",
+              "RelativeDocumentMoniker": "Services\\ShiftPlannerService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ShiftPlannerService.cs",
+              "RelativeToolTip": "Services\\ShiftPlannerService.cs",
+              "ViewState": "AgIAAL8BAAAAAAAAAAAgwNEBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:01:04.462Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 35,
+              "Title": "ShiftRosterService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ShiftRosterService.cs",
+              "RelativeDocumentMoniker": "Services\\ShiftRosterService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ShiftRosterService.cs",
+              "RelativeToolTip": "Services\\ShiftRosterService.cs",
+              "ViewState": "AgIAAFgBAAAAAAAAAAAgwHUBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T16:00:24.975Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 36,
+              "Title": "ShiftRotationService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ShiftRotationService.cs",
+              "RelativeDocumentMoniker": "Services\\ShiftRotationService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ShiftRotationService.cs",
+              "RelativeToolTip": "Services\\ShiftRotationService.cs",
+              "ViewState": "AgIAAPUAAAAAAAAAAAAgwDEBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T15:57:43.556Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 37,
+              "Title": "ShiftSwapService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ShiftSwapService.cs",
+              "RelativeDocumentMoniker": "Services\\ShiftSwapService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ShiftSwapService.cs",
+              "RelativeToolTip": "Services\\ShiftSwapService.cs",
+              "ViewState": "AgIAANgAAAAAAAAAAAAowCEBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T15:55:16.511Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 38,
+              "Title": "ShiftChangeRequestService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ShiftChangeRequestService.cs",
+              "RelativeDocumentMoniker": "Services\\ShiftChangeRequestService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ShiftChangeRequestService.cs",
+              "RelativeToolTip": "Services\\ShiftChangeRequestService.cs",
+              "ViewState": "AgIAADEBAAAAAAAAAAAswDkBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T15:54:10.744Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "SettingsController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\SettingsController.cs",
+              "RelativeDocumentMoniker": "Controllers\\SettingsController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\SettingsController.cs",
+              "RelativeToolTip": "Controllers\\SettingsController.cs",
+              "ViewState": "AgIAAIsBAAAAAAAAAAAowJsBAAAQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T15:47:57.834Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 39,
+              "Title": "BrandingService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\BrandingService.cs",
+              "RelativeDocumentMoniker": "Services\\BrandingService.cs",
+              "ToolTip": "C:\\Backend\\Services\\BrandingService.cs",
+              "RelativeToolTip": "Services\\BrandingService.cs",
+              "ViewState": "AgIAAFYAAAAAAAAAAAAgwLMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T15:43:49.614Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 40,
+              "Title": "MySqlConnection.cs",
+              "DocumentMoniker": "C:\\Users\\ADMIN\\AppData\\Local\\SourceServer\\f51130cb0d590256d7fffd458f4a81c74b126514f9c90f87f553009c9f28007b\\src\\MySqlConnector\\MySqlConnection.cs",
+              "RelativeDocumentMoniker": "..\\Users\\ADMIN\\AppData\\Local\\SourceServer\\f51130cb0d590256d7fffd458f4a81c74b126514f9c90f87f553009c9f28007b\\src\\MySqlConnector\\MySqlConnection.cs",
+              "ToolTip": "C:\\Users\\ADMIN\\AppData\\Local\\SourceServer\\f51130cb0d590256d7fffd458f4a81c74b126514f9c90f87f553009c9f28007b\\src\\MySqlConnector\\MySqlConnection.cs [Read Only]",
+              "RelativeToolTip": "..\\Users\\ADMIN\\AppData\\Local\\SourceServer\\f51130cb0d590256d7fffd458f4a81c74b126514f9c90f87f553009c9f28007b\\src\\MySqlConnector\\MySqlConnection.cs [Read Only]",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAfAAAAAQAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-10T12:45:33.422Z",
+              "EditorCaption": " [Read Only]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 43,
+              "Title": "EmployeePersonalInfoControllers.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\EmployeePersonalInfoControllers.cs",
+              "RelativeDocumentMoniker": "Controllers\\EmployeePersonalInfoControllers.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\EmployeePersonalInfoControllers.cs",
+              "RelativeToolTip": "Controllers\\EmployeePersonalInfoControllers.cs",
+              "ViewState": "AgIAAAYBAAAAAAAAAAAgwB0BAAAxAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-08T14:07:26.341Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 44,
+              "Title": "UserPermissionService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\UserPermissionService.cs",
+              "RelativeDocumentMoniker": "Services\\UserPermissionService.cs",
+              "ToolTip": "C:\\Backend\\Services\\UserPermissionService.cs",
+              "RelativeToolTip": "Services\\UserPermissionService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAABEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T12:52:34.77Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 46,
+              "Title": "UpcomingBirthdayDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\UpcomingBirthdayDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\UpcomingBirthdayDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\UpcomingBirthdayDto.cs",
+              "RelativeToolTip": "DTOs\\UpcomingBirthdayDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T11:34:17.058Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "EmployeeService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\EmployeeService.cs",
+              "RelativeDocumentMoniker": "Services\\EmployeeService.cs",
+              "ToolTip": "C:\\Backend\\Services\\EmployeeService.cs",
+              "RelativeToolTip": "Services\\EmployeeService.cs",
+              "ViewState": "AgIAAM8EAAAAAAAAAAAqwN8EAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T11:24:21.447Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 47,
+              "Title": "BulkPayslipEmailResultDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\BulkPayslipEmailResultDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\BulkPayslipEmailResultDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\BulkPayslipEmailResultDto.cs",
+              "RelativeToolTip": "DTOs\\BulkPayslipEmailResultDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T11:03:05.406Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "PaySlipPdfDocument.cs",
+              "DocumentMoniker": "C:\\Backend\\Documents\\PaySlipPdfDocument.cs",
+              "RelativeDocumentMoniker": "Documents\\PaySlipPdfDocument.cs",
+              "ToolTip": "C:\\Backend\\Documents\\PaySlipPdfDocument.cs",
+              "RelativeToolTip": "Documents\\PaySlipPdfDocument.cs",
+              "ViewState": "AgIAADMBAAAAAAAAAAAkwEIBAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T09:22:01.37Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "PaySlipPdfDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\PaySlipPdfDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\PaySlipPdfDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\PaySlipPdfDto.cs",
+              "RelativeToolTip": "DTOs\\PaySlipPdfDto.cs",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAgwBgAAAAnAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T09:18:39.18Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 49,
+              "Title": "RolePermissionController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\RolePermissionController.cs",
+              "RelativeDocumentMoniker": "Controllers\\RolePermissionController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\RolePermissionController.cs",
+              "RelativeToolTip": "Controllers\\RolePermissionController.cs",
+              "ViewState": "AgIAAEsAAAAAAAAAAAAIwGMAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T04:37:51.415Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 50,
+              "Title": "IRolePermissionService.cs",
+              "DocumentMoniker": "C:\\Backend\\Interfaces\\IRolePermissionService.cs",
+              "RelativeDocumentMoniker": "Interfaces\\IRolePermissionService.cs",
+              "ToolTip": "C:\\Backend\\Interfaces\\IRolePermissionService.cs",
+              "RelativeToolTip": "Interfaces\\IRolePermissionService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-07T04:34:52.47Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 51,
+              "Title": "UserController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\UserController.cs",
+              "RelativeDocumentMoniker": "Controllers\\UserController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\UserController.cs",
+              "RelativeToolTip": "Controllers\\UserController.cs",
+              "ViewState": "AgIAAAwBAAAAAAAAAAD4vxkBAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T11:50:21.126Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 52,
+              "Title": "JWTHelpers.cs",
+              "DocumentMoniker": "C:\\Backend\\Helpers\\JWTHelpers.cs",
+              "RelativeDocumentMoniker": "Helpers\\JWTHelpers.cs",
+              "ToolTip": "C:\\Backend\\Helpers\\JWTHelpers.cs",
+              "RelativeToolTip": "Helpers\\JWTHelpers.cs",
+              "ViewState": "AgIAAD4AAAAAAAAAAAAIwE0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T11:49:05.157Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 53,
+              "Title": "RelievingLetterController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\RelievingLetterController.cs",
+              "RelativeDocumentMoniker": "Controllers\\RelievingLetterController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\RelievingLetterController.cs",
+              "RelativeToolTip": "Controllers\\RelievingLetterController.cs",
+              "ViewState": "AgIAABoAAAAAAAAAAAAIwCsAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T11:44:02.053Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 45,
+              "Title": "RolePermissionService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\RolePermissionService.cs",
+              "RelativeDocumentMoniker": "Services\\RolePermissionService.cs",
+              "ToolTip": "C:\\Backend\\Services\\RolePermissionService.cs",
+              "RelativeToolTip": "Services\\RolePermissionService.cs",
+              "ViewState": "AgIAAE8BAAAAAAAAAAAiwGwBAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T10:57:30.142Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 48,
+              "Title": "LeaveBalanceService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\LeaveBalanceService.cs",
+              "RelativeDocumentMoniker": "Services\\LeaveBalanceService.cs",
+              "ToolTip": "C:\\Backend\\Services\\LeaveBalanceService.cs",
+              "RelativeToolTip": "Services\\LeaveBalanceService.cs",
+              "ViewState": "AgIAANsAAAAAAAAAAAAYwOgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T09:21:04.441Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 41,
+              "Title": "EmployeeLeaveService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\EmployeeLeaveService.cs",
+              "RelativeDocumentMoniker": "Services\\EmployeeLeaveService.cs",
+              "ToolTip": "C:\\Backend\\Services\\EmployeeLeaveService.cs",
+              "RelativeToolTip": "Services\\EmployeeLeaveService.cs",
+              "ViewState": "AgIAAMQHAAAAAAAAAAAgwNUHAAA6AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T07:50:03.478Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 56,
+              "Title": "AdminEmployeeAttendanceDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\AdminEmployeeAttendanceDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\AdminEmployeeAttendanceDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\AdminEmployeeAttendanceDto.cs",
+              "RelativeToolTip": "DTOs\\AdminEmployeeAttendanceDto.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAAwA0AAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T07:42:42.824Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "AttendanceService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\AttendanceService.cs",
+              "RelativeDocumentMoniker": "Services\\AttendanceService.cs",
+              "ToolTip": "C:\\Backend\\Services\\AttendanceService.cs",
+              "RelativeToolTip": "Services\\AttendanceService.cs",
+              "ViewState": "AgIAAPoGAAAAAAAAAAAiwBQHAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T07:42:21.84Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 58,
+              "Title": "EmployeeSalaryStructureController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\EmployeeSalaryStructureController.cs",
+              "RelativeDocumentMoniker": "Controllers\\EmployeeSalaryStructureController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\EmployeeSalaryStructureController.cs",
+              "RelativeToolTip": "Controllers\\EmployeeSalaryStructureController.cs",
+              "ViewState": "AgIAAFoAAAAAAAAAAAA4wGsAAAATAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T04:55:11.245Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 57,
+              "Title": "EmployeeSalaryStructureService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\EmployeeSalaryStructureService.cs",
+              "RelativeDocumentMoniker": "Services\\EmployeeSalaryStructureService.cs",
+              "ToolTip": "C:\\Backend\\Services\\EmployeeSalaryStructureService.cs",
+              "RelativeToolTip": "Services\\EmployeeSalaryStructureService.cs",
+              "ViewState": "AgIAAOkAAAAAAAAAAAAIwP4AAAAgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T04:52:29.571Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 59,
+              "Title": "IEmployeeSalaryStructureService.cs",
+              "DocumentMoniker": "C:\\Backend\\Interfaces\\IEmployeeSalaryStructureService.cs",
+              "RelativeDocumentMoniker": "Interfaces\\IEmployeeSalaryStructureService.cs",
+              "ToolTip": "C:\\Backend\\Interfaces\\IEmployeeSalaryStructureService.cs",
+              "RelativeToolTip": "Interfaces\\IEmployeeSalaryStructureService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T04:51:49.431Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 60,
+              "Title": "EmployeeSalaryStructureDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\EmployeeSalaryStructureDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\EmployeeSalaryStructureDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\EmployeeSalaryStructureDto.cs",
+              "RelativeToolTip": "DTOs\\EmployeeSalaryStructureDto.cs",
+              "ViewState": "AgIAABUAAAAAAAAAAAAIwC8AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T04:50:56.915Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 61,
+              "Title": "EmployeeSalaryStructure.cs",
+              "DocumentMoniker": "C:\\Backend\\Models\\EmployeeSalaryStructure.cs",
+              "RelativeDocumentMoniker": "Models\\EmployeeSalaryStructure.cs",
+              "ToolTip": "C:\\Backend\\Models\\EmployeeSalaryStructure.cs",
+              "RelativeToolTip": "Models\\EmployeeSalaryStructure.cs",
+              "ViewState": "AgIAACMAAAAAAAAAAAAywC8AAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-06T04:49:45.671Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 62,
+              "Title": "SaveAdminPermissionDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\SaveAdminPermissionDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\SaveAdminPermissionDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\SaveAdminPermissionDto.cs",
+              "RelativeToolTip": "DTOs\\SaveAdminPermissionDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAApAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-05T11:50:37.395Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 63,
+              "Title": "EmailServices.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\EmailServices.cs",
+              "RelativeDocumentMoniker": "Services\\EmailServices.cs",
+              "ToolTip": "C:\\Backend\\Services\\EmailServices.cs",
+              "RelativeToolTip": "Services\\EmailServices.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-05T10:08:45.236Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 65,
+              "Title": "SuperAdminService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\SuperAdminService.cs",
+              "RelativeDocumentMoniker": "Services\\SuperAdminService.cs",
+              "ToolTip": "C:\\Backend\\Services\\SuperAdminService.cs",
+              "RelativeToolTip": "Services\\SuperAdminService.cs",
+              "ViewState": "AgIAAOwAAAAAAAAAAAAgwPgAAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-05T06:08:31.241Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 66,
+              "Title": "SuperAdmin.cs",
+              "DocumentMoniker": "C:\\Backend\\Models\\SuperAdmin.cs",
+              "RelativeDocumentMoniker": "Models\\SuperAdmin.cs",
+              "ToolTip": "C:\\Backend\\Models\\SuperAdmin.cs",
+              "RelativeToolTip": "Models\\SuperAdmin.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-05T06:07:00.309Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 67,
+              "Title": "Admin.cs",
+              "DocumentMoniker": "C:\\Backend\\Models\\Admin.cs",
+              "RelativeDocumentMoniker": "Models\\Admin.cs",
+              "ToolTip": "C:\\Backend\\Models\\Admin.cs",
+              "RelativeToolTip": "Models\\Admin.cs",
+              "ViewState": "AgIAABEAAACAZmZmZmYbwAwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-05T04:24:38.808Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 70,
+              "Title": "ExperienceLetterSendStatusDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\ExperienceLetterSendStatusDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\ExperienceLetterSendStatusDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\ExperienceLetterSendStatusDto.cs",
+              "RelativeToolTip": "DTOs\\ExperienceLetterSendStatusDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T10:28:41.209Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 71,
+              "Title": "SendExperienceLetterDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\SendExperienceLetterDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\SendExperienceLetterDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\SendExperienceLetterDto.cs",
+              "RelativeToolTip": "DTOs\\SendExperienceLetterDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T10:27:52.144Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Backend\\Program.cs",
+              "RelativeDocumentMoniker": "Program.cs",
+              "ToolTip": "C:\\Backend\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAAFABAAAAAAAAAAAIwFwBAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:59:50.03Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 64,
+              "Title": "ExperienceLetterController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\ExperienceLetterController.cs",
+              "RelativeDocumentMoniker": "Controllers\\ExperienceLetterController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\ExperienceLetterController.cs",
+              "RelativeToolTip": "Controllers\\ExperienceLetterController.cs",
+              "ViewState": "AgIAAEIAAAAAAAAAAAAAAFAAAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:58:51.428Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "AppDbContext.cs",
+              "DocumentMoniker": "C:\\Backend\\Data\\AppDbContext.cs",
+              "RelativeDocumentMoniker": "Data\\AppDbContext.cs",
+              "ToolTip": "C:\\Backend\\Data\\AppDbContext.cs",
+              "RelativeToolTip": "Data\\AppDbContext.cs",
+              "ViewState": "AgIAAPkBAAAAAAAAAAAcwAUCAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:47:18.079Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 73,
+              "Title": "ExperienceLetter.cs",
+              "DocumentMoniker": "C:\\Backend\\Models\\ExperienceLetter.cs",
+              "RelativeDocumentMoniker": "Models\\ExperienceLetter.cs",
+              "ToolTip": "C:\\Backend\\Models\\ExperienceLetter.cs",
+              "RelativeToolTip": "Models\\ExperienceLetter.cs",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAcwDEAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:46:44.633Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 42,
+              "Title": "ExperienceLetterService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ExperienceLetterService.cs",
+              "RelativeDocumentMoniker": "Services\\ExperienceLetterService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ExperienceLetterService.cs",
+              "RelativeToolTip": "Services\\ExperienceLetterService.cs",
+              "ViewState": "AgIAACAAAAAAAAAAAAAYwDAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:40:55.935Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 69,
+              "Title": "IExperienceLetterService.cs",
+              "DocumentMoniker": "C:\\Backend\\Interfaces\\IExperienceLetterService.cs",
+              "RelativeDocumentMoniker": "Interfaces\\IExperienceLetterService.cs",
+              "ToolTip": "C:\\Backend\\Interfaces\\IExperienceLetterService.cs",
+              "RelativeToolTip": "Interfaces\\IExperienceLetterService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:40:20.908Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 74,
+              "Title": "ExperienceLetterDownloadDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\ExperienceLetterDownloadDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\ExperienceLetterDownloadDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\ExperienceLetterDownloadDto.cs",
+              "RelativeToolTip": "DTOs\\ExperienceLetterDownloadDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:39:45.394Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 72,
+              "Title": "ExperienceLetterRequestDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\ExperienceLetterRequestDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\ExperienceLetterRequestDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\ExperienceLetterRequestDto.cs",
+              "RelativeToolTip": "DTOs\\ExperienceLetterRequestDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAgwBYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:39:09.632Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "RelievingLetterSrivice.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\RelievingLetterSrivice.cs",
+              "RelativeDocumentMoniker": "Services\\RelievingLetterSrivice.cs",
+              "ToolTip": "C:\\Backend\\Services\\RelievingLetterSrivice.cs",
+              "RelativeToolTip": "Services\\RelievingLetterSrivice.cs",
+              "ViewState": "AgIAAMYAAAAAAAAAAAAIwOYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:15:16.424Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 54,
+              "Title": "RelievingLetterRequestDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\RelievingLetterRequestDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\RelievingLetterRequestDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\RelievingLetterRequestDto.cs",
+              "RelativeToolTip": "DTOs\\RelievingLetterRequestDto.cs",
+              "ViewState": "AgIAABEAAAAAAAAAAAA5wCcAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T09:05:52.716Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "OfferLetterService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\OfferLetterService.cs",
+              "RelativeDocumentMoniker": "Services\\OfferLetterService.cs",
+              "ToolTip": "C:\\Backend\\Services\\OfferLetterService.cs",
+              "RelativeToolTip": "Services\\OfferLetterService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T06:38:23.725Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "OfferLetterRequestDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\OfferLetterRequestDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\OfferLetterRequestDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\OfferLetterRequestDto.cs",
+              "RelativeToolTip": "DTOs\\OfferLetterRequestDto.cs",
+              "ViewState": "AgIAAFsAAAAAAAAAAADwv2YAAABhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T06:12:22.875Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 68,
+              "Title": "AdminPermissionController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\AdminPermissionController.cs",
+              "RelativeDocumentMoniker": "Controllers\\AdminPermissionController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\AdminPermissionController.cs",
+              "RelativeToolTip": "Controllers\\AdminPermissionController.cs",
+              "ViewState": "AgIAACgAAAAAAAAAAAAIwDUAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T05:13:46.213Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 55,
+              "Title": "AdminPermissionService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\AdminPermissionService.cs",
+              "RelativeDocumentMoniker": "Services\\AdminPermissionService.cs",
+              "ToolTip": "C:\\Backend\\Services\\AdminPermissionService.cs",
+              "RelativeToolTip": "Services\\AdminPermissionService.cs",
+              "ViewState": "AgIAAIsAAAAAAAAAAAAIwJYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T05:12:37.445Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 75,
+              "Title": "IAdminPermissionService.cs",
+              "DocumentMoniker": "C:\\Backend\\Interfaces\\IAdminPermissionService.cs",
+              "RelativeDocumentMoniker": "Interfaces\\IAdminPermissionService.cs",
+              "ToolTip": "C:\\Backend\\Interfaces\\IAdminPermissionService.cs",
+              "RelativeToolTip": "Interfaces\\IAdminPermissionService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-04T05:11:15.456Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "ManualPayslipService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\ManualPayslipService.cs",
+              "RelativeDocumentMoniker": "Services\\ManualPayslipService.cs",
+              "ToolTip": "C:\\Backend\\Services\\ManualPayslipService.cs",
+              "RelativeToolTip": "Services\\ManualPayslipService.cs",
+              "ViewState": "AgIAALsAAAAAAAAAAAAiwN0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-03T17:58:37.376Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 76,
+              "Title": "ManualPaySlipDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\ManualPaySlipDto.cs",
+              "RelativeDocumentMoniker": "DTOs\\ManualPaySlipDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\ManualPaySlipDto.cs",
+              "RelativeToolTip": "DTOs\\ManualPaySlipDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAA3AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-03T17:57:28.403Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "PaySlipController.cs",
+              "DocumentMoniker": "C:\\Backend\\Controllers\\PaySlipController.cs",
+              "RelativeDocumentMoniker": "Controllers\\PaySlipController.cs",
+              "ToolTip": "C:\\Backend\\Controllers\\PaySlipController.cs",
+              "RelativeToolTip": "Controllers\\PaySlipController.cs",
+              "ViewState": "AgIAAFwAAAAAAAAAAAAAAHUAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-03T17:27:10.14Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "IPaySlipService.cs",
+              "DocumentMoniker": "C:\\Backend\\Interfaces\\IPaySlipService.cs",
+              "RelativeDocumentMoniker": "Interfaces\\IPaySlipService.cs",
+              "ToolTip": "C:\\Backend\\Interfaces\\IPaySlipService.cs*",
+              "RelativeToolTip": "Interfaces\\IPaySlipService.cs*",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAQwBoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-03T17:21:16.193Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "PaySlipService.cs",
+              "DocumentMoniker": "C:\\Backend\\Services\\PaySlipService.cs",
+              "RelativeDocumentMoniker": "Services\\PaySlipService.cs",
+              "ToolTip": "C:\\Backend\\Services\\PaySlipService.cs*",
+              "RelativeToolTip": "Services\\PaySlipService.cs*",
+              "ViewState": "AgIAAAAFAAAAAAAAAAAswK4FAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-03T16:38:09.059Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 77,
               "Title": "AdminAttendanceDayDto.cs",
-              "DocumentMoniker": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS Pirnav\\Backend\\DTOs\\AdminAttendanceDayDto.cs",
+              "DocumentMoniker": "C:\\Backend\\DTOs\\AdminAttendanceDayDto.cs",
               "RelativeDocumentMoniker": "DTOs\\AdminAttendanceDayDto.cs",
-              "ToolTip": "C:\\Users\\ADMIN\\OneDrive\\Desktop\\EMS Pirnav\\Backend\\DTOs\\AdminAttendanceDayDto.cs",
+              "ToolTip": "C:\\Backend\\DTOs\\AdminAttendanceDayDto.cs",
               "RelativeToolTip": "DTOs\\AdminAttendanceDayDto.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-05-12T08:30:12.278Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-05-12T08:30:12.278Z"
             }
           ]
         }

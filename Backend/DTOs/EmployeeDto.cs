@@ -4,7 +4,7 @@ namespace EmployeeManagementSystem.DTOs
 {
     public class EmployeeDto
     {
-
+        public string? OnboardingId { get; set; }
         public string Employee_Id { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;

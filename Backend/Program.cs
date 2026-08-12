@@ -15,7 +15,10 @@ using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using QuestPDF.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using QuestPDF.Infrastructure;
 using System.Text;
+using Hangfire;
+using Hangfire.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,7 +54,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
                 errorNumbersToAdd: null);
         });
 });
+builder.Services.AddHangfire(config =>
+{
+    config.UseStorage(
+        new MySqlStorage(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            new MySqlStorageOptions()
+        ));
+});
 
+builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IOfferLetterService, OfferLetterService>();
 
 builder.Services.AddScoped<IPaySlipService, PaySlipService>();
@@ -106,6 +118,51 @@ builder.Services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService
 builder.Services.AddScoped<IRelievingLetterService, RelievingLetterService>();
 builder.Services.AddScoped<IUserPermissionService, UserPermissionService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IBrandingService, BrandingService>();
+
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+
+builder.Services.AddScoped<IForm16Service, Form16Service>();
+
+builder.Services.AddScoped<IEmployeeResignationService, EmployeeResignationService>();
+
+builder.Services.AddScoped<IEmployeeClearanceService, EmployeeClearanceService>();
+
+builder.Services.AddScoped<IExitInterviewService, ExitInterviewService>();
+
+builder.Services.AddScoped<IFullFinalSettlementService, FullFinalSettlementService>();
+
+builder.Services.AddScoped<IWorkflowEngineService, WorkflowEngineService>();
+
+builder.Services.AddScoped<IShiftService, ShiftService>();
+
+builder.Services.AddScoped<IEmployeeShiftService, EmployeeShiftService>();
+
+builder.Services.AddScoped<IShiftRosterService, ShiftRosterService>();
+
+builder.Services.AddScoped<IShiftPlannerService, ShiftPlannerService>();
+
+builder.Services.AddScoped<IShiftSwapService, ShiftSwapService>();
+
+builder.Services.AddScoped<IShiftChangeRequestService, ShiftChangeRequestService>();
+
+builder.Services.AddScoped<IEmployeeWeeklyOffService, EmployeeWeeklyOffService>();
+
+builder.Services.AddScoped<IShiftRotationService, ShiftRotationService>();
+builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
+builder.Services.AddScoped<IAdminPermissionService, AdminPermissionService>();
+builder.Services.AddScoped<
+    IAdminSubscriptionService,
+    AdminSubscriptionService>();
+
+builder.Services.AddScoped<
+    IExperienceLetterService,
+    ExperienceLetterService>();
+builder.Services.AddScoped<
+    IEmployeeSalaryStructureService,
+    EmployeeSalaryStructureService>();
+
+builder.Services.AddScoped<ITemplateService, TemplateService>(); //Vishnu change
 //builder.Services.AddScoped<PermissionFilter>();
 // ================= CORS =================
 
@@ -262,6 +319,7 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
 var app = builder.Build();
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -302,6 +360,7 @@ app.UseCors("AllowAll");
 app.UseSwagger();
 
 app.UseSwaggerUI();
+app.UseHangfireDashboard("/hangfire");
 
 app.UseAuthentication();
 

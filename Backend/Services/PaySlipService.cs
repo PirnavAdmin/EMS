@@ -1,45 +1,86 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Documents;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.InteropServices;
-using ClosedXML.Excel;
+using Hangfire;
+
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace EmployeeManagementSystem.Services
 {
+
     public class PaySlipService : IPaySlipService
+
     {
+
         private readonly AppDbContext _context;
+
         private readonly IAttendanceService _attendanceService;
+
         private readonly IHttpContextAccessor _httpContextAccessor;
+
         private readonly IEmailService _emailService;
 
+        private readonly IServiceScopeFactory _scopeFactory;
+
+        private readonly ITemplateService _templateService;//vishnu
+
         public PaySlipService(
+
     AppDbContext context,
+
     IAttendanceService attendanceService,
+
     IHttpContextAccessor httpContextAccessor,
-    IEmailService emailService)
+
+    IEmailService emailService,
+
+    IServiceScopeFactory scopeFactory,
+
+    ITemplateService templateService)
+
         {
+
             _context = context;
+
             _attendanceService = attendanceService;
+
             _httpContextAccessor = httpContextAccessor;
+
             _emailService = emailService;
+
+            _scopeFactory = scopeFactory;
+
+            _templateService = templateService;
+
         }
+
 
         //--------------------------------
         // GENERATE SINGLE PAYSLIP
         //--------------------------------
+
         public async Task<string> GeneratePaySlip(
-            string employeeId,
-            int year,
-            string month,
-            decimal OtherDeductions,
-            string? DeductionLabel)
+    string employeeId,
+    int year,
+    string month,
+    decimal OtherDeductions,
+    string? DeductionLabel,
+    decimal TDSPercentage = 0,
+    bool sendEmail = true)
 
         {
 
@@ -71,6 +112,34 @@ namespace EmployeeManagementSystem.Services
             int monthNumber = parsedMonth.Month;
             int yearValue = year;
 
+
+
+            //--------------------------------
+            // CHECK DUPLICATE PAYSLIP
+            //--------------------------------
+
+      //      bool alreadyExists = await _context.PaySlips
+      //.AsNoTracking()
+      //.AnyAsync(x =>
+      //    x.EmployeeId == employeeId &&
+      //    x.Year == yearValue &&
+      //    x.Month == month);
+
+      //      if (alreadyExists)
+      //      {
+      //          Console.WriteLine(
+      //              $"Payslip already exists. Skipping: " +
+      //              $"{employeeId} - {month} {yearValue}");
+
+      //          return string.Empty;
+      //      }
+
+            //--------------------------------
+            // SALARY STRUCTURE
+            //--------------------------------
+
+
+
             //--------------------------------
             // ATTENDANCE
             //--------------------------------
@@ -95,65 +164,301 @@ namespace EmployeeManagementSystem.Services
             //--------------------------------
             // SALARY CALCULATIONS
             //--------------------------------
-            decimal annualCTC = employee.CTC;
+            //        decimal annualCTC = employee.CTC;
 
-            decimal monthlyCTC = annualCTC / 12;
+            //        decimal monthlyCTC = annualCTC / 12;
+            //        if (TDSPercentage < 0 || TDSPercentage > 100)
+            //        {
+            //            throw new Exception(
+            //                "TDS percentage must be between 0 and 100.");
+            //        }
+            //        decimal ratio =
+            //payrollDays == 0
+            //    ? 0
+            //    : paidDays / payrollDays;
+
+            //        decimal basic =
+            //            Math.Round((monthlyCTC * 0.3817m) * ratio);
+
+            //        decimal hra =
+            //            Math.Round((basic * 0.40m));
+
+            //        decimal conveyance =
+            //            Math.Round(1600 * ratio);
+
+            //        decimal medical =
+            //            Math.Round(1250 * ratio);
+
+            //        decimal pf =
+            //            Math.Round(basic * 0.12m);
+
+            //        decimal gross =
+            //            (monthlyCTC * ratio) - pf;
+
+            //        decimal specialAllowance =
+            // Math.Floor(
+            //     gross -
+            //     (basic + hra + conveyance + medical));
+
+            //        decimal totalEarnings =
+            //            Math.Floor(
+            //                basic +
+            //                hra +
+            //                conveyance +
+            //                medical +
+            //                specialAllowance);
+
+            //        //--------------------------------
+            //        // TDS
+            //        //--------------------------------
+            //        decimal tdsAmount = 0m;
+
+            //        if (TDSPercentage > 0)
+            //        {
+            //            tdsAmount = Math.Round(
+            //                totalEarnings * TDSPercentage / 100m,
+            //                2,
+            //                MidpointRounding.AwayFromZero);
+            //        }
+
+            //        decimal professionalTax = 200m;
+
+            //        decimal totalDeductions =
+            // Math.Round(
+            //     pf +
+            //     professionalTax +
+            //     tdsAmount +
+            //     OtherDeductions,
+            //     2,
+            //     MidpointRounding.AwayFromZero);
+
+            //        decimal netSalary =
+            // Math.Round(
+            //     totalEarnings - totalDeductions,
+            //     2,
+            //     MidpointRounding.AwayFromZero);
+
+            //        if (netSalary < 0)
+            //            netSalary = 0;
+
+            //        if (netSalary < 0)
+            //            netSalary = 0;
+            //        string netSalaryWords =
+            //            "Rupees " +
+            //            NumberToWords((long)netSalary) +
+            //            " Only";
+
+
+            //--------------------------------
+            // SALARY CALCULATIONS
+            //--------------------------------
+            //--------------------------------
+            // SALARY STRUCTURE
+            //--------------------------------
+
+            var salaryStructure = await _context.EmployeeSalaryStructures
+                .AsNoTracking()
+                .Where(x =>
+                    x.Employee_Id == employeeId &&
+                    x.IsActive)
+                .OrderByDescending(x => x.EffectiveFrom)
+                .FirstOrDefaultAsync();
+
+            if (salaryStructure == null)
+            {
+                throw new Exception(
+                    $"Salary structure not found for employee {employeeId}.");
+            }
+
+
+            //--------------------------------
+            // ATTENDANCE RATIO
+            //--------------------------------
 
             decimal ratio =
-    payrollDays == 0
-        ? 0
-        : paidDays / payrollDays;
+                payrollDays == 0
+                    ? 0
+                    : paidDays / payrollDays;
+
+
+            //--------------------------------
+            // SALARY STRUCTURE VALUES
+            //--------------------------------
+
+            decimal annualCTC =
+                salaryStructure.AnnualCTC;
+
+            decimal monthlyCTC =
+                salaryStructure.MonthlyCTC;
+
+            decimal fullBasic =
+                salaryStructure.BasicSalary;
+
+            decimal fullHRA =
+                salaryStructure.HRA;
+
+            decimal fullConveyance =
+                salaryStructure.ConveyanceAllowance;
+
+            decimal fullMedical =
+                salaryStructure.MedicalAllowance;
+
+            decimal fullSpecialAllowance =
+                salaryStructure.SpecialAllowance;
+
+
+            //--------------------------------
+            // EARNINGS AFTER ATTENDANCE / LOP
+            //--------------------------------
 
             decimal basic =
-                Math.Round((monthlyCTC * 0.3817m) * ratio);
+                Math.Round(
+                    fullBasic * ratio,
+                    2,
+                    MidpointRounding.AwayFromZero);
 
             decimal hra =
-                Math.Round((basic * 0.40m));
+                Math.Round(
+                    fullHRA * ratio,
+                    2,
+                    MidpointRounding.AwayFromZero);
 
             decimal conveyance =
-                Math.Round(1600 * ratio);
+                Math.Round(
+                    fullConveyance * ratio,
+                    2,
+                    MidpointRounding.AwayFromZero);
 
             decimal medical =
-                Math.Round(1250 * ratio);
-
-            decimal pf =
-                Math.Round(basic * 0.12m);
-
-            decimal gross =
-                (monthlyCTC * ratio) - pf;
+                Math.Round(
+                    fullMedical * ratio,
+                    2,
+                    MidpointRounding.AwayFromZero);
 
             decimal specialAllowance =
-     Math.Floor(
-         gross -
-         (basic + hra + conveyance + medical));
+                Math.Round(
+                    fullSpecialAllowance * ratio,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+
+            //--------------------------------
+            // TOTAL EARNINGS
+            //--------------------------------
 
             decimal totalEarnings =
-                Math.Floor(
+                Math.Round(
                     basic +
                     hra +
                     conveyance +
                     medical +
-                    specialAllowance);
+                    specialAllowance,
+                    2,
+                    MidpointRounding.AwayFromZero);
 
-            decimal professionalTax = 200m;
+            decimal gross = totalEarnings;
 
-            decimal totalDeductions =
-                Math.Floor(
-                    pf +
-                    professionalTax +
-                    OtherDeductions);
-
-            decimal netSalary =
-                Math.Floor(
-                    totalEarnings - totalDeductions);
-
-            if (netSalary < 0)
-                netSalary = 0;
-
-            string netSalaryWords =
-                NumberToWords((long)netSalary) + " Only";
 
             //--------------------------------
+            // LOP DEDUCTION
+            //--------------------------------
+
+            decimal fullMonthlyEarnings =
+                fullBasic +
+                fullHRA +
+                fullConveyance +
+                fullMedical +
+                fullSpecialAllowance;
+
+            decimal lopDeduction =
+                Math.Round(
+                    fullMonthlyEarnings - totalEarnings,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+            if (lopDeduction < 0)
+            {
+                lopDeduction = 0;
+            }
+
+
+            //--------------------------------
+            // PF
+            //--------------------------------
+
+            decimal pf =
+                Math.Round(
+                    salaryStructure.EmployeePF * ratio,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+
+            //--------------------------------
+            // PROFESSIONAL TAX
+            //--------------------------------
+
+            decimal professionalTax =
+                salaryStructure.ProfessionalTax;
+
+
+            //--------------------------------
+            // TDS
+            //--------------------------------
+
+            decimal tdsAmount =
+                salaryStructure.TDS;
+
+
+            //--------------------------------
+            // OTHER DEDUCTIONS
+            //--------------------------------
+
+            decimal totalOtherDeduction =
+                salaryStructure.OtherDeduction +
+                OtherDeductions;
+
+
+            //--------------------------------
+            // TOTAL DEDUCTIONS
+            //--------------------------------
+
+            decimal totalDeductions =
+                Math.Round(
+                    pf +
+                    professionalTax +
+                    tdsAmount +
+                    totalOtherDeduction,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+
+            //--------------------------------
+            // NET SALARY
+            //--------------------------------
+
+            decimal netSalary =
+                Math.Round(
+                    totalEarnings - totalDeductions,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+            if (netSalary < 0)
+            {
+                netSalary = 0;
+            }
+
+
+            //--------------------------------
+            // NET SALARY IN WORDS
+            //--------------------------------
+
+            string netSalaryWords =
+                "Rupees " +
+                NumberToWords((long)netSalary) +
+                " Only";
+
+
+            //        //--------------------------------
             // TEMPLATE
             //--------------------------------
             var templatePath = Path.Combine(
@@ -164,6 +469,60 @@ namespace EmployeeManagementSystem.Services
             if (!File.Exists(templatePath))
                 throw new Exception(
                     $"Template not found: {templatePath}");
+
+
+            ////    vishnu    //--------------------------------
+
+            //// --------------------------------
+
+            //// GET PAYSLIP TEMPLATE
+
+            //// --------------------------------
+
+            //int companyId = 1;
+
+            //var template = await _templateService
+
+            //    .GetActiveTemplateAsync(companyId, "PAYSLIP");
+
+            //if (template == null)
+
+            //{
+
+            //    throw new Exception(
+
+            //        "Payslip template not found. Please upload and set a default PAYSLIP template.");
+
+            //}
+
+            //if (string.IsNullOrWhiteSpace(template.FilePath))
+
+            //{
+
+            //    throw new Exception("Payslip template file path is empty.");
+
+            //}
+
+            //var templatePath = Path.Combine(
+
+            //    Directory.GetCurrentDirectory(),
+
+            //    "wwwroot",
+
+            //    template.FilePath.TrimStart('/'));
+
+            //if (!File.Exists(templatePath))
+
+            //{
+
+            //    throw new Exception(
+
+            //        $"Payslip template file not found: {templatePath}");
+
+            //}
+
+            //
+
 
             var outputFolder = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -336,15 +695,18 @@ namespace EmployeeManagementSystem.Services
     "DeductionType",
     DeductionLabel);
                 ReplaceBookmark(
-                    wordDoc,
-                    "OtherDeduction",
-                    OtherDeductions.ToString("N2")
-                );
+     wordDoc,
+     "OtherDeduction",
+     totalOtherDeduction.ToString("N2"));
 
                 ReplaceBookmark(
                     wordDoc,
                     "TotalDeduction",
                     totalDeductions.ToString("N2"));
+                ReplaceBookmark(
+    wordDoc,
+    "TDS",
+    tdsAmount.ToString("N2"));
 
                 //--------------------------------
                 // FINAL
@@ -359,6 +721,25 @@ namespace EmployeeManagementSystem.Services
                     "InWords",
                     netSalaryWords);
 
+                ReplaceBookmark(
+    wordDoc,
+    "Month",
+    $"{month.ToUpper()} {year}");
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "PayPeriod",
+                    $"{month.ToUpper()} {year}");
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "NetSalary",
+                    netSalary.ToString("N2"));
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "InWords",
+                    netSalaryWords);
                 //--------------------------------
                 // ATTENDANCE
                 //--------------------------------
@@ -371,6 +752,10 @@ namespace EmployeeManagementSystem.Services
                     wordDoc,
                     "LOPDays",
                     lopDays.ToString());
+                ReplaceBookmark(
+    wordDoc,
+    "LOPDeduction",
+    lopDeduction.ToString("N2"));
 
                 ReplaceBookmark(
                     wordDoc,
@@ -385,39 +770,106 @@ namespace EmployeeManagementSystem.Services
             // DOCX → PDF
             //--------------------------------
             var pdfPath =
-                outputPath.Replace(".docx", ".pdf");
+    outputPath.Replace(".docx", ".pdf");
 
             var sofficePath =
                 RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? @"C:\Program Files\LibreOffice\program\soffice.exe"
-                : "/usr/bin/soffice";
+                    ? @"C:\Program Files\LibreOffice\program\soffice.exe"
+                    : "/usr/bin/soffice";
 
-            using var process = new Process();
 
-            process.StartInfo.FileName = sofficePath;
+            // ==========================================
+            // UNIQUE LIBREOFFICE PROFILE
+            // ==========================================
 
-            process.StartInfo.Arguments =
-                $"--headless --convert-to pdf \"{outputPath}\" --outdir \"{outputFolder}\"";
+            var libreOfficeProfile =
+                Path.Combine(
+                    Path.GetTempPath(),
+                    $"LibreOffice_{Guid.NewGuid():N}");
 
-            process.StartInfo.CreateNoWindow = true;
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
+            Directory.CreateDirectory(
+                libreOfficeProfile);
 
-            process.Start();
+            var profileUri =
+                new Uri(libreOfficeProfile)
+                    .AbsoluteUri;
 
-            await process.WaitForExitAsync();
 
-            if (!File.Exists(pdfPath))
+            try
             {
-                string error = await process.StandardError.ReadToEndAsync();
+                using var process =
+                    new Process();
 
-                throw new Exception(
-                    $"PDF generation failed. {error}");
+                process.StartInfo.FileName =
+                    sofficePath;
+
+                process.StartInfo.Arguments =
+                    $"-env:UserInstallation={profileUri} " +
+                    $"--headless " +
+                    $"--convert-to pdf " +
+                    $"\"{outputPath}\" " +
+                    $"--outdir \"{outputFolder}\"";
+
+                process.StartInfo.CreateNoWindow =
+                    true;
+
+                process.StartInfo.UseShellExecute =
+                    false;
+
+                process.StartInfo.RedirectStandardOutput =
+                    true;
+
+                process.StartInfo.RedirectStandardError =
+                    true;
+
+
+                process.Start();
+
+                await process.WaitForExitAsync();
+
+
+                if (process.ExitCode != 0)
+                {
+                    string error =
+                        await process.StandardError
+                            .ReadToEndAsync();
+
+                    throw new Exception(
+                        $"PDF generation failed. {error}");
+                }
+
+
+                if (!File.Exists(pdfPath))
+                {
+                    string error =
+                        await process.StandardError
+                            .ReadToEndAsync();
+
+                    throw new Exception(
+                        $"PDF file was not generated. {error}");
+                }
             }
+            finally
+            {
+                // ==========================================
+                // DELETE TEMP LIBREOFFICE PROFILE
+                // ==========================================
 
-            if (File.Exists(outputPath))
-                File.Delete(outputPath);
+                try
+                {
+                    if (Directory.Exists(
+                        libreOfficeProfile))
+                    {
+                        Directory.Delete(
+                            libreOfficeProfile,
+                            true);
+                    }
+                }
+                catch
+                {
+                    // Ignore cleanup error
+                }
+            }
 
             //--------------------------------
             // SAVE DB
@@ -427,28 +879,83 @@ namespace EmployeeManagementSystem.Services
                 EmployeeId = employee.Employee_Id,
                 Month = month,
                 Year = year,
-                CTC = employee.CTC,
+                CTC = salaryStructure.AnnualCTC,
                 GrossSalary = gross,
                 NetSalary = netSalary,
                 TotalDeductions = totalDeductions,
-                OtherDeductions = OtherDeductions,
+                OtherDeductions = totalOtherDeduction,
                 FilePath = pdfPath,
                 Generated_On = GetIndianTime()
             };
 
             _context.PaySlips.Add(payslip);
 
-            await _context.SaveChangesAsync();
-            var employeeName = personalInfo == null
-    ? employee.Name
-    : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                // Another Hangfire worker may have inserted
+                // the same Employee + Month + Year.
 
-            await _emailService.SendPayslipEmail(
-     employee.Email,
-     employeeName,
-     month,
-     year,
-     pdfPath);
+                bool duplicateExists = await _context.PaySlips
+                    .AsNoTracking()
+                    .AnyAsync(x =>
+                        x.EmployeeId == employeeId &&
+                        x.Year == yearValue &&
+                        x.Month == month);
+
+                if (duplicateExists)
+                {
+                    Console.WriteLine(
+                        $"Duplicate payslip prevented: " +
+                        $"{employeeId} - {month} {yearValue}");
+
+                    return string.Empty;
+                }
+
+                throw;
+            }
+
+            var employeeName = personalInfo == null
+
+                 ? employee.Name
+
+                 : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+
+            // Notification Settings Check
+
+            //var notification = await _context.NotificationSettings
+
+            //     .AsNoTracking()
+
+            //     .FirstOrDefaultAsync();
+
+            //if (notification != null &&
+
+            //     notification.EnableEmailNotifications &&
+
+            //     notification.EnablePayslipEmails)
+
+            //{
+
+            //    await _emailService.SendPayslipEmail(
+
+            //        employee.Email,
+
+            //        employeeName,
+
+            //        month,
+
+            //        year,
+
+            //        pdfPath);
+
+            //}
+
+            //
+
             //--------------------------------
             // RETURN URL
             //--------------------------------
@@ -468,42 +975,490 @@ namespace EmployeeManagementSystem.Services
         }
 
 
-       
+
         //--------------------------------
         // BULK GENERATION
         //--------------------------------
-        public async Task<List<string>>
-            GenerateAllPaySlips(int year, string month)
+        [DisableConcurrentExecution(timeoutInSeconds: 3600)]
+        public async Task<List<BulkPayslipGenerationResultDto>> GenerateAllPaySlips(
+       int year,
+       List<string> months,
+       List<string> employeeIds)
         {
-            var employeeIds = await _context.Employees
-                .AsNoTracking()
-                .Select(e => e.Employee_Id)
-                .ToListAsync();
+            // ============================================================
+            // 1. VALIDATE INPUT
+            // ============================================================
 
-            var result = new List<string>();
-
-            foreach (var empId in employeeIds)
+            if (months == null || months.Count == 0)
             {
-                var filePath =
-    await GeneratePaySlip(
-        empId,
-        year,
-        month,
-        0,
-        "Other Deductions");
-                result.Add(filePath);
+                throw new Exception("At least one month is required.");
             }
 
-            return result;
-        }
+            if (employeeIds == null || employeeIds.Count == 0)
+            {
+                throw new Exception("At least one employee is required.");
+            }
 
-        //--------------------------------
+            // ============================================================
+            // 2. NORMALIZE MONTHS
+            // ============================================================
+
+            var validMonths = new List<string>();
+
+            foreach (var requestedMonth in months)
+            {
+                if (string.IsNullOrWhiteSpace(requestedMonth))
+                    continue;
+
+                var monthText = requestedMonth.Trim();
+
+                if (!DateTime.TryParseExact(
+                        monthText,
+                        "MMMM",
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out DateTime parsedMonth))
+                {
+                    throw new Exception(
+                        $"Invalid month format: {requestedMonth}");
+                }
+
+                var normalizedMonth = parsedMonth.ToString(
+                    "MMMM",
+                    CultureInfo.InvariantCulture);
+
+                if (!validMonths.Any(x =>
+                        x.Equals(
+                            normalizedMonth,
+                            StringComparison.OrdinalIgnoreCase)))
+                {
+                    validMonths.Add(normalizedMonth);
+                }
+            }
+
+            if (validMonths.Count == 0)
+            {
+                throw new Exception("No valid months were provided.");
+            }
+
+            // ============================================================
+            // 3. REMOVE DUPLICATE EMPLOYEE IDS
+            // ============================================================
+
+            var requestedEmployeeIds = employeeIds
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (requestedEmployeeIds.Count == 0)
+            {
+                throw new Exception(
+                    "No valid employee IDs were provided.");
+            }
+
+            // ============================================================
+            // 4. FINAL RESULTS
+            // ============================================================
+
+            var allResults =
+                new List<BulkPayslipGenerationResultDto>();
+
+            // ============================================================
+            // 5. PROCESS EACH MONTH
+            // ============================================================
+
+            foreach (var month in validMonths)
+            {
+                Console.WriteLine(
+                    "==========================================");
+
+                Console.WriteLine(
+                    $"PAYSLIP GENERATION STARTED");
+
+                Console.WriteLine(
+                    $"Month     : {month}");
+
+                Console.WriteLine(
+                    $"Year      : {year}");
+
+                Console.WriteLine(
+                    $"Employees : {requestedEmployeeIds.Count}");
+
+                Console.WriteLine(
+                    "==========================================");
+
+                // ========================================================
+                // 6. FIND EXISTING PAYSLIPS - ONE DB QUERY
+                // ========================================================
+
+                var alreadyGenerated =
+                    await _context.PaySlips
+                        .AsNoTracking()
+                        .Where(p =>
+                            p.Year == year &&
+                            p.Month == month &&
+                            requestedEmployeeIds.Contains(
+                                p.EmployeeId))
+                        .Select(p => p.EmployeeId)
+                        .ToListAsync();
+
+                var existingEmployeeIds =
+                    alreadyGenerated
+                        .Where(id =>
+                            !string.IsNullOrWhiteSpace(id))
+                        .ToHashSet(
+                            StringComparer.OrdinalIgnoreCase);
+
+                // ========================================================
+                // 7. FIND EMPLOYEES THAT NEED GENERATION
+                // ========================================================
+
+                var employeesToGenerate =
+                    requestedEmployeeIds
+                        .Where(id =>
+                            !existingEmployeeIds.Contains(id))
+                        .ToList();
+
+                // ========================================================
+                // 8. CREATE MONTH RESULT
+                // ========================================================
+
+                var result =
+                    new BulkPayslipGenerationResultDto
+                    {
+                        TotalRequested =
+                            requestedEmployeeIds.Count,
+
+                        GeneratedEmployees =
+                            new List<string>(),
+
+                        SkippedEmployees =
+                            requestedEmployeeIds
+                                .Where(id =>
+                                    existingEmployeeIds.Contains(id))
+                                .ToList(),
+
+                        FailedEmployees =
+                            new List<string>()
+                    };
+
+                result.SkippedCount =
+                    result.SkippedEmployees.Count;
+
+                // ========================================================
+                // 9. IF EVERYTHING ALREADY EXISTS
+                // ========================================================
+
+                if (employeesToGenerate.Count == 0)
+                {
+                    Console.WriteLine(
+                        $"No new payslips required for " +
+                        $"{month} {year}");
+
+                    Console.WriteLine(
+                        $"Skipped : {result.SkippedCount}");
+
+                    allResults.Add(result);
+
+                    continue;
+                }
+
+                // ========================================================
+                // 10. PRELOAD EMPLOYEES
+                // ========================================================
+
+                var employees =
+                    await _context.Employees
+                        .AsNoTracking()
+                        .Include(e => e.BankDetails)
+                        .Where(e =>
+                            employeesToGenerate.Contains(
+                                e.Employee_Id))
+                        .ToListAsync();
+
+                var employeeDictionary =
+                    employees.ToDictionary(
+                        e => e.Employee_Id,
+                        StringComparer.OrdinalIgnoreCase);
+
+                // ========================================================
+                // 11. CHECK EMPLOYEES NOT FOUND
+                // ========================================================
+
+                foreach (var employeeId in employeesToGenerate)
+                {
+                    if (!employeeDictionary.ContainsKey(employeeId))
+                    {
+                        result.FailedEmployees.Add(
+                            $"{employeeId} => Employee not found");
+                    }
+                }
+
+                // ========================================================
+                // 12. THREAD-SAFE COLLECTIONS
+                // ========================================================
+
+                var generatedEmployees =
+                    new ConcurrentBag<string>();
+
+                var skippedEmployees =
+                    new ConcurrentBag<string>();
+
+                var failedEmployees =
+                    new ConcurrentBag<string>();
+
+                // ========================================================
+                // 13. PARALLEL SETTINGS
+                // ========================================================
+
+                var parallelOptions =
+                    new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = 6
+                    };
+
+                // ========================================================
+                // 14. GENERATE PAYSLIPS
+                // ========================================================
+
+                await Parallel.ForEachAsync(
+                    employeesToGenerate,
+                    parallelOptions,
+                    async (employeeId, cancellationToken) =>
+                    {
+                        // Employee does not exist
+                        if (!employeeDictionary.ContainsKey(employeeId))
+                        {
+                            return;
+                        }
+
+                        try
+                        {
+                            Console.WriteLine(
+                                $"START: {employeeId} - " +
+                                $"{month} {year}");
+
+                            // IMPORTANT:
+                            // Separate scope / DbContext
+                            using var scope =
+                                _scopeFactory.CreateScope();
+
+                            var paySlipService =
+                                scope.ServiceProvider
+                                    .GetRequiredService<IPaySlipService>();
+
+                            // =================================================
+                            // GENERATE
+                            // =================================================
+
+                            var filePath =
+                                await paySlipService.GeneratePaySlip(
+                                    employeeId,
+                                    year,
+                                    month,
+                                    0,
+                                    "Other Deductions",
+                                    0,
+                                    false);
+
+                            // =================================================
+                            // SUCCESS
+                            // =================================================
+
+                            if (!string.IsNullOrWhiteSpace(filePath))
+                            {
+                                generatedEmployees.Add(employeeId);
+
+                                Console.WriteLine(
+                                    $"SUCCESS: {employeeId}");
+                            }
+                            else
+                            {
+                                skippedEmployees.Add(employeeId);
+
+                                Console.WriteLine(
+                                    $"SKIPPED: {employeeId}");
+                            }
+                        }
+                        catch (DbUpdateException ex)
+                        {
+                            // =================================================
+                            // DATABASE DUPLICATE / INSERT ERROR
+                            // =================================================
+
+                            Console.WriteLine(
+                                $"DB ERROR: {employeeId}");
+
+                            Console.WriteLine(
+                                ex.ToString());
+
+                            // Check whether another worker/job
+                            // already inserted the payslip.
+                            try
+                            {
+                                using var checkScope =
+                                    _scopeFactory.CreateScope();
+
+                                var checkContext =
+                                    checkScope.ServiceProvider
+                                        .GetRequiredService<AppDbContext>();
+
+                                bool alreadyExists =
+                                    await checkContext.PaySlips
+                                        .AsNoTracking()
+                                        .AnyAsync(
+                                            p =>
+                                                p.EmployeeId ==
+                                                    employeeId &&
+                                                p.Year == year &&
+                                                p.Month == month,
+                                            cancellationToken);
+
+                                if (alreadyExists)
+                                {
+                                    skippedEmployees.Add(
+                                        employeeId);
+
+                                    Console.WriteLine(
+                                        $"DUPLICATE PREVENTED: " +
+                                        $"{employeeId}");
+                                }
+                                else
+                                {
+                                    failedEmployees.Add(
+                                        $"{employeeId} => " +
+                                        $"{ex.InnerException?.Message ??
+                                          ex.Message}");
+                                }
+                            }
+                            catch (Exception checkEx)
+                            {
+                                failedEmployees.Add(
+                                    $"{employeeId} => " +
+                                    $"{checkEx.Message}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // =================================================
+                            // GENERAL ERROR
+                            // =================================================
+
+                            failedEmployees.Add(
+                                $"{employeeId} => {ex.Message}");
+
+                            Console.WriteLine(
+                                $"FAILED: {employeeId}");
+
+                            Console.WriteLine(
+                                ex.ToString());
+                        }
+                    });
+
+                // ========================================================
+                // 15. MERGE RESULTS
+                // ========================================================
+
+                result.GeneratedEmployees =
+                    generatedEmployees
+                        .Distinct(
+                            StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                result.SkippedEmployees =
+                    result.SkippedEmployees
+                        .Concat(
+                            skippedEmployees)
+                        .Distinct(
+                            StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                result.FailedEmployees =
+                    result.FailedEmployees
+                        .Concat(
+                            failedEmployees)
+                        .Distinct(
+                            StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                // ========================================================
+                // 16. COUNTS
+                // ========================================================
+
+                result.GeneratedCount =
+                    result.GeneratedEmployees.Count;
+
+                result.SkippedCount =
+                    result.SkippedEmployees.Count;
+
+                result.FailedCount =
+                    result.FailedEmployees.Count;
+
+                // ========================================================
+                // 17. LOG SUMMARY
+                // ========================================================
+
+                Console.WriteLine(
+                    "==========================================");
+
+                Console.WriteLine(
+                    $"PAYSLIP SUMMARY - {month} {year}");
+
+                Console.WriteLine(
+                    $"Requested : {result.TotalRequested}");
+
+                Console.WriteLine(
+                    $"Generated : {result.GeneratedCount}");
+
+                Console.WriteLine(
+                    $"Skipped   : {result.SkippedCount}");
+
+                Console.WriteLine(
+                    $"Failed    : {result.FailedCount}");
+
+                Console.WriteLine(
+                    "==========================================");
+
+                allResults.Add(result);
+            }
+
+            // ============================================================
+            // 18. FINAL SUMMARY
+            // ============================================================
+
+            Console.WriteLine(
+                "==========================================");
+
+            Console.WriteLine(
+                "MULTI-MONTH PAYSLIP GENERATION COMPLETED");
+
+            Console.WriteLine(
+                $"Months             : {validMonths.Count}");
+
+            Console.WriteLine(
+                $"Total Generated    : " +
+                $"{allResults.Sum(x => x.GeneratedCount)}");
+
+            Console.WriteLine(
+                $"Total Skipped      : " +
+                $"{allResults.Sum(x => x.SkippedCount)}");
+
+            Console.WriteLine(
+                $"Total Failed       : " +
+                $"{allResults.Sum(x => x.FailedCount)}");
+
+            Console.WriteLine(
+                "==========================================");
+
+            return allResults;
+        }   //--------------------------------
         // GET RECENT
         //--------------------------------
-        public async Task<List<PaySlip>>
-            GetRecentPayslips()
+        public async Task<List<PaySlip>> GetRecentPayslips()
         {
             return await _context.PaySlips
+                .AsNoTracking()
                 .OrderByDescending(x => x.Id)
                 .ToListAsync();
         }
@@ -539,17 +1494,17 @@ namespace EmployeeManagementSystem.Services
         //--------------------------------
         // NUMBER TO WORDS
         //--------------------------------
-        private DateTime GetIndianTime()
-        {
-            TimeZoneInfo indiaZone =
-                TimeZoneInfo.FindSystemTimeZoneById(
-                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                    ? "India Standard Time"
-                    : "Asia/Kolkata");
+        private static readonly TimeZoneInfo IndiaTimeZone =
+    TimeZoneInfo.FindSystemTimeZoneById(
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "India Standard Time"
+            : "Asia/Kolkata");
 
+        private static DateTime GetIndianTime()
+        {
             return TimeZoneInfo.ConvertTimeFromUtc(
                 DateTime.UtcNow,
-                indiaZone);
+                IndiaTimeZone);
         }
 
         public static string NumberToWords(
@@ -690,6 +1645,241 @@ namespace EmployeeManagementSystem.Services
 
             return true;
         }
+
+        public async Task<BulkPayslipEmailResultDto> SendBulkPayslipEmails(
+    int year,
+    string month)
+        {
+            //------------------------------------------------
+            // VALIDATE MONTH
+            //------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(month))
+                throw new ArgumentException("Month is required.");
+
+            month = month.Trim();
+
+            //------------------------------------------------
+            // GET GENERATED PAYSLIPS
+            //------------------------------------------------
+
+            var payslips = await _context.PaySlips
+                .AsNoTracking()
+                .Where(p =>
+                    p.Year == year &&
+                    p.Month.ToLower() == month.ToLower())
+                .Select(p => new
+                {
+                    p.Id,
+                    p.EmployeeId,
+                    p.FilePath
+                })
+                .ToListAsync();
+
+            if (payslips.Count == 0)
+            {
+                return new BulkPayslipEmailResultDto
+                {
+                    TotalPayslips = 0,
+                    SentCount = 0,
+                    FailedCount = 0
+                };
+            }
+
+
+            //------------------------------------------------
+            // RESULT COUNTERS
+            //------------------------------------------------
+
+            int sentCount = 0;
+            int failedCount = 0;
+
+            var failedEmployees =
+                new ConcurrentBag<string>();
+
+
+            //------------------------------------------------
+            // PARALLEL EMAIL SENDING
+            //------------------------------------------------
+
+            var parallelOptions =
+                new ParallelOptions
+                {
+                    // Start with 4.
+                    // Increase only if your SMTP provider allows it.
+                    MaxDegreeOfParallelism = 8
+                };
+
+
+            await Parallel.ForEachAsync(
+                payslips,
+                parallelOptions,
+                async (payslip, cancellationToken) =>
+                {
+                    try
+                    {
+                        //------------------------------------------------
+                        // CREATE SEPARATE SCOPE
+                        //------------------------------------------------
+
+                        using var scope =
+                            _scopeFactory.CreateScope();
+
+
+                        var context =
+                            scope.ServiceProvider
+                                .GetRequiredService<AppDbContext>();
+
+
+                        var emailService =
+                            scope.ServiceProvider
+                                .GetRequiredService<IEmailService>();
+
+
+                        //------------------------------------------------
+                        // GET EMPLOYEE
+                        //------------------------------------------------
+
+                        var employee =
+                            await context.Employees
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    e =>
+                                        e.Employee_Id ==
+                                        payslip.EmployeeId,
+                                    cancellationToken);
+
+
+                        if (employee == null)
+                        {
+                            Interlocked.Increment(
+                                ref failedCount);
+
+                            failedEmployees.Add(
+                                $"{payslip.EmployeeId} - Employee not found");
+
+                            return;
+                        }
+
+
+                        //------------------------------------------------
+                        // VALIDATE EMAIL
+                        //------------------------------------------------
+
+                        if (string.IsNullOrWhiteSpace(
+                            employee.Email))
+                        {
+                            Interlocked.Increment(
+                                ref failedCount);
+
+                            failedEmployees.Add(
+                                $"{payslip.EmployeeId} - Email not found");
+
+                            return;
+                        }
+
+
+                        //------------------------------------------------
+                        // VALIDATE PDF
+                        //------------------------------------------------
+
+                        if (string.IsNullOrWhiteSpace(
+                            payslip.FilePath))
+                        {
+                            Interlocked.Increment(
+                                ref failedCount);
+
+                            failedEmployees.Add(
+                                $"{payslip.EmployeeId} - PDF path not found");
+
+                            return;
+                        }
+
+
+                        if (!File.Exists(
+                            payslip.FilePath))
+                        {
+                            Interlocked.Increment(
+                                ref failedCount);
+
+                            failedEmployees.Add(
+                                $"{payslip.EmployeeId} - PDF file not found");
+
+                            return;
+                        }
+
+
+                        //------------------------------------------------
+                        // EMPLOYEE NAME
+                        //------------------------------------------------
+
+                        string employeeName =
+                            !string.IsNullOrWhiteSpace(employee.Name)
+                                ? employee.Name
+                                : employee.Employee_Id;
+
+
+                        //------------------------------------------------
+                        // SEND EMAIL
+                        //------------------------------------------------
+
+                        await emailService.SendPayslipEmail(
+                            employee.Email,
+                            employeeName,
+                            month,
+                            year,
+                            payslip.FilePath);
+
+
+                        //------------------------------------------------
+                        // SUCCESS
+                        //------------------------------------------------
+
+                        Interlocked.Increment(
+                            ref sentCount);
+
+                        Console.WriteLine(
+                            $"Payslip email sent: " +
+                            $"{payslip.EmployeeId}");
+                    }
+                    catch (Exception ex)
+                    {
+                        //------------------------------------------------
+                        // FAILED
+                        //------------------------------------------------
+
+                        Interlocked.Increment(
+                            ref failedCount);
+
+                        failedEmployees.Add(
+                            $"{payslip.EmployeeId} => {ex.Message}");
+
+                        Console.WriteLine(
+                            $"Payslip email failed: " +
+                            $"{payslip.EmployeeId}");
+
+                        Console.WriteLine(
+                            ex.ToString());
+                    }
+                });
+
+
+            //------------------------------------------------
+            // RETURN RESULT
+            //------------------------------------------------
+
+            return new BulkPayslipEmailResultDto
+            {
+                TotalPayslips = payslips.Count,
+
+                SentCount = sentCount,
+
+                FailedCount = failedCount,
+
+                FailedEmployees =
+                    failedEmployees.ToList()
+            };
+        }
         public async Task<byte[]> DownloadSalaryRegister(
     string month,
     int year)
@@ -826,16 +2016,19 @@ namespace EmployeeManagementSystem.Services
 
             foreach (var pay in payslips)
             {
-                decimal monthlyCTC =
-                    (pay.CTC ?? 0) / 12;
+                var salaryStructure =
+                    await _context.EmployeeSalaryStructures
+                        .AsNoTracking()
+                        .Where(x =>
+                            x.Employee_Id == pay.EmployeeId &&
+                            x.IsActive)
+                        .OrderByDescending(x => x.EffectiveFrom)
+                        .FirstOrDefaultAsync();
 
-                decimal basic =
-                    Math.Round(monthlyCTC * 0.3817m);
+                if (salaryStructure == null)
+                    continue;
 
-                decimal pf =
-                    Math.Round(basic * 0.12m);
-
-                totalPf += pf;
+                totalPf += salaryStructure.EmployeePF;
             }
 
             pfSheet.Cell(2, 1).Value =
@@ -864,17 +2057,27 @@ namespace EmployeeManagementSystem.Services
             foreach (var pay in payslips)
             {
                 var employee = await _context.Employees
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(e =>
                         e.Employee_Id == pay.EmployeeId);
 
-                decimal monthlyCTC =
-                    (pay.CTC ?? 0) / 12;
+                var salaryStructure =
+                    await _context.EmployeeSalaryStructures
+                        .AsNoTracking()
+                        .Where(x =>
+                            x.Employee_Id == pay.EmployeeId &&
+                            x.IsActive)
+                        .OrderByDescending(x => x.EffectiveFrom)
+                        .FirstOrDefaultAsync();
+
+                if (salaryStructure == null)
+                    continue;
 
                 decimal basic =
-                    Math.Round(monthlyCTC * 0.3817m);
+                    salaryStructure.BasicSalary;
 
                 decimal pf =
-                    Math.Round(basic * 0.12m);
+                    salaryStructure.EmployeePF;
 
                 pfSheet.Cell(pfRow, 1).Value =
                     pay.EmployeeId;
@@ -886,7 +2089,7 @@ namespace EmployeeManagementSystem.Services
                     employee?.Department ?? "";
 
                 pfSheet.Cell(pfRow, 4).Value =
-                    pay.CTC ?? 0;
+                    salaryStructure.AnnualCTC;
 
                 pfSheet.Cell(pfRow, 5).Value =
                     basic;
@@ -896,7 +2099,6 @@ namespace EmployeeManagementSystem.Services
 
                 pfRow++;
             }
-
             pfSheet.Columns()
                 .AdjustToContents();
 

@@ -2121,6 +2121,10 @@
   padding-bottom: 0;
 }
 
+.add-employee .app-date-input-control .app-date-input {
+  padding-right: 34px;
+}
+
 .add-employee .form-group input:focus,
 .add-employee .form-group textarea:focus,
 .add-employee .form-group select:focus,
@@ -4247,3 +4251,40 @@ button:disabled,
 }
 
 
+.salary-info-card {
+  margin-top: 20px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #dbe7ef;
+  border-radius: 10px;
+}
+
+.salary-info-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #1e293b;
+}
+
+.salary-subtitle {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.salary-save {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.salary-save .btn {
+  min-width: 100px;
+}
+
+.field-error{
+    color:#dc2626;
+    font-size:11px;
+    margin-top:4px;
+    display:block;
+}

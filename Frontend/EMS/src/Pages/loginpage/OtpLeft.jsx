@@ -11,7 +11,7 @@ export default function OtpLeft() {
   const location = useLocation();
   const inputRefs = useRef([]);
   const email = location.state?.email;
-  const role = resolveAuthRole(location.state?.role, "user");
+  const role = resolveAuthRole(location.state?.role, "");
 
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const [error, setError] = useState("");
@@ -86,6 +86,12 @@ export default function OtpLeft() {
     }
 
     if (!email) {
+      setError("Please restart the forgot password flow.");
+      navigate("/forgot-password", { replace: true });
+      return;
+    }
+
+    if (!role) {
       setError("Please restart the forgot password flow.");
       navigate("/forgot-password", { replace: true });
       return;

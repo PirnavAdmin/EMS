@@ -40,6 +40,8 @@ namespace EmployeeManagementSystem.Models
         public string? Branch_Id {  get; set; }
         public string? Password { get; set; }
 
+        public int? AdminId { get; set; }
+
         [JsonIgnore]
         public ICollection<EmployeePersonalInfo> PersonalInfos { get; set; }
         [JsonIgnore]

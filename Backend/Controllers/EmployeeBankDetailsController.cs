@@ -1,6 +1,9 @@
 ﻿using EmployeeManagementSystem.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Models;
+using System.Security.Claims;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -12,14 +15,60 @@ public class EmployeeBankDetailsController : ControllerBase
     {
         _context = context;
     }
+    private async Task<bool> IsAdminUser()
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+
+        return await _context.Admins
+            .AnyAsync(a => a.Email == email);
+    }
 
     // ✅ CREATE
     [HttpPost]
     public async Task<IActionResult> Create(EmployeeBankDetailDto dto)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        bool isAdmin = await IsAdminUser();
+
+        string employeeId;
+
+        if (isAdmin)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Employee_Id))
+                return BadRequest("Employee Id is required.");
+
+            employeeId = dto.Employee_Id;
+        }
+        else
+        {
+            employeeId = User.FindFirst("EmployeeId")?.Value
+                        ?? User.FindFirst("OnboardingId")?.Value;
+
+            if (string.IsNullOrWhiteSpace(employeeId))
+                return Unauthorized("Invalid user.");
+
+            dto.Employee_Id = employeeId;
+        }
+
+        var exists = await _context.EmployeeBankDetails
+            .AnyAsync(x => x.Employee_Id == employeeId);
+
+        if (exists)
+        {
+            return BadRequest(new
+            {
+                message = $"Bank details already exist for {employeeId}."
+            });
+        }
+
         var bankDetail = new EmployeeBankDetail
         {
-            Employee_Id = dto.Employee_Id,
+            Employee_Id = employeeId,
             Customer_Id = dto.Customer_Id,
             Bank_Name = dto.Bank_Name,
             Account_Holder_Name = dto.Account_Holder_Name,
@@ -31,8 +80,39 @@ public class EmployeeBankDetailsController : ControllerBase
             CreatedAt = DateTime.UtcNow
         };
 
-        await _context.EmployeeBankDetails.AddAsync(bankDetail);
+        _context.EmployeeBankDetails.Add(bankDetail);
+
         await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = "Bank details created successfully."
+        });
+    }
+    [HttpGet("{employeeId}")]
+    public async Task<IActionResult> GetByEmployeeId(string employeeId)
+    {
+        bool isAdmin = await IsAdminUser();
+
+        if (!isAdmin)
+        {
+            var currentId = User.FindFirst("EmployeeId")?.Value
+                         ?? User.FindFirst("OnboardingId")?.Value;
+
+            if (currentId != employeeId)
+                return Forbid("You can view only your own bank details.");
+        }
+
+        var bankDetail = await _context.EmployeeBankDetails
+            .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+
+        if (bankDetail == null)
+        {
+            return NotFound(new
+            {
+                message = "Bank details not found."
+            });
+        }
 
         return Ok(bankDetail);
     }
@@ -41,19 +121,51 @@ public class EmployeeBankDetailsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var data = await _context.EmployeeBankDetails.ToListAsync();
+        bool isAdmin = await IsAdminUser();
+
+        if (!isAdmin)
+            return Forbid("Only administrators can view all bank details.");
+
+        var data = await _context.EmployeeBankDetails
+            .OrderBy(x => x.Employee_Id)
+            .ToListAsync();
+
         return Ok(data);
     }
 
-    // ✅ UPDATE using Employee_Id
+
     [HttpPut("{employeeId}")]
     public async Task<IActionResult> Update(string employeeId, EmployeeBankDetailDto dto)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        bool isAdmin = await IsAdminUser();
+
+        if (!isAdmin)
+        {
+            var currentId = User.FindFirst("EmployeeId")?.Value
+                         ?? User.FindFirst("OnboardingId")?.Value;
+
+            if (string.IsNullOrWhiteSpace(currentId))
+                return Unauthorized("Invalid user.");
+
+            if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+            {
+                return Forbid("You can edit only your own bank details.");
+            }
+        }
+
         var bankDetail = await _context.EmployeeBankDetails
-            .FirstOrDefaultAsync(b => b.Employee_Id == employeeId);
+            .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
         if (bankDetail == null)
-            return NotFound("Bank detail not found");
+        {
+            return NotFound(new
+            {
+                message = "Bank details not found."
+            });
+        }
 
         bankDetail.Customer_Id = dto.Customer_Id;
         bankDetail.Bank_Name = dto.Bank_Name;
@@ -68,24 +180,37 @@ public class EmployeeBankDetailsController : ControllerBase
 
         return Ok(new
         {
-            message = "Bank details updated successfully",
+            message = "Bank details updated successfully.",
             data = bankDetail
         });
     }
-
     // ✅ DELETE using Employee_Id
     [HttpDelete("{employeeId}")]
     public async Task<IActionResult> Delete(string employeeId)
     {
+        bool isAdmin = await IsAdminUser();
+
+        if (!isAdmin)
+            return Forbid("Only administrators can delete bank details.");
+
         var bankDetail = await _context.EmployeeBankDetails
-            .FirstOrDefaultAsync(b => b.Employee_Id == employeeId);
+            .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
         if (bankDetail == null)
-            return NotFound("Bank detail not found");
+        {
+            return NotFound(new
+            {
+                message = "Bank details not found."
+            });
+        }
 
         _context.EmployeeBankDetails.Remove(bankDetail);
+
         await _context.SaveChangesAsync();
 
-        return Ok("Deleted successfully");
+        return Ok(new
+        {
+            message = "Bank details deleted successfully."
+        });
     }
 }

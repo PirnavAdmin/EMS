@@ -14,6 +14,9 @@
         public int UL { get; set; }
 
         public int BL { get; set; }
+
+        public int TotalWorkingDays { get; set; }
+     
         public List<AdminAttendanceDayDto> Days { get; set; }
 
     }

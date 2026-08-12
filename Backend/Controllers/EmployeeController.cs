@@ -199,6 +199,37 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
+        //[HttpPost("create-from-onboarding")]
+        //public async Task<IActionResult> CreateEmployeeFromOnboarding(CreateEmployeeFromOnboardingDto dto)
+        //{
+        //    var result = await _employeeService.CreateEmployeeFromOnboardingAsync(dto);
+
+        //    if (!result.Success)
+        //        return BadRequest(result);
+
+        //    return Ok(result);
+        //}
+
+
+        [HttpGet("onboarding-candidates")]
+        public async Task<IActionResult> GetOnboardingCandidates()
+        {
+            var result = await _employeeService.GetOnboardingCandidatesAsync();
+
+            return Ok(result);
+        }
+       
+
+        [HttpGet("onboarding-details/{onboardingId}")]
+        public async Task<IActionResult> GetOnboardingDetails(string onboardingId)
+        {
+            var result = await _employeeService.GetOnboardingDetailsAsync(onboardingId);
+
+            if (result == null)
+                return NotFound();
+
+            return Ok(result);
+        }
         [HttpGet("export-profile-pdf/{employeeId}")]
         public async Task<IActionResult> ExportEmployeeProfilePdf(string employeeId)
         {

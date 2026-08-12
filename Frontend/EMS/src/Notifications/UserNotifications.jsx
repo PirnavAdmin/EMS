@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./Notifications.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
-import { extractCollection } from "../utils/collections";
 import { CardSkeleton } from "../components/Skeletons";
 import {
   FaCheckCircle,
@@ -10,20 +7,22 @@ import {
   FaInfoCircle,
   FaUserPlus,
 } from "react-icons/fa";
+import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
+import {
+  loadNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from "../services/notificationService";
 
 function UserNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
-
-  const getToken = () =>
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("jwtToken") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("jwtToken");
+  const authSnapshot = getAuthenticatedUserSnapshot();
+  const authReady = authSnapshot.isReady;
+  const authToken = authSnapshot.token;
+  const currentRole = authSnapshot.role || authSnapshot.roleName || "";
 
   const normalizeNotifications = (data) => {
     if (!Array.isArray(data)) return [];
@@ -56,23 +55,12 @@ function UserNotifications() {
     try {
       setLoading(true);
 
-      console.log("📡 Fetching notifications from:", API_ENDPOINTS.notifications.user);
-
-      const response = await api.get(API_ENDPOINTS.notifications.user);
-
-      console.log("✅ Fetch response:", response);
-      console.log("📦 Fetch response data:", response?.data);
-
-      const data = extractCollection(response?.data);
-
+      const data = await loadNotifications(currentRole);
       setNotifications(normalizeNotifications(data));
-    } catch (error) {
-      console.error("❌ Fetch error:", error?.response || error);
-      setNotifications([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authReady, authToken, currentRole]);
 
   useEffect(() => {
     fetchUserNotifications();
@@ -92,28 +80,21 @@ function UserNotifications() {
     try {
       if (!id) return;
 
-      console.log("🟠 Marking single notification as read:", id);
-
       setUpdatingId(id);
 
-      // Save previous state in case rollback needed
       const previousNotifications = [...notifications];
 
-      // ✅ remove from UI immediately
       setNotifications((prev) => prev.filter((item) => item.id !== id));
 
-      console.log("📡 PUT:", API_ENDPOINTS.notifications.userRead(id));
+      const success = await markNotificationAsRead(currentRole, id);
 
-      const response = await api.put(API_ENDPOINTS.notifications.userRead(id), null);
-
-      console.log("✅ Mark as read success:", response?.data);
+      if (!success) {
+        setNotifications(previousNotifications);
+        await fetchUserNotifications();
+        return;
+      }
 
       window.dispatchEvent(new Event("notificationsUpdated"));
-    } catch (error) {
-      console.error("❌ Mark read error:", error?.response || error);
-
-      // rollback if backend fails
-      await fetchUserNotifications();
     } finally {
       setUpdatingId(null);
     }
@@ -128,22 +109,18 @@ function UserNotifications() {
     try {
       setMarkingAll(true);
 
-      console.log("🟠 Marking ALL notifications as read...");
-
-      // ✅ clear UI immediately
       setNotifications([]);
 
-      console.log("📡 PUT:", API_ENDPOINTS.notifications.userReadAll);
+      const success = await markAllNotificationsAsRead(currentRole);
 
-      const response = await api.put(API_ENDPOINTS.notifications.userReadAll, null);
-
-      console.log("✅ Mark all success:", response?.data);
+      if (!success) {
+        setNotifications(previousNotifications);
+        await fetchUserNotifications();
+        return;
+      }
 
       window.dispatchEvent(new Event("notificationsUpdated"));
     } catch (error) {
-      console.error("❌ Mark all error:", error?.response || error);
-
-      // rollback if backend fails
       setNotifications(previousNotifications);
     } finally {
       setMarkingAll(false);

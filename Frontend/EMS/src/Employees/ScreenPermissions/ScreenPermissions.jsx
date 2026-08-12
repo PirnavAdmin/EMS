@@ -1,55 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FaArrowLeft, FaRedo, FaSave } from "react-icons/fa";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import "./ScreenPermissions.css";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
-import { PageSkeleton } from "../../components/Skeletons";
+import { TableSkeleton } from "../../components/Skeletons";
+import { toastError, toastSuccess } from "../../components/common/toast/toastService";
 import { extractCollection } from "../../utils/collections";
 import {
-  getEmployeesByRole,
-  getUserPermission,
-  normalizeEmployeeRecord,
-  normalizePermissionList,
-  saveUserPermission,
-} from "../../services/permissionService";
-import { toastSuccess, toastError } from "@/components/common/toast/toastService";
-const MODULES = [
-  { moduleId: 46, moduleName: "Dashboard" },
-  { moduleId: 47, moduleName: "Employees" },
-  { moduleId: 48, moduleName: "Add Employee" },
-  { moduleId: 49, moduleName: "Screen Permissions" },
-  { moduleId: 50, moduleName: "Departments" },
-  { moduleId: 51, moduleName: "Company Details" },
-  { moduleId: 52, moduleName: "Holidays" },
-  { moduleId: 53, moduleName: "Projects" },
-  { moduleId: 54, moduleName: "Job Openings" },
-  { moduleId: 70, moduleName: "User Holidays" },
-  { moduleId: 55, moduleName: "Roles" },
-  { moduleId: 56, moduleName: "Assets" },
-  { moduleId: 57, moduleName: "Clients" },
-  { moduleId: 58, moduleName: "Attendance" },
-  { moduleId: 59, moduleName: "User Attendance" },
-  { moduleId: 60, moduleName: "Leave Management" },
-  { moduleId: 61, moduleName: "User Leave Management" },
-  { moduleId: 72, moduleName: "All Tickets" },
-  { moduleId: 73, moduleName: "My Tickets" },
-  { moduleId: 64, moduleName: "Payroll" },
-  { moduleId: 65, moduleName: "User Payslip" },
-  { moduleId: 66, moduleName: "Offer Letters" },
-  { moduleId: 67, moduleName: "Reports" },
-  { moduleId: 68, moduleName: "Notifications" },
-  { moduleId: 71, moduleName: "User Notifications" },
-];
-
-const GROUPS = [
-  { title: "EMPLOYEE MANAGEMENT", modules: [47, 48, 49] },
-  { title: "COMPANY", modules: [50, 51, 52, 70, 53, 54] },
-  { title: "MASTERS", modules: [55, 56, 57] },
-  { title: "ATTENDANCE & LEAVE", modules: [58, 59, 60, 61] },
-  { title: "TICKETS", modules: [72, 73] },
-  { title: "PAYROLL", modules: [64, 65] },
-  { title: "OTHERS", modules: [66, 67, 68, 71] },
-];
+  buildRolePermissionSavePayload,
+  fetchRolePermissionsByRoleName,
+  getRolePermissionErrorMessage,
+  saveRolePermissions,
+} from "../../services/rolePermissionService";
+import { useAdminPermissions } from "../../context/AdminPermissionContext";
+import "./ScreenPermissions.css";
 
 const ACTIONS = [
   { key: "canView", label: "View" },
@@ -58,422 +22,635 @@ const ACTIONS = [
   { key: "canDelete", label: "Delete" },
 ];
 
-const emptyPermission = {
-  canView: false,
-  canAdd: false,
-  canEdit: false,
-  canDelete: false,
-};
+const GRANULAR_FIELDS = new Set(ACTIONS.map((action) => action.key));
 
-const createEmptyPermissions = () =>
-  MODULES.reduce((acc, module) => {
-    acc[module.moduleId] = { ...emptyPermission };
-    return acc;
-  }, {});
+const normalizeId = (value) => String(value ?? "").trim();
 
-const fullAccessFor = (permission = emptyPermission) =>
-  ACTIONS.every((action) => permission[action.key] === true);
+const safeDecodeURIComponent = (value) => {
+  const normalized = String(value ?? "").trim();
 
-const permissionsSignature = (permissions) =>
-  JSON.stringify(
-    MODULES.map((module) => ({
-      moduleId: module.moduleId,
-      ...emptyPermission,
-      ...(permissions[module.moduleId] || {}),
-    }))
-  );
-
-const getResponseRecord = (payload) => {
-  const data = payload?.data ?? payload;
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    return data;
+  if (!normalized) {
+    return "";
   }
-  return {};
+
+  try {
+    return decodeURIComponent(normalized);
+  } catch {
+    return normalized;
+  }
 };
 
-const buildPermissionsMap = (records, { includeAllModules = true } = {}) => {
-  const formatted = includeAllModules ? createEmptyPermissions() : {};
+const normalizeComparableText = (value) =>
+  normalizeId(value).toLowerCase().replace(/\s+/g, " ");
 
-  records.forEach((record) => {
-    const normalized = normalizePermissionList([record])[0];
-    if (!normalized?.moduleId) return;
+const compareModuleIds = (left, right) => {
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
 
-    formatted[normalized.moduleId] = {
-      canView: normalized.canView,
-      canAdd: normalized.canAdd,
-      canEdit: normalized.canEdit,
-      canDelete: normalized.canDelete,
-    };
+  if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+    return leftNumber - rightNumber;
+  }
+
+  return String(left ?? "").localeCompare(String(right ?? ""), undefined, {
+    numeric: true,
+    sensitivity: "base",
   });
-
-  return formatted;
 };
 
-const clonePermissions = (permissions) =>
-  MODULES.reduce((acc, module) => {
-    acc[module.moduleId] = {
-      ...emptyPermission,
-      ...(permissions?.[module.moduleId] || {}),
-    };
-    return acc;
-  }, {});
+const sortPermissions = (permissions = []) =>
+  [...permissions]
+    .filter((permission) => permission?.moduleName || permission?.moduleId)
+    .sort((left, right) => compareModuleIds(left.moduleId, right.moduleId));
 
-const mergePermissions = (basePermissions, overridePermissions) => {
-  const merged = clonePermissions(basePermissions);
+const normalizeScreenPermissionRow = (permission = {}, { strictAccess = false } = {}) => {
+  const normalizedPermission = {
+    ...permission,
+    moduleId: normalizeId(permission.moduleId ?? permission.ModuleId ?? ""),
+    moduleName: normalizeId(permission.moduleName ?? permission.ModuleName ?? ""),
+    canAccess: Boolean(permission.canAccess ?? permission.CanAccess ?? false),
+    canView: Boolean(permission.canView ?? permission.CanView ?? false),
+    canAdd: Boolean(permission.canAdd ?? permission.CanAdd ?? false),
+    canEdit: Boolean(permission.canEdit ?? permission.CanEdit ?? false),
+    canDelete: Boolean(permission.canDelete ?? permission.CanDelete ?? false),
+  };
 
-  Object.entries(overridePermissions || {}).forEach(([moduleId, permission]) => {
-    merged[moduleId] = {
-      ...merged[moduleId],
-      ...permission,
-    };
-  });
+  const hasFullGranularAccess = ACTIONS.every((action) => Boolean(normalizedPermission[action.key]));
 
-  return merged;
+  return {
+    ...normalizedPermission,
+    canAccess: strictAccess
+      ? Boolean(normalizedPermission.canAccess && hasFullGranularAccess)
+      : hasFullGranularAccess,
+  };
 };
+
+const normalizeRoleRecord = (role = {}) => ({
+  roleId: normalizeId(
+    role.roleId ??
+      role.id ??
+      role.role_Id ??
+      role.RoleId ??
+      role.Role_Id ??
+      ""
+  ),
+  roleName: normalizeId(
+    role.roleName ??
+      role.name ??
+      role.RoleName ??
+      role.Name ??
+      "No Name"
+  ),
+});
+
+const getRoleNameValue = (role = {}) =>
+  normalizeId(
+    role.roleName ??
+      role.RoleName ??
+      role.name ??
+      role.Name ??
+      ""
+  );
 
 function ScreenPermissions() {
-  const { id, roleName } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const employeeId = searchParams.get("employeeId") || "";
-  const isEmployeeMode = Boolean(employeeId);
-  const decodedRoleName = decodeURIComponent(roleName || "");
+  const { refreshPermissions } = useAdminPermissions();
+  const { roleName: routeRoleName } = useParams();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const locationStateRoleId = normalizeId(location.state?.roleId);
+  const locationStateRoleName = normalizeId(location.state?.roleName);
+  const queryRoleId = normalizeId(searchParams.get("roleId") || searchParams.get("id"));
+  const queryRoleName = normalizeId(searchParams.get("roleName"));
+  const initialRoleId = locationStateRoleId || queryRoleId;
+  const initialRoleName =
+    locationStateRoleName || queryRoleName || safeDecodeURIComponent(routeRoleName);
 
-  const [roleId, setRoleId] = useState(() => Number(location.state?.roleId || id || 0));
-  const [rolePermissions, setRolePermissions] = useState(createEmptyPermissions);
-  const [employeePermissions, setEmployeePermissions] = useState({});
-  const [initialSignature, setInitialSignature] = useState("");
-  const [employee, setEmployee] = useState(() =>
-    location.state?.employee ? normalizeEmployeeRecord(location.state.employee) : null
-  );
+  const [selectedRole, setSelectedRole] = useState(() => ({
+    roleId: initialRoleId,
+    roleName: initialRoleName,
+  }));
+  const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const editablePermissions = useMemo(
-    () => (isEmployeeMode ? employeePermissions : rolePermissions),
-    [employeePermissions, isEmployeeMode, rolePermissions]
-  );
-
-  const isDirty = useMemo(
-    () => initialSignature && permissionsSignature(editablePermissions) !== initialSignature,
-    [editablePermissions, initialSignature]
-  );
+  const [error, setError] = useState("");
+  const permissionRequestIdRef = useRef(0);
+  const permissionsRef = useRef(permissions);
 
   useEffect(() => {
-    let active = true;
+    permissionsRef.current = permissions;
+  }, [permissions]);
 
-    const resolveRoleId = async () => {
-      if (roleId || !decodedRoleName) return roleId;
+  useEffect(() => {
+    console.log("Final mapped React state", permissions);
+  }, [permissions]);
 
-      const response = await api.get(API_ENDPOINTS.masters.roles.list);
-      const role = extractCollection(response.data).find((item) => {
-        const name = item.name ?? item.roleName ?? item.RoleName ?? "";
-        return String(name).trim().toLowerCase() === decodedRoleName.trim().toLowerCase();
+  const permissionRows = useMemo(() => sortPermissions(permissions), [permissions]);
+  const hasPermissions = permissionRows.length > 0;
+  const currentRoleId = selectedRole.roleId || initialRoleId;
+  const currentRoleName = getRoleNameValue(selectedRole) || initialRoleName || "";
+  const selectedRoleLabel = useMemo(() => {
+    if (currentRoleName) {
+      return currentRoleName;
+    }
+
+    if (initialRoleName) {
+      return initialRoleName;
+    }
+
+    if (currentRoleId) {
+      return `Role ${currentRoleId}`;
+    }
+
+    return "the selected role";
+  }, [currentRoleId, currentRoleName, initialRoleName]);
+  const isBusy = loading || saving;
+
+  const resolveRoleSelection = useCallback(async () => {
+    const baseRoleId = initialRoleId;
+    const baseRoleName = initialRoleName;
+
+    if (baseRoleId && baseRoleName) {
+      return {
+        roleId: baseRoleId,
+        roleName: baseRoleName,
+      };
+    }
+
+    if (!baseRoleId && !baseRoleName) {
+      return {
+        roleId: "",
+        roleName: "",
+      };
+    }
+
+    try {
+      const response = await api.get(API_ENDPOINTS.masters.roles.list, {
+        headers: {
+          Accept: "application/json",
+        },
       });
-      const resolvedRoleId = Number(role?.id ?? role?.roleId ?? role?.role_Id ?? 0);
 
-      if (active && resolvedRoleId) {
-        setRoleId(resolvedRoleId);
+      const roles = extractCollection(response.data).map(normalizeRoleRecord);
+      const matchedRole = roles.find((role) => {
+        const matchesId = baseRoleId && normalizeId(role.roleId) === baseRoleId;
+        const matchesName =
+          baseRoleName &&
+          normalizeComparableText(role.roleName) === normalizeComparableText(baseRoleName);
+
+        return matchesId || matchesName;
+      });
+
+      if (matchedRole) {
+        return {
+          roleId: matchedRole.roleId || baseRoleId,
+          roleName: matchedRole.roleName || baseRoleName,
+        };
+      }
+    } catch (lookupError) {
+      console.error("Role Resolution Error", lookupError);
+    }
+
+    return {
+      roleId: baseRoleId,
+      roleName: baseRoleName,
+    };
+  }, [initialRoleId, initialRoleName]);
+
+  const loadPermissionsForRole = useCallback(
+    async (roleName, { roleId = "", clearCurrent = false } = {}) => {
+      const normalizedRoleName = normalizeId(roleName);
+
+      if (!normalizedRoleName) {
+        if (clearCurrent) {
+          setPermissions([]);
+        }
+
+        setLoading(false);
+        return [];
       }
 
-      return resolvedRoleId;
-    };
+      const requestId = ++permissionRequestIdRef.current;
 
-    const loadEmployeeDetails = async () => {
-      if (!isEmployeeMode || employee || !decodedRoleName) return;
-
-      const employees = await getEmployeesByRole(decodedRoleName);
-      const matchedEmployee = employees.find(
-        (item) => item.employeeId.toLowerCase() === employeeId.toLowerCase()
-      );
-
-      if (active && matchedEmployee) {
-        setEmployee(matchedEmployee);
+      if (clearCurrent) {
+        setPermissions([]);
       }
-    };
 
-    const loadRolePermissionsMap = async () => {
-      const response = await api.get(API_ENDPOINTS.rolePermission.byRoleName(decodedRoleName));
-      return buildPermissionsMap(normalizePermissionList(response.data));
-    };
-
-    const fetchPermissions = async () => {
       setLoading(true);
+      setError("");
 
       try {
-        const nextRoleId = await resolveRoleId();
-        const inheritedRolePermissions = await loadRolePermissionsMap();
+        const snapshot = await fetchRolePermissionsByRoleName(normalizedRoleName);
 
-        if (isEmployeeMode) {
-          let overrides = {};
-          let responseEmployee = null;
-
-          try {
-            const response = await getUserPermission(employeeId);
-            overrides =
-              response.modules.length > 0
-                ? buildPermissionsMap(response.modules, { includeAllModules: false })
-                : {};
-            const record = getResponseRecord(response.raw);
-            responseEmployee = normalizeEmployeeRecord(record.employee || record.user || record);
-          } catch (error) {
-            if (error?.response?.status !== 404) {
-              throw error;
-            }
-          }
-
-          if (active) {
-            const inheritedEmployeePermissions = clonePermissions(inheritedRolePermissions);
-            const effective = mergePermissions(inheritedEmployeePermissions, overrides);
-
-            setRolePermissions(inheritedRolePermissions);
-            setEmployeePermissions(effective);
-            setInitialSignature(permissionsSignature(effective));
-            if (responseEmployee?.employeeId || responseEmployee?.employeeName) {
-              setEmployee((prev) => prev || responseEmployee);
-            }
-          }
-
-          await loadEmployeeDetails();
-          return;
+        if (requestId !== permissionRequestIdRef.current) {
+          return snapshot.permissions || [];
         }
 
-        if (active) {
-          setRoleId(nextRoleId || 0);
-          setRolePermissions(inheritedRolePermissions);
-          setEmployeePermissions({});
-          setInitialSignature(permissionsSignature(inheritedRolePermissions));
+        console.log("Reloaded API response", snapshot);
+
+        const nextPermissions = sortPermissions(
+          (snapshot.permissions || []).map((permission) =>
+            normalizeScreenPermissionRow(permission, { strictAccess: true })
+          )
+        );
+
+        setPermissions(nextPermissions);
+        setSelectedRole((prev) => ({
+          roleId: snapshot.roleId || roleId || prev.roleId || initialRoleId || "",
+          roleName:
+            snapshot.roleName ||
+            normalizedRoleName ||
+            prev.roleName ||
+            initialRoleName ||
+            "",
+        }));
+
+        console.log("Final mapped React state", nextPermissions);
+
+        return nextPermissions;
+      } catch (requestError) {
+        if (requestId !== permissionRequestIdRef.current) {
+          return [];
         }
-      } catch (error) {
-        console.error(error);
-        toastError("Unable to load permissions.");
+
+        console.error("Permission API Error:", requestError);
+        const message = getRolePermissionErrorMessage(
+          requestError,
+          "Unable to load permissions."
+        );
+        setError(message);
+        toastError(message);
+
+        return [];
       } finally {
-        if (active) {
+        if (requestId === permissionRequestIdRef.current) {
           setLoading(false);
         }
       }
-    };
+    },
+    [initialRoleId, initialRoleName]
+  );
 
-    fetchPermissions();
+  useEffect(() => {
+    let isMounted = true;
 
-    return () => {
-      active = false;
-    };
-  }, [decodedRoleName, employee, employeeId, id, isEmployeeMode, roleId]);
+    const bootstrap = async () => {
+      setLoading(true);
+      setError("");
 
-  const updatePermission = (moduleId, key, checked) => {
-    const setPermissionState = isEmployeeMode ? setEmployeePermissions : setRolePermissions;
+      const resolvedRole = await resolveRoleSelection();
 
-    setPermissionState((prev) => {
-      const current = prev[moduleId] || emptyPermission;
-      const nextPermission =
-        key === "fullAccess"
-          ? {
-              canView: checked,
-              canAdd: checked,
-              canEdit: checked,
-              canDelete: checked,
-            }
-          : {
-              ...current,
-              [key]: checked,
-            };
-
-      return {
-        ...prev,
-        [moduleId]: nextPermission,
-      };
-    });
-  };
-
-  const handleSelectAll = () => {
-    const allSelected = MODULES.every((module) => fullAccessFor(editablePermissions[module.moduleId]));
-    const updated = {};
-
-    MODULES.forEach((module) => {
-      updated[module.moduleId] = {
-        canView: !allSelected,
-        canAdd: !allSelected,
-        canEdit: !allSelected,
-        canDelete: !allSelected,
-      };
-    });
-
-    if (isEmployeeMode) {
-      setEmployeePermissions(updated);
-    } else {
-      setRolePermissions(updated);
-    }
-  };
-
-  const buildModulesPayload = () =>
-    MODULES.map((module) => {
-      const permission = editablePermissions[module.moduleId] || emptyPermission;
-
-      return {
-        moduleId: module.moduleId,
-        moduleName: module.moduleName,
-        canView: permission.canView === true,
-        canAdd: permission.canAdd === true,
-        canEdit: permission.canEdit === true,
-        canDelete: permission.canDelete === true,
-        canAccess:
-          permission.canView === true ||
-          permission.canAdd === true ||
-          permission.canEdit === true ||
-          permission.canDelete === true,
-      };
-    });
-
-  const handleSave = async () => {
-    if (!isDirty || saving) return;
-
-    setSaving(true);
-
-    try {
-      const modules = buildModulesPayload();
-
-      if (isEmployeeMode) {
-        await saveUserPermission({
-          employeeId,
-          modules,
-        });
-      } else {
-        await api.post(
-          API_ENDPOINTS.rolePermission.save,
-          {
-            roleId,
-            roleName: decodedRoleName,
-            modules,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+      if (!isMounted) {
+        return;
       }
 
-      const nextSignature = permissionsSignature(editablePermissions);
-      setInitialSignature(nextSignature);
+      setSelectedRole((prev) => ({
+        roleId: resolvedRole.roleId || prev.roleId || "",
+        roleName: resolvedRole.roleName || prev.roleName || "",
+      }));
+
+      const resolvedRoleName =
+        getRoleNameValue(resolvedRole) || initialRoleName || "";
+
+      if (!resolvedRoleName) {
+        setPermissions([]);
+        setError("Unable to determine the selected role.");
+        setLoading(false);
+        return;
+      }
+
+      await loadPermissionsForRole(resolvedRoleName, {
+        roleId: resolvedRole.roleId || initialRoleId || "",
+        clearCurrent: true,
+      });
+    };
+
+    void bootstrap();
+
+    return () => {
+      isMounted = false;
+      permissionRequestIdRef.current += 1;
+    };
+  }, [initialRoleId, initialRoleName, loadPermissionsForRole, resolveRoleSelection]);
+
+  const handlePermissionChange = (moduleId, field, value) => {
+    const normalizedModuleId = normalizeId(moduleId);
+
+    if (!normalizedModuleId || (!GRANULAR_FIELDS.has(field) && field !== "canAccess")) {
+      return;
+    }
+
+    setPermissions((current) =>
+      sortPermissions(
+        current.map((permission) => {
+          const currentModuleId = normalizeId(permission.moduleId ?? permission.ModuleId ?? "");
+
+          if (currentModuleId !== normalizedModuleId) {
+            return permission;
+          }
+
+          const currentPermission = normalizeScreenPermissionRow(permission, {
+            strictAccess: false,
+          });
+
+          let nextPermission = currentPermission;
+          const nextValue = Boolean(value);
+
+          if (field === "canAccess") {
+            if (nextValue) {
+              nextPermission = normalizeScreenPermissionRow(
+                {
+                  ...currentPermission,
+                  canAccess: true,
+                  canView: true,
+                  canAdd: true,
+                  canEdit: true,
+                  canDelete: true,
+                },
+                { strictAccess: true }
+              );
+            } else {
+              nextPermission = normalizeScreenPermissionRow(
+                {
+                  ...currentPermission,
+                  canAccess: false,
+                  canView: false,
+                  canAdd: false,
+                  canEdit: false,
+                  canDelete: false,
+                },
+                { strictAccess: true }
+              );
+            }
+          } else {
+            nextPermission = normalizeScreenPermissionRow(
+              {
+                ...currentPermission,
+                [field]: nextValue,
+              },
+              { strictAccess: false }
+            );
+          }
+
+          console.log("Previous row state", currentPermission);
+          console.log("Updated row state", nextPermission);
+          console.log("Full Access toggle state", nextPermission.canAccess);
+
+          return nextPermission;
+        })
+      )
+    );
+  };
+
+  const handleRefresh = () => {
+    if (!currentRoleName) {
+      return;
+    }
+
+    void loadPermissionsForRole(currentRoleName, {
+      roleId: currentRoleId,
+      clearCurrent: false,
+    });
+  };
+
+  const handleSave = async () => {
+    if (!currentRoleName) {
+      const message = "Please select a role before saving permissions.";
+      setError(message);
+      toastError(message);
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const currentPermissions = permissions;
+      const payload = buildRolePermissionSavePayload({
+        roleName: currentRoleName,
+        permissions: currentPermissions,
+      });
+
+      console.log("Final save payload", payload);
+
+      const saveResponse = await saveRolePermissions({
+        roleName: currentRoleName,
+        permissions: currentPermissions,
+      });
+
+      console.log("API Response:", saveResponse);
+
       toastSuccess("Permissions saved successfully.");
-      setTimeout(() => navigate("/roles"), 1000);
-    } catch (error) {
-      console.error(error);
-      toastError("Unable to save permissions.");
+
+      try {
+        await loadPermissionsForRole(currentRoleName, {
+          roleId: currentRoleId,
+          clearCurrent: false,
+        });
+
+        await refreshPermissions({ force: true });
+      } catch (refreshError) {
+        console.error("Sidebar Permission Refresh Error:", refreshError);
+
+        const message = getRolePermissionErrorMessage(
+          refreshError,
+          "Permissions were saved, but the latest modules could not be reloaded."
+        );
+
+        setError(message);
+        toastError(message);
+      }
+    } catch (requestError) {
+      console.error("Save Error", requestError.response?.data);
+
+      const message = getRolePermissionErrorMessage(
+        requestError,
+        "Unable to save permissions."
+      );
+      setError(message);
+      toastError(message);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="permission-page" style={{ padding: "20px" }}>
-        <PageSkeleton variant="table" tableRows={8} tableColumns={6} />
-      </div>
-    );
-  }
-
   return (
-    <>
-<div className="permission-page">
-        <div className="permission-top">
+    <div className="permission-page">
+      <div className="permission-top">
+        <div className="permission-employee-header">
           <div>
-            {isEmployeeMode ? (
-              <div className="permission-employee-header">
-                <h2>Employee Permissions</h2>
-                <dl>
-                  <div>
-                    <dt>Employee:</dt>
-                    <dd>{employee?.employeeName || "Unknown Employee"}</dd>
-                  </div>
-                  <div>
-                    <dt>Employee ID:</dt>
-                    <dd>{employeeId}</dd>
-                  </div>
-                  <div>
-                    <dt>Role:</dt>
-                    <dd>{decodedRoleName}</dd>
-                  </div>
-                </dl>
-              </div>
-            ) : (
-              <h2>
-                Role Permissions <span>{decodedRoleName}</span>
-              </h2>
-            )}
+            <h2>Role Permissions</h2>
+            <p>
+              Configure module access for {selectedRoleLabel}
+              {currentRoleId ? ` (ID: ${currentRoleId})` : ""}.
+            </p>
           </div>
 
-          <button className="select-all-btn" onClick={handleSelectAll}>
-            Select All
-          </button>
+          <dl>
+            <div>
+              <dt>Role Name</dt>
+              <dd>{selectedRoleLabel}</dd>
+            </div>
+            <div>
+              <dt>Role ID</dt>
+              <dd>{currentRoleId || "Pending"}</dd>
+            </div>
+          </dl>
         </div>
 
-        {GROUPS.map((group) => (
-          <div className="permission-group" key={group.title}>
-            <div className="group-header">{group.title}</div>
+        <div className="permission-actions">
+          <button
+            className="permission-secondary-btn"
+            type="button"
+            onClick={() => navigate("/roles")}
+            disabled={saving}
+          >
+            <FaArrowLeft /> Back to Roles
+          </button>
+          <button
+            className="permission-secondary-btn"
+            type="button"
+            onClick={handleRefresh}
+            disabled={isBusy || !currentRoleName}
+          >
+            <FaRedo /> Refresh
+          </button>
+          <button
+            className="select-all-btn"
+            type="button"
+            onClick={handleSave}
+            disabled={isBusy || !currentRoleName}
+          >
+            <FaSave /> {saving ? "Saving..." : "Save Permissions"}
+          </button>
+        </div>
+      </div>
 
-            <div className="permission-matrix-wrap">
-              <table className="permission-matrix">
-                <thead>
-                  <tr>
-                    <th>Module</th>
-                    {ACTIONS.map((action) => (
-                      <th key={action.key}>{action.label}</th>
-                    ))}
-                    <th>Full Access</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.modules.map((moduleId) => {
-                    const module = MODULES.find((item) => item.moduleId === moduleId);
-                    const permission = editablePermissions[moduleId] || emptyPermission;
+      {loading && !hasPermissions ? (
+        <div style={{ marginBottom: 16 }}>
+          <TableSkeleton rows={8} columns={6} />
+        </div>
+      ) : null}
+
+      {loading && hasPermissions ? (
+        <div className="permission-loading">Loading permissions...</div>
+      ) : null}
+
+      {error ? (
+        <div
+          className="sidebar-status-panel sidebar-status-error"
+          style={{ marginBottom: 20 }}
+        >
+          <div className="sidebar-status-copy">
+            <div>
+              <div className="sidebar-status-title">Permissions unavailable</div>
+              <div className="sidebar-status-text">{error}</div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="sidebar-status-retry"
+            onClick={handleRefresh}
+            disabled={!currentRoleName || isBusy}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      <div className="permission-group">
+        <div className="group-header">MODULES</div>
+
+        <div className="permission-matrix-wrap" aria-busy={isBusy}>
+          {loading && !hasPermissions ? null : (
+            <table className="permission-matrix">
+              <thead>
+                <tr>
+                  <th>Module</th>
+                  {ACTIONS.map((action) => (
+                    <th key={action.key}>{action.label}</th>
+                  ))}
+                  <th>Full Access</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hasPermissions ? (
+                  permissionRows.map((permission, rowIndex) => {
+                    const moduleKey =
+                      normalizeId(permission.moduleId ?? permission.ModuleId ?? "") ||
+                      permission.moduleName ||
+                      rowIndex;
 
                     return (
-                      <tr key={moduleId}>
-                        <td>{module?.moduleName}</td>
+                      <tr key={moduleKey}>
+                        <td>{permission.moduleName}</td>
                         {ACTIONS.map((action) => (
                           <td key={action.key}>
                             <input
                               type="checkbox"
                               className="permission-checkbox"
-                              checked={permission[action.key] === true}
+                              checked={Boolean(permission[action.key])}
+                              disabled={isBusy}
                               onChange={(event) =>
-                                updatePermission(moduleId, action.key, event.target.checked)
+                                handlePermissionChange(
+                                  permission.moduleId ?? permission.ModuleId,
+                                  action.key,
+                                  event.target.checked
+                                )
                               }
-                              aria-label={`${module?.moduleName} ${action.label}`}
+                              aria-label={`${permission.moduleName} ${action.label}`}
                             />
                           </td>
                         ))}
-                        <td>
-                          <input
-                            type="checkbox"
-                            className="permission-checkbox"
-                            checked={fullAccessFor(permission)}
-                            onChange={(event) =>
-                              updatePermission(moduleId, "fullAccess", event.target.checked)
-                            }
-                            aria-label={`${module?.moduleName} Full Access`}
-                          />
+                        <td className="permission-access-col">
+                          <label
+                            className={`permission-switch ${
+                              permission.canAccess === true ? "active" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(permission.canAccess)}
+                              onChange={(event) =>
+                                handlePermissionChange(
+                                  permission.moduleId ?? permission.ModuleId,
+                                  "canAccess",
+                                  event.target.checked
+                                )
+                              }
+                              aria-label={`${permission.moduleName} Full Access`}
+                            />
+                            <span className="permission-slider" aria-hidden="true" />
+                          </label>
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
-
-        <div className="permission-actions">
-          <button onClick={() => navigate("/roles")}>Skip</button>
-          <button onClick={handleSave} disabled={!isDirty || saving}>
-            {saving ? "Saving..." : "Save Permissions"}
-          </button>
+                  })
+                ) : error ? (
+                  <tr>
+                    <td
+                      colSpan={ACTIONS.length + 2}
+                      style={{ textAlign: "center", padding: "24px" }}
+                    >
+                      Unable to load permissions.
+                    </td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={ACTIONS.length + 2}
+                      style={{ textAlign: "center", padding: "24px" }}
+                    >
+                      No modules were returned by the permission API.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

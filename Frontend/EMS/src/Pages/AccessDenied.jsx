@@ -1,34 +1,36 @@
 import React from "react";
 import { FaArrowLeft, FaHome, FaShieldAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { getDashboardPathForRole, getUserRole } from "../utils/authorization";
 import "./AccessDenied.css";
 
 function AccessDenied() {
   const navigate = useNavigate();
+  const dashboardPath = getDashboardPathForRole(getUserRole());
 
   return (
     <div className="access-denied-page">
       <div className="access-denied-card app-surface">
         <div className="access-denied-badge">
           <FaShieldAlt />
-          <span>Restricted area</span>
+          <span>403 Unauthorized</span>
         </div>
 
         <div className="access-denied-icon">
           <FaShieldAlt />
         </div>
 
-        <h1>Access Denied</h1>
+        <h1>403 Unauthorized</h1>
         <p>
-          This section is available to EMS administrators only. If you believe
-          you should have access, please contact your system administrator.
+          You do not have permission to access this section. If you believe this
+          is a mistake, please contact your system administrator.
         </p>
 
         <div className="access-denied-actions">
           <button
             type="button"
             className="app-button-secondary access-denied-secondary"
-            onClick={() => navigate("/dashboard", { replace: true })}
+            onClick={() => navigate(dashboardPath, { replace: true })}
           >
             <FaArrowLeft />
             Back to Dashboard
@@ -37,7 +39,7 @@ function AccessDenied() {
           <button
             type="button"
             className="app-button-primary access-denied-primary"
-            onClick={() => navigate("/dashboard", { replace: true })}
+            onClick={() => navigate(dashboardPath, { replace: true })}
           >
             <FaHome />
             Go Home
@@ -49,4 +51,3 @@ function AccessDenied() {
 }
 
 export default AccessDenied;
-

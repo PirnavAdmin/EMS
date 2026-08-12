@@ -2,6 +2,7 @@
 using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
+using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -22,20 +23,38 @@ namespace EmployeeManagementSystem.Controllers
 
         // 🔹 GET ALL PERMISSIONS (for UI screen)
         //[Permission(ModuleIds.ScreenPermissions, PermissionAction.View)]
+        
         [HttpGet("{roleName}")]
         public async Task<IActionResult> Get(string roleName)
         {
-            var result = await _service.GetPermissions(roleName);
+            var adminIdClaim = User.FindFirst("AdminId")?.Value;
+
+            if (string.IsNullOrEmpty(adminIdClaim))
+                return Unauthorized("AdminId missing in token.");
+
+            int adminId = int.Parse(adminIdClaim);
+
+            var result = await _service.GetPermissions(adminId, roleName);
+
             return Ok(result);
         }
 
         // 🔹 SAVE PERMISSIONS
         //[Permission(ModuleIds.ScreenPermissions, PermissionAction.Edit)]
+        
         [HttpPost("save")]
         public async Task<IActionResult> Save(SaveRolePermissionDto dto)
         {
-            await _service.SavePermissions(dto);
-            return Ok("Permissions saved");
+            var adminIdClaim = User.FindFirst("AdminId")?.Value;
+
+            if (string.IsNullOrEmpty(adminIdClaim))
+                return Unauthorized("AdminId missing in token.");
+
+            int adminId = int.Parse(adminIdClaim);
+
+            await _service.SavePermissions(adminId, dto);
+
+            return Ok("Permissions saved successfully.");
         }
 
         //[Permission(ModuleIds.ScreenPermissions, PermissionAction.View)]
@@ -48,29 +67,56 @@ namespace EmployeeManagementSystem.Controllers
 
         // 🔥 GET ALLOWED MODULES (for logged-in user)
         //[Permission(ModuleIds.ScreenPermissions, PermissionAction.View)]
+       
         [HttpGet("allowed-modules")]
         public async Task<IActionResult> GetAllowedModules()
         {
-            try
+            // Get AdminId from JWT
+            var adminIdClaim =
+                User.FindFirst("AdminId")?.Value;
+
+            if (!int.TryParse(
+                adminIdClaim,
+                out int adminId))
             {
-                // ✅ READ ROLEID FROM JWT (STANDARD WAY)
-                var roleIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                if (string.IsNullOrEmpty(roleIdClaim))
-                    return BadRequest("RoleId missing in token");
-
-                if (!int.TryParse(roleIdClaim, out int roleId))
-                    return BadRequest("Invalid RoleId");
-
-                // ✅ CALL SERVICE (NO _context HERE)
-                var modules = await _service.GetAllowedModules(roleId);
-
-                return Ok(modules);
+                return Unauthorized(new
+                {
+                    Success = false,
+                    Message = "AdminId not found in token."
+                });
             }
-            catch (Exception ex)
+
+
+            // Get RoleId from JWT
+            var roleIdClaim =
+                User.FindFirst("RoleId")?.Value;
+
+            if (!int.TryParse(
+                roleIdClaim,
+                out int roleId))
             {
-                return StatusCode(500, ex.Message);
+                return Unauthorized(new
+                {
+                    Success = false,
+                    Message = "RoleId not found in token."
+                });
             }
+
+
+            // PASS BOTH PARAMETERS
+            var result =
+                await _service
+                    .GetAllowedModules(
+                        adminId,
+                        roleId);
+
+            return Ok(new
+            {
+                Success = true,
+                AdminId = adminId,
+                RoleId = roleId,
+                Modules = result
+            });
         }
     }
 }

@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import { FaEnvelope } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { resolveAuthRole } from "../../utils/authorization";
+import { getStoredRole } from "../../utils/authStorage";
 import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
 
 export default function ForgotLeft() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -21,60 +23,37 @@ export default function ForgotLeft() {
     },
   };
 
-  const shouldFallbackToUserFlow = (error) => {
-    const status = error?.response?.status;
+  const recoveryRole = (() => {
+    const lowered = String(location.state?.role || getStoredRole() || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
 
-    if ([400, 401, 403, 404].includes(status)) {
-      return true;
+    if (lowered === "employee" || lowered === "user") {
+      return "user";
     }
 
-    const message = String(
-      error?.response?.data?.message ||
-        error?.response?.data ||
-        error?.message ||
-        ""
-    ).toLowerCase();
-
-    return /invalid|unauthori[sz]ed|role|credential|account|not found|does not exist/.test(
-      message
-    );
-  };
+    return "admin";
+  })();
 
   const requestOtp = async () => {
     const payload = { email };
-    const authFlows = ["admin", "user"];
-    let lastError = null;
+    const response = await api.post(
+      API_ENDPOINTS.auth.forgotPasswordByRole(recoveryRole),
+      payload,
+      authRequestOptions
+    );
 
-    for (const flowRole of authFlows) {
-      try {
-        const response = await api.post(
-          API_ENDPOINTS.auth.forgotPasswordByRole(flowRole),
-          payload,
-          authRequestOptions
-        );
-
-        return {
-          response,
-          role:
-            resolveAuthRole(
-              response.data?.role ||
-                response.data?.roleName ||
-                flowRole,
-              flowRole
-            ) || flowRole,
-        };
-      } catch (error) {
-        lastError = error;
-
-        if (flowRole === "admin" && shouldFallbackToUserFlow(error)) {
-          continue;
-        }
-
-        throw error;
-      }
-    }
-
-    throw lastError;
+    return {
+      response,
+      role:
+        resolveAuthRole(
+          response.data?.role ||
+            response.data?.roleName ||
+            recoveryRole,
+          recoveryRole
+        ) || recoveryRole,
+    };
   };
 
   const handleChange = (event) => {

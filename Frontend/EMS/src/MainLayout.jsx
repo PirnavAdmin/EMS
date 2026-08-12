@@ -1,137 +1,74 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { App as CapApp } from "@capacitor/app";
 import Sidebar from "./Sidebar/Sidebar";
 import Header from "./dashboard/Header";
 import MobileBottomNav from "./components/mobile/MobileBottomNav";
-import { App as CapApp } from "@capacitor/app";
-import api from "./api/axiosInstance";
-import { API_ENDPOINTS } from "./api/endpoints";
- 
-import {
-  getActiveAuthStorage,
-  getStoredEmployeeId,
-  getStoredPermissions,
-  getStoredRoleName,
-  getStoredToken,
-} from "./utils/authStorage";
-import { isAdmin, isAuthenticationFailureResponse } from "./utils/authorization";
-import { getUserPermission } from "./services/permissionService";
-import {
-  handleAutoLogout,
-  isSessionExpired,
-  startSessionTimer,
-} from "./utils/sessionManager";
- 
+import { PageSkeleton } from "./components/Skeletons";
+import { getStoredToken } from "./utils/authStorage";
+import { isOnboardingUser } from "./utils/authorization";
+import { handleAutoLogout, isSessionExpired, startSessionTimer, clearSessionTimer } from "./utils/sessionManager";
+
 const MOBILE_LAYOUT_QUERY = "(max-width: 991px)";
 
-function MainLayout() {
+function MainLayout({ permissionScope }) {
+  const location = useLocation();
+  const { loadingPermissions, error, errorStatus, refreshPermissions } = permissionScope;
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
- 
-    if (
-      typeof window === "undefined" ||
-      !window.matchMedia
-    ) {
+    if (typeof window === "undefined" || !window.matchMedia) {
       return false;
     }
- 
-    return window
-      .matchMedia(MOBILE_LAYOUT_QUERY)
-      .matches;
- 
+
+    return window.matchMedia(MOBILE_LAYOUT_QUERY).matches;
   });
- 
-  const [collapsed, setCollapsed] =
-    useState(false);
- 
-  const [mobileSidebarOpen, setMobileSidebarOpen] =
-    useState(false);
- 
-  const [ready, setReady] =
-    useState(false);
- 
-  // =========================
-  // NARROW VIEWPORT
-  // =========================
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   useEffect(() => {
- 
     if (!window.matchMedia) {
       return undefined;
     }
- 
-    const mediaQuery =
-      window.matchMedia(MOBILE_LAYOUT_QUERY);
- 
+
+    const mediaQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
+
     const handleViewportChange = (event) => {
- 
       setIsMobileViewport(event.matches);
- 
       setMobileSidebarOpen(false);
- 
     };
- 
+
     handleViewportChange(mediaQuery);
- 
+
     if (mediaQuery.addEventListener) {
- 
-      mediaQuery.addEventListener(
-        "change",
-        handleViewportChange
-      );
- 
-      return () =>
-        mediaQuery.removeEventListener(
-          "change",
-          handleViewportChange
-        );
+      mediaQuery.addEventListener("change", handleViewportChange);
+
+      return () => mediaQuery.removeEventListener("change", handleViewportChange);
     }
- 
+
     mediaQuery.addListener(handleViewportChange);
- 
-    return () =>
-      mediaQuery.removeListener(handleViewportChange);
- 
+
+    return () => mediaQuery.removeListener(handleViewportChange);
   }, []);
- 
-  // =========================
-  // DRAWER BODY SCROLL
-  // =========================
+
   useEffect(() => {
- 
     if (typeof document === "undefined") {
       return undefined;
     }
- 
-    const shouldLockScroll =
-      isMobileViewport &&
-      mobileSidebarOpen;
- 
-    const previousOverflow =
-      document.body.style.overflow;
- 
-    document.body.style.overflow =
-      shouldLockScroll
-        ? "hidden"
-        : "";
- 
+
+    const shouldLockScroll = isMobileViewport && mobileSidebarOpen;
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = shouldLockScroll ? "hidden" : "";
+
     return () => {
- 
-      document.body.style.overflow =
-        previousOverflow;
- 
+      document.body.style.overflow = previousOverflow;
     };
- 
-  }, [
-    isMobileViewport,
-    mobileSidebarOpen
-  ]);
- 
-  // =========================
-  // AUTO LOGOUT
-  // =========================
+  }, [isMobileViewport, mobileSidebarOpen]);
+
   useEffect(() => {
     const token = getStoredToken();
 
     if (!token) {
+      clearSessionTimer();
       return undefined;
     }
 
@@ -143,259 +80,12 @@ function MainLayout() {
     }
 
     startSessionTimer();
-
     return undefined;
-
   }, []);
- 
-  // =========================
-  // FETCH PERMISSIONS
-  // =========================
-  useEffect(() => {
- 
-    const fetchPermissions = async () => {
- 
-      const storage =
-        getActiveAuthStorage();
- 
-      const setStoredPermissions =
-        (permissions) => {
- 
-          storage.setItem(
-            "permissions",
-            JSON.stringify(permissions)
-          );
- 
-          storage.setItem(
-            "modules",
-            JSON.stringify(permissions)
-          );
-        };
- 
-      const normalizePermissionList =
-        (data) => {
- 
-          const list =
-            data?.data?.$values ||
-            data?.data ||
-            data?.$values ||
-            data ||
-            [];
- 
-          if (!Array.isArray(list)) {
-            return [];
-          }
- 
-          return list
-            .filter(
-              (permission) =>
-                (
-                  permission.canAccess ??
-                  permission.CanAccess ??
-                  permission.canView ??
-                  permission.CanView ??
-                  true
-                ) === true
-            )
-            .map((permission) => ({
-              moduleId:
-                permission.moduleId ??
-                permission.ModuleId,
- 
-              moduleName:
-                (
-                  permission.moduleName ||
-                  permission.ModuleName ||
-                  ""
-                ).trim(),
-              canView: permission.canView ?? permission.CanView ?? true,
-              canAdd: permission.canAdd ?? permission.CanAdd ?? false,
-              canEdit: permission.canEdit ?? permission.CanEdit ?? false,
-              canDelete: permission.canDelete ?? permission.CanDelete ?? false,
-              canAccess: true,
-            }))
-            .filter(
-              (permission) =>
-                permission.moduleName
-            );
-        };
- 
-      try {
- 
-        const token =
-          getStoredToken();
- 
-        let roleName =
-          getStoredRoleName();
- 
-        if (!token) {
- 
-          setStoredPermissions([]);
- 
-          return;
-        }
- 
-        // ADMIN
-        if (isAdmin()) {
- 
-          setStoredPermissions([
-            {
-              moduleName: "ALL",
-              canAccess: true
-            }
-          ]);
- 
-          return;
-        }
 
-        const employeeId = getStoredEmployeeId();
-
-        if (employeeId) {
-          try {
-            const employeePermission = await getUserPermission(employeeId);
-
-            if (employeePermission.modules.length > 0) {
-              setStoredPermissions(normalizePermissionList(employeePermission.modules));
-              return;
-            }
-          } catch (error) {
-            if (error?.response?.status !== 404) {
-              throw error;
-            }
-          }
-        }
- 
-        const allowedModulesResponse =
-          await api.get(
-            API_ENDPOINTS.rolePermission.allowedModules,
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
-            }
-          );
- 
-        const allowedModules =
-          normalizePermissionList(
-            allowedModulesResponse.data
-          );
- 
-        if (allowedModules.length > 0) {
- 
-          setStoredPermissions(
-            allowedModules
-          );
- 
-          return;
-        }
- 
-        if (!roleName) {
- 
-          setStoredPermissions(
-            getStoredPermissions()
-          );
- 
-          return;
-        }
- 
-        roleName =
-          roleName.trim();
- 
-        const res =
-          await api.get(
-            API_ENDPOINTS.rolePermission.byRoleName(roleName),
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
-            }
-          );
- 
-        const permissions =
-          normalizePermissionList(
-            res.data
-          );
- 
-        if (permissions.length === 0) {
- 
-          setStoredPermissions(
-            getStoredPermissions()
-          );
- 
-          return;
-        }
- 
-        setStoredPermissions(
-          permissions
-        );
- 
-      }
-      catch (error) {
-        const isAuthFailure = isAuthenticationFailureResponse(
-          error?.response?.status,
-          error?.response?.data
-        );
-
-        // =========================
-        // AUTO LOGOUT ON ERROR
-        // =========================
-        if (isAuthFailure) {
-          handleAutoLogout({
-            reason:
-              "MainLayout permission initialization returned an auth failure",
-          });
-          return;
-        }
- 
-        setStoredPermissions(
-          getStoredPermissions()
-        );
- 
-      }
-      finally {
- 
-        setReady(true);
- 
-      }
-    };
- 
-    fetchPermissions();
- 
-  }, []);
- 
-  // =========================
-  // SIDEBAR
-  // =========================
-  const handleSidebarClose =
-    useCallback(() => {
- 
-      setMobileSidebarOpen(false);
- 
-    }, []);
- 
-  const handleSidebarToggle = () => {
- 
-    if (isMobileViewport) {
- 
-      setMobileSidebarOpen(
-        (prev) => !prev
-      );
- 
-      return;
-    }
- 
-    setCollapsed(
-      (prev) => !prev
-    );
-  };
- 
-  // =========================
-  // HARDWARE BACK BUTTON (NATIVE APP)
-  // =========================
   useEffect(() => {
     let listener;
+
     const setupListener = async () => {
       try {
         if (CapApp && typeof CapApp.addListener === "function") {
@@ -409,81 +99,131 @@ function MainLayout() {
             }
           });
         }
-      } catch (err) {
-        // Native app plugin not running in standard browser
+      } catch {
+        // Native plugin is not available in standard browser sessions.
       }
     };
+
     setupListener();
- 
+
     return () => {
       if (listener && typeof listener.remove === "function") {
         listener.remove();
       }
     };
   }, [mobileSidebarOpen]);
- 
-  // =========================
-  // LOADING
-  // =========================
-  if (!ready) {
- 
+
+  if (loadingPermissions) {
     return (
-      <p style={{ padding: "20px" }}>
-        Initializing...
-      </p>
+      <div className="app-layout">
+        <div className="app-route-skeleton" style={{ padding: "24px" }}>
+          <PageSkeleton variant="dashboard" />
+        </div>
+      </div>
     );
   }
- 
-  // =========================
-  // UI
-  // =========================
+
+  if (errorStatus === 403) {
+    return <Navigate to="/403" replace />;
+  }
+
+  if (error) {
+    return (
+      <div className="app-layout">
+        <div
+          style={{
+            minHeight: "100vh",
+            width: "100%",
+            display: "grid",
+            placeItems: "center",
+            padding: "32px",
+            background: "linear-gradient(180deg, var(--bg-primary), var(--bg-secondary))",
+          }}
+        >
+          <div
+            className="app-surface"
+            style={{
+              width: "min(100%, 640px)",
+              padding: "32px",
+              borderRadius: "24px",
+              boxShadow: "0 20px 60px rgba(15,108,189,.12)",
+              textAlign: "center",
+            }}
+          >
+            <h2 style={{ margin: 0, color: "var(--text-primary)" }}>
+              Unable to load your permissions
+            </h2>
+            <p style={{ margin: "12px 0 24px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+              {error}
+            </p>
+            <button
+              type="button"
+              className="app-button-primary"
+              onClick={() => {
+                void refreshPermissions({ force: true }).catch(() => {});
+              }}
+              style={{ minWidth: 160 }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`app-layout ${isMobileViewport
-        ? "is-mobile"
-        : ""
-        } ${mobileSidebarOpen
-          ? "is-mobile-sidebar-open"
-          : ""
-        }`}
+      className={`app-layout ${isMobileViewport ? "is-mobile" : ""} ${
+        mobileSidebarOpen ? "is-mobile-sidebar-open" : ""
+      }`}
     >
- 
       <Sidebar
+        key={location.pathname}
         collapsed={collapsed}
         isMobile={isMobileViewport}
         mobileOpen={mobileSidebarOpen}
-        onClose={handleSidebarClose}
+        onClose={() => setMobileSidebarOpen(false)}
       />
- 
+
       <div
-        className={`app-main ${!isMobileViewport &&
-          collapsed
-          ? "is-collapsed"
-          : ""
-          }`}
+        className={`app-main ${!isMobileViewport && collapsed ? "is-collapsed" : ""}`}
       >
- 
         <Header
           collapsed={collapsed}
           isMobileViewport={isMobileViewport}
-          onToggle={handleSidebarToggle}
+          onToggle={() => {
+            if (isMobileViewport) {
+              setMobileSidebarOpen((prev) => !prev);
+              return;
+            }
+
+            setCollapsed((prev) => !prev);
+          }}
         />
- 
+
         <div className="app-main-scroll">
- 
           <main className="page-shell">
             <Outlet />
           </main>
- 
         </div>
       </div>
- 
-      <MobileBottomNav
-        onToggleSidebar={handleSidebarToggle}
-        sidebarOpen={mobileSidebarOpen}
-      />
+
+      {!isOnboardingUser() && (
+        <MobileBottomNav
+          onToggleSidebar={() => {
+            if (isMobileViewport) {
+              setMobileSidebarOpen((prev) => !prev);
+              return;
+            }
+
+            setCollapsed((prev) => !prev);
+          }}
+          sidebarOpen={mobileSidebarOpen}
+        />
+      )}
     </div>
   );
 }
- 
+
 export default MainLayout;

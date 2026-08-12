@@ -2,6 +2,8 @@
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using EmployeeManagementSystem.Data;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -10,62 +12,125 @@ namespace EmployeeManagementSystem.Controllers
     public class EmployeeDocumentsController : ControllerBase
     {
         private readonly IEmployeeDocumentService _service;
+        private readonly AppDbContext _context;
 
         public EmployeeDocumentsController(
-            IEmployeeDocumentService service)
+            IEmployeeDocumentService service,
+            AppDbContext context)
         {
             _service = service;
+            _context = context;
         }
+
+        private async Task<bool> IsAdminUser()
+        {
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            return await _context.Admins
+                .AnyAsync(a => a.Email == email);
+        }
+
 
         [HttpPost("upload")]
         public async Task<IActionResult> UploadDocument(
             [FromForm] EmployeeDocumentDto dto)
         {
-            var result =
-                await _service.UploadDocument(dto);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            bool isAdmin = await IsAdminUser();
+
+            string employeeId;
+
+            if (isAdmin)
+            {
+                // Admin can upload documents for any employee
+                if (string.IsNullOrWhiteSpace(dto.EmployeeId))
+                    return BadRequest("Employee Id is required.");
+
+                employeeId = dto.EmployeeId;
+            }
+            else
+            {
+                // Employee or Onboarding Candidate
+                employeeId = User.FindFirst("EmployeeId")?.Value
+                            ?? User.FindFirst("OnboardingId")?.Value;
+
+                if (string.IsNullOrWhiteSpace(employeeId))
+                    return Unauthorized("Invalid user.");
+
+                // Ignore EmployeeId from frontend
+                dto.EmployeeId = employeeId;
+            }
+
+            var result = await _service.UploadDocument(dto);
 
             return Ok(new
             {
                 message = result
             });
         }
-
-      
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetEmployeeDocuments(string employeeId)
         {
+            bool isAdmin = await IsAdminUser();
+
+            if (!isAdmin)
+            {
+                var currentId = User.FindFirst("EmployeeId")?.Value
+                             ?? User.FindFirst("OnboardingId")?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentId))
+                    return Unauthorized("Invalid user.");
+
+                if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid("You can view only your own documents.");
+                }
+            }
+
             var result = await _service.GetEmployeeDocuments(employeeId);
+
             return Ok(result);
         }
 
         [HttpGet("download/{id}")]
-
         public async Task<IActionResult> DownloadDocument(int id)
-
         {
+            var document = await _service.GetDocumentById(id);
 
-            var fileBytes =
+            if (document == null)
+                return NotFound("Document not found");
 
-                await _service.DownloadDocument(id);
+            bool isAdmin = await IsAdminUser();
+
+            if (!isAdmin)
+            {
+                var currentId = User.FindFirst("EmployeeId")?.Value
+                             ?? User.FindFirst("OnboardingId")?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentId))
+                    return Unauthorized("Invalid user.");
+
+                if (!string.Equals(currentId, document.Employee_Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid("You can download only your own documents.");
+                }
+            }
+
+            var fileBytes = await _service.DownloadDocument(id);
 
             if (fileBytes.Length == 0)
-
                 return NotFound("File not found");
 
-            var document =
-
-                await _service.GetDocumentById(id);
-
             return File(
-
                 fileBytes,
-
                 "application/pdf",
-
-                document?.File_Name ?? $"Document_{id}.pdf");
-
+                document.File_Name ?? $"Document_{id}.pdf");
         }
-
 
         [HttpGet("view/{id}")]
         public async Task<IActionResult> ViewDocument(int id)
@@ -75,6 +140,22 @@ namespace EmployeeManagementSystem.Controllers
             if (document == null)
                 return NotFound("Document not found");
 
+            bool isAdmin = await IsAdminUser();
+
+            if (!isAdmin)
+            {
+                var currentId = User.FindFirst("EmployeeId")?.Value
+                             ?? User.FindFirst("OnboardingId")?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentId))
+                    return Unauthorized("Invalid user.");
+
+                if (!string.Equals(currentId, document.Employee_Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid("You can view only your own documents.");
+                }
+            }
+
             var filePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "wwwroot",
@@ -83,8 +164,7 @@ namespace EmployeeManagementSystem.Controllers
             if (!System.IO.File.Exists(filePath))
                 return NotFound("File not found");
 
-            var extension = Path.GetExtension(document.File_Name)
-                .ToLower();
+            var extension = Path.GetExtension(document.File_Name).ToLower();
 
             var contentType = extension switch
             {
@@ -101,14 +181,31 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(int id)
         {
-            var result =
-                await _service.DeleteDocument(id);
+            var document = await _service.GetDocumentById(id);
 
-            if (result == "Document not found")
+            if (document == null)
                 return NotFound(new
                 {
-                    message = result
+                    message = "Document not found"
                 });
+
+            bool isAdmin = await IsAdminUser();
+
+            if (!isAdmin)
+            {
+                var currentId = User.FindFirst("EmployeeId")?.Value
+                             ?? User.FindFirst("OnboardingId")?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentId))
+                    return Unauthorized("Invalid user.");
+
+                if (!string.Equals(currentId, document.Employee_Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid("You can delete only your own documents.");
+                }
+            }
+
+            var result = await _service.DeleteDocument(id);
 
             return Ok(new
             {

@@ -71,21 +71,26 @@ public class EmployeeLeaveService : IEmployeeLeaveService
             return new BadRequestObjectResult(new { message = "Employee not found" });
 
         var fromDate = dto.FromDate.Date;
-
         var toDate = dto.ToDate.Date;
 
+        var today = DateTime.Today;
+
+        // 1. From Date cannot be after To Date
         if (fromDate > toDate)
-
         {
-
             return new BadRequestObjectResult(new
-
             {
-
                 message = "From date cannot be greater than To date"
-
             });
+        }
 
+        // 2. Do not allow previous dates
+        if (fromDate < today)
+        {
+            return new BadRequestObjectResult(new
+            {
+                message = "Leave cannot be applied for previous dates."
+            });
         }
 
         var alreadyApplied = await _context.EmployeeLeaves
@@ -526,63 +531,180 @@ Employee Management System
         //    _context.EmployeeLeaveBalances.Add(balance);
         //    await _context.SaveChangesAsync();
         //}
-
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
-
-        var loggedInUser = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-
-        if (loggedInUser == null)
-            return new UnauthorizedObjectResult("User not found");
-        var approver = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Employee_Id == loggedInUser.Employee_Id);
 
         string approverName = "";
 
-        if (!string.IsNullOrWhiteSpace(approver?.Name))
-        {
-            approverName = approver.Name
-                .Trim()
-                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                .FirstOrDefault() ?? "";
-        }
-        var role = loggedInUser.RoleName?.Trim();
+        // ----------------------------------------------------
+        // First check Employees
+        // ----------------------------------------------------
 
-        if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        {
-            return new BadRequestObjectResult(
-                "Only Manager or HR can approve leave");
-        }
-        Console.WriteLine($"Original Name = {approver.Name}");
-        Console.WriteLine($"First Name = {approverName}");
+        var loggedInEmployee = await _context.Employees
+            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
 
-        // Save approver details
+        if (loggedInEmployee != null)
+        {
+            approverName = loggedInEmployee.Name;
+        }
+        else
+        {
+            // ------------------------------------------------
+            // If not an employee, check Admins table
+            // ------------------------------------------------
+
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
+            if (admin == null)
+                return new UnauthorizedObjectResult("User not found");
+
+            // If Admin table has Name column
+            // approverName = admin.Name;
+
+            // Otherwise use email
+            approverName = admin.Email?
+     .Split('@')[0]
+     .Trim();
+        }
+
+        // Take only first name
+        approverName = approverName
+            .Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault() ?? approverName;
+        //var role = loggedInUser.RoleName?.Trim();
+
+        ////if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
+        ////    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+        ////{
+        ////    return new BadRequestObjectResult(
+        ////        "Only Manager or HR can approve leave");
+        ////}
+        //Console.WriteLine($"Original Name = {approver.Name}");
+        //Console.WriteLine($"First Name = {approverName}");
+
+        //// Save approver details
 
         leave.ApprovedBy = approverName;
         leave.ApprovedOn = DateTime.UtcNow;
-        if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
-        {
-            leave.ManagerStatus = status;
-        }
 
-        if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        {
-            leave.HRStatus = status;
-        }
+        leave.ManagerStatus = status;
+        leave.HRStatus = status;
+        //if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    leave.ManagerStatus = status;
+        //}
+
+        //if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    leave.HRStatus = status;
+        //}
         var employee = await _context.Employees
     .FirstOrDefaultAsync(x => x.Employee_Id == leave.EmployeeId);
         if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
         {
             leave.Status = $"Approved By {approverName}";
-            var result = await _leaveBalanceService.ApproveLeaveAsync(leave);
 
-            leave.PaidLeaveDays = result.PaidLeaves;
-            leave.LOPDays = result.LopDays;
-            await UpdateAttendanceForApprovedLeave(
-    leave,
-    result.PaidLeaves,
-    result.LopDays);
+            if (employee == null)
+            {
+                return new BadRequestObjectResult(
+                    "Employee not found.");
+            }
+
+            DateTime joiningDate = employee.JoiningDate.Date;
+
+            // 6 months probation
+            DateTime probationEndDate = joiningDate.AddMonths(6);
+
+
+            // =====================================================
+            // CASE 1: ENTIRE LEAVE IS DURING PROBATION
+            // =====================================================
+
+            if (leave.ToDate.Date < probationEndDate)
+            {
+                int lopDays = await CalculateLeaveDaysForProbation(
+                    leave.FromDate,
+                    leave.ToDate);
+
+                leave.PaidLeaveDays = 0;
+                leave.LOPDays = lopDays;
+
+                await UpdateAttendanceForApprovedLeave(
+                    leave,
+                    0,
+                    lopDays);
+            }
+
+            // =====================================================
+            // CASE 2: LEAVE CROSSES PROBATION END DATE
+            // Example:
+            // Probation ends Aug 10
+            // Leave Aug 8 - Aug 12
+            // Aug 8-9 = LOP
+            // Aug 10-12 = normal leave policy
+            // =====================================================
+
+            else if (leave.FromDate.Date < probationEndDate &&
+                     leave.ToDate.Date >= probationEndDate)
+            {
+                DateTime probationLeaveEnd =
+                    probationEndDate.AddDays(-1);
+
+                int probationLopDays =
+                    await CalculateLeaveDaysForProbation(
+                        leave.FromDate,
+                        probationLeaveEnd);
+
+                // Normal leave starts from probation completion date
+                var originalFromDate = leave.FromDate;
+
+                leave.FromDate = probationEndDate;
+
+                var result =
+                    await _leaveBalanceService.ApproveLeaveAsync(leave);
+
+                // Restore original leave date
+                leave.FromDate = originalFromDate;
+
+                leave.PaidLeaveDays =
+                    result.PaidLeaves;
+
+                leave.LOPDays =
+                    probationLopDays + result.LopDays;
+
+                // We will handle attendance separately below
+                await UpdateProbationCrossingLeaveAttendance(
+                    leave,
+                    probationEndDate,
+                    result.PaidLeaves,
+                    result.LopDays);
+            }
+
+            // =====================================================
+            // CASE 3: PROBATION ALREADY COMPLETED
+            // Existing logic
+            // =====================================================
+
+            else
+            {
+                var result =
+                    await _leaveBalanceService.ApproveLeaveAsync(leave);
+
+                leave.PaidLeaveDays =
+                    result.PaidLeaves;
+
+                leave.LOPDays =
+                    result.LopDays;
+
+                await UpdateAttendanceForApprovedLeave(
+                    leave,
+                    result.PaidLeaves,
+                    result.LopDays);
+            }
+
+
+            // Continue your existing notification code here...
             _context.UserNotifications.Add(new UserNotification
             {
                 Employee_Id = leave.EmployeeId,
@@ -827,6 +949,118 @@ Employee Management System
 
             return new OkObjectResult($"Leave rejected by {approverName}");
         }
+    }
+
+    private async Task<int> CalculateLeaveDaysForProbation(
+    DateTime fromDate,
+    DateTime toDate)
+    {
+        int lopDays = 0;
+
+        for (DateTime date = fromDate.Date;
+             date <= toDate.Date;
+             date = date.AddDays(1))
+        {
+            // Skip weekends
+            if (date.DayOfWeek == DayOfWeek.Saturday ||
+                date.DayOfWeek == DayOfWeek.Sunday)
+            {
+                continue;
+            }
+
+            // Skip holidays
+            bool isHoliday = await _context.Holidays
+                .AnyAsync(h =>
+                    h.Holiday_Date.Date == date.Date);
+
+            if (isHoliday)
+            {
+                continue;
+            }
+
+            lopDays++;
+        }
+
+        return lopDays;
+    }
+
+    private async Task UpdateProbationCrossingLeaveAttendance(
+    EmployeeLeave leave,
+    DateTime probationEndDate,
+    int paidLeaveDays,
+    int normalLopDays)
+    {
+        var currentDate = leave.FromDate.Date;
+
+        while (currentDate <= leave.ToDate.Date)
+        {
+            // Skip weekends
+            if (currentDate.DayOfWeek == DayOfWeek.Saturday ||
+                currentDate.DayOfWeek == DayOfWeek.Sunday)
+            {
+                currentDate = currentDate.AddDays(1);
+                continue;
+            }
+
+            // Skip holidays
+            bool isHoliday = await _context.Holidays
+                .AnyAsync(h =>
+                    h.Holiday_Date.Date == currentDate);
+
+            if (isHoliday)
+            {
+                currentDate = currentDate.AddDays(1);
+                continue;
+            }
+
+            var attendance = await _context.Attendance
+                .FirstOrDefaultAsync(a =>
+                    a.Employee_Id == leave.EmployeeId &&
+                    a.Attendance_Date.Date == currentDate);
+
+            if (attendance == null)
+            {
+                attendance = new Attendance
+                {
+                    Employee_Id = leave.EmployeeId,
+                    Attendance_Date = currentDate
+                };
+
+                _context.Attendance.Add(attendance);
+            }
+
+
+            // ==============================================
+            // BEFORE PROBATION COMPLETION
+            // ==============================================
+
+            if (currentDate < probationEndDate)
+            {
+                attendance.Status = "LOP";
+            }
+
+            // ==============================================
+            // AFTER PROBATION COMPLETION
+            // ==============================================
+
+            else
+            {
+                if (paidLeaveDays > 0)
+                {
+                    attendance.Status = "OL";
+                    paidLeaveDays--;
+                }
+                else if (normalLopDays > 0)
+                {
+                    attendance.Status = "LOP";
+                    normalLopDays--;
+                }
+            }
+
+            currentDate = currentDate.AddDays(1);
+        }
+
+        await _context.SaveChangesAsync();
     }
     public async Task<IActionResult> GetAllLeaves()
     {
@@ -1730,53 +1964,65 @@ Employee Management System
 
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
-        var loggedInUser = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-
-        if (loggedInUser == null)
-            return new UnauthorizedObjectResult("User not found");
-
-        var approver = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Employee_Id == loggedInUser.Employee_Id);
-
         string approverName = "";
 
-        if (!string.IsNullOrWhiteSpace(approver?.Name))
+        // Check Employees
+        var loggedInEmployee = await _context.Employees
+            .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
+        if (loggedInEmployee != null)
         {
-            approverName = approver.Name
+            approverName = loggedInEmployee.Name;
+        }
+        else
+        {
+            // Check Admins
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
+            if (admin == null)
+                return new UnauthorizedObjectResult("User not found");
+
+            // show only before @
+            approverName = admin.Email.Split('@')[0];
+        }
+
+        // Employee names -> first name only
+        if (!approverName.Contains("@"))
+        {
+            approverName = approverName
                 .Trim()
-                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                .FirstOrDefault() ?? "";
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault() ?? approverName;
         }
+        //var role = loggedInUser.RoleName?.Trim();
 
-        var role = loggedInUser.RoleName?.Trim();
+        ////if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
+        ////    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
+        ////    !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
 
-        if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
-            !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
+        ////{
+        ////    return new BadRequestObjectResult(
+        ////        "Only Manager or HR can approve WFH");
+        ////}
 
-        {
-            return new BadRequestObjectResult(
-                "Only Manager or HR can approve WFH");
-        }
+        //request.ApprovedBy = approverName;
+        //request.ApprovedOn = DateTime.UtcNow;
 
-        request.ApprovedBy = approverName;
-        request.ApprovedOn = DateTime.UtcNow;
+        //if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    request.ManagerStatus = status;
+        //}
 
-        if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
-        {
-            request.ManagerStatus = status;
-        }
+        //if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+        //{
+        //    request.HRStatus = status;
+        //}
+        //if (string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
 
-        if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        {
-            request.HRStatus = status;
-        }
-        if (string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
-
-        {
-            request.HRStatus = status;
-        }
+        //{
+        //    request.HRStatus = status;
+        //}
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
 
@@ -2359,8 +2605,11 @@ Employee Management System
             }
         }
 
-        return new OkObjectResult($"Work From Home {request.Status} Successfully");
+        return new OkObjectResult($"Work From Home {request.Status} Successfully"); 
     }
+
+
+
 
 }
 

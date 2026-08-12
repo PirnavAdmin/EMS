@@ -12,5 +12,7 @@
         public string? DeductionLabel { get; set; }
         public decimal OtherDeductions { get; set; }
 
+        public decimal TDSPercentage { get; set; } = 0;
+
     }
 }

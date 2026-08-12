@@ -1,20 +1,33 @@
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
+import { toBoolean } from "../utils/boolean";
 
 const firstDefined = (...values) =>
   values.find((value) => value !== undefined && value !== null && value !== "");
 
-const toBoolean = (value) => {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") return value === 1;
-
-  const normalized = String(value ?? "").trim().toLowerCase();
-
-  return normalized === "true" || normalized === "1" || normalized === "yes";
-};
-
 export const normalizePermissionRecord = (permission = {}) => {
+  const permissionId = firstDefined(
+    permission.permissionId,
+    permission.PermissionId,
+    permission.id,
+    permission.Id,
+    ""
+  );
+  const screenId = firstDefined(
+    permission.screenId,
+    permission.ScreenId,
+    permission.moduleId,
+    permission.ModuleId,
+    ""
+  );
+  const moduleId = firstDefined(
+    permission.moduleId,
+    permission.ModuleId,
+    permission.screenId,
+    permission.ScreenId,
+    ""
+  );
   const hasGranularPermissions = [
     permission.canView,
     permission.CanView,
@@ -24,6 +37,22 @@ export const normalizePermissionRecord = (permission = {}) => {
     permission.CanEdit,
     permission.canDelete,
     permission.CanDelete,
+    permission.canUpload,
+    permission.CanUpload,
+    permission.upload,
+    permission.Upload,
+    permission.canDownload,
+    permission.CanDownload,
+    permission.download,
+    permission.Download,
+    permission.canSubmit,
+    permission.CanSubmit,
+    permission.submit,
+    permission.Submit,
+    permission.canApprove,
+    permission.CanApprove,
+    permission.approve,
+    permission.Approve,
   ].some((value) => value !== undefined && value !== null);
   const legacyAccess = toBoolean(
     firstDefined(permission.canAccess, permission.CanAccess, false)
@@ -32,15 +61,30 @@ export const normalizePermissionRecord = (permission = {}) => {
   const canAdd = toBoolean(firstDefined(permission.canAdd, permission.CanAdd, hasGranularPermissions ? false : legacyAccess));
   const canEdit = toBoolean(firstDefined(permission.canEdit, permission.CanEdit, hasGranularPermissions ? false : legacyAccess));
   const canDelete = toBoolean(firstDefined(permission.canDelete, permission.CanDelete, hasGranularPermissions ? false : legacyAccess));
+  const canUpload = toBoolean(firstDefined(permission.canUpload, permission.CanUpload, permission.upload, permission.Upload, hasGranularPermissions ? false : legacyAccess));
+  const canDownload = toBoolean(firstDefined(permission.canDownload, permission.CanDownload, permission.download, permission.Download, hasGranularPermissions ? false : legacyAccess));
+  const canSubmit = toBoolean(firstDefined(permission.canSubmit, permission.CanSubmit, permission.submit, permission.Submit, hasGranularPermissions ? false : legacyAccess));
+  const canApprove = toBoolean(firstDefined(permission.canApprove, permission.CanApprove, permission.approve, permission.Approve, hasGranularPermissions ? false : legacyAccess));
+  const derivedAccess =
+    canView || canAdd || canEdit || canDelete || canUpload || canDownload || canSubmit || canApprove;
 
   return {
-    moduleId: firstDefined(permission.moduleId, permission.ModuleId),
+    permissionId,
+    screenId,
+    moduleId,
     moduleName: String(firstDefined(permission.moduleName, permission.ModuleName, "")).trim(),
+    type: String(firstDefined(permission.type, permission.Type, permission.moduleType, permission.ModuleType, "")).trim(),
     canView,
     canAdd,
     canEdit,
     canDelete,
-    canAccess: toBoolean(firstDefined(permission.canAccess, permission.CanAccess, canView || canAdd || canEdit || canDelete)),
+    canUpload,
+    canDownload,
+    canSubmit,
+    canApprove,
+    canAccess:
+      derivedAccess ||
+      toBoolean(firstDefined(permission.canAccess, permission.CanAccess, false)),
   };
 };
 
@@ -100,25 +144,41 @@ export const normalizeEmployeeRecord = (employee = {}) => ({
   status: String(firstDefined(employee.status, employee.Status, employee.isActive === false ? "Inactive" : "", employee.IsActive === false ? "Inactive" : "", "Active")).trim(),
 });
 
-export const saveUserPermission = (payload) =>
-  api.post(API_ENDPOINTS.userPermission.save, payload, {
-    headers: { "Content-Type": "application/json" },
-  });
+export const getUserPermission = async (roleName) => {
+  const response = await api.get(
+    API_ENDPOINTS.rolePermission.get(roleName)
+  );
 
-export const getUserPermission = async (employeeId) => {
-  const response = await api.get(API_ENDPOINTS.userPermission.get(employeeId));
-  return {
-    raw: response.data,
-    modules: normalizePermissionList(response.data),
-  };
-};
-
-export const getAllowedModules = async (employeeId) => {
-  const response = await api.get(API_ENDPOINTS.userPermission.allowed(employeeId));
   return normalizePermissionList(response.data);
 };
 
 export const getEmployeesByRole = async (roleName) => {
-  const response = await api.get(API_ENDPOINTS.rolePermission.employees(roleName));
-  return extractCollection(response.data).map(normalizeEmployeeRecord);
+  const employeesListEndpoint = API_ENDPOINTS?.employees?.list;
+
+  console.log("Selected Role:", roleName);
+  console.log("Endpoint:", employeesListEndpoint);
+
+  if (!employeesListEndpoint) {
+    throw new Error("Employee LIST endpoint is not configured.");
+  }
+
+  try {
+    const response = await api.get(employeesListEndpoint);
+    const normalizedRole = String(roleName ?? "").trim().toLowerCase();
+
+    console.log("Employee Response:", response.data);
+
+    return extractCollection(response?.data ?? [])
+      .map(normalizeEmployeeRecord)
+      .filter((employee) => {
+        if (!normalizedRole) {
+          return true;
+        }
+
+        return String(employee.role ?? "").trim().toLowerCase() === normalizedRole;
+      });
+  } catch (error) {
+    console.error("Employee API Error:", error?.response?.data || error);
+    throw error;
+  }
 };

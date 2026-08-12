@@ -400,54 +400,45 @@
 }
 
 .ticket-table-actions-cell {
-  position: sticky;
-  right: 0;
-  inset-inline-end: 0;
+  position: relative;
+  right: auto;
   left: auto;
+  inset-inline-end: auto;
   background: inherit;
-  background-clip: padding-box;
-  box-shadow:
-    inset 1px 0 0 var(--border-soft),
-    -12px 0 18px -20px var(--shadow-color);
+  box-shadow: none;
+  border-left: none;
 }
 
-.ticket-table th.ticket-table-actions-cell {
-  top: 0;
-  z-index: 8;
-}
-
+.ticket-table th.ticket-table-actions-cell,
 .ticket-table td.ticket-table-actions-cell {
-  z-index: 4;
+  position: relative;
+  z-index: 1;
   overflow: visible;
 }
 
 /* My Tickets sticky Actions column */
 .ticket-user-table-card .ticket-table-actions-cell {
-  position: sticky;
-  right: 0;
-  inset-inline-end: 0;
-  left: auto;
-  width: 380px;
-  min-width: 380px;
-  max-width: 380px;
-  z-index: 20;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  position: relative;
+  z-index: 1;
   background: inherit;
-  background-clip: padding-box;
-  border-left: 1px solid var(--border-soft);
-  box-shadow:
-    inset 1px 0 0 var(--border-soft),
-    -8px 0 12px -12px var(--shadow-color);
+  border-left: none;
+  box-shadow: none;
 }
 
-.ticket-user-table-card .ticket-table th.ticket-table-actions-cell {
-  top: 0;
-  z-index: 30;
-  background: inherit;
+.ticket-table th:last-child,
+.ticket-table td:last-child {
+    width: 300px;
+    min-width: 300px;
+    text-align: center;
 }
 
+.ticket-user-table-card .ticket-table th.ticket-table-actions-cell,
 .ticket-user-table-card .ticket-table td.ticket-table-actions-cell {
+  position: relative;
   overflow: visible;
-  z-index: 20;
 }
 
 .ticket-table tbody tr:last-child td {
@@ -1770,4 +1761,3 @@
     grid-template-columns: 1fr;
   }
 }
-

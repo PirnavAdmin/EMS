@@ -81,7 +81,7 @@ body,
 }
 
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -96,7 +96,7 @@ body {
   font-family: var(--font-sans);
   font-size: 1rem;
   line-height: var(--line-height-normal);
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 #root {
@@ -1742,6 +1742,32 @@ button:disabled {
   width: 100%;
 }
 
+.app-date-input-control {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.app-date-input-control .app-date-input {
+  padding-right: 2.75rem;
+  cursor: pointer;
+}
+
+.app-date-input-control.is-disabled .app-date-input {
+  cursor: not-allowed;
+}
+
+.app-date-input-icon {
+  position: absolute;
+  top: 50%;
+  right: 0.875rem;
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
 #app-datepicker-portal {
   position: relative;
   z-index: calc(var(--app-modal-surface-z) + 80);
@@ -2331,6 +2357,78 @@ body.app-modal-open .sidebar-backdrop {
   min-width: 150px;
 }
 
+/* Global enterprise control polish */
+:where(
+  .btn,
+  .emp-add-btn,
+  .emp-download-btn,
+  .emp-save-btn,
+  .emp-close-btn,
+  .select-all-btn,
+  .permission-actions button,
+  .step-actions button,
+  .super-admin-sort-btn,
+  .app-button-primary,
+  .app-button-secondary,
+  .app-button-danger,
+  .app-button-success,
+  .app-button-ghost
+) {
+  width: auto;
+  min-width: max-content;
+  min-height: 42px;
+  padding: 0.625rem 1rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+:where(.super-admin-sort-btn) {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.page-shell :is(
+  .emp-table,
+  .permission-matrix,
+  .hrms-settings-table,
+  .agreement-settings-table
+) th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--section-bg) !important;
+  color: var(--text-secondary) !important;
+  padding: var(--table-cell-py) var(--table-cell-px) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.page-shell :is(
+  .emp-table,
+  .permission-matrix,
+  .hrms-settings-table,
+  .agreement-settings-table
+) td {
+  padding: var(--table-cell-py) var(--table-cell-px) !important;
+  vertical-align: middle;
+}
+
+.page-shell :is(.emp-action-col, .hrms-row-actions, .permission-actions) {
+  white-space: nowrap;
+}
+
 @supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
   .app-header,
   .header-icon-button,
@@ -2675,3 +2773,4 @@ body.app-modal-open .sidebar-backdrop {
     -webkit-overflow-scrolling: touch;
   }
 }
+

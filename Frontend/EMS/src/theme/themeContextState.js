@@ -1,3 +1,4 @@
-import { ThemeContext } from "./ThemeContext";
+import { createContext } from "react";
 
+export const ThemeContext = createContext(null);
 export default ThemeContext;

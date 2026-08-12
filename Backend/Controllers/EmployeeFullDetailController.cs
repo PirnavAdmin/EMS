@@ -35,54 +35,46 @@ namespace EmployeeManagementSystem.Controllers
             _context = context;
 
         }
+        private async Task<bool> IsAdminUser()
+        {
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            return await _context.Admins
+                .AnyAsync(a => a.Email == email);
+        }
 
         // 🔹 Helper Method to Extract EmployeeId from JWT Token
         private async Task<bool> CanEditProfile(string employeeId)
         {
             var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
-            if (string.IsNullOrEmpty(email))
-                return false;
+            bool isAdmin = false;
 
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Email == email);
-
-            if (user == null)
-                return false;
-
-            // Admin can edit
-            if (user.Role != null &&
-                user.Role.Name.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(email))
             {
+                isAdmin = await _context.Admins
+                    .AnyAsync(a => a.Email == email);
+            }
+
+            if (isAdmin)
                 return true;
-            }
 
-            // Employee can edit only own profile
-            if (user.Role != null &&
-                user.Role.Name.Equals("Employee", StringComparison.OrdinalIgnoreCase))
-            {
-                var employee = await _context.Employees
-                    .FirstOrDefaultAsync(e => e.Email == user.Email);
+            var currentId = User.FindFirst("EmployeeId")?.Value
+                         ?? User.FindFirst("OnboardingId")?.Value;
 
-                if (employee == null)
-                    return false;
+            if (string.IsNullOrWhiteSpace(currentId))
+                return false;
 
-                return employee.Employee_Id == employeeId;
-            }
-
-            return false;
+            return string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase);
         }
-        private string GetEmployeeId()
-
+        private string? GetEmployeeId()
         {
-
             return User.FindFirst("EmployeeId")?.Value
-
-                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
+                ?? User.FindFirst("OnboardingId")?.Value;
         }
-
         // 🔹 GET: api/EmployeeFullDetail/my-details
 
         [HttpGet("my-details")]
@@ -93,17 +85,22 @@ namespace EmployeeManagementSystem.Controllers
 
             var employeeId = GetEmployeeId();
 
-            if (string.IsNullOrEmpty(employeeId))
-
+            if (string.IsNullOrWhiteSpace(employeeId))
                 return Unauthorized(new { message = "Invalid or missing token." });
 
             var employee = await _context.Employees
-
                 .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 
-            if (employee == null)
+            OnboardingCandidate? onboarding = null;
 
-                return NotFound(new { message = "Employee does not exist." });
+            if (employee == null)
+            {
+                onboarding = await _context.OnboardingCandidates
+                    .FirstOrDefaultAsync(o => o.OnboardingId == employeeId);
+
+                if (onboarding == null)
+                    return NotFound(new { message = "User not found." });
+            }
 
             var personalInfo = await _context.EmployeePersonalInfos
 
@@ -174,21 +171,12 @@ namespace EmployeeManagementSystem.Controllers
                 // 🔹 Employee
 
                 var employee = await _context.Employees
+     .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 
-                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
-
-                if (employee == null)
-
-                    return NotFound(new { message = "Employee does not exist." });
-
-                if (dto.Employee != null)
-
+                if (employee != null && dto.Employee != null)
                 {
-
                     employee.Name = dto.Employee.Name;
-
                     employee.Email = dto.Employee.Email;
-
                 }
 
                 // 🔹 Personal Info (SAFE UPSERT)
@@ -347,10 +335,20 @@ namespace EmployeeManagementSystem.Controllers
 
 
         [HttpGet("{employeeId}")]
-
         public async Task<IActionResult> GetEmployeeFullDetails(string employeeId)
-
         {
+            if (!await IsAdminUser())
+            {
+                var currentId = GetEmployeeId();
+
+                if (string.IsNullOrWhiteSpace(currentId))
+                    return Unauthorized(new { message = "Invalid token." });
+
+                if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid("You can view only your own details.");
+                }
+            }
 
             var employee = await _context.Employees
 

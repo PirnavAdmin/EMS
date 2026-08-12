@@ -33,5 +33,11 @@ namespace EmployeeManagementSystem.Services
         Task<byte[]> ExportEmployeeProfilePdf(string employeeId);
       
         Task<List<UpcomingBirthdayDto>> GetUpcomingBirthdays();
+
+        Task<List<OnboardingCandidateDropdownDto>> GetOnboardingCandidatesAsync();
+
+        Task<OnboardingDetailsDto?> GetOnboardingDetailsAsync(string onboardingId);
+
+
     }
 }

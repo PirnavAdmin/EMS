@@ -2,9 +2,11 @@
 
 public interface IRolePermissionService
 {
-    Task SavePermissions(SaveRolePermissionDto dto);
+    Task SavePermissions(int adminId, SaveRolePermissionDto dto);
 
-    Task<List<RolePermissionResponseDto>> GetPermissions(string roleName); // ✅ changed
+    Task<List<RolePermissionResponseDto>> GetPermissions(int adminId, string roleName); // ✅ changed
     Task<List<object>> GetEmployeesByRole(string roleName);
-    Task<List<object>> GetAllowedModules(int roleId);
+    Task<List<object>> GetAllowedModules(
+     int adminId,
+     int roleId);
 }

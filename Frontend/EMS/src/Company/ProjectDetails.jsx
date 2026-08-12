@@ -688,12 +688,6 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
 
     const formData = new FormData();
     formData.append("file", selectedFile);
-    formData.append("uploadFile", selectedFile);
-
-    if (projectId) {
-      formData.append("projectId", projectId);
-      formData.append("ProjectId", projectId);
-    }
 
     try {
       setUploading(true);
@@ -1370,7 +1364,7 @@ function ProjectDetails() {
   if (isLoading) {
     return (
       <div className="projects-page project-details-page">
-<div className="project-details-hero">
+        <div className="project-details-hero">
           <div className="project-details-hero-copy">
             <div className="project-details-skeleton-back" />
             <div className="project-details-skeleton-title" />
@@ -1404,7 +1398,7 @@ function ProjectDetails() {
   if (!projectData) {
     return (
       <div className="projects-page project-details-page">
-<button type="button" className="project-details-back-btn" onClick={handleBack}>
+        <button type="button" className="project-details-back-btn" onClick={handleBack}>
           <FaArrowLeft aria-hidden="true" />
           Back to Projects
         </button>
@@ -1419,7 +1413,7 @@ function ProjectDetails() {
 
   return (
     <div className="projects-page project-details-page">
-<div className="project-details-hero">
+      <div className="project-details-hero">
         <div className="project-details-hero-copy">
           <button type="button" className="project-details-back-btn" onClick={handleBack}>
             <FaArrowLeft aria-hidden="true" />

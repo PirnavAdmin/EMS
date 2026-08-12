@@ -1,12 +1,15 @@
 ﻿using EmployeeManagementSystem.Authorization;
 using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
+using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using Hangfire;
 
 namespace EmployeeManagementSystem.Controllers
 
@@ -25,15 +28,17 @@ namespace EmployeeManagementSystem.Controllers
         private readonly IPaySlipService _service;
 
         private readonly AppDbContext _context;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public PaySlipController(IPaySlipService service, AppDbContext context)
 
+        public PaySlipController(
+     IPaySlipService service,
+     AppDbContext context,
+     IServiceScopeFactory scopeFactory)
         {
-
             _service = service;
-
             _context = context;
-
+            _scopeFactory = scopeFactory;
         }
 
         //--------------------------------
@@ -45,18 +50,20 @@ namespace EmployeeManagementSystem.Controllers
         //[Permission(ModuleIds.Payroll, PermissionAction.Add)]
         [HttpPost("generate")]
         public async Task<IActionResult> GeneratePaySlip(
-    string employeeId,
-    int year,
-    string month,
-    decimal? OtherDeductions,
-    string? DeductionLabel)
+      string employeeId,
+      int year,
+      string month,
+      decimal? OtherDeductions,
+      string? DeductionLabel,
+      decimal? TDSPercentage)
         {
             var result = await _service.GeneratePaySlip(
                 employeeId,
                 year,
                 month,
                 OtherDeductions ?? 0,
-                DeductionLabel);
+                DeductionLabel,
+                TDSPercentage ?? 0);
 
             return Ok(result);
         }
@@ -69,17 +76,109 @@ namespace EmployeeManagementSystem.Controllers
         //[Authorize]
         //[Permission(ModuleIds.Payroll, PermissionAction.Add)]
         [HttpPost("generate-all")]
-
-        public async Task<IActionResult> GenerateAll(int year, string month)
-
+        public IActionResult GenerateAllPaySlips(
+      [FromBody] GenerateAllPayslipDto dto)
         {
+            if (dto == null)
+            {
+                return BadRequest("Request is required.");
+            }
 
-            var result = await _service.GenerateAllPaySlips(year, month);
+            if (dto.Year <= 0)
+            {
+                return BadRequest("Valid year is required.");
+            }
 
-            return Ok(result);
+            if (dto.Months == null || dto.Months.Count == 0)
+            {
+                return BadRequest("At least one month is required.");
+            }
 
+            if (dto.EmployeeIds == null || dto.EmployeeIds.Count == 0)
+            {
+                return BadRequest("At least one employee is required.");
+            }
+
+            var jobId = BackgroundJob.Enqueue<IPaySlipService>(
+                service => service.GenerateAllPaySlips(
+                    dto.Year,
+                    dto.Months,
+                    dto.EmployeeIds));
+
+            return Ok(new
+            {
+                success = true,
+                message = "Payslip generation started.",
+                jobId = jobId,
+                year = dto.Year,
+                months = dto.Months,
+                employeeCount = dto.EmployeeIds.Count
+            });
         }
+        [HttpPost("send-all-emails")]
+        public async Task<IActionResult> SendAllPayslipEmails(
+    [FromQuery] int year,
+    [FromQuery] string month)
+        {
+            try
+            {
+                var result =
+                    await _service
+                        .SendBulkPayslipEmails(
+                            year,
+                            month);
 
+                if (result.TotalPayslips == 0)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+
+                        message =
+                            $"No generated payslips found for " +
+                            $"{month} {year}."
+                    });
+                }
+
+
+                return Ok(new
+                {
+                    success =
+                        result.FailedCount == 0,
+
+                    message =
+                        $"Payslip email process completed " +
+                        $"for {month} {year}.",
+
+                    totalPayslips =
+                        result.TotalPayslips,
+
+                    sentCount =
+                        result.SentCount,
+
+                    failedCount =
+                        result.FailedCount,
+
+                    failedEmployees =
+                        result.FailedEmployees
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    new
+                    {
+                        success = false,
+
+                        message =
+                            "Failed to send payslip emails.",
+
+                        error =
+                            ex.Message
+                    });
+            }
+        }
         //--------------------------------
 
         // GET RECENT PAYSLIPS

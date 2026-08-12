@@ -47,6 +47,20 @@ const POLICY_HINTS = [
   "type",
   "policyType",
   "PolicyType",
+  "id",
+  "Id",
+  "policyTitle",
+  "PolicyTitle",
+  "policyContent",
+  "PolicyContent",
+  "version",
+  "Version",
+  "effectiveFrom",
+  "EffectiveFrom",
+  "isActive",
+  "IsActive",
+  "createdBy",
+  "CreatedBy",
 ];
 
 const TIMESTAMP_KEYS = [
@@ -305,6 +319,47 @@ const maybeParseJsonValue = (value) => {
   return value;
 };
 
+const normalizeDateTimeLocalValue = (value) => {
+  const rawValue = String(firstDefined(value, "")).trim();
+
+  if (!rawValue) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+    return `${rawValue}T00:00:00`;
+  }
+
+  const parsedDate = new Date(rawValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return rawValue;
+  }
+
+  const pad = (number) => String(number).padStart(2, "0");
+
+  return `${parsedDate.getFullYear()}-${pad(parsedDate.getMonth() + 1)}-${pad(
+    parsedDate.getDate()
+  )}T${pad(parsedDate.getHours())}:${pad(parsedDate.getMinutes())}:${pad(
+    parsedDate.getSeconds()
+  )}`;
+};
+
+const normalizePolicyTextValue = (value) => {
+  if (Array.isArray(value) || isObjectLike(value)) {
+    return JSON.stringify(value, null, 2);
+  }
+
+  return normalizeTextValue(value);
+};
+
+const pickRecordValue = (record, keys = [], fallback = "") =>
+  firstDefined(...keys.map((key) => record?.[key]), fallback);
+
 const normalizeDynamicSettings = (payload = {}) => {
   const record = extractSettingsRecord(payload, []);
   const values = {};
@@ -487,6 +542,14 @@ export const GENERAL_SETTINGS_DEFAULTS = {};
 
 export const POLICY_SETTINGS_DEFAULTS = {
   type: "",
+  policyType: "",
+  policyTitle: "",
+  policyContent: "",
+  version: "",
+  effectiveFrom: "",
+  isActive: false,
+  createdBy: "",
+  id: "",
 };
 
 export const normalizeEmailSettings = (payload = {}) => {
@@ -556,19 +619,69 @@ export const normalizeGeneralSettings = (payload = {}) =>
 export const normalizePolicySettings = (payload = {}, fallbackType = "") => {
   const record = extractSettingsRecord(payload, POLICY_HINTS);
   const dynamicValues = normalizeDynamicSettings(record);
-  const policyType = normalizeTextValue(
-    firstDefined(
-      record.type,
-      record.policyType,
-      record.PolicyType,
-      fallbackType
+  const type = normalizeTextValue(
+    pickRecordValue(record, ["type", "Type", "policyType", "PolicyType"], fallbackType)
+  );
+  const policyType = normalizePolicyTextValue(
+    pickRecordValue(
+      record,
+      ["policyType", "PolicyType", "policyName", "PolicyName", "type", "Type"],
+      type
     )
   );
+  const policyTitle = normalizePolicyTextValue(
+    pickRecordValue(
+      record,
+      ["policyTitle", "PolicyTitle", "policyName", "PolicyName", "title", "Title"],
+      policyType || type
+    )
+  );
+  const policyContent = normalizePolicyTextValue(
+    pickRecordValue(
+      record,
+      ["policyContent", "PolicyContent", "content", "Content", "body", "Body", "description", "Description"],
+      dynamicValues.policyContent
+    )
+  );
+  const version = normalizePolicyTextValue(
+    pickRecordValue(record, ["version", "Version"], dynamicValues.version)
+  );
+  const effectiveFrom = normalizeDateTimeLocalValue(
+    pickRecordValue(
+      record,
+      ["effectiveFrom", "EffectiveFrom", "effectiveDate", "EffectiveDate", "effectiveOn", "EffectiveOn"],
+      dynamicValues.effectiveFrom
+    )
+  );
+  const isActive = normalizeBooleanValue(
+    pickRecordValue(record, ["isActive", "IsActive", "active", "Active", "enabled", "Enabled"], dynamicValues.isActive)
+  );
+  const createdBy = normalizePolicyTextValue(
+    pickRecordValue(
+      record,
+      ["createdBy", "CreatedBy", "createdByName", "CreatedByName", "author", "Author"],
+      dynamicValues.createdBy
+    )
+  );
+  const id = pickRecordValue(record, ["id", "Id", "policyId", "PolicyId"], dynamicValues.id ?? "");
 
   return {
-    id: record.id ?? record.Id ?? 0,
+    ...POLICY_SETTINGS_DEFAULTS,
     ...dynamicValues,
-    type: policyType,
+    id,
+    type,
+    policyType,
+    policyTitle,
+    policyContent,
+    version,
+    effectiveFrom,
+    isActive,
+    createdBy,
+    __fieldTypes: {
+      ...dynamicValues.__fieldTypes,
+      isActive: "boolean",
+      effectiveFrom: "datetime-local",
+    },
   };
 };
 
@@ -576,17 +689,25 @@ export const normalizePoliciesList = (payload = {}) =>
   extractSettingsCollection(payload).map((item) => {
     const record = isObjectLike(item) ? item : { type: item };
 
-    const policyType = normalizeTextValue(
-      firstDefined(
-        record.type,
-        record.policyType,
-        record.PolicyType
+    const type = normalizeTextValue(
+      pickRecordValue(record, ["type", "Type", "policyType", "PolicyType"])
+    );
+    const policyType = normalizePolicyTextValue(
+      pickRecordValue(record, ["policyType", "PolicyType"], type)
+    );
+    const policyTitle = normalizePolicyTextValue(
+      pickRecordValue(
+        record,
+        ["policyTitle", "PolicyTitle", "policyName", "PolicyName", "title", "Title"],
+        policyType || type
       )
     );
 
     return {
       ...normalizeDynamicSettings(record),
-      type: policyType,
+      type,
+      policyType,
+      policyTitle,
     };
   });
 
@@ -823,11 +944,17 @@ export const savePolicySettings = (values) =>
   requestSettings({
     endpoint: API_ENDPOINTS.settings.updatePolicy,
     method: "put",
-    payload: {
-      id: values?.id,
-      ...prepareDynamicPayload(values),
-      type: normalizeTextValue(values?.type),
-    },
+    payload: (() => {
+      const payload = {
+        id: values?.id,
+        ...prepareDynamicPayload(values),
+        type: normalizeTextValue(values?.type),
+      };
+
+      delete payload.createdBy;
+
+      return payload;
+    })(),
     normalize: normalizePolicySettings,
     hintKeys: POLICY_HINTS,
   });

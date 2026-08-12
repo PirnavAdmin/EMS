@@ -7,8 +7,11 @@ using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -39,110 +42,379 @@ namespace EmployeeManagementSystem.Services
             ClaimsPrincipal user,
             EmployeeDto dto)
         {
-            if (!await _adminAuthorization.IsAdminAsync(user))
-            {
-                throw new UnauthorizedAccessException(
-                    "Only admins can add employees.");
-            }
-            // 1. Check duplicate
-            var exists = await _context.Employees
-                .AnyAsync(e => e.Employee_Id == dto.Employee_Id);
+            //if (!await _adminAuthorization.IsAdminAsync(user))
+            //{
+            //    throw new UnauthorizedAccessException(
+            //        "Only admins can add employees.");
+            //}
+            //using var transaction = await _context.Database.BeginTransactionAsync();
 
-            if (exists)
-                throw new Exception("Employee ID already exists");
-
-            // 2. Convert RoleName → RoleId
-            var role = await _context.Roles
-                .FirstOrDefaultAsync(r => r.Name == dto.RoleName);
-
-            if (role == null)
-                throw new Exception("Invalid Role Name");
-
-            // 3. Create Employee
-            var password = Guid.NewGuid().ToString().Substring(0, 8);
-            var employee = new Employee
-            {
-                Employee_Id = dto.Employee_Id,
-                Name = dto.Name,
-                Department = dto.Department,
-                RoleId = role.RoleId,
-                RoleName = role.Name,
-                CTC = dto.CTC,
-                Status = dto.Status,
-                Email = dto.Email,
-                JoiningDate = dto.JoiningDate,
-                Password = password
-            };
-
-            // ✅ STEP 1: SAVE EMPLOYEE FIRST
-            // Save employee first
-            _context.Employees.Add(employee);
-            await _context.SaveChangesAsync();
-
-            // Send email (don't stop employee creation if email fails)
             try
             {
-                await _emailService.SendEmployeeCredentials(employee.Email, employee.Name);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Email sending failed: {ex.Message}");
-            }
-            // ✅ STEP 2: NOW ADD LEAVE BALANCE (AFTER EMPLOYEE EXISTS)
-            //_context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
-            //{
-            //    Employee_Id = employee.Employee_Id,
-            //    Earned_Total = 4,
-            //    Earned_Used = 0,
-            //    Casual_Total = 4,
-            //    Casual_Used = 0,
-            //    Sick_Total = 4,
-            //    Sick_Used = 0
-            //});
+                // =====================================================
+                // SUBSCRIPTION CHECK
+                // =====================================================
 
-            // 5. Department count
-            var dept = await _context.Departments
-                .FirstOrDefaultAsync(d => d.DepartmentName == dto.Department);
+                // Get AdminId from JWT
+                // =====================================================
+                // RESOLVE COMPANY ADMIN ID
+                // Works for both Admin login and HR/Employee login
+                // =====================================================
 
-            if (dept != null)
-                dept.MembersCount += 1;
+                int adminId;
 
-            // 6. Activity log
-            _context.ActivityLogs.Add(new ActivityLog
-            {
-                Activity = $"Employee {dto.Name} added",
-                CreatedAt = DateTime.UtcNow
-            });
+                // First try AdminId directly from JWT
+                var adminIdClaim = user.FindFirst("AdminId")?.Value;
 
-            // ✅ SAVE AGAIN (for leave + dept + logs)
-            await _context.SaveChangesAsync();
-
-            // 7. Sync Role → User table
-            if (!string.IsNullOrEmpty(employee.Email))
-            {
-                var existingUser = await _context.Users
-    .FirstOrDefaultAsync(u => u.Email == employee.Email);
-
-                if (existingUser != null)
+                if (!string.IsNullOrWhiteSpace(adminIdClaim) &&
+                    int.TryParse(adminIdClaim, out int tokenAdminId))
                 {
-                    existingUser.RoleId = role.RoleId;
+                    // Logged-in user is Admin
+                    adminId = tokenAdminId;
                 }
+                else
+                {
+                    // Logged-in user is Employee / HR
+                    var loggedInEmployeeId =
+                        user.FindFirst("EmployeeId")?.Value;
+
+                    if (string.IsNullOrWhiteSpace(loggedInEmployeeId))
+                    {
+                        throw new UnauthorizedAccessException(
+                            "Unable to identify logged-in user.");
+                    }
+
+                    var loggedInEmployee = await _context.Employees
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x =>
+                            x.Employee_Id == loggedInEmployeeId);
+
+                    if (loggedInEmployee == null)
+                    {
+                        throw new UnauthorizedAccessException(
+                            "Logged-in employee not found.");
+                    }
+
+                    if (!loggedInEmployee.AdminId.HasValue)
+                    {
+                        throw new UnauthorizedAccessException(
+                            $"Employee {loggedInEmployeeId} is not assigned to any Admin/company.");
+                    }
+
+                    adminId = loggedInEmployee.AdminId.Value;
+                }
+
+                // Get active subscription for this admin
+                var today = DateTime.UtcNow;
+
+                var subscription = await _context.AdminSubscriptions
+                    .Where(x =>
+                        x.AdminId == adminId &&
+                        x.IsActive &&
+                        x.StartDate <= today &&
+                        x.EndDate >= today)
+                    .OrderByDescending(x => x.SubscriptionId)
+                    .FirstOrDefaultAsync();
+
+                if (subscription == null)
+                {
+                    throw new Exception(
+                        "No active subscription found for this admin.");
+                }
+
+                var currentUserCount = await _context.Employees
+                    .CountAsync(x => x.AdminId == adminId);
+
+                if (currentUserCount >= subscription.MaxUsers)
+                {
+                    throw new Exception(
+                        $"Subscription limit reached. " +
+                        $"Your plan allows only {subscription.MaxUsers} users.");
+                }
+                // 1. Check duplicate
+                // 1. Check duplicate
+                var exists = await _context.Employees
+                    .AnyAsync(e => e.Employee_Id == dto.Employee_Id);
+
+                if (exists)
+                    throw new Exception("Employee ID already exists");
+
+                OnboardingCandidate? candidate = null;
+                string? onboardingId = null;
+
+                
+                
+
+                if (!string.IsNullOrWhiteSpace(dto.OnboardingId))
+                {
+                    candidate = await _context.OnboardingCandidates
+                        .FirstOrDefaultAsync(x => x.OnboardingId == dto.OnboardingId.Trim());
+
+                    if (candidate == null)
+                        throw new Exception($"Onboarding candidate '{dto.OnboardingId}' not found.");
+
+                    onboardingId = candidate.OnboardingId;
+                }
+
+                // 3. Convert RoleName → RoleId
+                var role = await _context.Roles
+                    .FirstOrDefaultAsync(r => r.Name == dto.RoleName);
+
+                if (role == null)
+                    throw new Exception("Invalid Role Name");
+
+
+
+
+                // 3. Create Employee
+                var password = Guid.NewGuid().ToString().Substring(0, 8);
+                var employee = new Employee
+                {
+                    Employee_Id = dto.Employee_Id,
+                    Name = dto.Name,
+                    Department = dto.Department,
+                    RoleId = role.RoleId,
+                    RoleName = role.Name,
+                    CTC = dto.CTC,
+                    Status = dto.Status,
+                    Email = dto.Email,
+                    JoiningDate = dto.JoiningDate,
+                    Password = password,
+
+                    // Subscription owner
+                    AdminId = adminId
+                };
+
+                // ✅ STEP 1: SAVE EMPLOYEE FIRST
+                // Save employee first
+                _context.Employees.Add(employee);
+                await _context.SaveChangesAsync();
+
+                // Move onboarding data from OBxxx to EMPxxx
+                // Read onboarding data
+
+                var personal = await _context.OnboardingPersonalInfos
+                    .FirstOrDefaultAsync(x => x.OnboardingId == onboardingId);
+
+                var educations = await _context.OnboardingEducations
+                    .Where(x => x.OnboardingId == onboardingId)
+                    .ToListAsync();
+
+                var experiences = await _context.OnboardingExperiences
+                    .Where(x => x.OnboardingId == onboardingId)
+                    .ToListAsync();
+
+                var documents = await _context.OnboardingDocuments
+                    .Where(x => x.OnboardingId == onboardingId)
+                    .ToListAsync();
+
+
+                //================ PERSONAL INFO ================
+
+                if (personal != null)
+                {
+                    _context.EmployeePersonalInfos.Add(new EmployeePersonalInfo
+                    {
+                        Employee_Id = employee.Employee_Id,
+
+                        FirstName = personal.FirstName ?? "",
+                        MiddleName = personal.MiddleName,
+                        LastName = personal.LastName ?? "",
+
+                        DateOfBirth = personal.DateOfBirth ?? DateTime.MinValue,
+
+                        PhoneNumber = personal.PhoneNumber ?? "",
+                        Email = personal.Email ?? "",
+
+                        AadhaarNumber = personal.AadhaarNumber ?? "",
+                        PanNumber = personal.PanNumber ?? "",
+
+                        BloodGroup = personal.BloodGroup ?? "",
+                        Marital_Status = personal.Marital_Status,
+                        Gender = personal.Gender,
+
+                        Department = personal.Department,
+                        Designation = personal.Designation,
+
+                        JoiningDate = personal.JoiningDate,
+                        WorkExperience = personal.WorkExperience,
+                        Location = personal.Location,
+
+                        HouseNo = personal.HouseNo,
+                        Street = personal.Street,
+                        City = personal.City,
+                        District = personal.District,
+                        State = personal.State,
+                        Country = personal.Country,
+                        Pincode = personal.Pincode,
+
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
+
+                //================ EDUCATION ================
+
+                foreach (var edu in educations)
+                {
+                    _context.EmployeeEducations.Add(new EmployeeEducation
+                    {
+                        Employee_Id = employee.Employee_Id,
+
+                        Degree = edu.Qualification ?? "",
+
+                        UniversityBoard = edu.University ?? "",
+
+                        YearOfPassing = edu.YearOfPassing,
+
+                        PercentageCGPA = edu.Percentage?.ToString() ?? "",
+
+                        Specialization = edu.Institution ?? ""
+                    });
+                }
+
+
+                //================ EXPERIENCE ================
+
+                foreach (var exp in experiences)
+                {
+                    _context.EmployeeExperiences.Add(new EmployeeExperience
+                    {
+                        Employee_Id = employee.Employee_Id,
+
+                        CompanyName = exp.CompanyName ?? "",
+
+                        Designation = exp.Designation ?? "",
+
+                        FromDate = exp.FromDate,
+
+                        ToDate = exp.ToDate,
+
+                        ReasonForLeaving = "",
+
+                        Description = ""
+                    });
+                }
+
+
+                //================ DOCUMENTS ================
+
+                foreach (var doc in documents)
+                {
+                    _context.EmployeeDocuments.Add(new EmployeeDocument
+                    {
+                        Employee_Id = employee.Employee_Id,
+
+                        Document_Type = doc.DocumentType ?? "",
+
+                        File_Name = doc.FileName ?? "",
+
+                        File_Path = doc.FilePath ?? "",
+
+                        Uploaded_Date = doc.UploadedOn,
+
+                        Verification_Status = "Pending",
+
+                        File_Size_MB = 0,
+
+                        Remarks = "",
+
+                        Verified_By = null,
+
+                        Verified_Date = null
+                    });
+                }
+
+
+                //================ STATUS =================
+
+                //================ STATUS =================
+
+                if (candidate != null)
+                {
+                    candidate.Status = "Approved";
+                }
+
+                await _context.SaveChangesAsync();
+
+              
+
+                // Send email (don't stop employee creation if email fails)
+                try
+                {
+                    await _emailService.SendEmployeeCredentials(employee.Email, employee.Name);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Email sending failed: {ex.Message}");
+                }
+                // ✅ STEP 2: NOW ADD LEAVE BALANCE (AFTER EMPLOYEE EXISTS)
+                //_context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
+                //{
+                //    Employee_Id = employee.Employee_Id,
+                //    Earned_Total = 4,
+                //    Earned_Used = 0,
+                //    Casual_Total = 4,
+                //    Casual_Used = 0,
+                //    Sick_Total = 4,
+                //    Sick_Used = 0
+                //});
+
+                // 5. Department count
+                var dept = await _context.Departments
+                    .FirstOrDefaultAsync(d => d.DepartmentName == dto.Department);
+
+                if (dept != null)
+                    dept.MembersCount += 1;
+
+                // 6. Activity log
+                _context.ActivityLogs.Add(new ActivityLog
+                {
+                    Activity = $"Employee {dto.Name} added",
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // ✅ SAVE AGAIN (for leave + dept + logs)
+                await _context.SaveChangesAsync();
+
+                // 7. Sync Role → User table
+                if (!string.IsNullOrEmpty(employee.Email))
+                {
+                    var existingUser = await _context.Users
+        .FirstOrDefaultAsync(u => u.Email == employee.Email);
+
+                    if (existingUser != null)
+                    {
+                        existingUser.RoleId = role.RoleId;
+                    }
+                }
+
+                // 8. Notifications
+                await _adminNotificationService.CreateNotification(
+                    "New Employee Added",
+                    $"{employee.Name} has joined the company"
+                );
+
+                await _notificationService.CreateNotification(new UserNotificationDto
+                {
+                    Employee_Id = employee.Employee_Id,
+                    Title = "Welcome to EMS",
+                    Message = $"Welcome {employee.Name}, your employee account has been created."
+                });
+                await _context.SaveChangesAsync();
+
+                //await transaction.CommitAsync();
+
+                return employee;
             }
 
-            // 8. Notifications
-            await _adminNotificationService.CreateNotification(
-                "New Employee Added",
-                $"{employee.Name} has joined the company"
-            );
-
-            await _notificationService.CreateNotification(new UserNotificationDto
+            catch
             {
-                Employee_Id = employee.Employee_Id,
-                Title = "Welcome to EMS",
-                Message = $"Welcome {employee.Name}, your employee account has been created."
-            });
+                //await transaction.RollbackAsync();
+                throw;
+            }
 
-            return employee;
+
         }
         // ✅ GET ALL
         public async Task<List<Employee>> GetAllEmployees()
@@ -314,7 +586,7 @@ namespace EmployeeManagementSystem.Services
                     {
                         EmployeeId = x.Employee_Id,
                         EmployeeName = x.Name,
-                        Birthday = x.DateOfBirth,
+                        Birthday = x.DateOfBirth.ToString("MMM dd"),
                         DaysRemaining = (nextBirthday - today).Days
                     };
                 })
@@ -325,27 +597,61 @@ namespace EmployeeManagementSystem.Services
             return result;
         }
         public async Task<object> BulkUploadEmployees(
-    ClaimsPrincipal user,
-    IFormFile file)
-
+      ClaimsPrincipal user,
+      IFormFile file)
         {
-            if (!await _adminAuthorization.IsAdminAsync(user))
+            // =========================================================
+            // 1. GET ADMIN ID FROM JWT
+            // =========================================================
+            var adminIdClaim = user.FindFirst("AdminId")?.Value;
+
+            if (string.IsNullOrWhiteSpace(adminIdClaim) ||
+                !int.TryParse(adminIdClaim, out int adminId))
             {
                 return new
                 {
                     Status = false,
-                    Message = "Only admins can bulk upload employees."
+                    Message = "AdminId missing or invalid in token."
                 };
             }
 
-            if (file == null || file.Length == 0)
+            // =========================================================
+            // 2. CHECK ACTIVE SUBSCRIPTION
+            // =========================================================
+            var today = DateTime.UtcNow;
 
-                return new { Message = "No file uploaded" };
+            var subscription = await _context.AdminSubscriptions
+                .Where(x =>
+                    x.AdminId == adminId &&
+                    x.IsActive &&
+                    x.StartDate <= today &&
+                    x.EndDate >= today)
+                .OrderByDescending(x => x.SubscriptionId)
+                .FirstOrDefaultAsync();
+
+            if (subscription == null)
+            {
+                return new
+                {
+                    Status = false,
+                    Message = "No active subscription found."
+                };
+            }
+
+            // =========================================================
+            // 3. VALIDATE FILE
+            // =========================================================
+            if (file == null || file.Length == 0)
+            {
+                return new
+                {
+                    Status = false,
+                    Message = "No file uploaded."
+                };
+            }
 
             int inserted = 0;
-
             int updated = 0;
-
             int failed = 0;
 
             List<string> errors = new();
@@ -354,215 +660,437 @@ namespace EmployeeManagementSystem.Services
 
             await file.CopyToAsync(stream);
 
+            stream.Position = 0;
+
             using var workbook = new XLWorkbook(stream);
 
             var worksheet = workbook.Worksheet(1);
 
-            var totalRows = worksheet.LastRowUsed().RowNumber();
+            var lastRowUsed = worksheet.LastRowUsed();
 
-            for (int row = 2; row <= totalRows; row++)
-
+            if (lastRowUsed == null)
             {
-
-                try
-
+                return new
                 {
+                    Status = false,
+                    Message = "Excel file is empty."
+                };
+            }
 
-                    var employeeId = worksheet.Cell(row, 1).GetString().Trim();
+            var totalRows = lastRowUsed.RowNumber();
 
-                    var name = worksheet.Cell(row, 2).GetString().Trim();
+            // =========================================================
+            // 4. PROCESS EXCEL ROWS
+            // =========================================================
+            for (int row = 2; row <= totalRows; row++)
+            {
+                try
+                {
+                    var employeeId = worksheet.Cell(row, 1)
+                        .GetString()
+                        .Trim();
 
-                    var email = worksheet.Cell(row, 3).GetString().Trim();
+                    var name = worksheet.Cell(row, 2)
+                        .GetString()
+                        .Trim();
 
-                    var department = worksheet.Cell(row, 4).GetString().Trim();
+                    var email = worksheet.Cell(row, 3)
+                        .GetString()
+                        .Trim();
 
-                    var roleName = worksheet.Cell(row, 5).GetString().Trim();
+                    var department = worksheet.Cell(row, 4)
+                        .GetString()
+                        .Trim();
 
-                    var status = worksheet.Cell(row, 6).GetString().Trim();
+                    var roleName = worksheet.Cell(row, 5)
+                        .GetString()
+                        .Trim();
 
-                    var joiningDateText = worksheet.Cell(row, 7).GetString().Trim();
+                    var status = worksheet.Cell(row, 6)
+                        .GetString()
+                        .Trim();
 
-                    var ctcText = worksheet.Cell(row, 8).GetString().Trim();
+                    var joiningDateText = worksheet.Cell(row, 7)
+                        .GetString()
+                        .Trim();
 
+                    var ctcText = worksheet.Cell(row, 8)
+                        .GetString()
+                        .Trim();
+
+                    // =================================================
+                    // VALIDATION
+                    // =================================================
                     if (string.IsNullOrWhiteSpace(employeeId))
-
                     {
-
                         failed++;
 
-                        errors.Add($"Row {row}: Employee_Id missing");
+                        errors.Add(
+                            $"Row {row}: Employee_Id missing.");
 
                         continue;
-
                     }
 
-                    var existingEmployee = await _context.Employees
-
-                        .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
-
-                    DateTime joiningDate = DateTime.Parse(joiningDateText);
-
-                    decimal ctc = decimal.Parse(ctcText);
-
-                    if (existingEmployee != null)
-
+                    if (!DateTime.TryParse(
+                        joiningDateText,
+                        out DateTime joiningDate))
                     {
+                        failed++;
 
+                        errors.Add(
+                            $"Row {row}: Invalid Joining Date.");
+
+                        continue;
+                    }
+
+                    if (!decimal.TryParse(
+                        ctcText,
+                        out decimal ctc))
+                    {
+                        failed++;
+
+                        errors.Add(
+                            $"Row {row}: Invalid CTC.");
+
+                        continue;
+                    }
+
+                    // =================================================
+                    // CHECK EXISTING EMPLOYEE
+                    // =================================================
+                    var existingEmployee =
+                        await _context.Employees
+                            .FirstOrDefaultAsync(e =>
+                                e.Employee_Id == employeeId);
+
+                    // =================================================
+                    // UPDATE EXISTING EMPLOYEE
+                    // =================================================
+                    if (existingEmployee != null)
+                    {
                         existingEmployee.Name = name;
-
                         existingEmployee.Email = email;
-
                         existingEmployee.Department = department;
-
                         existingEmployee.RoleName = roleName;
-
                         existingEmployee.Status = status;
-
                         existingEmployee.JoiningDate = joiningDate;
-
                         existingEmployee.CTC = ctc;
 
-                        updated++;
+                        // Find role because RoleId should also be updated
+                        var existingRole = await _context.Roles
+                            .FirstOrDefaultAsync(r =>
+                                r.Name == roleName);
 
-                    }
-
-                    else
-
-                    {
-
-                        var role = await _context.Roles
-
-                            .FirstOrDefaultAsync(r => r.Name == roleName);
-
-                        if (role == null)
-
+                        if (existingRole == null)
                         {
-
                             failed++;
 
-                            errors.Add($"Row {row}: Invalid Role Name");
+                            errors.Add(
+                                $"Row {row}: Invalid Role Name.");
 
                             continue;
-
                         }
 
-                        var newEmployee = new Employee
+                        existingEmployee.RoleId =
+                            existingRole.RoleId;
 
+                        updated++;
+                    }
+
+                    // =================================================
+                    // CREATE NEW EMPLOYEE
+                    // =================================================
+                    else
+                    {
+                        // ---------------------------------------------
+                        // CHECK SUBSCRIPTION LIMIT
+                        // ---------------------------------------------
+                        var currentUserCount =
+                            await _context.Employees
+                                .CountAsync(x =>
+                                    x.AdminId == adminId);
+
+                        if (currentUserCount >= subscription.MaxUsers)
                         {
+                            failed++;
 
+                            errors.Add(
+                                $"Row {row}: Subscription limit reached. " +
+                                $"Maximum {subscription.MaxUsers} users allowed.");
+
+                            continue;
+                        }
+
+                        // ---------------------------------------------
+                        // CHECK ROLE
+                        // ---------------------------------------------
+                        var role = await _context.Roles
+                            .FirstOrDefaultAsync(r =>
+                                r.Name == roleName);
+
+                        if (role == null)
+                        {
+                            failed++;
+
+                            errors.Add(
+                                $"Row {row}: Invalid Role Name.");
+
+                            continue;
+                        }
+
+                        // ---------------------------------------------
+                        // CREATE EMPLOYEE
+                        // ---------------------------------------------
+                        var newEmployee = new Employee
+                        {
                             Employee_Id = employeeId,
-
                             Name = name,
-
                             Email = email,
-
                             Department = department,
-
                             RoleName = roleName,
-
                             RoleId = role.RoleId,
-
                             Status = status,
-
                             JoiningDate = joiningDate,
+                            CTC = ctc,
 
-                            CTC = ctc
-
+                            // IMPORTANT:
+                            // Employee belongs to logged-in Admin
+                            AdminId = adminId
                         };
 
-                        await _context.Employees.AddAsync(newEmployee);
+                        await _context.Employees
+                            .AddAsync(newEmployee);
 
+                        // Save here because subscription count
+                        // for the next row must include this employee
                         await _context.SaveChangesAsync();
 
-                        //_context.EmployeeLeaveBalances.Add(new EmployeeLeaveBalance
-
-                        //{
-
-                        //    Employee_Id = newEmployee.Employee_Id,
-
-                        //    Earned_Total = 10,
-
-                        //    Earned_Used = 0,
-
-                        //    Casual_Total = 12,
-
-                        //    Casual_Used = 0,
-
-                        //    Sick_Total = 10,
-
-                        //    Sick_Used = 0
-
-                        //});
-
+                        // ---------------------------------------------
+                        // UPDATE DEPARTMENT COUNT
+                        // ---------------------------------------------
                         var dept = await _context.Departments
-
-    .FirstOrDefaultAsync(d => d.DepartmentName == department);
+                            .FirstOrDefaultAsync(d =>
+                                d.DepartmentName == department);
 
                         if (dept != null)
-
                         {
-
                             dept.MembersCount += 1;
 
+                            await _context.SaveChangesAsync();
                         }
 
+                        // ---------------------------------------------
+                        // SEND EMAIL
+                        // ---------------------------------------------
                         await _emailService.SendEmailAsync(
-
     email,
-
-    "EMS Login Details",
-
+    "Welcome to Pirnav HRMS – Your Employee Account Has Been Created",
     $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+</head>
 
-    Hello {name},<br><br>
- 
-    Your account is created in Pirnav Company.<br><br>
- 
-    Login Link:
-<a href='https://hrms.pirnav.com'>
-https://hrms.pirnav.com
-</a><br><br>
- 
-    Newly User Verify your account by using Register and Login.
+<body style='font-family: Segoe UI, Arial, sans-serif;
+             background-color: #f5f6f8;
+             padding: 20px;
+             margin: 0;'>
 
-    "
+    <div style='max-width: 650px;
+                margin: auto;
+                background: #ffffff;
+                padding: 30px;
+                border-radius: 8px;'>
 
+        <h2 style='margin-top: 0;'>
+            Welcome to Pirnav HRMS
+        </h2>
+
+        <p>Dear <strong>{name}</strong>,</p>
+
+        <p>
+            Welcome to <strong>Pirnav</strong>.
+            Your employee account has been successfully created
+            in the Pirnav Human Resource Management System (HRMS).
+        </p>
+
+        <p>
+            You can use the HRMS portal to access your employee
+            information and the features assigned to your role.
+        </p>
+
+        <div style='background-color: #f7f7f7;
+                    padding: 15px;
+                    border-radius: 6px;
+                    margin: 20px 0;'>
+
+            <p style='margin: 5px 0;'>
+                <strong>Employee ID:</strong> {employeeId}
+            </p>
+
+            <p style='margin: 5px 0;'>
+                <strong>Name:</strong> {name}
+            </p>
+
+            <p style='margin: 5px 0;'>
+                <strong>Email:</strong> {email}
+            </p>
+
+            <p style='margin: 5px 0;'>
+                <strong>Department:</strong> {department}
+            </p>
+
+            <p style='margin: 5px 0;'>
+                <strong>Role:</strong> {roleName}
+            </p>
+
+            <p style='margin: 5px 0;'>
+                <strong>Joining Date:</strong> {joiningDate:dd MMM yyyy}
+            </p>
+
+        </div>
+
+        <h3>Getting Started</h3>
+
+        <p>
+            Please use the link below to access the HRMS portal.
+            If you are accessing the system for the first time,
+            complete the registration/account verification process
+            using your registered email address.
+        </p>
+
+        <div style='text-align: center;
+                    margin: 25px 0;'>
+
+            <a href='https://hrms.pirnav.com'
+               style='display: inline-block;
+                      padding: 12px 24px;
+                      background-color: #1f2937;
+                      color: #ffffff;
+                      text-decoration: none;
+                      border-radius: 5px;
+                      font-weight: 600;'>
+
+                Access HRMS Portal
+
+            </a>
+
+        </div>
+
+        <p>
+            Portal:
+            <a href='https://hrms.pirnav.com'>
+                https://hrms.pirnav.com
+            </a>
+        </p>
+
+        <p>
+            If you experience any difficulty accessing your account,
+            please contact the HR or system administrator for assistance.
+        </p>
+
+        <p style='margin-top: 30px;'>
+            Regards,<br>
+            <strong>HR Team</strong><br>
+            Pirnav Software Solutions
+        </p>
+
+        <hr style='border: none;
+                   border-top: 1px solid #dddddd;
+                   margin-top: 30px;'>
+
+        <p style='font-size: 12px;
+                  color: #777777;'>
+            This is an automated email generated by Pirnav HRMS.
+            Please do not reply to this email.
+        </p>
+
+    </div>
+
+</body>
+</html>"
 );
 
                         inserted++;
-
                     }
-
                 }
-
                 catch (Exception ex)
-
                 {
-
                     failed++;
 
-                    errors.Add($"Row {row}: {ex.Message}");
-
+                    errors.Add(
+                        $"Row {row}: {ex.Message}");
                 }
-
             }
 
+            // Save updates to existing employees
             await _context.SaveChangesAsync();
 
+            // =========================================================
+            // 5. RETURN RESULT
+            // =========================================================
             return new
-
             {
+                Status = true,
 
                 Inserted = inserted,
-
                 Updated = updated,
-
                 Failed = failed,
 
+                MaxUsers = subscription.MaxUsers,
+
+                CurrentUsers = await _context.Employees
+                    .CountAsync(x => x.AdminId == adminId),
+
+                RemainingUsers = Math.Max(
+                    0,
+                    subscription.MaxUsers -
+                    await _context.Employees.CountAsync(
+                        x => x.AdminId == adminId)),
+
                 Errors = errors
-
             };
+        }
+        public async Task<OnboardingDetailsDto?> GetOnboardingDetailsAsync(string onboardingId)
+        {
+            var personal = await _context.OnboardingPersonalInfos
+                .FirstOrDefaultAsync(x => x.OnboardingId == onboardingId);
 
+            if (personal == null)
+                return null;
+
+            var education = await _context.OnboardingEducations
+                .Where(x => x.OnboardingId == onboardingId)
+                .ToListAsync();
+
+            var experience = await _context.OnboardingExperiences
+                .Where(x => x.OnboardingId == onboardingId)
+                .ToListAsync();
+
+            var documents = await _context.OnboardingDocuments
+                .Where(x => x.OnboardingId == onboardingId)
+                .ToListAsync();
+
+            return new OnboardingDetailsDto
+            {
+                PersonalInfo = personal,
+                Education = education,
+                Experience = experience,
+                Documents = documents
+            };
+        }
+
+        public async Task<List<OnboardingCandidateDropdownDto>> GetOnboardingCandidatesAsync()
+        {
+            return await _context.OnboardingCandidates
+                .Where(x => x.Status != "Approved")
+                .Select(x => new OnboardingCandidateDropdownDto
+                {
+                    OnboardingId = x.OnboardingId,
+                    CandidateName = x.FullName
+                })
+                .ToListAsync();
         }
 
         public async Task<byte[]> DownloadEmployeeUploadTemplate()
@@ -643,6 +1171,10 @@ https://hrms.pirnav.com
     .AsNoTracking()
     .ToListAsync();
 
+            var salaryStructures = await _context.EmployeeSalaryStructures
+    .AsNoTracking()
+    .ToListAsync();
+
 
             var employeeLookup = employees.ToDictionary(
                 e => e.Employee_Id,
@@ -676,8 +1208,9 @@ https://hrms.pirnav.com
             masterSheet.Cell(2, 8).Value = "CTC";
             masterSheet.Cell(2, 9).Value = "Document Status";
             masterSheet.Cell(2, 10).Value = "Documents Verified";
+            masterSheet.Cell(2, 11).Value = "Salary Structure";
 
-            var masterHeader = masterSheet.Range(2, 1, 2, 10);
+            var masterHeader = masterSheet.Range(2, 1, 2, 11);
             masterHeader.Style.Font.Bold = true;
             masterHeader.Style.Fill.BackgroundColor = XLColor.DarkBlue;
             masterHeader.Style.Font.FontColor = XLColor.White;
@@ -724,6 +1257,16 @@ https://hrms.pirnav.com
 
                 masterSheet.Cell(masterRow, 9).Value = documentStatus;
                 masterSheet.Cell(masterRow, 10).Value = $"{verifiedDocs}/{uploadedDocs} Verified";
+                bool hasSalaryStructure = salaryStructures.Any(x =>
+    x.Employee_Id == emp.Employee_Id);
+
+                masterSheet.Cell(masterRow, 11).Value =
+                    hasSalaryStructure ? "Completed" : "Pending";
+
+                masterSheet.Cell(masterRow, 11).Style.Font.FontColor =
+                    hasSalaryStructure
+                        ? XLColor.Green
+                        : XLColor.Red;
 
                 // Document Status Color
                 if (documentStatus == "Complete")

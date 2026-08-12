@@ -1,24 +1,27 @@
 import React, { useCallback, useEffect, useState } from "react";
 import "./Notifications.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
-import { extractCollection } from "../utils/collections";
 import { CardSkeleton } from "../components/Skeletons";
-import { toastError } from "@/components/common/toast/toastService";
 import {
   FaUserPlus,
   FaCheckCircle,
   FaExclamationTriangle,
   FaInfoCircle
 } from "react-icons/fa";
+import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
+import {
+  loadNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from "../services/notificationService";
 
 function Notifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
-
-  const getToken = () =>
-    localStorage.getItem("token") || sessionStorage.getItem("token");
+  const authSnapshot = getAuthenticatedUserSnapshot();
+  const authReady = authSnapshot.isReady;
+  const authToken = authSnapshot.token;
+  const currentRole = authSnapshot.role || authSnapshot.roleName || "";
 
   /* ================= FETCH ================= */
 
@@ -26,37 +29,16 @@ function Notifications() {
     try {
       setLoading(true);
 
-      const token = getToken();
-
-      // ✅ Token check
-      if (!token) {
-        console.error("No token found");
-        setNotifications([]);
-        return;
-      }
-
-      const res = await api.get(API_ENDPOINTS.notifications.admin);
-
-      const data = extractCollection(res.data);
-      setNotifications(data);
-
-    } catch (err) {
-      console.error("❌ Fetch notifications error:", err);
-
-      // ✅ Handle all types of errors
-      const message =
-        err.response?.data?.message ||
-        err.response?.data ||
-        err.message ||
-        "Failed to fetch notifications";
-
-      console.log("Backend message:", message);
-
-      setNotifications([]);
+      const data = await loadNotifications(currentRole);
+      setNotifications(
+        Array.isArray(data)
+          ? data
+          : []
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authReady, authToken, currentRole]);
 
   useEffect(() => {
     fetchNotifications();
@@ -66,30 +48,20 @@ function Notifications() {
 
   const markAsRead = async (id) => {
     try {
-      const token = getToken();
       setUpdatingId(id);
 
-      if (!token) {
-        toastError("User not authenticated");
+      const success = await markNotificationAsRead(
+        currentRole,
+        id
+      );
+
+      if (!success) {
+        await fetchNotifications();
         return;
       }
 
-      await api.put(API_ENDPOINTS.notifications.adminRead(id), {});
-
       await fetchNotifications();
       window.dispatchEvent(new Event("notificationsUpdated"));
-
-    } catch (err) {
-      console.error("❌ Mark as read error:", err);
-
-      const message =
-        err.response?.data?.message ||
-        err.response?.data ||
-        err.message ||
-        "Failed to update notification";
-
-      toastError(message);
-
     } finally {
       setUpdatingId(null);
     }
@@ -99,28 +71,19 @@ function Notifications() {
 
   const markAllAsRead = async () => {
     try {
-      const token = getToken();
+      const success = await markAllNotificationsAsRead(
+        currentRole
+      );
 
-      if (!token) {
-        toastError("User not authenticated");
+      if (!success) {
+        await fetchNotifications();
         return;
       }
 
-      await api.put(API_ENDPOINTS.notifications.adminReadAll, {});
-
       await fetchNotifications();
       window.dispatchEvent(new Event("notificationsUpdated"));
-
-    } catch (err) {
-      console.error("❌ Mark all as read error:", err);
-
-      const message =
-        err.response?.data?.message ||
-        err.response?.data ||
-        err.message ||
-        "Failed to update notifications";
-
-      toastError(message);
+    } finally {
+      // Nothing to reset here; the action is fire-and-forget.
     }
   };
 

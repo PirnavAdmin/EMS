@@ -1,47 +1,56 @@
-﻿//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.EntityFrameworkCore;
-//using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
-//[ApiController]
-//[Route("api/[controller]")]
-//public class LeaveBalanceController : ControllerBase
-//{
-//    private readonly AppDbContext _context;
+[ApiController]
+[Route("api/[controller]")]
+public class LeaveBalanceController : ControllerBase
+{
+    private readonly AppDbContext _context;
+    private readonly IEmployeeLeaveService _service;
+    private readonly ILeaveBalanceService _leaveBalanceService;
 
-//    public LeaveBalanceController(AppDbContext context)
-//    {
-//        _context = context;
-//    }
+   
+    public LeaveBalanceController(AppDbContext context, IEmployeeLeaveService service,
+        ILeaveBalanceService leaveBalanceService)
+    {
+        _context = context;
+        _service = service;
+        _leaveBalanceService = leaveBalanceService;
+    }
 
-//    [HttpGet("{employeeId}")]
-//    public async Task<IActionResult> GetBalance(string employeeId)
-//    {
-//        var balance = await _context.EmployeeLeaveBalances
-//            .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+    [HttpGet("balance/{employeeId}")]
+    public async Task<IActionResult> GetLeaveBalanceByEmployeeId(
+      string employeeId)
+    {
+        var result = await _leaveBalanceService
+            .GetLeaveBalanceByEmployeeId(employeeId);
 
-//        if (balance == null)
-//            return NotFound("Leave balance not found");
+        if (result == null)
+        {
+            return NotFound(new
+            {
+                message = "Employee not found"
+            });
+        }
 
-//        return Ok(new
-//        {
-//            Earned = new
-//            {
-//                total = balance.Earned_Total,
-//                used = balance.Earned_Used,
-//                remaining = balance.Earned_Total - balance.Earned_Used
-//            },
-//            Casual = new
-//            {
-//                total = balance.Casual_Total,
-//                used = balance.Casual_Used,
-//                remaining = balance.Casual_Total - balance.Casual_Used
-//            },
-//            Sick = new
-//            {
-//                total = balance.Sick_Total,
-//                used = balance.Sick_Used,
-//                remaining = balance.Sick_Total - balance.Sick_Used
-//            }
-//        });
-//    }
-//}
+        return Ok(result);
+    }
+    [HttpGet("my-leave-balance")]
+    public async Task<IActionResult> GetMyLeaveBalance()
+    {
+        var result = await _leaveBalanceService
+            .GetMyLeaveBalance(User);
+
+        if (result == null)
+        {
+            return Unauthorized(new
+            {
+                message = "Employee not found or invalid token"
+            });
+        }
+
+        return Ok(result);
+    }
+}

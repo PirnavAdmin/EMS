@@ -1,6 +1,8 @@
 import React, {
     useCallback,
     useEffect,
+    forwardRef,
+    useImperativeHandle,
     useMemo,
     useRef,
     useState,
@@ -715,16 +717,47 @@ const downloadBlob = (blob, fileName) => {
     }, 1000);
 };
 
-function Documents({
+const Documents = forwardRef(function Documents({
     onBack,
     onNext,
     viewMode,
     employeeId,
     employeeCode,
-}) {
+    onboardingId,
+    entityType = "employee",
+    mode,
+    onRefresh,
+    agreementReadOnly,
+}, ref) {
+    const isOnboardingMode = entityType === "onboarding" || mode === "onboarding";
     const employeeKey = useMemo(
-        () => getEmployeeKey(employeeId, employeeCode),
-        [employeeCode, employeeId]
+        () =>
+            isOnboardingMode
+                ? String(onboardingId || "").trim()
+                : getEmployeeKey(employeeId, employeeCode),
+        [employeeCode, employeeId, isOnboardingMode, onboardingId]
+    );
+    const entityLabel = isOnboardingMode ? "Onboarding Documents" : "Employee Documents";
+    const entityIdLabel = isOnboardingMode ? "Onboarding ID" : "Employee ID";
+    const entityIdLogKey = isOnboardingMode ? "onboardingId" : "employeeId";
+    const documentEndpoints = useMemo(
+        () =>
+            isOnboardingMode
+                ? {
+                    list: API_ENDPOINTS.onboardingDocuments.byOnboardingId,
+                    upload: API_ENDPOINTS.onboardingDocuments.upload,
+                    view: API_ENDPOINTS.onboardingDocuments.byId,
+                    download: API_ENDPOINTS.onboardingDocuments.download,
+                    delete: API_ENDPOINTS.onboardingDocuments.delete,
+                }
+                : {
+                    list: API_ENDPOINTS.employeeDocuments.byEmployeeId,
+                    upload: API_ENDPOINTS.employeeDocuments.upload,
+                    view: API_ENDPOINTS.employeeDocuments.view,
+                    download: API_ENDPOINTS.employeeDocuments.download,
+                    delete: API_ENDPOINTS.employeeDocuments.delete,
+                },
+        [isOnboardingMode]
     );
 
     const [documents, setDocuments] = useState([]);
@@ -840,13 +873,13 @@ function Documents({
     const documentCount = visibleDocuments.length;
 
     useEffect(() => {
-        console.log("[Employee Documents] Uploaded documents state", {
-            employeeId: employeeKey,
+        console.log(`[${entityLabel}] Uploaded documents state`, {
+            [entityIdLogKey]: employeeKey,
             documents,
             visibleDocuments,
             documentCount,
         });
-    }, [documentCount, documents, employeeKey, visibleDocuments]);
+    }, [documentCount, documents, employeeKey, entityIdLogKey, entityLabel, visibleDocuments]);
 
     const isAgreementCategory = agreementCategory === "agreements";
     const normalizedAgreementList = useMemo(
@@ -870,11 +903,16 @@ function Documents({
         signatureName.trim() !== "" &&
         signedLocation.trim() !== "" &&
         signatureImage;
+    const isAgreementReadOnly =
+        typeof agreementReadOnly === "boolean"
+            ? agreementReadOnly
+            : isOnboardingMode && viewMode;
 
     const canViewAgreement = isAgreementSelected;
 
     const canSubmitAgreement =
         isAgreementSelected &&
+        !isAgreementReadOnly &&
         !isAgreementSigned &&
         isSignatureFormValid;
 
@@ -935,13 +973,12 @@ function Documents({
             }
 
             try {
-                const documentsEndpoint =
-                    API_ENDPOINTS.employeeDocuments.byEmployeeId(employeeKey);
+                const documentsEndpoint = documentEndpoints.list(employeeKey);
 
-                console.log("[Employee Documents] Employee ID", employeeKey);
-                console.log("[Employee Documents] GET request", {
+                console.log(`[${entityLabel}] ${entityIdLabel}`, employeeKey);
+                console.log(`[${entityLabel}] GET request`, {
                     url: documentsEndpoint,
-                    employeeId: employeeKey,
+                    [entityIdLogKey]: employeeKey,
                 });
 
                 const response = await api.get(documentsEndpoint);
@@ -955,13 +992,13 @@ function Documents({
                     )
                 );
 
-                console.log("[Employee Documents] Documents GET response", {
-                    employeeId: employeeKey,
+                console.log(`[${entityLabel}] Documents GET response`, {
+                    [entityIdLogKey]: employeeKey,
                     response: response.data,
                     returnedCount: extractedDocuments.length,
                 });
-                console.log("[Employee Documents] Mapped documents", {
-                    employeeId: employeeKey,
+                console.log(`[${entityLabel}] Mapped documents`, {
+                    [entityIdLogKey]: employeeKey,
                     renderedCount: mappedDocuments.length,
                     documents: mappedDocuments,
                 });
@@ -994,7 +1031,7 @@ function Documents({
                 }
             }
         },
-        [employeeKey]
+        [documentEndpoints, employeeKey, entityIdLabel, entityIdLogKey, entityLabel]
     );
 
     useEffect(() => {
@@ -1007,9 +1044,9 @@ function Documents({
                 return;
             }
 
-            const employeeIdForAgreements = employeeKey || storedEmployeeId;
+            const entityIdForAgreements = employeeKey || (isOnboardingMode ? "" : storedEmployeeId);
 
-            if (!employeeIdForAgreements) {
+            if (!entityIdForAgreements) {
                 setAgreementList([]);
                 setPendingAgreementCount(0);
                 setSignedAgreementCount(0);
@@ -1027,8 +1064,8 @@ function Documents({
             try {
                 const [pendingAgreements, signedAgreements, allAgreements] =
                     await Promise.all([
-                        getPendingAgreementCount(employeeIdForAgreements),
-                        getSignedAgreementCount(employeeIdForAgreements),
+                        getPendingAgreementCount(entityIdForAgreements),
+                        getSignedAgreementCount(entityIdForAgreements),
                         getAgreementTypes(),
                     ]);
                 const pendingCodes = new Set(
@@ -1139,7 +1176,7 @@ function Documents({
                 }
             }
         },
-        [employeeKey, isAgreementCategory, storedEmployeeId]
+        [employeeKey, isAgreementCategory, isOnboardingMode, storedEmployeeId]
     );
 
     useEffect(() => {
@@ -1216,7 +1253,7 @@ function Documents({
         }
 
         if (!employeeKey) {
-            const message = "Employee ID missing";
+            const message = `${isOnboardingMode ? "Onboarding" : "Employee"} ID missing`;
             setApiError(message);
             toastError(message);
             return;
@@ -1267,21 +1304,27 @@ function Documents({
             );
             const previousDocumentCount = visibleDocuments.length;
             const formData = new FormData();
-            formData.append("EmployeeId", employeeKey);
-            formData.append("DocumentType", selectedDocumentType);
-            formData.append("Category", documentCategory);
-            formData.append("File", selectedFile);
-            formData.append("Files", selectedFile);
+            if (isOnboardingMode) {
+                formData.append("onboardingId", employeeKey);
+                formData.append("documentType", selectedDocumentType);
+                formData.append("file", selectedFile);
+            } else {
+                formData.append("EmployeeId", employeeKey);
+                formData.append("DocumentType", selectedDocumentType);
+                formData.append("Category", documentCategory);
+                formData.append("File", selectedFile);
+                formData.append("Files", selectedFile);
+            }
 
-            console.log("[Employee Documents] Upload request payload", {
-                employeeId: employeeKey,
+            console.log(`[${entityLabel}] Upload request payload`, {
+                [entityIdLogKey]: employeeKey,
                 documentType: selectedDocumentType,
                 category: documentCategory,
                 payload: buildFormDataDebugPayload(formData),
             });
 
             const response = await api.post(
-                API_ENDPOINTS.employeeDocuments.upload,
+                documentEndpoints.upload,
                 formData,
                 {
                     headers: {
@@ -1290,8 +1333,8 @@ function Documents({
                 }
             );
 
-            console.log("[Employee Documents] Upload response", {
-                employeeId: employeeKey,
+            console.log(`[${entityLabel}] Upload response`, {
+                [entityIdLogKey]: employeeKey,
                 status: response.status,
                 response: response.data,
             });
@@ -1302,8 +1345,8 @@ function Documents({
 
             if (hasExplicitUploadFailure(response.data)) {
                 const message = getApiMessage(response.data, "Upload failed");
-                console.warn("[Employee Documents] Backend validation response", {
-                    employeeId: employeeKey,
+                console.warn(`[${entityLabel}] Backend validation response`, {
+                    [entityIdLogKey]: employeeKey,
                     response: response.data,
                     message,
                 });
@@ -1327,8 +1370,8 @@ function Documents({
             const refreshedCountIncreased =
                 refreshedDocuments.length > previousDocumentCount;
 
-            console.log("[Employee Documents] Upload verification", {
-                employeeId: employeeKey,
+            console.log(`[${entityLabel}] Upload verification`, {
+                [entityIdLogKey]: employeeKey,
                 documentType: selectedDocumentType,
                 previousDocumentCount,
                 refreshedDocumentCount: refreshedDocuments.length,
@@ -1342,8 +1385,8 @@ function Documents({
                     "Upload could not be verified. Please check the uploaded documents list."
                 );
 
-                console.warn("[Employee Documents] Backend validation response", {
-                    employeeId: employeeKey,
+                console.warn(`[${entityLabel}] Backend validation response`, {
+                    [entityIdLogKey]: employeeKey,
                     response: response.data,
                     message,
                 });
@@ -1358,6 +1401,7 @@ function Documents({
             );
             setSuccessMsg(successMessage);
             toastSuccess(successMessage);
+            await onRefresh?.();
         } catch (error) {
             if (!isMountedRef.current) {
                 return;
@@ -1366,8 +1410,8 @@ function Documents({
             const message =
                 getApiMessage(error?.response?.data, error?.message || "Upload failed");
 
-            console.warn("[Employee Documents] Backend validation response", {
-                employeeId: employeeKey,
+            console.warn(`[${entityLabel}] Backend validation response`, {
+                [entityIdLogKey]: employeeKey,
                 response: error?.response?.data,
                 message,
             });
@@ -1400,13 +1444,16 @@ function Documents({
                 )
             );
 
-            await removeStoredDocument(employeeKey, documentToDelete);
+            if (!isOnboardingMode) {
+                await removeStoredDocument(employeeKey, documentToDelete);
+            }
 
             if (serverId) {
-                await api.delete(API_ENDPOINTS.employeeDocuments.delete(serverId));
+                await api.delete(documentEndpoints.delete(serverId));
             }
 
             await loadDocuments({ silent: true }).catch(() => { });
+            await onRefresh?.();
 
             if (!isMountedRef.current) {
                 return;
@@ -1421,7 +1468,9 @@ function Documents({
                 return;
             }
 
-            await saveStoredDocument(employeeKey, documentToDelete).catch(() => { });
+            if (!isOnboardingMode) {
+                await saveStoredDocument(employeeKey, documentToDelete).catch(() => { });
+            }
             setDocuments(snapshot);
 
             const message =
@@ -1436,8 +1485,51 @@ function Documents({
         }
     };
 
-    const handleView = (doc) => {
+    const handleView = async (doc) => {
         if (!doc) {
+            return;
+        }
+
+        if (isOnboardingMode) {
+            const serverId = getDocumentServerId(doc);
+
+            if (!serverId) {
+                setPreviewDocument(doc);
+                return;
+            }
+
+            try {
+                const response = await api.get(documentEndpoints.view(serverId));
+                const detailDocuments = extractDocumentRecords(response.data);
+                const detailDocument = detailDocuments[0] || response.data || {};
+
+                setPreviewDocument(
+                    normalizeDocumentRecord(
+                        {
+                            ...doc,
+                            ...detailDocument,
+                            serverId: null,
+                            ServerId: null,
+                            id: null,
+                            Id: null,
+                            documentId: null,
+                            DocumentId: null,
+                            employeeDocumentId: null,
+                            EmployeeDocumentId: null,
+                            employeeDocumentID: null,
+                            EmployeeDocumentID: null,
+                            fileId: null,
+                            FileId: null,
+                            fileID: null,
+                            FileID: null,
+                        },
+                        employeeKey
+                    )
+                );
+            } catch (error) {
+                toastError(error?.response?.data?.message || "Failed to load document.");
+                setPreviewDocument(doc);
+            }
             return;
         }
 
@@ -1478,11 +1570,18 @@ function Documents({
         }
 
         const anchor = window.document.createElement("a");
-        anchor.href = `${SERVER_URL}/api/EmployeeDocuments/download/${serverId}`;
+        anchor.href = isOnboardingMode
+            ? `${SERVER_URL}/api${documentEndpoints.download(serverId)}`
+            : `${SERVER_URL}/api/EmployeeDocuments/download/${serverId}`;
         window.document.body.appendChild(anchor);
         anchor.click();
         window.document.body.removeChild(anchor);
     };
+
+    useImperativeHandle(ref, () => ({
+        save: async () => true,
+        isDirty: () => false,
+    }));
 
     const handleViewAgreement = async (agreement) => {
         const normalizedAgreement = normalizeAgreement(agreement);
@@ -1666,10 +1765,10 @@ function Documents({
 
     const handleSubmitSignature = async () => {
         const agreement = selectedAgreementDetails;
-        const employeeIdForSignature = employeeKey || storedEmployeeId;
+        const entityIdForSignature = employeeKey || (isOnboardingMode ? "" : storedEmployeeId);
 
-        if (!employeeIdForSignature) {
-            const message = "Employee ID missing";
+        if (!entityIdForSignature) {
+            const message = `${isOnboardingMode ? "Onboarding" : "Employee"} ID missing`;
             setApiError(message);
             toastError(message);
             return;
@@ -1708,7 +1807,8 @@ function Documents({
             setApiError("");
 
             const response = await signAgreement({
-                employeeId: employeeIdForSignature,
+                employeeId: isOnboardingMode ? undefined : entityIdForSignature,
+                onboardingId: isOnboardingMode ? entityIdForSignature : undefined,
                 agreementCode: agreement.agreementCode,
                 signatureName: signatureName.trim(),
                 signedLocation: signedLocation.trim(),
@@ -1752,8 +1852,8 @@ function Documents({
             toastSuccess("Agreement Signed Successfully");
             await loadAgreements({ silent: true });
 
-            const refreshedPending = await getPendingAgreementCount(employeeIdForSignature);
-            const refreshedSigned = await getSignedAgreementCount(employeeIdForSignature);
+            const refreshedPending = await getPendingAgreementCount(entityIdForSignature);
+            const refreshedSigned = await getSignedAgreementCount(entityIdForSignature);
 
             const signedAgreement = refreshedSigned.find(
                 x => x.agreementCode === agreement.agreementCode
@@ -1771,6 +1871,7 @@ function Documents({
 
             setPendingAgreementCount(refreshedPending.length);
             setSignedAgreementCount(refreshedSigned.length);
+            await onRefresh?.();
         } catch (error) {
             if (!isMountedRef.current) {
                 return;
@@ -1855,7 +1956,7 @@ function Documents({
         <div className="documents-wrapper">
             <div className="documents-page-header">
                 <div>
-                    <h5>Employee Documents</h5>
+                                <h5>{entityLabel}</h5>
                     <p>Upload employee files, keep them searchable, and continue without losing progress.</p>
                 </div>
 
@@ -1879,7 +1980,7 @@ function Documents({
                                 setLoadError("");
                             }}
                         >
-                            <option value="documents">Employee Documents</option>
+                            <option value="documents">{entityLabel}</option>
                             <option value="agreements">Employee Agreements</option>
                         </select>
                     </div>
@@ -2345,7 +2446,7 @@ function Documents({
                                     </div>
 
                                     <div className="premium-input-group">
-                                        <label>Employee ID</label>
+                                        <label>{entityIdLabel}</label>
                                         <input
                                             className="premium-input"
                                             value={employeeKey || storedEmployeeId || ""}
@@ -2383,6 +2484,7 @@ function Documents({
                                             onChange={(event) => setSignatureName(event.target.value)}
                                             disabled={
                                                 !selectedAgreementDetails ||
+                                                isAgreementReadOnly ||
                                                 signingAgreement ||
                                                 String(selectedAgreementDetails?.status).toLowerCase() === "signed"
                                             }
@@ -2402,6 +2504,7 @@ function Documents({
                                             onChange={(event) => setSignedLocation(event.target.value)}
                                             disabled={
                                                 !selectedAgreementDetails ||
+                                                isAgreementReadOnly ||
                                                 signingAgreement ||
                                                 String(selectedAgreementDetails?.status).toLowerCase() === "signed"
                                             }
@@ -2423,6 +2526,7 @@ function Documents({
                                             onChange={handleSignatureImageChange}
                                             disabled={
                                                 !selectedAgreementDetails ||
+                                                isAgreementReadOnly ||
                                                 signingAgreement ||
                                                 String(selectedAgreementDetails?.status).toLowerCase() === "signed"
                                             }
@@ -2564,7 +2668,7 @@ function Documents({
             <div className="documents-footer">
                 <div className="progress-info">
                     {isAgreementCategory
-                        ? `Employee Agreements (${normalizedAgreementList.length})`
+                        ? `${isOnboardingMode ? "Employee Agreements" : "Employee Agreements"} (${normalizedAgreementList.length})`
                         : `Uploaded Documents (${documentCount})`}
                 </div>
 
@@ -2599,5 +2703,5 @@ function Documents({
             </div>
         </div >
     );
-};
+});
 export default Documents;

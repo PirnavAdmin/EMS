@@ -68,24 +68,18 @@ namespace EmployeeManagementSystem.Services
                 .CountAsync();
 
             // Salary
-            var now = DateTime.UtcNow;
+            // Salary for current payroll month
+            var currentMonth = DateTime.Now.Month;
+            var currentYear = DateTime.Now.Year;
 
-            var startOfMonth = new DateTime(
-                now.Year,
-                now.Month,
-                1,
-                0,
-                0,
-                0,
-                DateTimeKind.Utc);
-
-            var startOfNextMonth = startOfMonth.AddMonths(1);
+            var selectedMonth = new DateTime(currentYear, currentMonth, 1)
+                .ToString("MMMM");
 
             var totalSalaryPaid = await _context.PaySlips
                 .AsNoTracking()
                 .Where(p =>
-                    p.Generated_On >= startOfMonth &&
-                    p.Generated_On < startOfNextMonth)
+                    p.Month == selectedMonth &&
+                    p.Year == currentYear)
                 .SumAsync(p => (decimal?)p.NetSalary) ?? 0;
 
             // Clients

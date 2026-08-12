@@ -1,7 +1,6 @@
 import React from "react";
 import { FaPen, FaPlus, FaTrash } from "react-icons/fa";
 import { TEAM_DAY_OPTIONS, getComplementDays } from "./teamsData";
-import { isEmployee } from "../utils/authorization";
 
 function DayChips({ days, fallbackLabel = "-" }) {
   if (!days || days.length === 0) {
@@ -24,6 +23,7 @@ function TeamMembersTable({
   teamProjectName = "",
   teamEngagementType = "",
   reportingDays = TEAM_DAY_OPTIONS,
+  canManage = false,
   onOverrideMember,
   onAddMember,
   onRemoveMember,
@@ -41,7 +41,7 @@ function TeamMembersTable({
           </p>
         </div>
 
-        {!isEmployee() && (
+        {canManage && (
           <button
             className="teams-add-btn"
             onClick={onAddMember}
@@ -62,14 +62,14 @@ function TeamMembersTable({
               <th>Project / Engagement</th>
               <th>WFO Days</th>
               <th>WFH Days</th>
-              {!isEmployee() && <th>ACTIONS</th>}
+              {canManage && <th>ACTIONS</th>}
             </tr>
           </thead>
 
           <tbody>
             {members.length === 0 ? (
               <tr>
-                <td colSpan={isEmployee() ? 5 : 6} className="teams-empty-table-cell">
+                <td colSpan={canManage ? 6 : 5} className="teams-empty-table-cell">
                   No team members
                 </td>
               </tr>
@@ -137,7 +137,7 @@ function TeamMembersTable({
                       <DayChips days={displayWfhDays} />
                     </td>
 
-                    {!isEmployee() && (
+                    {canManage && (
                       <td>
                         <div className="team-member-actions">
 

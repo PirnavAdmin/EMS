@@ -17,12 +17,39 @@ import {
   FaUserTie,
   FaCog,
   FaTicketAlt,
+  FaCreditCard,
+  FaHeadset,
 } from "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import pirnavLogo from "../assets/pirnav.png";
-import { getStoredPermissions } from "../utils/authStorage";
-import { getUserRole, hasRole, isAdmin } from "../utils/authorization";
+import { useBrandingLogo } from "../utils/brandingLogo";
+import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, isSuperAdmin } from "../utils/authorization";
+
+const SUPER_ADMIN_EXPANDABLE_MENUS = [];
+
+const SUPER_ADMIN_STATIC_MENUS = [
+  {
+    to: "/super-admin/dashboard",
+    icon: FaTachometerAlt,
+    label: "Dashboard",
+  },
+  {
+    to: "/super-admin/administration/admins",
+    icon: FaUsers,
+    label: "Admin Management",
+  },
+  {
+    to: "/super-admin/administration/subscriptions",
+    icon: FaCreditCard,
+    label: "Subscription Management",
+  },
+  {
+    to: "/super-admin/administration/permissions",
+    icon: FaShieldAlt,
+    label: "Permissions",
+  },
+];
 
 const EXPANDABLE_MENUS = [
   {
@@ -35,6 +62,12 @@ const EXPANDABLE_MENUS = [
         icon: FaList,
         label: "Employee List",
         permission: "Employees",
+      },
+      {
+        to: "/admin/onboarding",
+        icon: FaUserTie,
+        label: "Onboarding List",
+        permission: "Onboarding List",
       },
       {
         to: "/add-employee",
@@ -123,12 +156,31 @@ const EXPANDABLE_MENUS = [
       },
     ],
   },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: FaCog,
+    adminOnly: true,
+    hidden: true,
+    items: [
+      { to: "/settings", icon: FaCog, label: "General Settings", adminOnly: true },
+      { to: "/settings/resignation", icon: FaFileSignature, label: "Resignation", adminOnly: true },
+      { to: "/settings/employee-clearance", icon: FaShieldAlt, label: "Employee Clearance", adminOnly: true },
+      // { to: "/settings/exit-interview", icon: FaUserTie, label: "Exit Interview", adminOnly: true },
+      { to: "/settings/full-final-settlement", icon: FaMoneyBillWave, label: "Full Final Settlement", adminOnly: true },
+      { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
+      { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true },
+    ],
+  },
 ];
 
 const EXPANDABLE_MENU_PATHS = EXPANDABLE_MENUS.reduce((acc, menu) => {
   acc[menu.key] = menu.items.map((item) => item.to);
   return acc;
-}, {});
+}, SUPER_ADMIN_EXPANDABLE_MENUS.reduce((acc, menu) => {
+  acc[menu.key] = menu.items.map((item) => item.to);
+  return acc;
+}, {}));
 
 const pathMatchesMenu = (pathname, menuKey) => {
   const menuPaths = EXPANDABLE_MENU_PATHS[menuKey] || [];
@@ -197,6 +249,7 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     to: "/teams",
     icon: FaProjectDiagram,
     label: "Teams",
+    permission: "Teams",
   },
   {
     to: "/leave-management",
@@ -244,28 +297,7 @@ const getMenuLinkClassName = ({ isActive }) =>
 const getSubmenuLinkClassName = ({ isActive }) =>
   `submenu-item ${isActive ? "active" : ""}`;
 
-const hasPermission = (module) => {
-  const permissions = getStoredPermissions();
-
-  if (isAdmin()) {
-    return true;
-  }
-
-  if (!permissions || permissions.length === 0) {
-    return false;
-  }
-
-  return permissions.some((permission) => {
-    if ((permission.canAccess ?? permission.CanAccess ?? true) !== true) {
-      return false;
-    }
-
-    return (
-      permission.moduleName?.trim().toLowerCase() ===
-      module.trim().toLowerCase()
-    );
-  });
-};
+const hasPermission = (module) => hasModulePermission(module);
 
 function SidebarLink({ to, icon, label, compact, onClick }) {
   return (
@@ -301,6 +333,9 @@ function SubmenuLink({ to, icon, label, onClick }) {
 function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
   const location = useLocation();
   const roleName = getUserRole();
+  const superAdminUser = isSuperAdmin();
+  const resolvedLogo = useBrandingLogo("sidebarLogo");
+  const logoSrc = resolvedLogo || pirnavLogo;
   const isCompact = !isMobile && collapsed;
   const routeMenu = isCompact ? null : getMenuKeyFromPath(location.pathname);
   const [menuState, setMenuState] = useState(() => ({
@@ -467,6 +502,10 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
       "My Notifications",
     ];
 
+    if (item.hidden) {
+      return null;
+    }
+
     if (item.adminOnly && !isAdmin()) {
       return null;
     }
@@ -495,7 +534,15 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
   };
 
   const renderExpandableMenu = (menu) => {
+    if (menu.hidden) {
+      return null;
+    }
+
     const visibleItems = menu.items.filter((item) => {
+      if ((menu.adminOnly || item.adminOnly) && !isAdmin()) {
+        return false;
+      }
+
       // Hide Add Details for Admin
       if (isAdmin() && item.label === "Add Details") {
         return false;
@@ -511,8 +558,12 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
         return false;
       }
 
-      return hasPermission(item.permission);
+      return !item.permission || hasPermission(item.permission);
     });
+
+    if (visibleItems.length === 0) {
+      return null;
+    }
 
     const submenuDirection = submenuDirections[menu.key] || "down";
 
@@ -538,8 +589,8 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
     return (
       <div
         className={`menu-section ${submenuDirection === "up"
-            ? "submenu-open-up"
-            : "submenu-open-down"
+          ? "submenu-open-up"
+          : "submenu-open-down"
           }`}
         key={menu.key}
       >
@@ -588,6 +639,29 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
     );
   };
 
+  const renderSuperAdminMenu = () => (
+    <>
+    <SidebarLink
+    to="/super-admin/dashboard"
+    icon={FaTachometerAlt}
+    label="Dashboard"
+    compact={isCompact}
+    onClick={handleLinkClick}
+/>
+      {SUPER_ADMIN_EXPANDABLE_MENUS.map(renderExpandableMenu)}
+      {SUPER_ADMIN_STATIC_MENUS.filter((item) => item.label !== "Dashboard").map((item) => (
+        <SidebarLink
+          key={item.label}
+          to={item.to}
+          icon={item.icon}
+          label={item.label}
+          compact={isCompact}
+          onClick={handleLinkClick}
+        />
+      ))}
+    </>
+  );
+
   return (
     <>
       {isMobile && (
@@ -604,13 +678,38 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
           } ${isMobile && mobileOpen ? "mobile-open" : ""}`}
       >
         <div className="logo">
-          <img src={pirnavLogo} alt="Pirnav Logo" className="sidebar-logo-img" />
+          <img
+            src={logoSrc}
+            alt="Pirnav Logo"
+            className="sidebar-logo-img"
+            onError={(event) => {
+              if (event.currentTarget.src !== pirnavLogo) {
+                event.currentTarget.src = pirnavLogo;
+              }
+            }}
+          />
         </div>
 
         <nav className="menu">
-          {STATIC_MENUS_BEFORE_DROPDOWNS.map(renderStaticMenu)}
-          {EXPANDABLE_MENUS.map(renderExpandableMenu)}
-          {STATIC_MENUS_AFTER_DROPDOWNS.map(renderStaticMenu)}
+          {isOnboardingUser() ? (
+            <>
+              <SidebarLink
+                to="/onboarding/details"
+                icon={FaUsers}
+                label="Add Details"
+                compact={isCompact}
+                onClick={handleLinkClick}
+              />
+            </>
+          ) : superAdminUser ? (
+            renderSuperAdminMenu()
+          ) : (
+            <>
+              {STATIC_MENUS_BEFORE_DROPDOWNS.map(renderStaticMenu)}
+              {EXPANDABLE_MENUS.map(renderExpandableMenu)}
+              {STATIC_MENUS_AFTER_DROPDOWNS.map(renderStaticMenu)}
+            </>
+          )}
         </nav>
       </aside>
     </>

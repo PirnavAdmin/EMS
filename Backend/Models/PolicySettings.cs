@@ -1,10 +1,13 @@
 ﻿using System.ComponentModel.DataAnnotations;
+
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
 
 {
+
     [Table("policysettings")]
+
     public class PolicySettings
 
     {
@@ -19,14 +22,17 @@ namespace EmployeeManagementSystem.Models
 
         public string PolicyContent { get; set; } = string.Empty;
 
-        public string? Version { get; set; }
+        public string Version { get; set; } = "1.0";
 
-        public DateTime? EffectiveFrom { get; set; }
+        public DateTime EffectiveFrom { get; set; }
 
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
 
-        public DateTime UpdatedAt { get; set; }
+        public string? CreatedBy { get; set; }
+
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     }
 
 }
+

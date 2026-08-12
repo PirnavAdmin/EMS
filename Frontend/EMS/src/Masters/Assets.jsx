@@ -1171,7 +1171,7 @@ export default function Assets() {
 
         {/* RESET BUTTON */}
 
-        <button
+        {/* <button
           type="button"
           className="reset-btn app-button-secondary"
           onClick={() => {
@@ -1181,7 +1181,7 @@ export default function Assets() {
           }}
         >
           Reset
-        </button>
+        </button> */}
 
       </div>
       <div className="assets-table-wrap app-table-scroll">

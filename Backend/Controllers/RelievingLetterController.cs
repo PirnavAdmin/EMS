@@ -22,11 +22,34 @@ namespace EmployeeManagementSystem.Controllers
 
         //[Permission(ModuleIds.OfferLetters, PermissionAction.Add)]
         [HttpPost("generate")]
-        public async Task<IActionResult> Generate([FromBody] RelievingLetterRequestDto dto)
+        public async Task<IActionResult> Generate(
+     [FromBody] RelievingLetterRequestDto? dto)
         {
-            var result = await _service.GenerateRelievingLetterAsync(dto);
+            if (dto == null)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Request body is required."
+                });
+            }
 
-            return Ok(result);
+            try
+            {
+                var result =
+                    await _service
+                        .GenerateRelievingLetterAsync(dto);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
         }
 
         //[Permission(ModuleIds.OfferLetters, PermissionAction.View)]

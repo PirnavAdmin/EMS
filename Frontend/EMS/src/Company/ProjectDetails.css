@@ -725,24 +725,6 @@
   min-width: 90px;
 }
 
-/* Keep Actions column sticky on the right if it exists */
-.project-details-ticket-table.ticket-table th:last-child,
-.project-details-ticket-table.ticket-table td:last-child,
-.project-details-employee-ticket-table.ticket-table th:last-child,
-.project-details-employee-ticket-table.ticket-table td:last-child {
-  position: sticky;
-  right: 0;
-  background: var(--bg-page);
-  z-index: 1;
-  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
-}
-
-.project-details-ticket-table.ticket-table thead th:last-child,
-.project-details-employee-ticket-table.ticket-table thead th:last-child {
-  background: var(--bg-muted);
-  z-index: 2;
-}
-
 /* Ensure consistent row spacing */
 .project-details-ticket-table.ticket-table tbody tr,
 .project-details-employee-ticket-table.ticket-table tbody tr {

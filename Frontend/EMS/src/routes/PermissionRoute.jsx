@@ -1,12 +1,12 @@
 import { Navigate } from "react-router-dom";
 import { getStoredPermissions } from "../utils/authStorage";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
-import { isAdmin } from "../utils/authorization";
+import { isPlatformAdmin } from "../utils/authorization";
 
 const PermissionRoute = ({ children, module }) => {
   const permissions = getStoredPermissions();
 
-  if (isAdmin()) {
+  if (isPlatformAdmin()) {
     return children;
   }
 

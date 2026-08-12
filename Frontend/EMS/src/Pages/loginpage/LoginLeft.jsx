@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaEnvelope, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
+import { FaChevronLeft, FaEnvelope, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
@@ -26,8 +26,10 @@ const toDisplayRoleName = (value) => {
   const lowered = normalized.toLowerCase();
 
   if (lowered === "admin") return "Admin";
+  if (["superadmin", "super admin", "super_admin"].includes(lowered)) return "SuperAdmin";
   if (lowered === "user") return "User";
   if (lowered === "employee") return "Employee";
+  if (lowered === "onboarding" || lowered === "candidate") return "Onboarding";
 
   return normalized;
 };
@@ -105,6 +107,7 @@ export default function LoginLeft() {
     };
 
     const endpoints = [
+      API_ENDPOINTS.auth.superAdminLogin,
       API_ENDPOINTS.auth.adminLogin,
       API_ENDPOINTS.auth.userLogin,
     ];
@@ -118,7 +121,7 @@ export default function LoginLeft() {
         lastError = error;
 
         if (
-          endpoint === API_ENDPOINTS.auth.adminLogin &&
+          endpoint !== API_ENDPOINTS.auth.userLogin &&
           shouldFallbackToUserLogin(error)
         ) {
           continue;
@@ -249,6 +252,21 @@ export default function LoginLeft() {
         decoded?.Attendance_Id
       );
 
+      const onboardingId = resolveIdentityValue(
+        response.data.onboardingId,
+        response.data.onboarding_Id,
+        response.data.onboardingID,
+        response.data.OnboardingId,
+        response.data.Onboarding_Id,
+        decoded?.onboardingId,
+        decoded?.onboarding_Id,
+        decoded?.onboardingID,
+        decoded?.OnboardingId,
+        decoded?.Onboarding_Id,
+        decoded?.candidateOnboardingId,
+        decoded?.CandidateOnboardingId
+      );
+
       const organizationId = resolveIdentityValue(
         response.data.organizationId,
         response.data.organization_Id,
@@ -299,19 +317,45 @@ export default function LoginLeft() {
           roleName
       );
 
+      const loginType = String(
+        response.data.userType ||
+          response.data.loginType ||
+          response.data.accountType ||
+          response.data.type ||
+          decoded?.userType ||
+          decoded?.loginType ||
+          decoded?.accountType ||
+          ""
+      ).toLowerCase();
+
+      const isOnboardingLogin =
+        Boolean(onboardingId) &&
+        (
+          role === "onboarding" ||
+          role === "candidate" ||
+          normalizeRole(roleName) === "onboarding" ||
+          normalizeRole(roleName) === "candidate" ||
+          loginType.includes("onboarding") ||
+          loginType.includes("candidate") ||
+          response.data.isOnboardingUser === true ||
+          response.data.isOnboarding === true ||
+          decoded?.isOnboardingUser === true ||
+          decoded?.isOnboarding === true
+        );
+
       if (!token) {
         throw new Error(
           "Login failed: Login response is missing required authentication data."
         );
       }
 
-      if (!role) {
+      if (!role && !isOnboardingLogin) {
         throw new Error(
           "Login failed: Role information is missing from the authentication response."
         );
       }
 
-      if (!roleName) {
+      if (!roleName && !isOnboardingLogin) {
         throw new Error(
           "Login failed: Role name is missing from the authentication response."
         );
@@ -325,7 +369,9 @@ export default function LoginLeft() {
 
       let employeePermissionExists = false;
 
-      if (role === "admin") {
+      if (isOnboardingLogin) {
+        modules = [{ moduleName: "Onboarding", canAccess: true }];
+      } else if (role === "admin" || ["superadmin", "super admin", "super_admin"].includes(role)) {
         modules =
           modules.length > 0
             ? modules
@@ -366,7 +412,7 @@ export default function LoginLeft() {
         }
       }
 
-      if (!Array.isArray(modules) || (modules.length === 0 && !employeePermissionExists)) {
+      if (!Array.isArray(modules) || (modules.length === 0 && !employeePermissionExists && !isOnboardingLogin)) {
         throw new Error(
           "Login failed: Role information is missing from the authentication response."
         );
@@ -376,20 +422,37 @@ export default function LoginLeft() {
 
       storage.setItem("token", token);
       localStorage.setItem("loginTime", String(Date.now()));
-      storage.setItem("role", role);
-      storage.setItem("roleName", roleName);
+      storage.setItem("role", isOnboardingLogin ? "onboarding" : role);
+      storage.setItem("roleName", isOnboardingLogin ? "Onboarding" : roleName);
       storage.setItem("roleId", roleId || "");
       storage.setItem("email", form.email);
+      storage.setItem("userData", JSON.stringify(response.data));
+      storage.setItem("user", JSON.stringify(response.data.superAdmin || response.data.admin || response.data.user || response.data));
 
-      if (resolvedEmployeeId) {
+      if (["superadmin", "super admin", "super_admin"].includes(role)) {
+        storage.setItem("role", "SuperAdmin");
+        storage.setItem("roleName", "SuperAdmin");
+        storage.setItem("userType", "SuperAdmin");
+        storage.setItem("isSuperAdmin", "true");
+        localStorage.setItem("role", "SuperAdmin");
+        localStorage.setItem("userType", "SuperAdmin");
+        localStorage.setItem("isSuperAdmin", "true");
+      }
+
+      if (isOnboardingLogin) {
+        storage.setItem("onboardingId", onboardingId);
+        storage.setItem("isOnboardingUser", "true");
+      }
+
+      if (!isOnboardingLogin && resolvedEmployeeId) {
         storage.setItem("employeeId", resolvedEmployeeId);
       }
 
-      if (userId) {
+      if (!isOnboardingLogin && userId) {
         storage.setItem("userId", userId);
       }
 
-      if (attendanceId) {
+      if (!isOnboardingLogin && attendanceId) {
         storage.setItem("attendanceId", attendanceId);
       }
 
@@ -419,7 +482,7 @@ export default function LoginLeft() {
 
       startSessionTimer();
 
-      navigate(role === "admin" ? "/dashboard" : "/user-dashboard", {
+      navigate(isOnboardingLogin ? "/onboarding" : role === "admin" || ["superadmin", "super admin", "super_admin"].includes(role) ? "/dashboard" : "/user-dashboard", {
         replace: true,
       });
     } catch (requestError) {
@@ -447,13 +510,26 @@ export default function LoginLeft() {
 
   return (
     <>
-      <div className="auth-card-head">
-        <p className="auth-eyebrow">Welcome Back</p>
-        <h2 className="auth-card-title">Sign in to PIRNAV HRMS</h2>
-        {/* <p className="auth-card-subtitle">
-          Access your secure workspace for people operations, approvals,
-          payroll, and reporting.
-        </p> */}
+      <div className="auth-card-top">
+        {/* <button
+          type="button"
+          className="auth-back-home-button"
+          onClick={() => navigate("/")}
+        >
+          <span className="auth-back-home-icon" aria-hidden="true">
+            <FaChevronLeft />
+          </span>
+          <span>Back to Home</span>
+        </button> */}
+
+        <div className="auth-card-head">
+          <p className="auth-eyebrow">Welcome Back</p>
+          <h2 className="auth-card-title">Sign in to PIRNAV HRMS</h2>
+          {/* <p className="auth-card-subtitle">
+            Access your secure workspace for people operations, approvals,
+            payroll, and reporting.
+          </p> */}
+        </div>
       </div>
 
       {error ? <div className="auth-status auth-status-error">{error}</div> : null}

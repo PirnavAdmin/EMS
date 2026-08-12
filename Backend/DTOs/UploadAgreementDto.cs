@@ -11,7 +11,7 @@ namespace EmployeeManagementSystem.DTOs
     {
 
         [Required]
-
+        // need to chnage
         public string AgreementCode { get; set; }
 
         [Required]

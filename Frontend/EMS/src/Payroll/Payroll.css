@@ -641,6 +641,18 @@
   border-color: var(--theme-danger);
 }
 
+.payroll-generation-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.payroll-generation-messages .success-message,
+.payroll-generation-messages .error-message {
+  margin-bottom: 0;
+}
+
 /* =========================
    RECENT TABLE HEADER & FILTERS
 ========================= */
@@ -1045,6 +1057,18 @@
   color: var(--text-strong);
 }
 
+.generation-overlay-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.generation-progress {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .generation-loader {
   width: 22px;
   height: 22px;
@@ -1186,6 +1210,16 @@ input[type="number"] {
   .period-section {
     flex-direction: column;
     gap: 20px;
+  }
+
+  .specific-period .period-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+  }
+
+  .specific-period .period-buttons select {
+    width: 100%;
   }
 
   .employee-header {
@@ -1905,4 +1939,30 @@ input[type="number"] {
 
 .manual-generate-btn {
   margin-top: 20px;
+}
+
+.payroll-deduction-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.payroll-input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.payroll-input-group input {
+  width: 100%;
+}
+
+.payroll-input-group .helper-text {
+  margin-top: 6px;
+}
+
+@media (max-width: 768px) {
+  .payroll-deduction-grid {
+    grid-template-columns: 1fr;
+  }
 }

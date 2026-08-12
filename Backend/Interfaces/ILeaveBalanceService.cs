@@ -1,4 +1,5 @@
 ﻿using EmployeeManagementSystem.Models;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Interfaces
 {
@@ -7,5 +8,7 @@ namespace EmployeeManagementSystem.Interfaces
         Task<(int PaidLeaves, int LopDays)> ApproveLeaveAsync(EmployeeLeave leave);
 
         Task RestoreLeaveAsync(EmployeeLeave leave);
+        Task<object?> GetLeaveBalanceByEmployeeId(string employeeId);
+        Task<object?> GetMyLeaveBalance(ClaimsPrincipal user);
     }
 }

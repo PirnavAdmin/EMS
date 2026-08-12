@@ -25,14 +25,97 @@ const toErrorObject = (value) => {
   return error;
 };
 
+const extractStackLocation = (stack = "") => {
+  const lines = String(stack || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const parenMatch = line.match(/\((.*):(\d+):(\d+)\)$/);
+    if (parenMatch) {
+      return {
+        sourceFile: parenMatch[1],
+        lineNumber: Number(parenMatch[2]),
+        columnNumber: Number(parenMatch[3]),
+      };
+    }
+
+    const directMatch = line.match(/^(?:at\s+)?(.*):(\d+):(\d+)$/);
+    if (directMatch) {
+      return {
+        sourceFile: directMatch[1].replace(/^at\s+/, ""),
+        lineNumber: Number(directMatch[2]),
+        columnNumber: Number(directMatch[3]),
+      };
+    }
+  }
+
+  return {};
+};
+
+const formatLocation = ({
+  sourceFile = "",
+  lineNumber = "",
+  columnNumber = "",
+} = {}) => {
+  const file = String(sourceFile || "").trim();
+
+  if (!file) {
+    return "";
+  }
+
+  const line = lineNumber ? String(lineNumber) : "?";
+  const column = columnNumber ? String(columnNumber) : "?";
+  return `${file}:${line}:${column}`;
+};
+
+const buildErrorDetails = ({
+  error,
+  componentStack = "",
+  routeName = "",
+  currentUrl = "",
+  filename = "",
+  lineNumber = "",
+  columnNumber = "",
+  meta = {},
+}) => {
+  const stackLocation = extractStackLocation(
+    error?.stack || componentStack || ""
+  );
+  const sourceFile = filename || stackLocation.sourceFile || "";
+  const resolvedLineNumber = lineNumber || stackLocation.lineNumber || "";
+  const resolvedColumnNumber = columnNumber || stackLocation.columnNumber || "";
+
+  return {
+    ...meta,
+    routeName,
+    currentUrl,
+    sourceFile,
+    lineNumber: resolvedLineNumber,
+    columnNumber: resolvedColumnNumber,
+    sourceLocation: formatLocation({
+      sourceFile,
+      lineNumber: resolvedLineNumber,
+      columnNumber: resolvedColumnNumber,
+    }),
+  };
+};
+
 const logBoundaryError = (label, error, extra = {}) => {
-  console.error(label, error);
+  console.groupCollapsed(label);
+  console.error(error);
 
   if (Object.keys(extra).length > 0) {
-    console.error(`${label} Details:`, extra);
+    console.error("Details:", extra);
+  }
+
+  if (error?.stack) {
+    console.error(error.stack);
   }
 
   console.trace();
+  console.groupEnd();
 };
 
 class AppErrorBoundary extends React.Component {
@@ -74,19 +157,27 @@ class AppErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    const componentStack = errorInfo?.componentStack || error.stack || "";
+    const routeName =
+      typeof window !== "undefined" ? window.location.pathname : "";
+    const currentUrl =
+      typeof window !== "undefined" ? window.location.href : "";
+    const details = buildErrorDetails({
+      error,
+      componentStack,
+      routeName,
+      currentUrl,
+    });
+
     logBoundaryError("React Error:", error, {
-      componentStack: errorInfo?.componentStack || error.stack || "",
-      routeName: typeof window !== "undefined" ? window.location.pathname : "",
-      currentUrl: typeof window !== "undefined" ? window.location.href : "",
+      ...details,
+      componentStack,
     });
 
     this.setState({
       error,
-      componentStack: errorInfo?.componentStack || error.stack || "",
-      details: {
-        routeName: window.location.pathname,
-        currentUrl: window.location.href,
-      },
+      componentStack,
+      details,
       title: "JavaScript Error",
       message: error.message || "A runtime error occurred.",
     });
@@ -95,16 +186,30 @@ class AppErrorBoundary extends React.Component {
   handleApplicationError = (event) => {
     const detail = event?.detail || {};
     const error = toErrorObject(detail.error) || new Error(detail.message);
+    const componentStack = detail.componentStack || error.stack || "";
+    const routeName =
+      detail.meta?.routeName ||
+      (typeof window !== "undefined" ? window.location.pathname : "");
+    const currentUrl =
+      detail.meta?.currentUrl ||
+      (typeof window !== "undefined" ? window.location.href : "");
+    const details = buildErrorDetails({
+      error,
+      componentStack,
+      routeName,
+      currentUrl,
+      meta: detail.meta || {},
+    });
 
     logBoundaryError("Application Error:", error, {
-      ...detail.meta,
-      componentStack: detail.componentStack || error.stack || "",
+      ...details,
+      componentStack,
     });
 
     this.setState({
       error,
-      componentStack: detail.componentStack || detail.error?.stack || "",
-      details: detail.meta || {},
+      componentStack,
+      details,
       title: detail.title || "Application Error",
       message: detail.message || error.message,
     });
@@ -116,21 +221,29 @@ class AppErrorBoundary extends React.Component {
     }
 
     const error = toErrorObject(event?.error) || new Error(event?.message || "Unknown error");
+    const componentStack = error.stack || "";
+    const details = buildErrorDetails({
+      error,
+      componentStack,
+      routeName: typeof window !== "undefined" ? window.location.pathname : "",
+      currentUrl: typeof window !== "undefined" ? window.location.href : "",
+      filename: event?.filename || "",
+      lineNumber: event?.lineno || "",
+      columnNumber: event?.colno || "",
+    });
 
     logBoundaryError("JavaScript Error:", error, {
       message: event?.message || error.message,
       filename: event?.filename || "",
       lineno: event?.lineno || "",
       colno: event?.colno || "",
+      ...details,
     });
 
     this.setState({
       error,
-      componentStack: error.stack || "",
-      details: {
-        routeName: window.location.pathname,
-        currentUrl: window.location.href,
-      },
+      componentStack,
+      details,
       title: "JavaScript Error",
       message: error.message,
     });
@@ -145,18 +258,23 @@ class AppErrorBoundary extends React.Component {
     const error =
       toErrorObject(reason) ||
       new Error(typeof reason === "string" ? reason : "Unhandled promise rejection");
+    const componentStack = error.stack || "";
+    const details = buildErrorDetails({
+      error,
+      componentStack,
+      routeName: typeof window !== "undefined" ? window.location.pathname : "",
+      currentUrl: typeof window !== "undefined" ? window.location.href : "",
+    });
 
     logBoundaryError("Promise Rejection:", error, {
       reason: typeof reason === "string" ? reason : "",
+      ...details,
     });
 
     this.setState({
       error,
-      componentStack: error.stack || "",
-      details: {
-        routeName: window.location.pathname,
-        currentUrl: window.location.href,
-      },
+      componentStack,
+      details,
       title: "Promise Rejection",
       message: error.message,
     });

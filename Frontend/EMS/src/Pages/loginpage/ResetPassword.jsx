@@ -19,7 +19,7 @@ export default function ResetPassword() {
   const location = useLocation();
   const email = location.state?.email;
   const otp = location.state?.otp;
-  const role = resolveAuthRole(location.state?.role, "user");
+  const role = resolveAuthRole(location.state?.role, "");
 
   const [formData, setFormData] = useState({
     password: "",
@@ -62,6 +62,12 @@ export default function ResetPassword() {
     setError("");
 
     if (!email || !otp) {
+      setError("Please restart the forgot password flow.");
+      navigate("/forgot-password", { replace: true });
+      return;
+    }
+
+    if (!role) {
       setError("Please restart the forgot password flow.");
       navigate("/forgot-password", { replace: true });
       return;

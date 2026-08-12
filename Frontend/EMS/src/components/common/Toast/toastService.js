@@ -21,7 +21,6 @@ const DEFAULT_TOAST_OPTIONS = {
   newestOnTop: true,
   pauseOnFocusLoss: false,
   pauseOnHover: true,
-  theme: "dark",
   icon: false,
 };
 
@@ -33,6 +32,10 @@ const VARIANT_TITLES = {
 };
 
 const GLOBAL_TOAST_ID = "ems-global-toast";
+
+const resolveAutoClose = (variant, options = {}) =>
+  options.autoClose ??
+  (variant === "error" ? 5000 : 4000);
 
 const dismissVisibleToasts = () => {
   toastifyToast.dismiss();
@@ -106,6 +109,7 @@ const renderToast = (variant, message, options = {}) => {
     ...DEFAULT_TOAST_OPTIONS,
     ...options,
     toastId: options.toastId || GLOBAL_TOAST_ID,
+    autoClose: resolveAutoClose(variant, options),
     transition: options.transition || toastTransition,
   };
 
@@ -121,9 +125,7 @@ const updateToastState = (toastId, variant, message, options = {}) => {
   return toastifyToast.update(toastId, {
     render: createToastNode(variant, title, message),
     type: variant,
-    autoClose:
-      options.autoClose ??
-      DEFAULT_TOAST_OPTIONS.autoClose,
+    autoClose: resolveAutoClose(variant, options),
     closeButton: false,
     draggable: true,
     transition: options.transition || toastTransition,
@@ -195,5 +197,17 @@ export const toastError = toastApi.error;
 export const toastWarning = toastApi.warning;
 export const toastInfo = toastApi.info;
 export const toastPromise = toastApi.promise;
+export const toast = {
+  success: toastApi.success,
+  error: toastApi.error,
+  warning: toastApi.warning,
+  info: toastApi.info,
+  promise: toastApi.promise,
+  dismiss: (...args) => toastifyToast.dismiss(...args),
+  clearWaitingQueue: (...args) =>
+    typeof toastifyToast.clearWaitingQueue === "function"
+      ? toastifyToast.clearWaitingQueue(...args)
+      : undefined,
+};
 
 export const normalizeToastContent = normalizeToastMessage;

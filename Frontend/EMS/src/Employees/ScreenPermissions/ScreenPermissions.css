@@ -71,6 +71,97 @@
   background: var(--success);
 }
 
+.permission-secondary-btn {
+  background: var(--bg-page);
+  color: var(--text-strong);
+  border: 1px solid var(--border-soft);
+}
+
+.permission-secondary-btn:hover:not(:disabled) {
+  background: var(--bg-muted);
+}
+
+.permission-loading {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.permission-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  border-radius: 999px;
+  background: #d1d5db;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.permission-switch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.permission-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s ease;
+}
+
+.permission-slider::before {
+  position: absolute;
+  content: none;
+}
+
+.permission-switch.active {
+  background: #22c55e;
+}
+
+.permission-switch.active .permission-slider,
+.permission-switch input:checked + .permission-slider {
+  transform: translateX(24px);
+}
+
+.permission-switch:hover {
+  transform: scale(1.03);
+}
+
+.permission-switch:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.permission-access-col {
+  width: 180px;
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+.permission-matrix th.permission-access-col,
+.permission-matrix td.permission-access-col {
+  text-align: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.permission-switch {
+  display: inline-block;
+}
+
 .permission-group {
   background: var(--bg-page);
   border-radius: 14px;

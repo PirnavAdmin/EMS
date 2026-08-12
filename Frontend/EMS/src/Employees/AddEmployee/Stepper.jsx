@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 
-const steps = [
+const defaultSteps = [
   {
     id: 1,
     label: "Personal Info",
@@ -27,7 +27,7 @@ const steps = [
   }
 ];
 
-function Stepper({ step, setStep, maxStep }) {
+function Stepper({ step, setStep, maxStep, steps = defaultSteps, ariaLabel = "Add employee steps" }) {
   const handleStepClick = (targetStep) => {
     if (targetStep <= maxStep) {
       setStep(targetStep);
@@ -35,7 +35,7 @@ function Stepper({ step, setStep, maxStep }) {
   };
 
   return (
-    <nav className="stepper" aria-label="Add employee steps">
+    <nav className="stepper" aria-label={ariaLabel}>
       {steps.map((item) => (
         <button
           type="button"

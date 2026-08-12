@@ -247,22 +247,29 @@ export const downloadSignedAgreement = (agreementOrId) =>
 
 export const signAgreement = ({
   employeeId,
+  onboardingId,
   agreementCode,
   signatureName,
   signedLocation,
   signatureImage,
 }) => {
   const formData = new FormData();
+  const params = {
+    AgreementCode: agreementCode,
+    SignatureName: signatureName,
+    SignedLocation: signedLocation,
+  };
 
   formData.append("SignatureImage", signatureImage);
 
+  if (onboardingId) {
+    params.OnboardingId = onboardingId;
+  } else {
+    params.EmployeeId = employeeId;
+  }
+
   return api.post(API_ENDPOINTS.agreements.sign, formData, {
-    params: {
-      EmployeeId: employeeId,
-      AgreementCode: agreementCode,
-      SignatureName: signatureName,
-      SignedLocation: signedLocation,
-    },
+    params,
     headers: {
       "Content-Type": "multipart/form-data",
     },

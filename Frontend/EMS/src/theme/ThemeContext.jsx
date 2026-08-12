@@ -1,6 +1,5 @@
 import React, {
-  createContext,
-  useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -14,8 +13,7 @@ import {
   normalizeThemeMode,
   THEME_OPTIONS,
 } from "./themeConfig";
-
-export const ThemeContext = createContext(null);
+import { ThemeContext } from "./themeContextState.js";
 
 export const ThemeProvider = ({ children }) => {
   const [themeMode, setThemeModeState] = useState(getStoredThemeMode);
@@ -35,7 +33,7 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [themeMode]);
 
-  const toggleThemeMode = useMemo(() => () => {
+  const toggleThemeMode = useCallback(() => {
     setThemeModeState((currentMode) =>
       currentMode === "light"
         ? "dark"
@@ -45,7 +43,7 @@ export const ThemeProvider = ({ children }) => {
     );
   }, []);
 
-  const setThemeMode = useMemo(() => (nextThemeMode) => {
+  const setThemeMode = useCallback((nextThemeMode) => {
     setThemeModeState(normalizeThemeMode(nextThemeMode));
   }, []);
 
@@ -68,7 +66,5 @@ export const ThemeProvider = ({ children }) => {
     </ThemeContext.Provider>
   );
 };
-
-export const useThemeContext = () => useContext(ThemeContext);
 
 export default ThemeProvider;

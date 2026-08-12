@@ -17,145 +17,473 @@ namespace EmployeeManagementSystem.Services
         }
         public async Task SavePermissions(SaveUserPermissionDto dto)
         {
+            // =====================================================
+            // 1. GET EMPLOYEE
+            // =====================================================
+
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Employee_Id == dto.EmployeeId);
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.Employee_Id == dto.EmployeeId);
 
             if (employee == null)
                 throw new Exception("Employee not found.");
 
-            var existing = await _context.UserPermissions
-                .Where(x => x.EmployeeId == dto.EmployeeId)
-                .ToListAsync();
+            if (!employee.AdminId.HasValue)
+                throw new Exception(
+                    "AdminId is not assigned to this employee.");
 
-            _context.UserPermissions.RemoveRange(existing);
+            if (!employee.RoleId.HasValue)
+                throw new Exception(
+                    "RoleId is not assigned to this employee.");
 
-            await _context.SaveChangesAsync();
+            int adminId = employee.AdminId.Value;
+            int roleId = employee.RoleId.Value;
 
-            var list = dto.Modules.Select(x => new UserPermission
+
+            // =====================================================
+            // 2. GET ADMIN ALLOWED PERMISSIONS
+            // SuperAdmin -> Admin
+            // =====================================================
+
+            var adminPermissions =
+                await _context.AdminPermissions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.AdminId == adminId &&
+                        x.CanAccess)
+                    .ToListAsync();
+
+            if (!adminPermissions.Any())
+                throw new Exception(
+                    "No modules are assigned to this Admin.");
+
+
+            // =====================================================
+            // 3. GET ROLE PERMISSIONS
+            // Admin -> Role
+            // =====================================================
+
+            var rolePermissions =
+                await _context.RolePermissions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.RoleId == roleId &&
+                        x.CanAccess)
+                    .ToListAsync();
+
+
+            // =====================================================
+            // 4. VALIDATE USER REQUEST
+            // =====================================================
+
+            foreach (var module in dto.Modules)
             {
-                EmployeeId = dto.EmployeeId,
-                ModuleId = x.ModuleId,
-                CanAccess = x.CanAccess,
-                CanView = x.CanView,
-                CanAdd = x.CanAdd,
-                CanEdit = x.CanEdit,
-                CanDelete = x.CanDelete,
-                CreatedAt = DateTime.UtcNow
-            }).ToList();
+                // -----------------------------
+                // Check Admin permission
+                // -----------------------------
 
-            await _context.UserPermissions.AddRangeAsync(list);
+                var adminPermission =
+                    adminPermissions.FirstOrDefault(x =>
+                        x.ModuleId == module.ModuleId);
+
+                if (adminPermission == null)
+                {
+                    throw new Exception(
+                        $"Module {module.ModuleId} is not allowed for this Admin.");
+                }
+
+
+                // -----------------------------
+                // Check Role permission
+                // -----------------------------
+
+                var rolePermission =
+                    rolePermissions.FirstOrDefault(x =>
+                        x.ModuleId == module.ModuleId);
+
+                if (rolePermission == null)
+                {
+                    throw new Exception(
+                        $"Module {module.ModuleId} is not allowed for this employee's role.");
+                }
+
+
+                // =================================================
+                // USER CANNOT EXCEED ROLE PERMISSIONS
+                // =================================================
+
+                if (module.CanView &&
+                    !rolePermission.CanView)
+                {
+                    throw new Exception(
+                        $"View permission is not allowed for module {module.ModuleId}.");
+                }
+
+                if (module.CanAdd &&
+                    !rolePermission.CanAdd)
+                {
+                    throw new Exception(
+                        $"Add permission is not allowed for module {module.ModuleId}.");
+                }
+
+                if (module.CanEdit &&
+                    !rolePermission.CanEdit)
+                {
+                    throw new Exception(
+                        $"Edit permission is not allowed for module {module.ModuleId}.");
+                }
+
+                if (module.CanDelete &&
+                    !rolePermission.CanDelete)
+                {
+                    throw new Exception(
+                        $"Delete permission is not allowed for module {module.ModuleId}.");
+                }
+            }
+
+
+            // =====================================================
+            // 5. REMOVE OLD USER OVERRIDES
+            // =====================================================
+
+            var existing =
+                await _context.UserPermissions
+                    .Where(x =>
+                        x.EmployeeId == dto.EmployeeId)
+                    .ToListAsync();
+
+            if (existing.Any())
+            {
+                _context.UserPermissions
+                    .RemoveRange(existing);
+            }
+
+
+            // =====================================================
+            // 6. CREATE USER OVERRIDES
+            // =====================================================
+
+            var list = dto.Modules
+                .Select(x => new UserPermission
+                {
+                    EmployeeId = dto.EmployeeId,
+
+                    ModuleId = x.ModuleId,
+
+                    // automatically calculate
+                    CanAccess =
+                        x.CanView ||
+                        x.CanAdd ||
+                        x.CanEdit ||
+                        x.CanDelete,
+
+                    CanView = x.CanView,
+                    CanAdd = x.CanAdd,
+                    CanEdit = x.CanEdit,
+                    CanDelete = x.CanDelete,
+
+                    CreatedAt = DateTime.UtcNow
+                })
+                .ToList();
+
+
+            // =====================================================
+            // 7. SAVE
+            // =====================================================
+
+            await _context.UserPermissions
+                .AddRangeAsync(list);
 
             await _context.SaveChangesAsync();
         }
-        public async Task<List<RolePermissionResponseDto>> GetPermissions(string employeeId)
+        public async Task<List<RolePermissionResponseDto>>
+       GetPermissions(string employeeId)
         {
-            // Get Employee
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+            // =====================================================
+            // 1. EMPLOYEE
+            // =====================================================
+
+            var employee =
+                await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == employeeId);
 
             if (employee == null)
                 throw new Exception("Employee not found.");
 
-            // Load All Modules
-            var modules = await _context.Modules
-                .OrderBy(x => x.ModuleId)
-                .ToListAsync();
+            if (!employee.AdminId.HasValue)
+                throw new Exception(
+                    "AdminId is not assigned to employee.");
 
-            // Load Role Permissions
-            var rolePermissions = await _context.RolePermissions
-                .Where(x => x.RoleId == employee.RoleId)
-                .ToListAsync();
+            if (!employee.RoleId.HasValue)
+                throw new Exception(
+                    "RoleId is not assigned to employee.");
 
-            // Load User Permissions
-            var userPermissions = await _context.UserPermissions
-                .Where(x => x.EmployeeId == employeeId)
-                .ToListAsync();
 
-            var result = modules.Select(m =>
+            int adminId = employee.AdminId.Value;
+            int roleId = employee.RoleId.Value;
+
+
+            // =====================================================
+            // 2. ADMIN ALLOWED MODULES
+            // =====================================================
+
+            var adminAllowedModuleIds =
+                await _context.AdminPermissions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.AdminId == adminId &&
+                        x.CanAccess)
+                    .Select(x => x.ModuleId)
+                    .ToListAsync();
+
+
+            // =====================================================
+            // 3. ROLE PERMISSIONS
+            // =====================================================
+
+            var rolePermissions =
+                await _context.RolePermissions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.RoleId == roleId &&
+                        x.CanAccess &&
+                        adminAllowedModuleIds.Contains(
+                            x.ModuleId))
+                    .ToListAsync();
+
+
+            var roleModuleIds =
+                rolePermissions
+                    .Select(x => x.ModuleId)
+                    .ToList();
+
+
+            // =====================================================
+            // 4. LOAD ONLY ROLE ALLOWED MODULES
+            // =====================================================
+
+            var modules =
+                await _context.Modules
+                    .AsNoTracking()
+                    .Where(x =>
+                        roleModuleIds.Contains(x.ModuleId))
+                    .OrderBy(x => x.ModuleId)
+                    .ToListAsync();
+
+
+            // =====================================================
+            // 5. USER OVERRIDES
+            // =====================================================
+
+            var userPermissions =
+                await _context.UserPermissions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.EmployeeId == employeeId &&
+                        roleModuleIds.Contains(
+                            x.ModuleId))
+                    .ToListAsync();
+
+
+            // =====================================================
+            // 6. MERGE ROLE + USER
+            // =====================================================
+
+            var result = modules.Select(module =>
             {
-                var rolePermission = rolePermissions
-                    .FirstOrDefault(r => r.ModuleId == m.ModuleId);
+                var rolePermission =
+                    rolePermissions.First(x =>
+                        x.ModuleId == module.ModuleId);
 
-                var userPermission = userPermissions
-                    .FirstOrDefault(u => u.ModuleId == m.ModuleId);
+                var userPermission =
+                    userPermissions.FirstOrDefault(x =>
+                        x.ModuleId == module.ModuleId);
+
 
                 return new RolePermissionResponseDto
                 {
-                    ModuleId = m.ModuleId,
-                    ModuleName = m.ModuleName,
-                    Type = m.Type,
+                    ModuleId = module.ModuleId,
 
-                    CanAccess = userPermission?.CanAccess ?? rolePermission?.CanAccess ?? false,
-                    CanView = userPermission?.CanView ?? rolePermission?.CanView ?? false,
-                    CanAdd = userPermission?.CanAdd ?? rolePermission?.CanAdd ?? false,
-                    CanEdit = userPermission?.CanEdit ?? rolePermission?.CanEdit ?? false,
-                    CanDelete = userPermission?.CanDelete ?? rolePermission?.CanDelete ?? false
+                    ModuleName = module.ModuleName,
+
+                    Type = module.Type,
+
+                    // USER OVERRIDE
+                    // otherwise ROLE permission
+
+                    CanAccess =
+                        userPermission?.CanAccess
+                        ?? rolePermission.CanAccess,
+
+                    CanView =
+                        userPermission?.CanView
+                        ?? rolePermission.CanView,
+
+                    CanAdd =
+                        userPermission?.CanAdd
+                        ?? rolePermission.CanAdd,
+
+                    CanEdit =
+                        userPermission?.CanEdit
+                        ?? rolePermission.CanEdit,
+
+                    CanDelete =
+                        userPermission?.CanDelete
+                        ?? rolePermission.CanDelete
                 };
+
             }).ToList();
+
 
             return result;
         }
-        public async Task<List<object>> GetAllowedModules(string employeeId)
+        public async Task<List<object>>
+         GetAllowedModules(string employeeId)
         {
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+            // =====================================================
+            // 1. EMPLOYEE
+            // =====================================================
+
+            var employee =
+                await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == employeeId);
 
             if (employee == null)
                 return new List<object>();
 
-            var rolePermissions = await _context.RolePermissions
-                .Include(x => x.Module)
-                .Where(x => x.RoleId == employee.RoleId)
-                .ToListAsync();
+            if (!employee.AdminId.HasValue ||
+                !employee.RoleId.HasValue)
+            {
+                return new List<object>();
+            }
 
-            var userPermissions = await _context.UserPermissions
-                .Include(x => x.Module)
-                .Where(x => x.EmployeeId == employeeId)
-                .ToListAsync();
+
+            int adminId = employee.AdminId.Value;
+            int roleId = employee.RoleId.Value;
+
+
+            // =====================================================
+            // 2. ADMIN ALLOWED MODULES
+            // =====================================================
+
+            var adminAllowedModuleIds =
+                await _context.AdminPermissions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.AdminId == adminId &&
+                        x.CanAccess)
+                    .Select(x => x.ModuleId)
+                    .ToListAsync();
+
+
+            if (!adminAllowedModuleIds.Any())
+                return new List<object>();
+
+
+            // =====================================================
+            // 3. ROLE ALLOWED MODULES
+            // =====================================================
+
+            var rolePermissions =
+                await _context.RolePermissions
+                    .AsNoTracking()
+                    .Include(x => x.Module)
+                    .Where(x =>
+                        x.RoleId == roleId &&
+
+                        adminAllowedModuleIds.Contains(
+                            x.ModuleId) &&
+
+                        x.CanAccess)
+                    .ToListAsync();
+
+
+            if (!rolePermissions.Any())
+                return new List<object>();
+
+
+            var roleModuleIds =
+                rolePermissions
+                    .Select(x => x.ModuleId)
+                    .ToList();
+
+
+            // =====================================================
+            // 4. USER OVERRIDES
+            // ONLY FOR ROLE ALLOWED MODULES
+            // =====================================================
+
+            var userPermissions =
+                await _context.UserPermissions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.EmployeeId == employeeId &&
+
+                        roleModuleIds.Contains(
+                            x.ModuleId))
+                    .ToListAsync();
+
+
+            // =====================================================
+            // 5. MERGE
+            // =====================================================
 
             var result = new List<object>();
 
-            foreach (var rp in rolePermissions)
+
+            foreach (var rolePermission in rolePermissions)
             {
-                var up = userPermissions.FirstOrDefault(x => x.ModuleId == rp.ModuleId);
+                var userPermission =
+                    userPermissions.FirstOrDefault(x =>
+                        x.ModuleId ==
+                        rolePermission.ModuleId);
 
-                bool canAccess = up?.CanAccess ?? rp.CanAccess;
 
+                // USER OVERRIDE
+                // otherwise ROLE
+                bool canAccess =
+                    userPermission?.CanAccess
+                    ?? rolePermission.CanAccess;
+
+
+                // If user explicitly disabled module
                 if (!canAccess)
                     continue;
 
+
                 result.Add(new
                 {
-                    ModuleId = rp.ModuleId,
-                    ModuleName = rp.Module.ModuleName,
-                    Type = rp.Module.Type,
+                    ModuleId =
+                        rolePermission.ModuleId,
+
+                    ModuleName =
+                        rolePermission.Module.ModuleName,
 
                     CanAccess = canAccess,
-                    CanView = up?.CanView ?? rp.CanView,
-                    CanAdd = up?.CanAdd ?? rp.CanAdd,
-                    CanEdit = up?.CanEdit ?? rp.CanEdit,
-                    CanDelete = up?.CanDelete ?? rp.CanDelete
+
+                    CanView =
+                        userPermission?.CanView
+                        ?? rolePermission.CanView,
+
+                    CanAdd =
+                        userPermission?.CanAdd
+                        ?? rolePermission.CanAdd,
+
+                    CanEdit =
+                        userPermission?.CanEdit
+                        ?? rolePermission.CanEdit,
+
+                    CanDelete =
+                        userPermission?.CanDelete
+                        ?? rolePermission.CanDelete
                 });
             }
 
-            foreach (var up in userPermissions)
-            {
-                if (!rolePermissions.Any(r => r.ModuleId == up.ModuleId) && up.CanAccess)
-                {
-                    result.Add(new
-                    {
-                        ModuleId = up.ModuleId,
-                        ModuleName = up.Module.ModuleName,
-                        Type = up.Module.Type,
-
-                        CanAccess = up.CanAccess,
-                        CanView = up.CanView,
-                        CanAdd = up.CanAdd,
-                        CanEdit = up.CanEdit,
-                        CanDelete = up.CanDelete
-                    });
-                }
-            }
 
             return result;
         }

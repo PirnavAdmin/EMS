@@ -4,6 +4,8 @@ using EmployeeManagementSystem.Models;
 
 using Microsoft.AspNetCore.Mvc;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace EmployeeManagementSystem.Controllers
 
 {
@@ -18,11 +20,19 @@ namespace EmployeeManagementSystem.Controllers
 
         private readonly AppDbContext _context;
 
-        public SettingsController(AppDbContext context)
+        private readonly IWebHostEnvironment _environment; //vishnu
+
+        public SettingsController(
+
+    AppDbContext context,
+
+    IWebHostEnvironment environment)
 
         {
 
             _context = context;
+
+            _environment = environment;  //vishnu
 
         }
 
@@ -92,13 +102,19 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
+        //vishnu change
+
         [HttpGet("attendance")]
 
         public IActionResult GetAttendanceSettings()
 
         {
 
-            var settings = _context.AttendanceSettings.FirstOrDefault();
+            var settings = _context.AttendanceSettings
+
+                .OrderByDescending(x => x.Id)
+
+                .FirstOrDefault();
 
             if (settings == null)
 
@@ -107,6 +123,8 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(settings);
 
         }
+
+        //
 
         [HttpPut("attendance")]
 
@@ -136,7 +154,15 @@ namespace EmployeeManagementSystem.Controllers
 
             }
 
-            var settings = _context.AttendanceSettings.FirstOrDefault();
+            //vishnu
+
+            var settings = _context.AttendanceSettings
+
+     .OrderByDescending(x => x.Id)
+
+     .FirstOrDefault();
+
+            //
 
             if (settings == null)
 
@@ -249,6 +275,7 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
+
         [HttpGet("company")]
 
         public IActionResult GetCompanySettings()
@@ -309,6 +336,31 @@ namespace EmployeeManagementSystem.Controllers
 
             }
 
+
+            // ===========================
+
+            // Update Company Master
+
+            // ===========================
+
+            var company = _context.Company.FirstOrDefault();
+
+            if (company != null)
+
+            {
+
+                company.CompanyName = model.CompanyName;
+
+                company.PhoneNumber = model.CompanyPhone;
+
+                company.EmailAddress = model.CompanyEmail;
+
+                company.GSTNumber = model.GSTNumber;
+
+                company.UpdatedAt = DateTime.Now;
+
+            }
+
             _context.SaveChanges();
 
             return Ok(new
@@ -320,6 +372,7 @@ namespace EmployeeManagementSystem.Controllers
             });
 
         }
+
 
         [HttpGet("notification")]
 
@@ -336,6 +389,7 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(settings);
 
         }
+
 
         [HttpPut("notification")]
 
@@ -526,6 +580,155 @@ namespace EmployeeManagementSystem.Controllers
         }
 
 
+
+        //vishnu change
+
+        [HttpPost("branding/logo")]
+
+        public async Task<IActionResult> UploadBrandingLogo(IFormFile file)
+
+        {
+
+            if (file == null || file.Length == 0)
+
+                return BadRequest("No file selected.");
+
+            var allowedExtensions = new[]
+
+            {
+
+        ".png",
+
+        ".jpg",
+
+        ".jpeg",
+
+        ".webp",
+
+        ".svg"
+
+    };
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+
+                return BadRequest("Only PNG, JPG, JPEG, WEBP and SVG files are allowed.");
+
+            var uploadsFolder = Path.Combine(
+
+                _environment.WebRootPath,
+
+                "uploads",
+
+                "branding");
+
+            if (!Directory.Exists(uploadsFolder))
+
+                Directory.CreateDirectory(uploadsFolder);
+
+            var fileName =
+
+                $"branding_logo_{DateTime.UtcNow.Ticks}{extension}";
+
+            var filePath = Path.Combine(
+
+                uploadsFolder,
+
+                fileName);
+
+            using (var stream = new FileStream(
+
+                filePath,
+
+                FileMode.Create))
+
+            {
+
+                await file.CopyToAsync(stream);
+
+            }
+
+            var logoUrl = "/uploads/branding/" + fileName;
+
+            var branding = await _context.BrandingSettings
+
+                .FirstOrDefaultAsync();
+
+            if (branding == null)
+
+            {
+
+                branding = new BrandingSettings
+
+                {
+
+                    Company_Id = 1,
+
+                    CompanyLogo = logoUrl,
+
+                    LoginLogo = logoUrl,
+
+                    SidebarLogo = logoUrl,
+
+                    CreatedDate = DateTime.Now
+
+                };
+
+                _context.BrandingSettings.Add(branding);
+
+            }
+
+            else
+
+            {
+
+                branding.CompanyLogo = logoUrl;
+
+                branding.LoginLogo = logoUrl;
+
+                branding.SidebarLogo = logoUrl;
+
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+
+            {
+
+                success = true,
+
+                message = "Branding logo uploaded successfully.",
+
+                logoUrl = logoUrl
+
+            });
+
+        }
+
+        [HttpGet("branding")]
+
+        public async Task<IActionResult> GetBranding()
+
+        {
+
+            var branding = await _context.BrandingSettings
+
+                .FirstOrDefaultAsync();
+
+            if (branding == null)
+
+                return NotFound("Branding settings not found.");
+
+            return Ok(branding);
+
+        }
+
     }
 
 }
+
+
+
+

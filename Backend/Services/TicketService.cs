@@ -734,19 +734,34 @@ EMS Team
                     // ===========================================
                     // PROJECT NAME
                     // ===========================================
+                    // ===========================================
+                    // PROJECT NAME
+                    // ===========================================
+
                     var projectName = row.Cell(1)
                         .GetString()
                         .Trim();
 
                     if (string.IsNullOrWhiteSpace(projectName))
+                    {
                         throw new Exception("Project Name is required.");
+                    }
+
+                    var normalizedProjectName = projectName
+                        .Trim()
+                        .ToLower();
 
                     var project = await _context.Projects
+                        .AsNoTracking()
                         .FirstOrDefaultAsync(x =>
-                            x.Project_Name.ToLower() == projectName.ToLower());
+                            x.Project_Name != null &&
+                            x.Project_Name.Trim().ToLower() == normalizedProjectName);
 
                     if (project == null)
-                        throw new Exception($"Project '{projectName}' not found.");
+                    {
+                        throw new Exception(
+                            $"Project '{projectName}' not found. Please verify the Project Name in Excel matches the Projects table.");
+                    }
 
                     // ===========================================
                     // DTO
@@ -756,36 +771,29 @@ EMS Team
                         ProjectId = project.Id,
 
                         Title = row.Cell(2)
-                            .GetString()
-                            .Trim(),
+         .GetString()
+         .Trim(),
 
                         Description = row.Cell(3)
-                            .GetString()
-                            .Trim(),
+         .GetString()
+         .Trim(),
 
                         Technology = row.Cell(4)
-                            .GetString()
-                            .Trim(),
+         .GetString()
+         .Trim(),
 
                         Priority = row.Cell(5)
-                            .GetString()
-                            .Trim(),
-
-                        // Uncomment if your DTO contains Module
-                        // Module = row.Cell(6).GetString().Trim(),
+         .GetString()
+         .Trim(),
 
                         AssignedTo = null,
 
-                        StartDate = ParseExcelDate(
-                            row.Cell(7)),
+                        StartDate = ParseExcelDate(row.Cell(7)),
 
-                        DueDate = ParseExcelDate(
-                            row.Cell(8)),
+                        DueDate = ParseExcelDate(row.Cell(8)),
 
-                        EstimatedHours = ParseExcelDecimal(
-                            row.Cell(9))
+                        EstimatedHours = ParseExcelDecimal(row.Cell(9))
                     };
-
                     // ===========================================
                     // VALIDATION
                     // ===========================================

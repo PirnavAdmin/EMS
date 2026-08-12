@@ -41,6 +41,8 @@ import {
   getAttendanceDashboardErrorMessage,
   getUserAttendanceDashboard,
 } from "../services/attendanceService";
+import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
+import { getNotificationRoute } from "../services/notificationService";
 
 const DEFAULT_WEEK_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -793,6 +795,11 @@ function BirthdayModal({ open, birthdays, onClose }) {
 
 function UserDashboard() {
   const navigate = useNavigate();
+  const authSnapshot = getAuthenticatedUserSnapshot();
+  const notificationRoute = getNotificationRoute(
+    authSnapshot.role || authSnapshot.roleName || "",
+    authSnapshot
+  );
 
   const [dashboardData, setDashboardData] = useState({
     recentActivities: [],
@@ -1182,7 +1189,7 @@ function UserDashboard() {
           View Tickets
         </button>
 
-        <button className="udb-action-btn" onClick={() => navigate("/notifications")}>
+        <button className="udb-action-btn" onClick={() => navigate(notificationRoute)}>
           <FaBell />
           Notifications
         </button>

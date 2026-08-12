@@ -4,12 +4,13 @@ import { toastSuccess, toastError } from "@/components/common/toast/toastService
 import {
   FaCalendarMinus,
   FaBell,
-  FaBuilding,
   FaClock,
   FaFileAlt,
   FaFileSignature,
   FaEnvelope,
-  FaCog,
+  FaImage,
+  FaUserTie,
+  FaMoneyBillWave,
   FaRedo,
   FaSave,
   FaShieldAlt,
@@ -18,26 +19,20 @@ import {
   CardSkeleton,
   PageSkeleton,
 } from "../../components/Skeletons";
-import { isAdmin } from "../../utils/authorization";
+import { isPlatformAdmin } from "../../utils/authorization";
 import {
   getSettingsErrorMessage,
   EMAIL_SETTINGS_DEFAULTS,
   ATTENDANCE_SETTINGS_DEFAULTS,
-  COMPANY_SETTINGS_DEFAULTS,
   NOTIFICATION_SETTINGS_DEFAULTS,
-  GENERAL_SETTINGS_DEFAULTS,
   LEAVE_SETTINGS_DEFAULTS,
   POLICY_SETTINGS_DEFAULTS,
   fetchEmailSettings,
   saveEmailSettings,
   fetchAttendanceSettings,
   saveAttendanceSettings,
-  fetchCompanySettings,
-  saveCompanySettings,
   fetchNotificationSettings,
   saveNotificationSettings,
-  fetchGeneralSettings,
-  saveGeneralSettings,
   fetchLeaveSettings,
   saveLeaveSettings,
   fetchPoliciesSettings,
@@ -47,24 +42,27 @@ import {
 import EmailSettings from "./EmailSettings";
 import AttendanceSettings from "./AttendanceSettings";
 import LeaveSettings from "./LeaveSettings";
-import CompanySettings from "./CompanySettings";
+import BrandingSettings from "./BrandingSettings";
 import NotificationSettings from "./NotificationSettings";
-import GeneralSettings from "./GeneralSettings";
 import PolicySettings from "./PolicySettings";
 import AgreementSettings from "./AgreementSettings";
+import HrmsSettingsPage, { TemplateSettingsPage } from "./HrmsSettingsPage";
 import {
   validateEmailSettings,
   validateAttendanceSettings,
-  validateCompanySettings,
   validateNotificationSettings,
-  validateGeneralSettings,
   validateLeaveSettings,
   validatePolicySettings,
 } from "./settingsHelpers";
-import { SettingsStatPill } from "./SettingsShared";
 import "./Settings.css";
 
-const TAB_DEFINITIONS = [
+const HrmsSettingsTab = ({ moduleKey }) => (
+  <HrmsSettingsPage moduleKey={moduleKey} />
+);
+
+const ShiftSettingsTab = () => <HrmsSettingsPage shiftMode />;
+
+const BASE_TAB_DEFINITIONS = [
   {
     key: "email",
     label: "Email Settings",
@@ -105,17 +103,18 @@ const TAB_DEFINITIONS = [
     loadErrorMessage: "We could not load the leave configuration.",
   },
   {
-    key: "company",
-    label: "Company Settings",
-    description: "Company profile and contact details",
-    icon: FaBuilding,
-    component: CompanySettings,
-    fetchSettings: fetchCompanySettings,
-    saveSettings: saveCompanySettings,
-    validateSettings: validateCompanySettings,
-    defaults: COMPANY_SETTINGS_DEFAULTS,
+    key: "brand",
+    label: "Brand Settings",
+    description: "Company logo and branding assets",
+    icon: FaImage,
+    component: BrandingSettings,
+    fetchSettings: async () => ({ values: {}, lastUpdated: "" }),
+    saveSettings: async () => ({ values: {}, lastUpdated: "" }),
+    validateSettings: () => ({}),
+    defaults: {},
     successMessage: "Settings updated successfully.",
-    loadErrorMessage: "We could not load the company configuration.",
+    loadErrorMessage: "We could not load the branding configuration.",
+    hideFooter: true,
   },
   {
     key: "notification",
@@ -129,19 +128,6 @@ const TAB_DEFINITIONS = [
     defaults: NOTIFICATION_SETTINGS_DEFAULTS,
     successMessage: "Settings updated successfully.",
     loadErrorMessage: "We could not load the notification configuration.",
-  },
-  {
-    key: "general",
-    label: "General Settings",
-    description: "General workspace data returned by the backend",
-    icon: FaCog,
-    component: GeneralSettings,
-    fetchSettings: fetchGeneralSettings,
-    saveSettings: saveGeneralSettings,
-    validateSettings: validateGeneralSettings,
-    defaults: GENERAL_SETTINGS_DEFAULTS,
-    successMessage: "Settings updated successfully.",
-    loadErrorMessage: "We could not load the general configuration.",
   },
   {
     key: "policy",
@@ -172,7 +158,93 @@ const TAB_DEFINITIONS = [
   },
 ];
 
-const TAB_KEYS = TAB_DEFINITIONS.map((tab) => tab.key);
+const HRMS_SETTINGS_MODULES = [
+  {
+    key: "templates",
+    label: "Templates",
+    description: "Document and communication templates",
+    icon: FaFileSignature,
+    component: TemplateSettingsPage,
+  },
+  {
+    key: "resignation",
+    label: "Resignation",
+    description: "Employee resignation workflow",
+    icon: FaFileSignature,
+    component: () => <HrmsSettingsTab moduleKey="resignation" />,
+  },
+  {
+    key: "employeeClearance",
+    label: "Employee Clearance",
+    description: "Department clearance tracking",
+    icon: FaShieldAlt,
+    component: () => <HrmsSettingsTab moduleKey="employeeClearance" />,
+  },
+  {
+    key: "exitInterview",
+    label: "Exit Interview",
+    description: "Exit interview notes and feedback",
+    icon: FaUserTie,
+    component: () => <HrmsSettingsTab moduleKey="exitInterview" />,
+  },
+  {
+    key: "fullFinalSettlement",
+    label: "Full & Final Settlement",
+    description: "Settlement generation and approval",
+    icon: FaMoneyBillWave,
+    component: () => <HrmsSettingsTab moduleKey="fullFinalSettlement" />,
+  },
+  {
+    key: "shiftManagement",
+    label: "Shift Management",
+    description: "Shift modules in one internal dropdown",
+    icon: FaClock,
+    component: ShiftSettingsTab,
+  },
+].map((definition) => ({
+  ...definition,
+  fetchSettings: async () => ({ values: {}, lastUpdated: "" }),
+  saveSettings: async () => ({ values: {}, lastUpdated: "" }),
+  validateSettings: () => ({}),
+  defaults: {},
+  hideFooter: true,
+}));
+
+const SETTINGS_GROUPS = [
+  {
+    key: "general",
+    title: "General Settings",
+    tabs: [
+      "email",
+      "attendance",
+      "leave",
+      "brand",
+      "notification",
+      "policy",
+      "agreements",
+      "templates",
+    ],
+  },
+
+  {
+    key: "exit",
+    title: "Employee Exit",
+    tabs: [
+      "resignation",
+      "employeeClearance",
+      "exitInterview",
+      "fullFinalSettlement",
+    ],
+  },
+
+  {
+    key: "shift",
+    title: "Shift Management",
+    tabs: [
+      "shiftManagement",
+    ],
+  },
+];
 
 const createSectionState = (defaults) => ({
   values: { ...defaults },
@@ -184,18 +256,35 @@ const createSectionState = (defaults) => ({
   lastUpdated: "",
 });
 
-const createInitialSections = () =>
+const createInitialSections = (definitions = BASE_TAB_DEFINITIONS) =>
   Object.fromEntries(
-    TAB_DEFINITIONS.map((tab) => [tab.key, createSectionState(tab.defaults)])
+    definitions.map((tab) => [tab.key, createSectionState(tab.defaults)])
   );
 
 const areSectionsEqual = (left, right) =>
   JSON.stringify(left) === JSON.stringify(right);
 
 function SettingsPage() {
-  const isAdminUser = isAdmin();
-  const [activeTab, setActiveTab] = useState("email");
-  const [sections, setSections] = useState(createInitialSections);
+  const isAdminUser = isPlatformAdmin();
+  const tabDefinitions = useMemo(
+    () => [...BASE_TAB_DEFINITIONS, ...HRMS_SETTINGS_MODULES],
+    []
+  );
+  const tabKeys = useMemo(
+    () => tabDefinitions.map((tab) => tab.key),
+    [tabDefinitions]
+  );
+  const getInitialTab = () => {
+    if (typeof window === "undefined") {
+      return "email";
+    }
+
+    const storedKey = window.localStorage.getItem("ems.settings.activeModule");
+    return tabDefinitions.some((tab) => tab.key === storedKey) ? storedKey : "email";
+  };
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [expandedGroup, setExpandedGroup] = useState("general");
+  const [sections, setSections] = useState(() => createInitialSections(tabDefinitions));
   const [pageLoading, setPageLoading] = useState(true);
   const policyRequestIdRef = useRef(0);
 
@@ -212,7 +301,7 @@ function SettingsPage() {
 
       try {
         const loadResults = await Promise.all(
-          TAB_DEFINITIONS.map(async (definition) => {
+          tabDefinitions.map(async (definition) => {
             try {
               const result = await definition.fetchSettings();
 
@@ -239,7 +328,7 @@ function SettingsPage() {
           const nextSections = { ...previousSections };
 
           loadResults.forEach((loadResult) => {
-            const definition = TAB_DEFINITIONS.find(
+            const definition = tabDefinitions.find(
               (tab) => tab.key === loadResult.key
             );
 
@@ -297,21 +386,47 @@ function SettingsPage() {
     return () => {
       isMounted = false;
     };
-  }, [isAdminUser]);
+  }, [isAdminUser, tabDefinitions]);
 
   const activeDefinition = useMemo(
-    () => TAB_DEFINITIONS.find((tab) => tab.key === activeTab) || TAB_DEFINITIONS[0],
-    [activeTab]
+    () => tabDefinitions.find((tab) => tab.key === activeTab) || tabDefinitions[0],
+    [activeTab, tabDefinitions]
   );
 
-  const activeSection = sections[activeDefinition.key];
+  const activeSection =
+    sections[activeDefinition.key] || createSectionState(activeDefinition.defaults);
+
+  useEffect(() => {
+    setSections((previousSections) => {
+      const nextSections = { ...previousSections };
+
+      tabDefinitions.forEach((definition) => {
+        if (!nextSections[definition.key]) {
+          nextSections[definition.key] = createSectionState(definition.defaults);
+        }
+      });
+
+      return nextSections;
+    });
+  }, [tabDefinitions]);
+
+  useEffect(() => {
+    if (!tabDefinitions.some((tab) => tab.key === activeTab)) {
+      setActiveTab(tabDefinitions[0]?.key || "email");
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("ems.settings.activeModule", activeTab);
+    }
+  }, [activeTab, tabDefinitions]);
 
   const dirtyTabs = useMemo(
     () =>
-      TAB_KEYS.filter(
-        (key) => !areSectionsEqual(sections[key].values, sections[key].initialValues)
+      tabKeys.filter(
+        (key) => sections[key] && !areSectionsEqual(sections[key].values, sections[key].initialValues)
       ),
-    [sections]
+    [sections, tabKeys]
   );
 
   const hasUnsavedChanges = dirtyTabs.length > 0;
@@ -319,7 +434,7 @@ function SettingsPage() {
   const handleFieldChange = (tabKey) => (event) => {
     const { name, type, checked, value } = event.target;
     const nextValue = type === "checkbox" ? checked : value;
-    const definition = TAB_DEFINITIONS.find((tab) => tab.key === tabKey);
+    const definition = tabDefinitions.find((tab) => tab.key === tabKey);
 
     if (!definition) {
       return;
@@ -602,6 +717,9 @@ function SettingsPage() {
     activeSection?.initialValues
   );
   const ActiveTabComponent = activeDefinition.component;
+  const lastUpdatedDisplay = activeSection?.lastUpdated || "Not Available";
+  const environmentDisplay =
+    import.meta.env.MODE === "production" ? "Production" : "Development";
 
   if (!isAdminUser) {
     return <Navigate to="/access-denied" replace />;
@@ -610,7 +728,7 @@ function SettingsPage() {
   if (pageLoading) {
     return (
       <div className="settings-page">
-<div className="settings-hero settings-hero-skeleton app-surface">
+        <div className="settings-hero settings-hero-skeleton app-surface">
           <div className="settings-skeleton-line settings-skeleton-kicker" />
           <div className="settings-skeleton-line settings-skeleton-title" />
           <div className="settings-skeleton-line settings-skeleton-subtitle" />
@@ -631,82 +749,137 @@ function SettingsPage() {
 
   return (
     <div className="settings-page">
-<div className="settings-hero app-surface">
+      {/* <div className="settings-hero app-surface">
         <div className="settings-hero-copy">
           <div className="settings-hero-kicker">
             <FaShieldAlt />
             <span>Admin only control plane</span>
           </div>
 
-          <h1 className="settings-title">Settings</h1>
+          <h1 className="settings-title">Settings Workspace</h1>
           <p className="settings-subtitle">
-            Manage EMS email routing, attendance policy, leave balances,
-            company details, notification routing, general workspace
-            preferences, and policy records from one premium enterprise workspace.
+            Manage EMS HRMS configuration from one enterprise workspace.
+            Settings modules render here without route changes or page refreshes.
           </p>
         </div>
 
         <div className="settings-hero-stats">
-          <SettingsStatPill label="Tabs" value={`${TAB_DEFINITIONS.length}`} tone="info" />
+          <SettingsStatPill label="Total Modules" value={`${tabDefinitions.length}`} tone="info" />
+          <SettingsStatPill label="Active Module" value={activeDefinition.label} tone="info" />
+          <SettingsStatPill label="Last Updated" value={lastUpdatedDisplay} tone="info" />
+          <SettingsStatPill label="Environment" value={environmentDisplay} tone="info" />
           <SettingsStatPill
-            label="Unsaved"
+            label="Unsaved Changes"
             value={hasUnsavedChanges ? `${dirtyTabs.length} pending` : "Synced"}
             tone={hasUnsavedChanges ? "warning" : "success"}
           />
           <SettingsStatPill
-            label="Access"
+            label="Access Level"
             value="Admin"
             tone="info"
           />
         </div>
-      </div>
+      </div> */}
 
       <div className="settings-layout">
         <aside className="settings-nav app-surface">
           <div className="settings-nav-head">
             <span className="settings-nav-eyebrow">Modules</span>
-            <h2>Settings tabs</h2>
-            <p>Select the area you want to configure.</p>
+            <h2>Settings Navigation</h2>
+            <p>Select the module you want to configure.</p>
           </div>
 
           <div className="settings-nav-list" role="tablist" aria-label="Settings tabs">
-            {TAB_DEFINITIONS.map((definition) => {
-              const isActive = definition.key === activeTab;
-              const section = sections[definition.key];
-              const Icon = definition.icon;
+            {SETTINGS_GROUPS.map((group) => {
+              const isExpanded = expandedGroup === group.key;
 
               return (
-                <button
-                  key={definition.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  className={`settings-sidebar-item settings-nav-item ${isActive ? "active" : ""} ${
-                    section.loadError ? "has-error" : ""
-                  }`.trim()}
-                  onClick={() => setActiveTab(definition.key)}
-                >
-                  <span className="settings-sidebar-icon settings-nav-icon" aria-hidden="true">
-                    <Icon />
-                  </span>
+                <div key={group.key} className="settings-group">
 
-                  <span className="settings-nav-copy">
-                    <strong>{definition.label}</strong>
-                    <span>{definition.description}</span>
-                  </span>
+                  <button
+                    type="button"
+                    className="settings-group-header"
+                    onClick={() =>
+                      setExpandedGroup(
+                        isExpanded ? "" : group.key
+                      )
+                    }
+                  >
+                    <span>{group.title}</span>
 
-                  {section.loadError && (
-                    <span className="settings-nav-badge" title="Loaded with warnings">
-                      !
+                    <span>
+                      {isExpanded ? "▼" : "▶"}
                     </span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="settings-group-body">
+
+                      {group.tabs.map((tabKey) => {
+
+                        const definition =
+                          tabDefinitions.find(
+                            (item) => item.key === tabKey
+                          );
+
+                        if (!definition) return null;
+
+                        const Icon = definition.icon;
+
+                        const section =
+                          sections[definition.key];
+
+                        const isActive =
+                          activeTab === definition.key;
+
+                        return (
+                          <button
+                            key={definition.key}
+                            type="button"
+                            role="tab"
+                            aria-selected={isActive}
+                            className={`settings-sidebar-item settings-nav-item ${isActive ? "active" : ""
+                              } ${section.loadError
+                                ? "has-error"
+                                : ""
+                              }`.trim()}
+                            onClick={() =>
+                              setActiveTab(definition.key)
+                            }
+                          >
+                            <span className="settings-sidebar-icon settings-nav-icon">
+                              <Icon />
+                            </span>
+
+                            <span className="settings-nav-copy">
+                              <strong>{definition.label}</strong>
+                              <span>{definition.description}</span>
+                            </span>
+
+                            {section.loadError && (
+                              <span
+                                className="settings-nav-badge"
+                                title="Loaded with warnings"
+                              >
+                                !
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
         </aside>
 
-        <section className="settings-content">
+        <section
+          className="settings-content"
+          style={{ marginTop: 0, paddingTop: 0 }}
+        >
           <ActiveTabComponent
             values={activeSection.values}
             errors={activeSection.errors}
@@ -720,44 +893,44 @@ function SettingsPage() {
           />
 
           {!activeDefinition.hideFooter && (
-          <div className="settings-footer app-surface">
-            <div className="settings-footer-copy">
-              <strong>
-                {currentSectionDirty ? "Unsaved changes in this tab" : "No pending changes"}
-              </strong>
-              <span>
-                {currentSectionDirty
-                  ? "Save before moving to another page or refreshing."
-                  : "Your latest changes are already stored."}
-              </span>
-            </div>
+            <div className="settings-footer app-surface">
+              <div className="settings-footer-copy">
+                <strong>
+                  {currentSectionDirty ? "Unsaved changes in this tab" : "No pending changes"}
+                </strong>
+                <span>
+                  {currentSectionDirty
+                    ? "Save before moving to another page or refreshing."
+                    : "Your latest changes are already stored."}
+                </span>
+              </div>
 
-            <div className="settings-footer-actions">
-              <button
-                type="button"
-                className="app-button-ghost settings-reset-btn"
-                onClick={handleResetCurrentTab}
-                disabled={
-                  !currentSectionDirty ||
-                  currentSectionSaving ||
-                  currentSectionLoading
-                }
-              >
-                <FaRedo />
-                Reset
-              </button>
+              <div className="settings-footer-actions">
+                <button
+                  type="button"
+                  className="app-button-ghost settings-reset-btn"
+                  onClick={handleResetCurrentTab}
+                  disabled={
+                    !currentSectionDirty ||
+                    currentSectionSaving ||
+                    currentSectionLoading
+                  }
+                >
+                  <FaRedo />
+                  Reset
+                </button>
 
-              <button
-                type="button"
-                className="app-button-primary settings-save-btn"
-                onClick={handleSaveCurrentTab}
-                disabled={currentSectionSaving || currentSectionLoading}
-              >
-                <FaSave />
-                {currentSectionSaving ? "Saving..." : "Save Changes"}
-              </button>
+                <button
+                  type="button"
+                  className="app-button-primary settings-save-btn"
+                  onClick={handleSaveCurrentTab}
+                  disabled={currentSectionSaving || currentSectionLoading}
+                >
+                  <FaSave />
+                  {currentSectionSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
             </div>
-          </div>
           )}
         </section>
       </div>

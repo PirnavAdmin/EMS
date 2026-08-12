@@ -20,7 +20,8 @@ import {
   FaRegCalendarAlt,
   FaArrowRight,
   FaArrowLeft,
-  FaTimes
+  FaTimes,
+  FaSpinner
 } from "react-icons/fa";
 
 /* eslint-disable react-hooks/exhaustive-deps */
@@ -39,6 +40,7 @@ function UserAttendance() {
   const [showReasonPopup, setShowReasonPopup] = useState(false);
   const [reason, setReason] = useState("");
   const [pendingCheckoutData, setPendingCheckoutData] = useState(null);
+  const [reasonSubmitting, setReasonSubmitting] = useState(false);
   // --------------------------------------------
 
   const [checkedIn, setCheckedIn] = useState(false);
@@ -495,6 +497,10 @@ function UserAttendance() {
 
   // --- NEW FUNCTION TO SUBMIT REASON AND COMPLETE CHECKOUT ---
   const submitCheckoutReason = async () => {
+    if (reasonSubmitting) {
+      return;
+    }
+
     const trimmedReason = reason.trim();
 
     if (trimmedReason.length < 10) {
@@ -507,7 +513,7 @@ function UserAttendance() {
       return;
     }
 
-    setLoading(true);
+    setReasonSubmitting(true);
 
     try {
       await api.post(
@@ -543,7 +549,7 @@ function UserAttendance() {
         : responseData?.message || "Failed to submit checkout reason";
       toastError(errorMsg);
     } finally {
-      setLoading(false);
+      setReasonSubmitting(false);
     }
   };
   // ---------------------------------------------------------
@@ -591,10 +597,14 @@ function UserAttendance() {
                 <button
                   className="close-popup-btn"
                   onClick={() => {
+                    if (reasonSubmitting) {
+                      return;
+                    }
                     setShowReasonPopup(false);
                     setReason("");
                     setPendingCheckoutData(null);
                   }}
+                  disabled={reasonSubmitting}
                 >
                   <FaTimes />
                 </button>
@@ -619,20 +629,30 @@ function UserAttendance() {
                 <button
                   className="btn-cancel"
                   onClick={() => {
+                    if (reasonSubmitting) {
+                      return;
+                    }
                     setShowReasonPopup(false);
                     setReason("");
                     setPendingCheckoutData(null);
                   }}
-                  disabled={checkOutLoading}
+                  disabled={reasonSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   className="btn-submit"
                   onClick={submitCheckoutReason}
-                  disabled={checkOutLoading || reason.trim().length < 10}
+                  disabled={reasonSubmitting || reason.trim().length < 10}
                 >
-                  {checkOutLoading ? "Submitting..." : "Submit Reason"}
+                  {reasonSubmitting ? (
+                    <>
+                      <FaSpinner className="attendance-button-spinner" aria-hidden="true" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Reason"
+                  )}
                 </button>
               </div>
             </div>

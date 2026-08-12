@@ -11,14 +11,17 @@ import {
   FaUser,
 } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import {
+  getAuthenticatedUserSnapshot,
   getStoredAuthValue,
-  getStoredRole,
 } from "../utils/authStorage";
-import { isAdmin } from "../utils/authorization";
+import { isAdmin, isSuperAdmin } from "../utils/authorization";
 import { handleAutoLogout } from "../utils/sessionManager";
+import {
+  getNotificationEndpoint,
+  getNotificationRoute,
+  loadNotifications,
+} from "../services/notificationService";
 import useTheme from "../theme/useTheme";
 import ChangePasswordModal from "./ChangePasswordModal";
 
@@ -55,42 +58,36 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
   const [notifications, setNotifications] = useState([]);
   const [greetingMeta, setGreetingMeta] = useState(getGreetingMeta());
 
-  const role = getStoredRole();
-  const isAdminUser = isAdmin();
+  const authSnapshot = getAuthenticatedUserSnapshot();
+  const role = authSnapshot.role || authSnapshot.roleName || "";
+  const isAdminUser = isAdmin(role);
+  const isSuperAdminUser = isSuperAdmin(role);
   const email = getStoredAuthValue("email", "No Email");
+  const notificationEndpoint = getNotificationEndpoint(role, authSnapshot);
+  const notificationTarget = getNotificationRoute(role, authSnapshot);
 
   const profileLabel = useMemo(() => {
+    if (isSuperAdminUser) {
+      return "Super Admin";
+    }
+
     const safeEmail = String(email || "").trim();
     if (!safeEmail || safeEmail === "No Email") {
       return "User";
     }
 
     return safeEmail.split("@")[0].replace(/[._-]+/g, " ");
-  }, [email]);
+  }, [email, isSuperAdminUser]);
   const GreetingIcon = greetingMeta.Icon;
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchNotificationStatus = async () => {
-      try {
-        const apiUrl =
-          isAdminUser
-            ? API_ENDPOINTS.notifications.admin
-            : API_ENDPOINTS.notifications.user;
+      const data = await loadNotifications(role, authSnapshot);
 
-        const response = await api.get(apiUrl);
-        const data = response?.data?.data || response?.data || [];
-
-        if (isMounted) {
-          setNotifications(Array.isArray(data) ? data : []);
-        }
-      } catch (error) {
-        console.error("Header notification fetch error:", error);
-
-        if (isMounted) {
-          setNotifications([]);
-        }
+      if (isMounted) {
+        setNotifications(Array.isArray(data) ? data : []);
       }
     };
 
@@ -118,7 +115,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
         handleNotificationsUpdated
       );
     };
-  }, [isAdminUser]);
+  }, [authSnapshot.isReady, authSnapshot.token, notificationEndpoint, role]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -147,8 +144,6 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
   const unreadCount = notifications.filter(
     (notification) => !notification.isRead
   ).length;
-  const notificationTarget =
-    isAdminUser ? "/notifications" : "/user-notifications";
   const headerOffset = collapsed
     ? "var(--layout-sidebar-collapsed-width)"
     : "var(--layout-sidebar-width)";
@@ -204,6 +199,9 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
               >
                 <GreetingIcon className="app-header-greeting-icon" />
                 <span className="app-header-greeting">{greetingMeta.text}</span>
+                {isSuperAdminUser && (
+                  <span className="app-header-greeting">Super Admin Portal</span>
+                )}
               </div>
             </div>
           </div>

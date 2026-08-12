@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./LeaveManagement.css";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
@@ -6,6 +6,7 @@ import AppPagination from "../components/AppPagination";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { formatDate, isDateRangeValid, parseDate } from "../utils/date";
+import { FaChevronDown, FaFilter } from "react-icons/fa";
 
 function LeaveManagement() {
   const [filter, setFilter] = useState("All");
@@ -15,20 +16,74 @@ function LeaveManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [employeeBalanceCache, setEmployeeBalanceCache] = useState({});
+  const [employeeBalanceLoading, setEmployeeBalanceLoading] = useState("");
   const [employeeHistoryLoading, setEmployeeHistoryLoading] = useState(false);
   const [wfhData, setWfhData] = useState([]);
   const [searchQuery, setSearchQuery] = useState(""); // ✅ NEW: Search state
-  const ROWS_PER_PAGE = 30;
-  const FILTER_OPTIONS = ["All", "Pending", "Approved", "Rejected"];
+  const ROWS_PER_PAGE = 5;
+  const FILTER_OPTIONS = [
+    "All",
+    "Pending",
+    "Approved",
+    "Rejected",
+    "Leave",
+    "WFH",
+  ];
 
   const getToken = () =>
     localStorage.getItem("token") || sessionStorage.getItem("token");
 
+  const firstDefined = (...values) =>
+    values.find((value) => value !== undefined && value !== null && value !== "");
+
+  const getValue = (record, keys) =>
+    firstDefined(...keys.map((key) => record?.[key]));
+
+  const normalizeText = (value) =>
+    String(value ?? "").trim().toLowerCase();
+
+  const normalizeLeaveType = (value) => {
+    const normalized = normalizeText(value)
+      .replace(/\((.*?)\)/g, "$1")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\bleave\b/g, "")
+      .trim();
+
+    if (["lop", "loss of pay"].includes(normalized)) {
+      return "loss of pay";
+    }
+
+    return normalized;
+  };
+
+  const normalizeRequestRecord = (item, requestType, index) => {
+    const leaveType = requestType === "WFH"
+      ? firstDefined(
+        getValue(item, ["leaveType", "LeaveType", "requestType", "RequestType"]),
+        "Work From Home"
+      )
+      : getValue(item, ["leaveType", "LeaveType", "type", "Type"]);
+
+    return {
+      ...item,
+      id: getValue(item, ["id", "Id", "leaveId", "LeaveId", "wfhId", "WfhId", "WFHId"]) ?? `${requestType}-${index}`,
+      employeeId: getValue(item, ["employeeId", "EmployeeId", "empId", "EmpId", "employeeCode", "EmployeeCode"]),
+      employeeName: getValue(item, ["employeeName", "EmployeeName", "empName", "EmpName", "name", "Name"]),
+      leaveType,
+      fromDate: getValue(item, ["fromDate", "FromDate", "startDate", "StartDate"]),
+      toDate: getValue(item, ["toDate", "ToDate", "endDate", "EndDate"]),
+      reason: getValue(item, ["reason", "Reason", "description", "Description"]),
+      status: getValue(item, ["status", "Status"]) || "Pending",
+      appliedDate: getValue(item, ["appliedDate", "AppliedDate", "createdAt", "CreatedAt", "createdOn", "CreatedOn"]),
+      approvedDate: getValue(item, ["approvedDate", "ApprovedDate", "updatedAt", "UpdatedAt", "updatedOn", "UpdatedOn"]),
+      requestType,
+    };
+  };
+
   /* ================= FETCH LEAVES ================= */
   const fetchLeaves = async () => {
     try {
-      setLoading(true);
-
       const res = await api.get(API_ENDPOINTS.leave.all, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
@@ -39,10 +94,10 @@ function LeaveManagement() {
       console.log("📦 Leave API Response:", data);
 
       setLeaveData(sortByRecency(data));
+      return data;
     } catch (err) {
       console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
+      return [];
     }
   };
 
@@ -60,26 +115,61 @@ function LeaveManagement() {
       const data = extractCollection(res.data);
 
       setWfhData(sortByRecency(data));
+      return data;
 
     } catch (err) {
       console.log("Status:", err.response?.status);
       console.log("Error Data:", err.response?.data);
       console.log("Full Error:", err);
+      return [];
     }
   };
 
   useEffect(() => {
-    fetchLeaves();
-    fetchWFH();
+    const fetchAllRequests = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([fetchLeaves(), fetchWFH()]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllRequests();
   }, []);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter]);
+  }, [filter, searchQuery]);
 
   const openEmployeeHistory = async (leave) => {
     try {
       setEmployeeHistoryLoading(true);
+      setEmployeeBalanceLoading(String(leave.employeeId));
+
+      let leaveBalance = employeeBalanceCache[leave.employeeId];
+
+      if (!leaveBalance) {
+        try {
+          const balanceResponse = await api.get(
+            API_ENDPOINTS.leaveBalance.byEmployee(leave.employeeId),
+            {
+              headers: {
+                Authorization: `Bearer ${getToken()}`
+              }
+            }
+          );
+
+          leaveBalance = normalizeLeaveBalanceCards(balanceResponse.data);
+          setEmployeeBalanceCache((current) => ({
+            ...current,
+            [leave.employeeId]: leaveBalance,
+          }));
+        } catch (balanceError) {
+          console.error("Failed to fetch employee leave balance", balanceError);
+          leaveBalance = [];
+        }
+      }
 
       const response = await api.get(
         API_ENDPOINTS.leave.employeeLeaveDetails(
@@ -99,6 +189,7 @@ function LeaveManagement() {
       setSelectedEmployee({
         employeeId: leave.employeeId,
         employeeName: leave.employeeName,
+        leaveBalance,
 
         totalLeavesApplied:
           apiData.totalLeavesApplied || 0,
@@ -133,11 +224,13 @@ function LeaveManagement() {
       setSelectedEmployee({
         employeeId: leave.employeeId,
         employeeName: leave.employeeName,
+        leaveBalance: employeeBalanceCache[leave.employeeId] || [],
         history: []
       });
 
     } finally {
       setEmployeeHistoryLoading(false);
+      setEmployeeBalanceLoading("");
     }
   };
 
@@ -246,47 +339,52 @@ function LeaveManagement() {
   };
 
   const combinedData = [
-    ...(leaveData || []).map(item => ({
-      ...item,
-      requestType: "Leave"
-    })),
+    ...(leaveData || []).map((item, index) =>
+      normalizeRequestRecord(item, "Leave", index)
+    ),
 
-    ...(wfhData || []).map(item => ({
-      ...item,
-      requestType: "WFH"
-    }))
+    ...(wfhData || []).map((item, index) =>
+      normalizeRequestRecord(item, "WFH", index)
+    )
   ];
 
-  const filteredLeaves =
-    combinedData.filter(item => {
+  const filteredLeaves = combinedData.filter((item) => {
+    const itemStatus = normalizeText(item.status);
+    const itemLeaveType = normalizeLeaveType(item.leaveType);
 
-      // ✅ NEW: Apply search filter
-      const matchesSearch = !searchQuery || 
-        item.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.employeeId?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.leaveType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.reason?.toLowerCase().includes(searchQuery.toLowerCase());
+    let matchesFilter = true;
 
-      if (!matchesSearch) return false;
+    if (filter === "Leave") {
+      matchesFilter = item.requestType === "Leave";
+    } else if (filter === "WFH") {
+      matchesFilter = item.requestType === "WFH";
+    } else if (filter === "Pending") {
+      matchesFilter = itemStatus === "pending";
+    } else if (filter === "Approved") {
+      matchesFilter = itemStatus.includes("approved");
+    } else if (filter === "Rejected") {
+      matchesFilter = itemStatus.includes("rejected");
+    } 
 
-      if (filter === "Leave")
-        return item.requestType === "Leave";
+    if (!matchesFilter) {
+      return false;
+    }
 
-      if (filter === "WFH")
-        return item.requestType === "WFH";
+    const normalizedSearch = normalizeText(searchQuery);
 
-      if (filter === "Pending")
-        return item.status === "Pending";
-
-      if (filter === "Approved")
-        return item.status === "Approved";
-
-      if (filter === "Rejected")
-        return item.status === "Rejected";
-
+    if (!normalizedSearch) {
       return true;
-    });
+    }
 
+    return [
+      item.employeeName,
+      item.employeeId,
+      item.leaveType,
+      item.reason,
+      item.status,
+      item.requestType,
+    ].some((value) => normalizeText(value).includes(normalizedSearch));
+  });
   const totalPages = Math.ceil(
     filteredLeaves.length / ROWS_PER_PAGE
   );
@@ -525,6 +623,7 @@ function LeaveManagement() {
       <AppPagination
         totalItems={filteredLeaves.length}
         currentPage={currentPage}
+        pageSize={ROWS_PER_PAGE}
         onPageChange={setCurrentPage}
         itemLabel="leave requests"
       />
@@ -747,6 +846,24 @@ function LeaveManagement() {
 
               </div>
             </div> */}
+
+            <div className="leave-balance-section">
+              <h4>LEAVE BALANCE</h4>
+              {employeeBalanceLoading === String(selectedEmployee.employeeId) ? (
+                <div className="history-loading">Loading leave balance...</div>
+              ) : (
+                <div className="leave-balance-grid">
+                  {(selectedEmployee.leaveBalance || []).map((item) => (
+                    <div className="balance-card" key={item.label}>
+                      <div className="balance-header">
+                        <span>{item.label}</span>
+                        <span>{item.value ?? 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* SUMMARY CARDS */}
             <div className="leave-summary-grid">

@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaPaperclip, FaSpinner } from "react-icons/fa";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
 import AppDatePicker from "../components/AppDatePicker";
@@ -10,7 +9,6 @@ import CompactSearchableDropdown from "../components/CompactSearchableDropdown";
 import { PageSkeleton } from "../components/Skeletons";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
-import useTheme from "../theme/useTheme";
 import { extractCollection } from "../utils/collections";
 import { getInputDateValue, getTodayInputValue } from "../utils/date";
 import {
@@ -42,8 +40,6 @@ function TicketForm({
   ticketId = "",
 }) {
   const navigate = useNavigate();
-  const { themeMode } = useTheme();
-  const isDarkTheme = themeMode !== "light";
   const isEditMode = mode === "edit" && Boolean(ticketId);
   const isAdminUser = isAdmin(role);
 
@@ -317,11 +313,6 @@ function TicketForm({
   if (loadingTicket) {
     return (
       <div className="ticket-page">
-        <ToastContainer
-          position="top-right"
-          autoClose={2500}
-          theme={isDarkTheme ? "dark" : "light"}
-        />
         <PageSkeleton variant="form" formFields={6} formColumns={2} />
       </div>
     );
@@ -329,12 +320,6 @@ function TicketForm({
 
   return (
     <div className="ticket-page ticket-form-page">
-      <ToastContainer
-        position="top-right"
-        autoClose={2500}
-        theme={isDarkTheme ? "dark" : "light"}
-      />
-
       <div className="ticket-hero">
         <div className="ticket-hero-copy">
           <span className="ticket-eyebrow">

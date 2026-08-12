@@ -1,9 +1,9 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { isAdmin } from "../utils/authorization";
+import { isPlatformAdmin } from "../utils/authorization";
 
 function AdminRoute({ children, redirectTo = "/access-denied" }) {
-  if (!isAdmin()) {
+  if (!isPlatformAdmin()) {
     return <Navigate to={redirectTo} replace />;
   }
 

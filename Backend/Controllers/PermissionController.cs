@@ -20,6 +20,28 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPermissions()
         {
+            var userType = User.FindFirst("UserType")?.Value;
+
+            // Onboarding User
+            if (userType == "Onboarding")
+            {
+                return Ok(new List<object>
+        {
+            new
+            {
+                ModuleId = 48,
+                ModuleName = "Add Employee",
+                Type = "Admin",
+                CanAccess = true,
+                CanView = true,
+                CanAdd = true,
+                CanEdit = true,
+                CanDelete = false
+            }
+        });
+            }
+
+            // Normal Employee
             var employeeId = User.FindFirst("EmployeeId")?.Value;
 
             if (string.IsNullOrWhiteSpace(employeeId))

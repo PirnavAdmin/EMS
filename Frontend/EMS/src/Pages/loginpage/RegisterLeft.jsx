@@ -479,21 +479,34 @@ else if (
 
   return (
     <>
-      <div className="auth-card-head">
+      <div className="auth-card-top">
+        {/* <button
+          type="button"
+          className="auth-back-home-button"
+          onClick={() => navigate("/")}
+        >
+          <span className="auth-back-home-icon" aria-hidden="true">
+            <FaChevronLeft />
+          </span>
+          <span>Back to Home</span>
+        </button> */}
 
-        <p className="auth-eyebrow">
-          Employee Onboarding
-        </p>
+        <div className="auth-card-head">
 
-        <h2 className="auth-card-title">
-          Create Your PIRNAV HRMS Account
-        </h2>
+          <p className="auth-eyebrow">
+            Employee Onboarding
+          </p>
 
-        {/* <p className="auth-card-subtitle">
-          Start with your name, work email,
-          and a strong password.
-        </p> */}
+          <h2 className="auth-card-title">
+            Create Your Honeywell EMS Account
+          </h2>
 
+          {/* <p className="auth-card-subtitle">
+            Start with your name, work email,
+            and a strong password.
+          </p> */}
+
+        </div>
       </div>
 
       <form

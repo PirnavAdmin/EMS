@@ -178,6 +178,7 @@ const shouldForceLogout = (
 ) =>
 
   !config?.skipAuth &&
+  !config?.skipAuthFailureHandling &&
   getStoredToken() &&
   isAuthenticationFailureResponse(status, data);
 
@@ -366,7 +367,15 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    console.error("API Error", {
+    const isNotificationRequest =
+      Boolean(config?.skipAuthFailureHandling);
+
+    const errorLogger =
+      isNotificationRequest
+        ? console.warn
+        : console.error;
+
+    errorLogger(isNotificationRequest ? "API Warning" : "API Error", {
       status,
       message: error?.response?.data || error?.message,
       url: resolveRequestUrl(

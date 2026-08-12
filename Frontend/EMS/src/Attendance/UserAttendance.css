@@ -737,6 +737,10 @@ button:hover::after {
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
@@ -764,6 +768,10 @@ button:hover::after {
 .btn-cancel:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.attendance-button-spinner {
+  animation: spinLoader 0.8s linear infinite;
 }
 
 @keyframes fadeIn {

@@ -13,17 +13,33 @@ using System.Runtime.InteropServices;
 namespace EmployeeManagementSystem.Services
 {
     public class ManualPayslipService : IManualPayslipService
+
     {
+
         private readonly AppDbContext _context;
+
         private readonly IEmailService _emailService;
 
+        private readonly ITemplateService _templateService;//vishnu
+
         public ManualPayslipService(
-            AppDbContext context,
-            IEmailService emailService)
+
+   AppDbContext context,
+
+   IEmailService emailService,
+
+   ITemplateService templateService)
+
         {
+
             _context = context;
+
             _emailService = emailService;
+
+            _templateService = templateService;
+
         }
+
 
         public async Task<string> GenerateManualPaySlip(ManualPaySlipDto dto)
         {
@@ -91,32 +107,119 @@ namespace EmployeeManagementSystem.Services
                 0,
                 MidpointRounding.AwayFromZero);
 
-            decimal professionalTax = 200;
+            //--------------------------------
+            // TDS
+            //--------------------------------
+            if (dto.TDSPercentage < 0 || dto.TDSPercentage > 100)
+            {
+                throw new Exception(
+                    "TDS percentage must be between 0 and 100.");
+            }
 
+            decimal tdsAmount = 0m;
+
+            if (dto.TDSPercentage > 0)
+            {
+                tdsAmount = Math.Round(
+                    totalEarnings * dto.TDSPercentage / 100m,
+                    2,
+                    MidpointRounding.AwayFromZero);
+            }
+
+            //--------------------------------
+            // PROFESSIONAL TAX
+            //--------------------------------
+            decimal professionalTax = 200m;
+
+            //--------------------------------
+            // TOTAL DEDUCTIONS
+            //--------------------------------
             decimal totalDeductions = Math.Round(
-                pf + professionalTax + dto.OtherDeductions,
-                0,
+                pf +
+                professionalTax +
+                tdsAmount +
+                dto.OtherDeductions,
+                2,
                 MidpointRounding.AwayFromZero);
 
+            //--------------------------------
+            // NET SALARY
+            //--------------------------------
             decimal netSalary = Math.Round(
                 totalEarnings - totalDeductions,
-                0,
+                2,
                 MidpointRounding.AwayFromZero);
 
             if (netSalary < 0)
                 netSalary = 0;
 
             string netSalaryWords =
-                NumberToWords((long)netSalary) + " Only";
+                "Rupees " +
+                NumberToWords((long)Math.Floor(netSalary)) +
+                " Only";
+
+
 
 
             //--------------------------------
             // FILE PATH
             //--------------------------------
+            //var templatePath = Path.Combine(
+            //    Directory.GetCurrentDirectory(),
+            //    "Templates",
+            //    "PaySlipTemplate.docx");
+
+
+            // --------------------------------
+
+            // GET PAYSLIP TEMPLATE
+
+            // --------------------------------
+
+            int companyId = 1;
+
+            var template = await _templateService
+
+                .GetActiveTemplateAsync(companyId, "PAYSLIP");
+
+            if (template == null)
+
+            {
+
+                throw new Exception(
+
+                    "Payslip template not found. Please upload and set a default PAYSLIP template.");
+
+            }
+
+            if (string.IsNullOrWhiteSpace(template.FilePath))
+
+            {
+
+                throw new Exception("Payslip template file path is empty.");
+
+            }
+
             var templatePath = Path.Combine(
+
                 Directory.GetCurrentDirectory(),
-                "Templates",
-                "PaySlipTemplate.docx");
+
+                "wwwroot",
+
+                template.FilePath.TrimStart('/'));
+
+            if (!File.Exists(templatePath))
+
+            {
+
+                throw new Exception(
+
+                    $"Payslip template file not found: {templatePath}");
+
+            }
+
+            //
+
 
             var outputFolder = Path.Combine(
       Directory.GetCurrentDirectory(),
@@ -204,6 +307,15 @@ namespace EmployeeManagementSystem.Services
                      personalInfo?.Designation)
                  ? "-"
                  : personalInfo.Designation);
+                ReplaceBookmark(
+    wordDoc,
+    "TDS",
+    tdsAmount.ToString("N2"));
+
+                ReplaceBookmark(
+    wordDoc,
+    "PayPeriod",
+    $"{dto.Month.ToUpper()} {dto.Year}");
 
                 //--------------------------------
                 // TOTALS
@@ -296,21 +408,48 @@ namespace EmployeeManagementSystem.Services
             };
 
             _context.PaySlips.Add(payslip);
-            await _context.SaveChangesAsync();
+            //vishnu change
 
-            _context.PaySlips.Add(payslip);
             await _context.SaveChangesAsync();
 
             var employeeName = personalInfo == null
-                ? employee.Name
-                : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
 
-            await _emailService.SendPayslipEmail(
-                employee.Email,
-                employeeName,
-                dto.Month,
-                dto.Year,
-                pdfPath);
+                 ? employee.Name
+
+                 : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+
+            // Notification Settings Check
+
+            var notification = await _context.NotificationSettings
+
+                 .AsNoTracking()
+
+                 .FirstOrDefaultAsync();
+
+            if (notification != null &&
+
+                 notification.EnableEmailNotifications &&
+
+                 notification.EnablePayslipEmails)
+
+            {
+
+                await _emailService.SendPayslipEmail(
+
+                    employee.Email,
+
+                    employeeName,
+
+                    dto.Month,
+
+                    dto.Year,
+
+                    pdfPath);
+
+            }
+
+            //
+
 
             return $"/GeneratedPayslips/{Path.GetFileName(pdfPath)}";
         }

@@ -2,6 +2,7 @@
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -15,48 +16,235 @@ namespace EmployeeManagementSystem.Services
         }
 
         private async Task<EmployeeMonthlyLeaveBalance> GetOrCreateMonthlyBalance(
-    string employeeId,
-    int year,
-    int month)
+       string employeeId,
+       int year,
+       int month)
         {
-            var balance = await _context.EmployeeMonthlyLeaveBalances
+            // =====================================================
+            // 1. CHECK WHETHER REQUESTED MONTH ALREADY EXISTS
+            // =====================================================
+            var existingBalance = await _context.EmployeeMonthlyLeaveBalances
                 .FirstOrDefaultAsync(x =>
                     x.Employee_Id == employeeId &&
                     x.LeaveYear == year &&
                     x.LeaveMonth == month);
 
-            if (balance != null)
-                return balance;
+            if (existingBalance != null)
+                return existingBalance;
 
-            var previousMonth = await _context.EmployeeMonthlyLeaveBalances
-                .Where(x => x.Employee_Id == employeeId)
+
+            // =====================================================
+            // 2. GET EMPLOYEE
+            // =====================================================
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(x =>
+                    x.Employee_Id == employeeId);
+
+            if (employee == null)
+                throw new Exception("Employee not found.");
+
+
+            // =====================================================
+            // 3. PAID LEAVE STARTS AFTER 6 MONTHS PROBATION
+            // =====================================================
+            DateTime probationEndDate = employee.JoiningDate.Date.AddMonths(6);
+
+            DateTime requestedMonth =
+                new DateTime(year, month, 1);
+
+            DateTime eligibilityMonth =
+                new DateTime(
+                    probationEndDate.Year,
+                    probationEndDate.Month,
+                    1);
+
+
+            // =====================================================
+            // 4. REQUESTED MONTH BEFORE LEAVE ELIGIBILITY
+            // =====================================================
+            if (requestedMonth < eligibilityMonth)
+            {
+                var zeroBalance = new EmployeeMonthlyLeaveBalance
+                {
+                    Employee_Id = employeeId,
+
+                    LeaveYear = year,
+                    LeaveMonth = month,
+
+                    MonthlyCredit = 0,
+                    CarryForward = 0,
+                    AvailableLeaves = 0,
+                    UsedLeaves = 0,
+                    LopLeaves = 0,
+                    RemainingLeaves = 0,
+
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.EmployeeMonthlyLeaveBalances.Add(zeroBalance);
+
+                await _context.SaveChangesAsync();
+
+                return zeroBalance;
+            }
+
+
+            // =====================================================
+            // 5. FIND LATEST BALANCE BEFORE REQUESTED MONTH
+            // =====================================================
+            var previousBalance = await _context.EmployeeMonthlyLeaveBalances
+                .Where(x =>
+                    x.Employee_Id == employeeId &&
+                    (
+                        x.LeaveYear < year ||
+                        (x.LeaveYear == year &&
+                         x.LeaveMonth < month)
+                    ))
                 .OrderByDescending(x => x.LeaveYear)
                 .ThenByDescending(x => x.LeaveMonth)
                 .FirstOrDefaultAsync();
 
-            int carryForward = previousMonth?.RemainingLeaves ?? 0;
 
-            balance = new EmployeeMonthlyLeaveBalance
+            // =====================================================
+            // 6. DETERMINE FROM WHICH MONTH WE NEED TO CREATE
+            //    MISSING MONTHLY BALANCES
+            // =====================================================
+
+            DateTime startMonth;
+
+            int carryForward = 0;
+
+            if (previousBalance != null)
             {
-                Employee_Id = employeeId,
-                LeaveYear = year,
-                LeaveMonth = month,
+                startMonth = new DateTime(
+                    previousBalance.LeaveYear,
+                    previousBalance.LeaveMonth,
+                    1)
+                    .AddMonths(1);
 
-                MonthlyCredit = 1,
-                CarryForward = carryForward,
+                carryForward = previousBalance.RemainingLeaves;
 
-                AvailableLeaves = carryForward + 1,
-                UsedLeaves = 0,
-                RemainingLeaves = carryForward + 1,
+                // Never start before employee eligibility
+                if (startMonth < eligibilityMonth)
+                    startMonth = eligibilityMonth;
+            }
+            else
+            {
+                // No balance exists yet.
+                // Start from employee's probation completion month.
+                startMonth = eligibilityMonth;
+            }
 
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
 
-            _context.EmployeeMonthlyLeaveBalances.Add(balance);
+            // =====================================================
+            // 7. CREATE ALL MISSING MONTHS UP TO REQUESTED MONTH
+            //
+            // Example:
+            //
+            // July      +1
+            // August    +1
+            // September +1
+            //
+            // If nothing used:
+            // September Remaining = 3
+            // =====================================================
+
+            EmployeeMonthlyLeaveBalance? requestedBalance = null;
+
+            for (DateTime currentMonth = startMonth;
+                 currentMonth <= requestedMonth;
+                 currentMonth = currentMonth.AddMonths(1))
+            {
+                // Check again in case this month already exists
+                var monthBalance = await _context.EmployeeMonthlyLeaveBalances
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == employeeId &&
+                        x.LeaveYear == currentMonth.Year &&
+                        x.LeaveMonth == currentMonth.Month);
+
+                if (monthBalance != null)
+                {
+                    carryForward = monthBalance.RemainingLeaves;
+
+                    if (currentMonth.Year == year &&
+                        currentMonth.Month == month)
+                    {
+                        requestedBalance = monthBalance;
+                    }
+
+                    continue;
+                }
+
+
+                // Every eligible month gets 1 leave
+                int monthlyCredit = 1;
+
+                int availableLeaves =
+                    carryForward + monthlyCredit;
+
+
+                monthBalance = new EmployeeMonthlyLeaveBalance
+                {
+                    Employee_Id = employeeId,
+
+                    LeaveYear = currentMonth.Year,
+                    LeaveMonth = currentMonth.Month,
+
+                    MonthlyCredit = monthlyCredit,
+
+                    // Previous month's unused balance
+                    CarryForward = carryForward,
+
+                    // Carry Forward + Current Month Credit
+                    AvailableLeaves = availableLeaves,
+
+                    UsedLeaves = 0,
+
+                    LopLeaves = 0,
+
+                    // Nothing used yet in newly created month
+                    RemainingLeaves = availableLeaves,
+
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+
+                _context.EmployeeMonthlyLeaveBalances.Add(monthBalance);
+
+                // Pass remaining leaves to next month
+                carryForward = monthBalance.RemainingLeaves;
+
+
+                if (currentMonth.Year == year &&
+                    currentMonth.Month == month)
+                {
+                    requestedBalance = monthBalance;
+                }
+            }
+
+
+            // =====================================================
+            // 8. SAVE ALL CREATED MONTHS
+            // =====================================================
             await _context.SaveChangesAsync();
 
-            return balance;
+
+            // =====================================================
+            // 9. RETURN REQUESTED MONTH
+            // =====================================================
+            if (requestedBalance == null)
+            {
+                requestedBalance =
+                    await _context.EmployeeMonthlyLeaveBalances
+                        .FirstAsync(x =>
+                            x.Employee_Id == employeeId &&
+                            x.LeaveYear == year &&
+                            x.LeaveMonth == month);
+            }
+
+            return requestedBalance;
         }
         private async Task<bool> IsHoliday(DateTime date)
         {
@@ -292,6 +480,131 @@ x.Status.StartsWith("Approved") &&
             }
 
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<object?> GetLeaveBalanceByEmployeeId(string employeeId)
+        {
+            if (string.IsNullOrWhiteSpace(employeeId))
+                throw new ArgumentException("Employee ID is required.");
+
+            // 1. Check employee exists
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
+
+            if (employee == null)
+                return null;
+
+            int currentYear = DateTime.Today.Year;
+
+            // 2. Get Leave Settings
+            var leaveSettings = await _context.LeaveSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            // Same as Admin Monthly Attendance
+            int totalLeaves = leaveSettings?.MaxLeaveDays ?? 12;
+
+            // 3. Get employee monthly balances for current year
+            var employeeBalances = await _context.EmployeeMonthlyLeaveBalances
+                .AsNoTracking()
+                .Where(x =>
+                    x.Employee_Id == employeeId &&
+                    x.LeaveYear == currentYear)
+                .ToListAsync();
+
+            // 4. Paid leaves used
+            int paidLeaves = employeeBalances.Sum(x => x.UsedLeaves);
+
+            // UL should contain only paid leaves actually consumed
+            int usedLeaves = paidLeaves;
+
+            int balanceLeaves = totalLeaves - usedLeaves;
+
+            if (balanceLeaves < 0)
+            {
+                balanceLeaves = 0;
+            }
+
+            if (balanceLeaves < 0)
+            {
+                balanceLeaves = 0;
+            }
+
+            return new
+            {
+                EmployeeId = employee.Employee_Id,
+                EmployeeName = employee.Name,
+
+                TL = totalLeaves,
+                UL = usedLeaves,
+                BL = balanceLeaves
+            };
+        }
+
+        public async Task<object?> GetMyLeaveBalance(ClaimsPrincipal user)
+        {
+            // 1. Get email from JWT token
+            var email = user.FindFirst(ClaimTypes.Email)?
+                .Value?
+                .Trim()
+                .ToLower();
+
+            if (string.IsNullOrWhiteSpace(email))
+                return null;
+
+            // 2. Find logged-in employee
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.Email != null &&
+                    x.Email.ToLower() == email);
+
+            if (employee == null)
+                return null;
+
+            string employeeId = employee.Employee_Id;
+
+            int currentYear = DateTime.Today.Year;
+
+            // 3. Get total allowed leaves
+            var leaveSettings = await _context.LeaveSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            int totalLeaves = leaveSettings?.MaxLeaveDays ?? 12;
+
+            // 4. Get paid leaves used for current year
+            var employeeBalances = await _context.EmployeeMonthlyLeaveBalances
+                .AsNoTracking()
+                .Where(x =>
+                    x.Employee_Id == employeeId &&
+                    x.LeaveYear == currentYear)
+                .ToListAsync();
+
+            int paidLeaves = employeeBalances.Sum(x => x.UsedLeaves);
+
+            int usedLeaves = paidLeaves;
+
+            int balanceLeaves = totalLeaves - usedLeaves;
+
+            if (balanceLeaves < 0)
+            {
+                balanceLeaves = 0;
+            }
+
+            if (balanceLeaves < 0)
+                balanceLeaves = 0;
+
+            return new
+            {
+                EmployeeId = employee.Employee_Id,
+                EmployeeName = employee.Name,
+
+                TL = totalLeaves,
+                UL = usedLeaves,
+                BL = balanceLeaves
+            };
         }
     }
 }

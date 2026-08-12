@@ -8,7 +8,7 @@ import {
   FaRegCalendarAlt,
   FaTrash
 } from "react-icons/fa";
-import { toastSuccess, toastError } from "@/components/common/toast/toastService";
+import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import { formatDate, isDateRangeValid } from "../utils/date";
 import { extractCollection, sortByRecency } from "../utils/collections";
@@ -64,6 +64,33 @@ const buildLeaveIdentifierFields = (
   };
 };
 
+const firstDefined = (...values) =>
+  values.find((value) => value !== undefined && value !== null && value !== "");
+
+const normalizeLeaveBalanceCards = (payload) => {
+  const data = payload?.data || payload || {};
+  const types = [
+    ["Annual Leave", ["annualLeave", "AnnualLeave", "annual"]],
+    ["Casual Leave", ["casualLeave", "CasualLeave", "casual"]],
+    ["Medical Leave", ["medicalLeave", "MedicalLeave", "medical"]],
+    ["Sick Leave", ["sickLeave", "SickLeave", "sick"]],
+    ["Comp Off", ["compOff", "CompOff", "compensatoryOff"]],
+    ["LOP", ["lop", "LOP", "lossOfPay"]],
+    ["Remaining Leave", ["remainingLeave", "RemainingLeave", "remaining"]],
+    ["Total Leave", ["totalLeave", "TotalLeave", "total"]],
+    ["Consumed Leave", ["consumedLeave", "ConsumedLeave", "used"]],
+  ];
+
+  return types.map(([label, keys]) => {
+    const value = firstDefined(...keys.map((key) => data[key]), 0);
+    const displayValue = typeof value === "object"
+      ? firstDefined(value.remaining, value.Remaining, value.balance, value.Balance, value.total, value.Total, 0)
+      : value;
+
+    return { label, value: displayValue };
+  });
+};
+
 const resolveEndpoint = (endpoint, label) => {
   const resolved = typeof endpoint === "string"
     ? endpoint.trim()
@@ -102,7 +129,7 @@ function UserLeaveManagement() {
 
   // ✅ use backend values here
   const [form, setForm] = useState({
-    leaveType: "Casual",
+    leaveType: "",
     fromDate: "",
     toDate: "",
     reason: ""
@@ -113,6 +140,8 @@ function UserLeaveManagement() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [wfhData, setWfhData] = useState([]);
+  const [leaveBalance, setLeaveBalance] = useState([]);
+  const [balanceError, setBalanceError] = useState("");
 
   const handleChange = (e) => {
     setForm({
@@ -155,7 +184,7 @@ function UserLeaveManagement() {
   //     setBalance(formattedBalance);
   //   } catch (error) {
   //     console.error("❌ Error fetching leave balance:", error);
-  //     toastError("Failed to fetch balance");
+  //     toast.error("Failed to fetch balance");
   //   }
   // };
 
@@ -190,7 +219,7 @@ function UserLeaveManagement() {
         err.response?.data ||
         "Error applying leave";
 
-      toastError(message);
+      toast.error(message);
     }
   };
 
@@ -212,7 +241,7 @@ function UserLeaveManagement() {
 
     if (!endpoint) {
       setWfhData([]);
-      toastError("WFH endpoint is not configured. Showing leave data only.");
+      toast.error("WFH endpoint is not configured. Showing leave data only.");
       return [];
     }
 
@@ -270,12 +299,28 @@ function UserLeaveManagement() {
 
       setWfhData([]);
 
-      toastError(
+      toast.error(
         "Unable to load Work From Home requests. Showing leave data only."
       );
 
       return [];
 
+    }
+  };
+
+  const fetchBalance = async () => {
+    try {
+      setBalanceError("");
+      const res = await api.get(API_ENDPOINTS.leaveBalance.myLeaveBalance, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+      setLeaveBalance(normalizeLeaveBalanceCards(res.data));
+    } catch (error) {
+      console.error("Failed to fetch leave balance", error);
+      setBalanceError("Unable to load leave balance.");
+      setLeaveBalance([]);
     }
   };
 
@@ -287,7 +332,7 @@ function UserLeaveManagement() {
         const results = await Promise.allSettled([
           fetchLeaves(),
           fetchMyWFH(),
-          // fetchBalance()
+          fetchBalance()
         ]);
 
         console.log(
@@ -319,22 +364,22 @@ function UserLeaveManagement() {
 
   const handleSubmit = async () => {
     if (!form.fromDate || !form.toDate || !form.reason.trim()) {
-      toastError("Please fill all fields");
+      toast.error("Please fill all fields");
       return;
     }
 
     if (!isDateRangeValid(form.fromDate, form.toDate)) {
-      toastError("From date cannot be after To date");
+      toast.error("From date cannot be after To date");
       return;
     }
     if (isWeekendOnlyRange(form.fromDate, form.toDate)) {
-      toastError("Leave cannot be applied for weekends");
+      toast.error("Leave cannot be applied for weekends");
       return;
     }
 
     const token = getToken();
     if (!token) {
-      toastError("User not authenticated");
+      toast.error("User not authenticated");
       return;
     }
 
@@ -369,11 +414,11 @@ function UserLeaveManagement() {
 
       console.log("📄 Apply Leave Response:", res.data);
 
-      toastSuccess("Leave applied successfully ✅");
+      toast.success("Leave applied successfully ✅");
 
       await fetchLeaves();
       await fetchMyWFH();
-      // await fetchBalance();
+      await fetchBalance();
 
       setForm({
         leaveType: "Casual",
@@ -389,7 +434,7 @@ function UserLeaveManagement() {
         err.response?.data ||
         "Error applying leave";
 
-      toastError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -403,7 +448,7 @@ function UserLeaveManagement() {
 
     const token = getToken();
     if (!token) {
-      toastError("User not authenticated");
+      toast.error("User not authenticated");
       return;
     }
 
@@ -416,7 +461,7 @@ function UserLeaveManagement() {
       leaveIdentifierFields.id;
 
     if (!resolvedLeaveId) {
-      toastError("Unable to delete leave");
+      toast.error("Unable to delete leave");
       return;
     }
 
@@ -430,13 +475,13 @@ function UserLeaveManagement() {
         data: leaveIdentifierFields,
       });
 
-      toastSuccess("Leave deleted successfully 🗑️");
+      toast.success("Leave deleted successfully 🗑️");
 
       await fetchLeaves();
-      // await fetchBalance();
+      await fetchBalance();
     } catch (err) {
       console.error(err);
-      toastError(
+      toast.error(
         err?.response?.data?.message ||
         "Error deleting leave"
       );
@@ -456,7 +501,7 @@ function UserLeaveManagement() {
         }
       );
 
-      toastSuccess("WFH cancelled");
+      toast.success("WFH cancelled");
 
       await fetchMyWFH();
 
@@ -464,7 +509,7 @@ function UserLeaveManagement() {
 
       console.error(err);
 
-      toastError("Unable to cancel WFH");
+      toast.error("Unable to cancel WFH");
 
     }
   };
@@ -527,7 +572,7 @@ function UserLeaveManagement() {
           marginTop: "-20px",
         }}
       >
-<h2
+        <h2
           className="leave-main-title"
           style={{
             marginTop: "0px",
@@ -566,7 +611,7 @@ function UserLeaveManagement() {
           marginTop: "-20px",
         }}
       >
-<h2
+        <h2
           className="leave-main-title"
           style={{
             marginTop: "0px",

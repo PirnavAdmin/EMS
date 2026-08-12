@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import "react-datepicker/dist/react-datepicker.css";
 import "./index.css";
 import "./theme/theme.css";
@@ -11,9 +12,11 @@ import { applyTheme, getStoredThemeMode } from "./theme/themeConfig";
 applyTheme(getStoredThemeMode());
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <AppErrorBoundary>
+  <BrowserRouter>
     <ThemeProvider>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </ThemeProvider>
-  </AppErrorBoundary>
+  </BrowserRouter>
 );

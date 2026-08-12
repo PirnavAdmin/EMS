@@ -480,6 +480,10 @@
   outline: none;
 }
 
+.projects-field .app-date-input-control .app-date-input {
+  padding-right: 44px;
+}
+
 .projects-field input:focus,
 .projects-field select:focus,
 .employee-select-box:focus-within,

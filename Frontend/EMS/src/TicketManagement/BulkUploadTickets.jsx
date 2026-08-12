@@ -6,11 +6,9 @@ import {
   FaFileExcel,
   FaSpinner,
 } from "react-icons/fa";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
-import useTheme from "../theme/useTheme";
 import { buildServerUrl } from "../api/endpoints";
 import EmptyState from "../components/EmptyState";
 import {
@@ -57,8 +55,6 @@ const normalizeSummary = (payload = {}) => ({
 
 function BulkUploadTickets() {
   const navigate = useNavigate();
-  const { themeMode } = useTheme();
-  const isDarkTheme = themeMode !== "light";
   const fileInputRef = useRef(null);
 
   const [dragActive, setDragActive] = useState(false);
@@ -177,8 +173,6 @@ function BulkUploadTickets() {
 
   return (
     <div className="ticket-page ticket-upload-page">
-      <ToastContainer position="top-right" autoClose={2500} theme={isDarkTheme ? "dark" : "light"} />
-
       <div className="ticket-hero">
         <div className="ticket-hero-copy">
           <span className="ticket-eyebrow">Admin portal</span>

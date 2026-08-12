@@ -164,6 +164,98 @@ namespace EmployeeManagementSystem.Data
 
         public DbSet<RelievingLetter> RelievingLetters { get; set; }
         public DbSet<UserPermission> UserPermissions { get; set; }
+        public DbSet<OnboardingCandidate> OnboardingCandidates { get; set; }
+
+        public DbSet<OnboardingPersonalInfo> OnboardingPersonalInfos { get; set; }
+
+        public DbSet<OnboardingEducation> OnboardingEducations { get; set; }
+
+        public DbSet<OnboardingExperience> OnboardingExperiences { get; set; }
+
+        public DbSet<OnboardingDocument> OnboardingDocuments { get; set; }
+        public DbSet<BrandingSettings> BrandingSettings { get; set; }
+
+        public DbSet<TemplateMaster> TemplateMaster { get; set; }
+
+        public DbSet<DocumentMaster> DocumentMaster { get; set; }
+
+        public DbSet<FooterSettings> FooterSettings { get; set; }
+
+        public DbSet<FileStorage> FileStorage { get; set; }
+
+        public DbSet<TaxDeclaration> TaxDeclarations { get; set; }
+
+        public DbSet<TaxDeclarationItem> TaxDeclarationItems { get; set; }
+
+        public DbSet<TaxProof> TaxProofs { get; set; }
+
+        public DbSet<EmployeeTDS> EmployeeTDS { get; set; }
+
+        public DbSet<Form16> Form16 { get; set; }
+
+        public DbSet<PerformanceCycle> PerformanceCycles { get; set; }
+
+        public DbSet<EmployeeGoal> EmployeeGoals { get; set; }
+
+        public DbSet<Appraisal> Appraisals { get; set; }
+
+        public DbSet<GoalReview> GoalReviews { get; set; }
+
+        public DbSet<AppraisalLetter> AppraisalLetters { get; set; }
+
+        public DbSet<EmployeeResignation> EmployeeResignations { get; set; }
+
+        public DbSet<EmployeeClearance> EmployeeClearances { get; set; }
+
+        public DbSet<ExitInterview> ExitInterviews { get; set; }
+
+        public DbSet<FullFinalSettlement> FullFinalSettlements { get; set; }
+
+        public DbSet<WorkflowMaster> WorkflowMasters { get; set; }
+
+        public DbSet<WorkflowSteps> WorkflowSteps { get; set; }
+
+        public DbSet<WorkflowHistory> WorkflowHistories { get; set; }
+
+        public DbSet<ShiftMaster> ShiftMasters { get; set; }
+
+        public DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments { get; set; }
+
+        public DbSet<ShiftRoster> ShiftRosters { get; set; }
+
+        public DbSet<ShiftPlanner> ShiftPlanners { get; set; }
+
+        public DbSet<ShiftSwap> ShiftSwaps { get; set; }
+
+        public DbSet<ShiftChangeRequest> ShiftChangeRequests { get; set; }
+
+        public DbSet<EmployeeWeeklyOff> EmployeeWeeklyOffs { get; set; }
+        public DbSet<PerformanceCycle> PerformanceCycle { get; set; }
+        public DbSet<EmployeeResignation> EmployeeResignation { get; set; }
+
+        public DbSet<ShiftRotation> ShiftRotations { get; set; }
+
+        public DbSet<SuperAdmin> SuperAdmins { get; set; }
+        public DbSet<AdminPermission> AdminPermissions { get; set; }
+
+        public DbSet<AdminSubscription> AdminSubscriptions { get; set; }
+        public DbSet<EmployeeGoal> EmployeeGoal { get; set; }
+
+        public DbSet<Appraisal> Appraisal { get; set; }
+        public DbSet<GoalReview> GoalReview { get; set; }
+
+        public DbSet<EmployeeClearance> EmployeeClearance { get; set; }
+        public DbSet<ExitInterview> ExitInterview { get; set; }
+        public DbSet<FullFinalSettlement> FullFinalSettlement { get; set; }
+
+        public DbSet<WorkflowMaster> WorkflowMaster { get; set; }
+        public DbSet<WorkflowSteps> WorkflowStep { get; set; }
+        public DbSet<WorkflowHistory> WorkflowHistorie { get; set; }
+        public DbSet<TemplateModuleMaster> TemplateModuleMaster { get; set; }
+        public DbSet<ExperienceLetter> ExperienceLetters { get; set; }
+        public DbSet<EmployeeSalaryStructure>
+    EmployeeSalaryStructures
+        { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
         {
@@ -258,6 +350,53 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<MonitoringLog>()
                 .ToTable("MonitoringLogs");
+            modelBuilder.Entity<PerformanceCycle>().ToTable("performancecycle");
+
+            modelBuilder.Entity<ShiftMaster>().ToTable("shiftmaster");
+            modelBuilder.Entity<ShiftRoster>().ToTable("shiftroster");
+            modelBuilder.Entity<EmployeeShiftAssignment>().ToTable("employeeshiftassignment");
+            modelBuilder.Entity<ShiftPlanner>().ToTable("shiftplanner");
+            modelBuilder.Entity<ShiftSwap>().ToTable("shiftswap");
+            modelBuilder.Entity<ShiftChangeRequest>().ToTable("shiftchangerequest");
+            modelBuilder.Entity<EmployeeWeeklyOff>().ToTable("employeeweeklyoff");
+            modelBuilder.Entity<ShiftRotation>().ToTable("shiftrotation");
+            modelBuilder.Entity<SuperAdmin>()
+    .ToTable("superadmins");
+            modelBuilder.Entity<AdminPermission>()
+    .ToTable("adminpermissions");
+
+            modelBuilder.Entity<AdminSubscription>()
+    .ToTable("adminsubscriptions");
+            modelBuilder.Entity<AdminSubscription>()
+
+    .HasKey(x => x.SubscriptionId);
+            modelBuilder.Entity<EmployeeResignation>()
+    .ToTable("employeeresignation");
+            modelBuilder.Entity<EmployeeGoal>()
+    .ToTable("employeegoal");
+            modelBuilder.Entity<Appraisal>()
+    .ToTable("appraisal");
+
+            modelBuilder.Entity<GoalReview>()
+                .ToTable("goalreview");
+
+            modelBuilder.Entity<EmployeeClearance>()
+                .ToTable("employeeclearance");
+
+            modelBuilder.Entity<ExitInterview>()
+                .ToTable("exitinterview");
+
+            modelBuilder.Entity<FullFinalSettlement>()
+                .ToTable("fullfinalsettlement");
+
+            modelBuilder.Entity<WorkflowMaster>()
+                .ToTable("workflowmaster");
+
+            modelBuilder.Entity<WorkflowSteps>()
+                .ToTable("workflowsteps");
+
+            modelBuilder.Entity<WorkflowHistory>()
+                .ToTable("workflowhistory");
 
             modelBuilder.Entity<RolePermission>()
 
@@ -364,7 +503,45 @@ namespace EmployeeManagementSystem.Data
 
          .HasPrincipalKey<Employee>(e => e.Employee_Id);
 
+            base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<OnboardingCandidate>()
+                .HasAlternateKey(x => x.OnboardingId);
+
+            modelBuilder.Entity<TemplateMaster>()
+
+.HasOne(t => t.Module)
+
+.WithMany()
+
+.HasForeignKey(t => t.ModuleId)
+
+.OnDelete(DeleteBehavior.Restrict);
+
+
+            modelBuilder.Entity<OnboardingPersonalInfo>()
+                .HasOne(x => x.OnboardingCandidate)
+                .WithMany()
+                .HasForeignKey(x => x.OnboardingId)
+                .HasPrincipalKey(x => x.OnboardingId);
+
+            modelBuilder.Entity<OnboardingEducation>()
+                .HasOne(x => x.OnboardingCandidate)
+                .WithMany()
+                .HasForeignKey(x => x.OnboardingId)
+                .HasPrincipalKey(x => x.OnboardingId);
+
+            modelBuilder.Entity<OnboardingExperience>()
+                .HasOne(x => x.OnboardingCandidate)
+                .WithMany()
+                .HasForeignKey(x => x.OnboardingId)
+                .HasPrincipalKey(x => x.OnboardingId);
+
+            modelBuilder.Entity<OnboardingDocument>()
+                .HasOne(x => x.OnboardingCandidate)
+                .WithMany()
+                .HasForeignKey(x => x.OnboardingId)
+                .HasPrincipalKey(x => x.OnboardingId);
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<RelievingLetter>()
     .HasOne(r => r.Employee)
@@ -401,11 +578,65 @@ namespace EmployeeManagementSystem.Data
                 .WithMany(x => x.ProjectTeamMembers)
                 .HasForeignKey(x => x.EmployeeId)
                 .HasPrincipalKey(x => x.Employee_Id);
+
+            modelBuilder.Entity<TaxDeclaration>().ToTable("TaxDeclaration");
+
+            modelBuilder.Entity<TaxDeclarationItem>().ToTable("TaxDeclarationItem");
+
+            modelBuilder.Entity<TaxProof>().ToTable("TaxProof");
+
+            modelBuilder.Entity<EmployeeTDS>().ToTable("EmployeeTDS");
+
+            modelBuilder.Entity<Form16>().ToTable("Form16");
+
+            modelBuilder.Entity<EmployeeResignation>()
+
+    .HasOne(r => r.Employee)
+
+    .WithMany()
+
+    .HasForeignKey(r => r.Employee_Id)
+
+    .HasPrincipalKey(e => e.Employee_Id);
+
+
+            modelBuilder.Entity<FullFinalSettlement>()
+
+    .HasOne(f => f.Employee)
+
+    .WithMany()
+
+    .HasForeignKey(f => f.Employee_Id)
+
+    .HasPrincipalKey(e => e.Employee_Id);
+
+
+            //    modelBuilder.Entity<ShiftRoster>()
+
+            //.HasOne(x => x.Employee)
+
+            //.WithMany()
+
+            //.HasForeignKey(x => x.Employee_Id)
+
+            //.HasPrincipalKey(e => e.Employee_Id);
+
+            //    modelBuilder.Entity<ShiftRoster>()
+
+            //        .HasOne(x => x.Shift)
+
+            //        .WithMany()
+
+            //        .HasForeignKey(x => x.ShiftId);
+
         }
-
-
 
     }
 
+
+
 }
+
+
+
 

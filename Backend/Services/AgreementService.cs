@@ -240,7 +240,7 @@ namespace EmployeeManagementSystem.Services
             {
 
                 Status = true,
-                
+
                 Message = "Agreement uploaded successfully."
 
             };
@@ -511,7 +511,7 @@ namespace EmployeeManagementSystem.Services
         {
 
             return await _context.AgreementMasters
-                
+
                 .FirstOrDefaultAsync(x => x.AgreementId == agreementId);
 
         }
@@ -605,21 +605,21 @@ namespace EmployeeManagementSystem.Services
 
                 .FirstOrDefaultAsync(x => x.EmployeeAgreementId == employeeAgreementId);
 
-            if (agreement == null)
+            if (agreement == null || string.IsNullOrWhiteSpace(agreement.SignedPdfPath))
 
                 return null;
 
-            if (string.IsNullOrEmpty(agreement.SignedPdfPath))
-
-                return null;
-
-            var path = Path.Combine(
+            var fullPath = Path.Combine(
 
                 _environment.WebRootPath,
 
-                agreement.SignedPdfPath.TrimStart('/'));
+                agreement.SignedPdfPath.TrimStart('/', '\\'));
 
-            return File.Exists(path) ? path : null;
+            if (!File.Exists(fullPath))
+
+                return null;
+
+            return fullPath;
 
         }
 

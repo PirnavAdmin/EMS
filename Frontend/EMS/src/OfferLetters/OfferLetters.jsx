@@ -32,7 +32,7 @@ import {
   previewOfferLetter,
   sendOfferLetter,
 } from "../services/offerLetterService";
-import { toastSuccess, toastError, toastInfo } from "@/components/common/toast/toastService";
+import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import DocumentSendStatusButton from "../components/documentSendStatus/DocumentSendStatusButton";
 import SendAgainModal from "../components/documentSendStatus/SendAgainModal";
@@ -97,31 +97,31 @@ const formatDisplayValue = (value) => {
 const getEmployeeDropdownName = (employee) =>
   formatDisplayValue(
     employee?.employeeName ||
-      employee?.name ||
-      employee?.fullName ||
-      [
-        employee?.firstName,
-        employee?.middleName,
-        employee?.lastName,
-      ]
-        .filter(Boolean)
-        .join(" ")
+    employee?.name ||
+    employee?.fullName ||
+    [
+      employee?.firstName,
+      employee?.middleName,
+      employee?.lastName,
+    ]
+      .filter(Boolean)
+      .join(" ")
   );
 
 const getEmployeeDropdownSortKey = (employee) =>
   String(
     employee?.employeeName ||
-      employee?.name ||
-      employee?.fullName ||
-      [
-        employee?.firstName,
-        employee?.middleName,
-        employee?.lastName,
-      ]
-        .filter(Boolean)
-        .join(" ") ||
-      getEmployeeId(employee) ||
-      ""
+    employee?.name ||
+    employee?.fullName ||
+    [
+      employee?.firstName,
+      employee?.middleName,
+      employee?.lastName,
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    getEmployeeId(employee) ||
+    ""
   )
     .trim()
     .toLowerCase();
@@ -225,60 +225,12 @@ const getOfferLetterId = (letter) =>
   letter?.offerLetterID ||
   "";
 
-const SALARY_FIELD_NAMES = [
-  "monthlyCTC",
-  "basic",
-  "hra",
-  "conveyance",
-  "medicalAllowance",
-  "otherAllowance",
-  "providentFund",
-  "professionalTax",
-  "gross",
-  "netTakeHome",
-];
-
-const unwrapSalaryBreakupResponse = (response) =>
-  response?.data?.data ||
-  response?.data ||
-  response ||
-  {};
-
-const parseSalaryAmount = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const normalizedValue = String(value).replace(/,/g, "").trim();
-
-  if (!normalizedValue) {
-    return null;
-  }
-
-  const numericValue = Number(normalizedValue);
-
-  return Number.isFinite(numericValue) ? numericValue : null;
-};
-
-const toSalaryInputValue = (value) => {
-  const numericValue = parseSalaryAmount(value);
-
-  if (numericValue === null) {
-    return "";
-  }
-
-  return String(numericValue);
-};
-
-const formatSalaryAmount = (value) => {
-  const numericValue = parseSalaryAmount(value);
-
-  if (numericValue === null) {
-    return "";
-  }
-
-  return new Intl.NumberFormat("en-IN").format(numericValue);
-};
+const getOfferLetterEmployeeId = (letter) =>
+  letter?.employeeId ||
+  letter?.employee_Id ||
+  letter?.employee_id ||
+  letter?.employeeID ||
+  "";
 
 function OfferLetters() {
   const [letterType, setLetterType] = useState("offer");
@@ -314,12 +266,12 @@ function OfferLetters() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [errors, setErrors] = useState({});
   const [relievingErrors, setRelievingErrors] = useState({});
-  const [relievingForm, setRelievingForm] = useState({
-    employeeId: "",
-    title: "",
-    relievingDate: "",
-    designation: "",
-  });
+ const [relievingForm, setRelievingForm] = useState({
+  employeeId: "",
+  title: "",
+  resignationDate: "",
+  relievingDate: "",
+});
   const [generatedRelievingLetters, setGeneratedRelievingLetters] = useState([]);
   const [loadingRelievingLetters, setLoadingRelievingLetters] = useState(false);
   const [previewOfferLetterTarget, setPreviewOfferLetterTarget] = useState(null);
@@ -437,25 +389,6 @@ function OfferLetters() {
     ],
     [employees]
   );
-
-  const selectedRelievingEmployee = useMemo(() => {
-    const selectedEmployeeId = String(relievingForm.employeeId || "")
-      .trim()
-      .toLowerCase();
-
-    if (!selectedEmployeeId) {
-      return null;
-    }
-
-    return (
-      employees.find(
-        (employee) =>
-          String(getEmployeeId(employee) || "")
-            .trim()
-            .toLowerCase() === selectedEmployeeId
-      ) || null
-    );
-  }, [employees, relievingForm.employeeId]);
 
   const findEmployeeForRelievingLetter = useCallback(
     (letter) => {
@@ -634,14 +567,14 @@ HR Team`,
       const numericValue = value
         .replace(/\D/g, "")
         .slice(0, 8);
-      const annualCTC = parseSalaryAmount(numericValue);
+      const annualCTC = Number(numericValue);
 
       setFormData((prev) => ({
         ...prev,
-        ctc_Annual: numericValue,
+        ctc_Annual: new Intl.NumberFormat("en-IN").format(annualCTC),
       }));
 
-      if (annualCTC === null || annualCTC <= 0) return;
+      if (!annualCTC || annualCTC <= 0) return;
 
       try {
         const response = await calculateOfferLetterBreakup({
@@ -649,29 +582,29 @@ HR Team`,
           ManualOverrideFields: [],
         });
 
-        const data = unwrapSalaryBreakupResponse(response);
+        const data = response.data;
 
-        const nextSalaryState = {
-          ctc_Annual: toSalaryInputValue(annualCTC),
-        };
-
-        SALARY_FIELD_NAMES.forEach((fieldName) => {
-          nextSalaryState[fieldName] = toSalaryInputValue(
-            data?.[fieldName]
-          );
-        });
-
-        console.log("Salary Breakup Response", {
-          response,
-          responseData: response?.data,
-          responseDataData: response?.data?.data,
-        });
-
-        console.log("Salary Structure State", nextSalaryState);
+        console.log("Salary API Response", data);
+        console.log(Object.keys(data));
 
         setFormData((prev) => ({
           ...prev,
-          ...nextSalaryState,
+
+          ctc_Annual: new Intl.NumberFormat("en-IN").format(
+            annualCTC
+          ),
+
+          monthlyCTC: data.monthlyCTC ?? "",
+          basic: data.basic ?? "",
+          hra: data.hra ?? "",
+          conveyance: data.conveyance ?? "",
+          medicalAllowance: data.medicalAllowance ?? "",
+          otherAllowance: data.otherAllowance ?? "",
+          providentFund: data.providentFund ?? "",
+          professionalTax: data.professionalTax ?? "",
+          gross: data.gross ?? "",
+          netTakeHome: data.netTakeHome ?? "",
+
         }));
 
       } catch (error) {
@@ -684,16 +617,11 @@ HR Team`,
     /* ================= FORMAT SALARY INPUTS ================= */
     if (
       [
-        "monthlyCTC",
         "basic",
         "hra",
         "conveyance",
         "medicalAllowance",
         "otherAllowance",
-        "providentFund",
-        "professionalTax",
-        "gross",
-        "netTakeHome",
       ].includes(name)
     ) {
       const numericValue = value
@@ -702,7 +630,9 @@ HR Team`,
 
       setFormData((prev) => ({
         ...prev,
-        [name]: numericValue,
+        [name]: new Intl.NumberFormat("en-IN").format(
+          numericValue
+        ),
       }));
 
       return;
@@ -721,7 +651,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toastError("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.");
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
@@ -753,7 +683,7 @@ HR Team`,
         "Unable to load offer letters.",
         "offer letter"
       );
-      toastError(message);
+      toast.error(message);
       return [];
     }
   }, [currentPage, lettersPerPage]);
@@ -771,7 +701,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toastError("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.");
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
@@ -795,7 +725,7 @@ HR Team`,
         "Unable to load relieving letters.",
         "relieving letter"
       );
-      toastError(message);
+      toast.error(message);
     } finally {
       setLoadingRelievingLetters(false);
     }
@@ -808,7 +738,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toastError("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.");
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
@@ -830,7 +760,7 @@ HR Team`,
       setEmployees(normalizeEmployeesForDropdown(data));
     } catch (error) {
       console.error("Employees Fetch Error:", error);
-      toastError("Failed to fetch employees");
+      toast.error("Failed to fetch employees");
     } finally {
       setEmployeesLoading(false);
     }
@@ -1000,7 +930,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toastError("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.");
 
         setTimeout(() => {
           redirectToLogin();
@@ -1060,7 +990,7 @@ HR Team`,
 
       await generateOfferLetter(payload);
 
-      toastSuccess(
+      toast.success(
         "Offer Letter Generated Successfully"
       );
 
@@ -1115,7 +1045,7 @@ HR Team`,
         "offer letter"
       );
 
-      toastError(message);
+      toast.error(message);
 
       if (error.response?.status === 401) {
         setTimeout(() => {
@@ -1133,7 +1063,7 @@ HR Team`,
       const token = getToken();
 
       if (!token) {
-        toastError("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.");
 
         setTimeout(() => {
           redirectToLogin();
@@ -1158,8 +1088,8 @@ HR Team`,
       const blob = response.data instanceof Blob
         ? response.data
         : new Blob([response.data], {
-            type: rawContentType || "",
-          });
+          type: rawContentType || "",
+        });
       const contentType = await resolveDocumentMimeType({
         blob,
         fileName: initialFileName,
@@ -1174,8 +1104,8 @@ HR Team`,
         blob.type === contentType
           ? blob
           : new Blob([blob], {
-              type: contentType || "",
-            });
+            type: contentType || "",
+          });
 
       const url =
         window.URL.createObjectURL(file);
@@ -1193,7 +1123,7 @@ HR Team`,
 
       window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
-      toastSuccess("Offer Letter Downloaded");
+      toast.success("Offer Letter Downloaded");
     } catch (error) {
       console.error("Download Error:", error);
       const message = await getOfferLetterApiErrorMessage(
@@ -1201,7 +1131,7 @@ HR Team`,
         "Unable to download the selected offer letter.",
         "offer letter"
       );
-      toastError(message);
+      toast.error(message);
     } finally {
       setDownloadingId(null);
     }
@@ -1220,7 +1150,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(offerLetter);
 
     if (!offerLetterId) {
-      toastError("Unable to preview this offer letter.");
+      toast.error("Unable to preview this offer letter.");
       return;
     }
 
@@ -1252,8 +1182,8 @@ HR Team`,
         response.data instanceof Blob
           ? response.data
           : new Blob([response.data], {
-              type: contentType || "",
-            });
+            type: contentType || "",
+          });
 
       setPreviewOfferLetterBlob(previewBlob);
       setPreviewOfferLetterContentType(contentType || previewBlob.type || "");
@@ -1270,7 +1200,7 @@ HR Team`,
 
       setPreviewOfferLetterError(message);
       setPreviewOfferLetterLoading(false);
-      toastError(message);
+      toast.error(message);
     }
   };
 
@@ -1309,12 +1239,12 @@ HR Team`,
     const offerLetterId = Number(getOfferLetterId(offerLetter));
 
     if (!offerLetterId) {
-      toastError("Unable to send this offer letter.");
+      toast.error("Unable to send this offer letter.");
       return false;
     }
 
     if (!allowResend && isOfferLetterAlreadySent(offerLetter)) {
-      toastInfo("Offer Letter Already Sent");
+      toast.info("Offer Letter Already Sent");
       return false;
     }
 
@@ -1340,7 +1270,7 @@ HR Team`,
         body,
       });
 
-      toastSuccess(successMessage);
+      toast.success(successMessage);
       onSuccess?.();
       return true;
     } catch (error) {
@@ -1349,7 +1279,7 @@ HR Team`,
         "Unable to send the selected offer letter."
       );
 
-      toastError(message);
+      toast.error(message);
       return false;
     } finally {
       setSendingOfferLetterId(null);
@@ -1365,7 +1295,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(offerLetter);
 
     if (!offerLetterId) {
-      toastError("Unable to send this offer letter.");
+      toast.error("Unable to send this offer letter.");
       return;
     }
 
@@ -1424,7 +1354,7 @@ HR Team`,
     const offerLetterId = Number(getOfferLetterId(sendOfferLetterTarget));
 
     if (!offerLetterId) {
-      toastError("Unable to send this offer letter.");
+      toast.error("Unable to send this offer letter.");
       return;
     }
 
@@ -1473,12 +1403,12 @@ HR Team`,
     const relievingLetterId = Number(getRelievingLetterId(relievingLetter));
 
     if (!relievingLetterId) {
-      toastError("Unable to send this relieving letter.");
+      toast.error("Unable to send this relieving letter.");
       return false;
     }
 
     if (!allowResend && isRelievingLetterAlreadySent(relievingLetter)) {
-      toastInfo("Relieving Letter Already Sent");
+      toast.info("Relieving Letter Already Sent");
       return false;
     }
 
@@ -1504,7 +1434,7 @@ HR Team`,
         body,
       });
 
-      toastSuccess(successMessage);
+      toast.success(successMessage);
       onSuccess?.();
       return true;
     } catch (error) {
@@ -1514,7 +1444,7 @@ HR Team`,
         "relieving letter"
       );
 
-      toastError(message);
+      toast.error(message);
       return false;
     } finally {
       setSendingRelievingLetterId(null);
@@ -1613,7 +1543,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(offerLetter);
 
     if (!offerLetterId) {
-      toastError("Unable to delete this offer letter.");
+      toast.error("Unable to delete this offer letter.");
       return;
     }
 
@@ -1628,7 +1558,7 @@ HR Team`,
     const offerLetterId = getOfferLetterId(deleteOfferLetterTarget);
 
     if (!offerLetterId) {
-      toastError("Unable to delete this offer letter.");
+      toast.error("Unable to delete this offer letter.");
       return;
     }
 
@@ -1641,7 +1571,7 @@ HR Team`,
     try {
       await deleteOfferLetter(offerLetterId);
 
-      toastSuccess("Offer letter deleted successfully.");
+      toast.success("Offer letter deleted successfully.");
       setLetters((prev) =>
         prev.filter(
           (letter) => String(getOfferLetterId(letter)) !== String(offerLetterId)
@@ -1655,7 +1585,7 @@ HR Team`,
         "Unable to delete the selected offer letter."
       );
 
-      toastError(message);
+      toast.error(message);
     } finally {
       setDeletingOfferLetterId(null);
     }
@@ -1691,19 +1621,19 @@ HR Team`,
     const newErrors = {};
 
     if (!relievingForm.employeeId) {
-      newErrors.employeeId = "Employee is required.";
+      newErrors.employeeId = "Employee is required";
     }
 
     if (!relievingForm.title.trim()) {
-      newErrors.title = "Title is required.";
+      newErrors.title = "Title is required";
     }
+
+    if (!relievingForm.resignationDate) {
+  newErrors.resignationDate = "Resignation date is required";
+}
 
     if (!relievingForm.relievingDate) {
-      newErrors.relievingDate = "Relieving Date is required.";
-    }
-
-    if (!relievingForm.designation.trim()) {
-      newErrors.designation = "Designation is required.";
+      newErrors.relievingDate = "Relieving date is required";
     }
 
     setRelievingErrors(newErrors);
@@ -1716,25 +1646,25 @@ HR Team`,
     try {
       setRelievingLoading(true);
 
-      const payload = {
-        employeeId:
-          selectedRelievingEmployee?.employeeId || relievingForm.employeeId,
-        title: relievingForm.title.trim(),
-        relievingDate: relievingForm.relievingDate,
-        designation: relievingForm.designation.trim(),
-      };
+     const payload = {
+  employeeId: relievingForm.employeeId,
+  title: relievingForm.title.trim(),
+  resignationDate: relievingForm.resignationDate,
+  relievingDate: relievingForm.relievingDate,
+};
 
       await generateRelievingLetter(payload);
 
-      toastSuccess("Relieving Letter Generated Successfully");
+      toast.success("Relieving Letter Generated Successfully");
       await loadRelievingLetters();
 
-      setRelievingForm({
-        employeeId: "",
-        title: "",
-        relievingDate: "",
-        designation: "",
-      });
+     setRelievingForm({
+  employeeId: "",
+  title: "",
+  resignationDate: "",
+  relievingDate: "",
+  designation: "",
+});
       setRelievingErrors({});
     } catch (error) {
       console.error("Relieving Generate Error:", error);
@@ -1743,7 +1673,7 @@ HR Team`,
         "Failed to generate relieving letter.",
         "relieving letter"
       );
-      toastError(message);
+      toast.error(message);
     } finally {
       setRelievingLoading(false);
     }
@@ -1759,14 +1689,14 @@ HR Team`,
         response.data instanceof Blob
           ? response.data
           : new Blob([response.data], {
-              type: contentType || "application/pdf",
-            });
+            type: contentType || "application/pdf",
+          });
       const file =
         blob.type === (contentType || "application/pdf")
           ? blob
           : new Blob([blob], {
-              type: contentType || "application/pdf",
-            });
+            type: contentType || "application/pdf",
+          });
       const url = window.URL.createObjectURL(file);
       const link = document.createElement("a");
 
@@ -1779,7 +1709,7 @@ HR Team`,
 
       window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
-      toastSuccess("Relieving Letter Downloaded");
+      toast.success("Relieving Letter Downloaded");
     } catch (error) {
       console.error("Relieving Download Error:", error);
       const message = await getOfferLetterApiErrorMessage(
@@ -1787,7 +1717,7 @@ HR Team`,
         "Unable to download the selected relieving letter.",
         "relieving letter"
       );
-      toastError(message);
+      toast.error(message);
     } finally {
       setRelievingDownloadingId(null);
     }
@@ -1806,7 +1736,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(relievingLetter);
 
     if (!relievingLetterId) {
-      toastError("Unable to preview this relieving letter.");
+      toast.error("Unable to preview this relieving letter.");
       return;
     }
 
@@ -1834,8 +1764,8 @@ HR Team`,
         response.data instanceof Blob
           ? response.data
           : new Blob([response.data], {
-              type: contentType || "application/pdf",
-            });
+            type: contentType || "application/pdf",
+          });
 
       setPreviewRelievingLetterBlob(previewBlob);
       setPreviewRelievingLetterContentType(contentType || previewBlob.type || "");
@@ -1853,7 +1783,7 @@ HR Team`,
 
       setPreviewRelievingLetterError(message);
       setPreviewRelievingLetterLoading(false);
-      toastError(message);
+      toast.error(message);
     }
   };
 
@@ -1873,7 +1803,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(relievingLetter);
 
     if (!relievingLetterId) {
-      toastError("Unable to send this relieving letter.");
+      toast.error("Unable to send this relieving letter.");
       return;
     }
 
@@ -1932,7 +1862,7 @@ HR Team`,
     const relievingLetterId = Number(getRelievingLetterId(sendRelievingLetterTarget));
 
     if (!relievingLetterId) {
-      toastError("Unable to send this relieving letter.");
+      toast.error("Unable to send this relieving letter.");
       return;
     }
 
@@ -1982,7 +1912,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(relievingLetter);
 
     if (!relievingLetterId) {
-      toastError("Unable to delete this relieving letter.");
+      toast.error("Unable to delete this relieving letter.");
       return;
     }
 
@@ -1997,7 +1927,7 @@ HR Team`,
     const relievingLetterId = getRelievingLetterId(deleteRelievingLetterTarget);
 
     if (!relievingLetterId) {
-      toastError("Unable to delete this relieving letter.");
+      toast.error("Unable to delete this relieving letter.");
       return;
     }
 
@@ -2006,7 +1936,7 @@ HR Team`,
     try {
       await deleteRelievingLetter(relievingLetterId);
 
-      toastSuccess("Relieving letter deleted successfully.");
+      toast.success("Relieving letter deleted successfully.");
       setGeneratedRelievingLetters((prev) =>
         prev.filter(
           (letter) =>
@@ -2022,7 +1952,7 @@ HR Team`,
         "relieving letter"
       );
 
-      toastError(message);
+      toast.error(message);
     } finally {
       setDeletingRelievingLetterId(null);
     }
@@ -2031,791 +1961,791 @@ HR Team`,
   /* ================= UI ================= */
   return (
     <div className="offer-container">
-{letterType === "offer" ? (
+      {letterType === "offer" ? (
         <>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          marginBottom: "0px",
-          paddingBottom: "0px",
-          marginTop: "-15px",
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: "26px",
-            fontWeight: "650",
-            // color: "var(--text-primary)",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <FaFileAlt />
-          Offer Letter Generation
-        </h2>
-
-        <p
-          style={{
-            marginTop: "0px",
-            marginLeft: "42px",
-            fontSize: "15px",
-            color: "var(--text-muted)",
-            fontWeight: "500",
-          }}
-        >
-          Generate offer letters for new hires
-        </p>
-
-        <div className="premium-input-group letter-type-field">
-          <label>Letter Type</label>
-
-          <select
-            className="premium-input"
-            value={letterType}
-            onChange={(e) => setLetterType(e.target.value)}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              marginBottom: "0px",
+              paddingBottom: "0px",
+              marginTop: "-15px",
+            }}
           >
-            <option value="offer">Offer Letter</option>
-            <option value="relieving">Relieving Letter</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="offer-card">
-        <h3>Generate New Offer Letter</h3>
-
-        <div className="form-grid offer-letter-form-grid">
-
-          {/* Candidate Name */}
-          <div className="form-group">
-            <label>
-              <FaUser /> Candidate Name
-            </label>
-
-            <div className="candidate-name-wrapper">
-
-              <select
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                className="candidate-title-select"
-              >
-                <option value="Mr.">Mr.</option>
-                <option value="Mrs.">Mrs.</option>
-                <option value="Ms.">Ms.</option>
-              </select>
-
-              <input
-                ref={fieldRefs.candidate_Name}
-                type="text"
-                name="candidate_Name"
-                value={formData.candidate_Name}
-                onChange={handleChange}
-                placeholder="Enter candidate name"
-                className="candidate-name-input"
-              />
-
-            </div>
-
-            {errors.candidate_Name && (
-              <p className="field-error">
-                {errors.candidate_Name}
-              </p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div className="form-group">
-            <label>
-              <FaEnvelope /> Email
-            </label>
-
-            <input
-              ref={fieldRefs.email}
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter email"
-            />
-
-            {errors.email && (
-              <p className="field-error">
-                {errors.email}
-              </p>
-            )}
-          </div>
-
-          {/* Position */}
-          <div className="form-group">
-            <label>
-              <FaBriefcase /> Position
-            </label>
-
-            <input
-              ref={fieldRefs.position}
-              type="text"
-              name="position"
-              value={formData.position}
-              onChange={handleChange}
-              placeholder="Enter position"
-            />
-
-            {errors.position && (
-              <p
-                style={{
-                  color: "red",
-                  fontSize: "12px",
-                  marginTop: "3px",
-                  minHeight: "16px",
-                }}
-              >
-                {errors.position || ""}
-              </p>
-            )}
-          </div>
-
-          {/* Annual CTC */}
-          <div className="form-group">
-            <label>
-              <FaRupeeSign /> Annual CTC
-            </label>
-
-            <input
-              ref={fieldRefs.ctc_Annual}
-              type="text"
-              name="ctc_Annual"
-              className="no-spinner"
-              value={formatSalaryAmount(formData.ctc_Annual)}
-              onChange={handleChange}
-              placeholder="Enter annual CTC"
-              inputMode="numeric"
-              onKeyDown={(e) => {
-                if (
-                  ["e", "E", "+", "-", "."].includes(
-                    e.key
-                  )
-                ) {
-                  e.preventDefault();
-                }
-              }}
-            />
-
-            {errors.ctc_Annual && (
-              <p
-                style={{
-                  color: "red",
-                  fontSize: "12px",
-                  marginTop: "3px",
-                  minHeight: "16px",
-                }}
-              >
-                {errors.ctc_Annual || ""}
-              </p>
-            )}
-          </div>
-
-          {/* Joining Date */}
-          <div className="form-group" ref={fieldRefs.joining_Date}>
-            <label>
-              <FaCalendarAlt /> Joining Date
-            </label>
-
-            <AppDatePicker
-              name="joining_Date"
-              value={formData.joining_Date}
-              onChange={handleChange}
-            />
-
-            {errors.joining_Date && (
-              <p
-                style={{
-                  color: "red",
-                  fontSize: "12px",
-                  marginTop: "3px",
-                  minHeight: "16px",
-                }}
-              >
-                {errors.joining_Date || ""}
-              </p>
-            )}
-          </div>
-
-          {/* Address */}
-          <div className="form-group full-width">
-            <label>
-              <FaMapMarkerAlt /> Address
-            </label>
-
-            <textarea
-              ref={fieldRefs.address}
-              name="address"
-              rows="3"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Enter address"
-            />
-
-            {errors.address && (
-              <p className="field-error">
-                {errors.address}
-              </p>
-            )}
-          </div>
-
-          {/* Compensation Section */}
-          <div className="full-width compensation-container">
-
-            <div
+            <h2
               style={{
+                margin: 0,
+                fontSize: "26px",
+                fontWeight: "650",
+                // color: "var(--text-primary)",
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "12px",
+                gap: "8px",
               }}
             >
-              <h3 className="compensation-title">
-                Compensation and Benefits Structure
-              </h3>
+              <FaFileAlt />
+              Offer Letter Generation
+            </h2>
 
-              <button
-                type="button"
-                onClick={() => setIsEditMode(!isEditMode)}
-                style={{
-                  background: isEditMode
-                    ? "var(--danger)"
-                    : "var(--primary)",
-                  color: "var(--theme-on-primary)",
-                  border: "1px solid var(--border-color)",
-                  padding: "7px 14px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                }}
+            <p
+              style={{
+                marginTop: "0px",
+                marginLeft: "42px",
+                fontSize: "15px",
+                color: "var(--text-muted)",
+                fontWeight: "500",
+              }}
+            >
+              Generate offer letters for new hires
+            </p>
+
+            <div className="premium-input-group letter-type-field">
+              <label>Letter Type</label>
+
+              <select
+                className="premium-input"
+                value={letterType}
+                onChange={(e) => setLetterType(e.target.value)}
               >
-                {isEditMode ? "Cancel Edit" : "Edit"}
-              </button>
-            </div>
-
-            <div className="compensation-box">
-
-              {/* Monthly CTC */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Monthly CTC
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    type="text"
-                    name="monthlyCTC"
-                    value={formatSalaryAmount(formData.monthlyCTC)}
-                    onChange={handleChange}
-                    placeholder="Enter Monthly CTC"
-                    disabled={!isEditMode}
-                  />
-                </div>
-              </div>
-
-              {/* HRA */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  HRA
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    ref={fieldRefs.hra}
-                    type="text"
-                    name="hra"
-                    value={formatSalaryAmount(formData.hra)}
-                    onChange={handleChange}
-                    placeholder="Enter HRA"
-                    disabled={!isEditMode}
-                  />
-
-                  {errors.hra && (
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px",
-                      }}
-                    >
-                      {errors.hra || ""}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Conveyance */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Conveyance
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    ref={fieldRefs.conveyance}
-                    type="text"
-                    name="conveyance"
-                    value={formatSalaryAmount(formData.conveyance)}
-                    onChange={handleChange}
-                    placeholder="Enter Conveyance"
-                    disabled={!isEditMode}
-                  />
-
-                  {errors.conveyance && (
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px",
-                      }}
-                    >
-                      {errors.conveyance || ""}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Medical */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Medical Allowance
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    ref={fieldRefs.medicalAllowance}
-                    type="text"
-                    name="medicalAllowance"
-                    value={formatSalaryAmount(formData.medicalAllowance)}
-                    onChange={handleChange}
-                    placeholder="Enter Medical Allowance"
-                    disabled={!isEditMode}
-                  />
-
-                  {errors.medicalAllowance && (
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px",
-                      }}
-                    >
-                      {errors.medicalAllowance || ""}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Other */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Oth. Allowances
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    ref={fieldRefs.otherAllowance}
-                    type="text"
-                    name="otherAllowance"
-                    value={formatSalaryAmount(formData.otherAllowance)}
-                    onChange={handleChange}
-                    placeholder="Enter Other Allowances"
-                    disabled={!isEditMode}
-                  />
-
-                  {errors.otherAllowance && (
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px",
-                      }}
-                    >
-                      {errors.otherAllowance || ""}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Provident Fund */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Provident Fund
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    type="text"
-                    name="providentFund"
-                    value={formatSalaryAmount(formData.providentFund)}
-                    onChange={handleChange}
-                    placeholder="Enter Provident Fund"
-                    disabled={!isEditMode}
-                  />
-                </div>
-              </div>
-
-              {/* Professional Tax */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Professional Tax
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    type="text"
-                    name="professionalTax"
-                    value={formatSalaryAmount(formData.professionalTax)}
-                    onChange={handleChange}
-                    placeholder="Enter Professional Tax"
-                    disabled={!isEditMode}
-                  />
-                </div>
-              </div>
-
-              {/* Gross Salary */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Gross Salary
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    type="text"
-                    name="gross"
-                    value={formatSalaryAmount(formData.gross)}
-                    onChange={handleChange}
-                    placeholder="Enter Gross Salary"
-                    disabled={!isEditMode}
-                  />
-                </div>
-              </div>
-
-              {/* Net Take Home */}
-              <div className="comp-row">
-                <div className="comp-label">
-                  Net Take Home
-                </div>
-
-                <div className="comp-input">
-                  <input
-                    type="text"
-                    name="netTakeHome"
-                    value={formatSalaryAmount(formData.netTakeHome)}
-                    onChange={handleChange}
-                    placeholder="Enter Net Take Home"
-                    disabled={!isEditMode}
-                  />
-                </div>
-              </div>
+                <option value="offer">Offer Letter</option>
+                <option value="relieving">Relieving Letter</option>
+              </select>
             </div>
           </div>
-        </div>
 
-        <div className="offer-buttons">
-          <button
-            className="btn-primary"
-            onClick={handleGenerate}
-            disabled={loading}
-          >
-            <FaFileAlt />
+          <div className="offer-card">
+            <h3>Generate New Offer Letter</h3>
 
-            {loading
-              ? " Generating..."
-              : " Generate Letter"}
-          </button>
-        </div>
-      </div>
+            <div className="form-grid offer-letter-form-grid">
 
-      {/* OFFER LIST */}
-      <div className="offer-list">
-        <h3>
-          <FaFileAlt /> Generated Offer Letters
-        </h3>
+              {/* Candidate Name */}
+              <div className="form-group">
+                <label>
+                  <FaUser /> Candidate Name
+                </label>
 
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
+                <div className="candidate-name-wrapper">
 
-                <th>
-                  <FaUser /> Candidate
-                </th>
+                  <select
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    className="candidate-title-select"
+                  >
+                    <option value="Mr.">Mr.</option>
+                    <option value="Mrs.">Mrs.</option>
+                    <option value="Ms.">Ms.</option>
+                  </select>
 
-                <th>
+                  <input
+                    ref={fieldRefs.candidate_Name}
+                    type="text"
+                    name="candidate_Name"
+                    value={formData.candidate_Name}
+                    onChange={handleChange}
+                    placeholder="Enter candidate name"
+                    className="candidate-name-input"
+                  />
+
+                </div>
+
+                {errors.candidate_Name && (
+                  <p className="field-error">
+                    {errors.candidate_Name}
+                  </p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="form-group">
+                <label>
                   <FaEnvelope /> Email
-                </th>
+                </label>
 
-                <th>
+                <input
+                  ref={fieldRefs.email}
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter email"
+                />
+
+                {errors.email && (
+                  <p className="field-error">
+                    {errors.email}
+                  </p>
+                )}
+              </div>
+
+              {/* Position */}
+              <div className="form-group">
+                <label>
                   <FaBriefcase /> Position
-                </th>
+                </label>
 
-                <th className="offer-actions-cell offer-actions-header">
-                  <span className="offer-actions-header-content">
-                    <FaFileAlt aria-hidden="true" />
-                    <span>Actions</span>
-                  </span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentLetters.length > 0 ? (
-                currentLetters.map((item, index) => {
-                  const offerLetterId = getOfferLetterId(item);
-                  const normalizedOfferLetterId = offerLetterId
-                    ? String(offerLetterId)
-                    : "";
-                  const offerLetterStatus =
-                    offerLetterSendStatus.getDocumentStatus(item);
-                  const isAlreadySent = offerLetterStatus.status === "sent";
-                  const isSendStatusChecking =
-                    isOfferLetterSendStatusLoading(item);
-                  const isDownloading =
-                    String(downloadingId) === normalizedOfferLetterId;
-                  const isSending =
-                    String(sendingOfferLetterId) === normalizedOfferLetterId;
-                  const isDeleting =
-                    String(deletingOfferLetterId) === normalizedOfferLetterId;
-                  const isPreviewing =
-                    previewOfferLetterLoading &&
-                    String(getOfferLetterId(previewOfferLetterTarget)) ===
-                      normalizedOfferLetterId;
+                <input
+                  ref={fieldRefs.position}
+                  type="text"
+                  name="position"
+                  value={formData.position}
+                  onChange={handleChange}
+                  placeholder="Enter position"
+                />
 
-                  return (
-                    <tr key={normalizedOfferLetterId || item.id || index}>
-                      <td>{indexOfFirst + index + 1}</td>
+                {errors.position && (
+                  <p
+                    style={{
+                      color: "red",
+                      fontSize: "12px",
+                      marginTop: "3px",
+                      minHeight: "16px",
+                    }}
+                  >
+                    {errors.position || ""}
+                  </p>
+                )}
+              </div>
 
-                      <td>{item.candidate_Name}</td>
+              {/* Annual CTC */}
+              <div className="form-group">
+                <label>
+                  <FaRupeeSign /> Annual CTC
+                </label>
 
-                      <td>{item.email}</td>
-                      <td>{item.position}</td>
+                <input
+                  ref={fieldRefs.ctc_Annual}
+                  type="text"
+                  name="ctc_Annual"
+                  className="no-spinner"
+                  value={formData.ctc_Annual}
+                  onChange={handleChange}
+                  placeholder="Enter annual CTC"
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (
+                      ["e", "E", "+", "-", "."].includes(
+                        e.key
+                      )
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
+                />
 
-                      <td className="offer-actions-cell">
-                        <div className="offer-actions-wrapper">
-                          <button
-                            type="button"
-                            className="offer-action-btn offer-action-preview"
-                            onClick={() => handlePreviewOfferLetter(item)}
-                            disabled={!offerLetterId || isPreviewing || isSending}
-                            title="Preview"
-                            aria-label="Preview offer letter"
-                          >
-                            <FaEye />
-                          </button>
+                {errors.ctc_Annual && (
+                  <p
+                    style={{
+                      color: "red",
+                      fontSize: "12px",
+                      marginTop: "3px",
+                      minHeight: "16px",
+                    }}
+                  >
+                    {errors.ctc_Annual || ""}
+                  </p>
+                )}
+              </div>
 
-                          <DocumentSendStatusButton
-                            status={offerLetterStatus.status}
-                            loading={isSendStatusChecking}
-                            disabled={
-                              !offerLetterId ||
-                              isSending ||
-                              isAnyDocumentSending
-                            }
-                            onClick={() => handleOpenSendOfferLetterModal(item)}
-                            title={
-                              isAlreadySent
-                                ? "Already Sent - Click to Send Again"
-                                : isSendStatusChecking
-                                  ? "Checking send status..."
-                                  : "Send Offer Letter"
-                            }
-                            aria-label={
-                              isAlreadySent
-                                ? "Already sent - click to send again"
-                                : isSendStatusChecking
-                                  ? "Checking send status"
-                                  : "Send offer letter"
-                            }
-                            className="offer-action-btn--status"
-                          />
+              {/* Joining Date */}
+              <div className="form-group" ref={fieldRefs.joining_Date}>
+                <label>
+                  <FaCalendarAlt /> Joining Date
+                </label>
 
-                          <button
-                            type="button"
-                            className="offer-action-btn offer-action-download"
-                            onClick={() => handleDownload(offerLetterId)}
-                            disabled={!offerLetterId || isDownloading || isSending}
-                            title="Download"
-                            aria-label="Download offer letter"
-                          >
-                            <FaDownload />
-                          </button>
+                <AppDatePicker
+                  name="joining_Date"
+                  value={formData.joining_Date}
+                  onChange={handleChange}
+                />
 
-                          <button
-                            type="button"
-                            className="offer-action-btn offer-action-delete"
-                            onClick={() => handleOpenDeleteOfferLetter(item)}
-                            disabled={!offerLetterId || isDeleting || isSending}
-                            title="Delete"
-                            aria-label="Delete offer letter"
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
+                {errors.joining_Date && (
+                  <p
+                    style={{
+                      color: "red",
+                      fontSize: "12px",
+                      marginTop: "3px",
+                      minHeight: "16px",
+                    }}
+                  >
+                    {errors.joining_Date || ""}
+                  </p>
+                )}
+              </div>
+
+              {/* Address */}
+              <div className="form-group full-width">
+                <label>
+                  <FaMapMarkerAlt /> Address
+                </label>
+
+                <textarea
+                  ref={fieldRefs.address}
+                  name="address"
+                  rows="3"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Enter address"
+                />
+
+                {errors.address && (
+                  <p className="field-error">
+                    {errors.address}
+                  </p>
+                )}
+              </div>
+
+              {/* Compensation Section */}
+              <div className="full-width compensation-container">
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <h3 className="compensation-title">
+                    Compensation and Benefits Structure
+                  </h3>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    style={{
+                      background: isEditMode
+                        ? "var(--danger)"
+                        : "var(--primary)",
+                      color: "var(--theme-on-primary)",
+                      border: "1px solid var(--border-color)",
+                      padding: "7px 14px",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {isEditMode ? "Cancel Edit" : "Edit"}
+                  </button>
+                </div>
+
+                <div className="compensation-box">
+
+                  {/* Monthly CTC */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Monthly CTC
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        type="text"
+                        name="monthlyCTC"
+                        value={formData.monthlyCTC}
+                        onChange={handleChange}
+                        placeholder="Enter Monthly CTC"
+                        disabled={!isEditMode}
+                      />
+                    </div>
+                  </div>
+
+                  {/* HRA */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      HRA
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        ref={fieldRefs.hra}
+                        type="text"
+                        name="hra"
+                        value={formData.hra}
+                        onChange={handleChange}
+                        placeholder="Enter HRA"
+                        disabled={!isEditMode}
+                      />
+
+                      {errors.hra && (
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px",
+                          }}
+                        >
+                          {errors.hra || ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Conveyance */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Conveyance
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        ref={fieldRefs.conveyance}
+                        type="text"
+                        name="conveyance"
+                        value={formData.conveyance}
+                        onChange={handleChange}
+                        placeholder="Enter Conveyance"
+                        disabled={!isEditMode}
+                      />
+
+                      {errors.conveyance && (
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px",
+                          }}
+                        >
+                          {errors.conveyance || ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Medical */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Medical Allowance
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        ref={fieldRefs.medicalAllowance}
+                        type="text"
+                        name="medicalAllowance"
+                        value={formData.medicalAllowance}
+                        onChange={handleChange}
+                        placeholder="Enter Medical Allowance"
+                        disabled={!isEditMode}
+                      />
+
+                      {errors.medicalAllowance && (
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px",
+                          }}
+                        >
+                          {errors.medicalAllowance || ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Other */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Oth. Allowances
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        ref={fieldRefs.otherAllowance}
+                        type="text"
+                        name="otherAllowance"
+                        value={formData.otherAllowance}
+                        onChange={handleChange}
+                        placeholder="Enter Other Allowances"
+                        disabled={!isEditMode}
+                      />
+
+                      {errors.otherAllowance && (
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px",
+                          }}
+                        >
+                          {errors.otherAllowance || ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Provident Fund */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Provident Fund
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        type="text"
+                        name="providentFund"
+                        value={formData.providentFund}
+                        onChange={handleChange}
+                        placeholder="Enter Provident Fund"
+                        disabled={!isEditMode}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Professional Tax */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Professional Tax
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        type="text"
+                        name="professionalTax"
+                        value={formData.professionalTax}
+                        onChange={handleChange}
+                        placeholder="Enter Professional Tax"
+                        disabled={!isEditMode}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Gross Salary */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Gross Salary
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        type="text"
+                        name="gross"
+                        value={formData.gross}
+                        onChange={handleChange}
+                        placeholder="Enter Gross Salary"
+                        disabled={!isEditMode}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Net Take Home */}
+                  <div className="comp-row">
+                    <div className="comp-label">
+                      Net Take Home
+                    </div>
+
+                    <div className="comp-input">
+                      <input
+                        type="text"
+                        name="netTakeHome"
+                        value={formData.netTakeHome}
+                        onChange={handleChange}
+                        placeholder="Enter Net Take Home"
+                        disabled={!isEditMode}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="offer-buttons">
+              <button
+                className="btn-primary"
+                onClick={handleGenerate}
+                disabled={loading}
+              >
+                <FaFileAlt />
+
+                {loading
+                  ? " Generating..."
+                  : " Generate Letter"}
+              </button>
+            </div>
+          </div>
+
+          {/* OFFER LIST */}
+          <div className="offer-list">
+            <h3>
+              <FaFileAlt /> Generated Offer Letters
+            </h3>
+
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+
+                    <th>
+                      <FaUser /> Candidate
+                    </th>
+
+                    <th>
+                      <FaEnvelope /> Email
+                    </th>
+
+                    <th>
+                      <FaBriefcase /> Position
+                    </th>
+
+                    <th className="offer-actions-cell offer-actions-header">
+                      <span className="offer-actions-header-content">
+                        <FaFileAlt aria-hidden="true" />
+                        <span>Actions</span>
+                      </span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentLetters.length > 0 ? (
+                    currentLetters.map((item, index) => {
+                      const offerLetterId = getOfferLetterId(item);
+                      const normalizedOfferLetterId = offerLetterId
+                        ? String(offerLetterId)
+                        : "";
+                      const offerLetterStatus =
+                        offerLetterSendStatus.getDocumentStatus(item);
+                      const isAlreadySent = offerLetterStatus.status === "sent";
+                      const isSendStatusChecking =
+                        isOfferLetterSendStatusLoading(item);
+                      const isDownloading =
+                        String(downloadingId) === normalizedOfferLetterId;
+                      const isSending =
+                        String(sendingOfferLetterId) === normalizedOfferLetterId;
+                      const isDeleting =
+                        String(deletingOfferLetterId) === normalizedOfferLetterId;
+                      const isPreviewing =
+                        previewOfferLetterLoading &&
+                        String(getOfferLetterId(previewOfferLetterTarget)) ===
+                        normalizedOfferLetterId;
+
+                      return (
+                        <tr key={normalizedOfferLetterId || item.id || index}>
+                          <td>{indexOfFirst + index + 1}</td>
+
+                          <td>{item.candidate_Name}</td>
+
+                          <td>{item.email}</td>
+                          <td>{item.position}</td>
+
+                          <td className="offer-actions-cell">
+                            <div className="offer-actions-wrapper">
+                              <button
+                                type="button"
+                                className="offer-action-btn offer-action-preview"
+                                onClick={() => handlePreviewOfferLetter(item)}
+                                disabled={!offerLetterId || isPreviewing || isSending}
+                                title="Preview"
+                                aria-label="Preview offer letter"
+                              >
+                                <FaEye />
+                              </button>
+
+                              <DocumentSendStatusButton
+                                status={offerLetterStatus.status}
+                                loading={isSendStatusChecking}
+                                disabled={
+                                  !offerLetterId ||
+                                  isSending ||
+                                  isAnyDocumentSending
+                                }
+                                onClick={() => handleOpenSendOfferLetterModal(item)}
+                                title={
+                                  isAlreadySent
+                                    ? "Already Sent - Click to Send Again"
+                                    : isSendStatusChecking
+                                      ? "Checking send status..."
+                                      : "Send Offer Letter"
+                                }
+                                aria-label={
+                                  isAlreadySent
+                                    ? "Already sent - click to send again"
+                                    : isSendStatusChecking
+                                      ? "Checking send status"
+                                      : "Send offer letter"
+                                }
+                                className="offer-action-btn--status"
+                              />
+
+                              <button
+                                type="button"
+                                className="offer-action-btn offer-action-download"
+                                onClick={() => handleDownload(offerLetterId)}
+                                disabled={!offerLetterId || isDownloading || isSending}
+                                title="Download"
+                                aria-label="Download offer letter"
+                              >
+                                <FaDownload />
+                              </button>
+
+                              <button
+                                type="button"
+                                className="offer-action-btn offer-action-delete"
+                                onClick={() => handleOpenDeleteOfferLetter(item)}
+                                disabled={!offerLetterId || isDeleting || isSending}
+                                title="Delete"
+                                aria-label="Delete offer letter"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: "center" }}>
+                        No offer letters found
                       </td>
                     </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="5" style={{ textAlign: "center" }}>
-                    No offer letters found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-
-
-        {/* PAGINATION */}
-        {totalPages > 1 && (
-          <div className="app-pagination-bar">
-            <div className="app-pagination-info">
-              Showing <strong>{indexOfFirst + 1}</strong>-<strong>{Math.min(indexOfLast, letters.length)}</strong> of <strong>{letters.length}</strong>
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <div className="app-pagination-controls">
-              <select
-                className="app-pagination-page-size"
-                value={lettersPerPage}
-                onChange={(event) => setLettersPerPage(Number(event.target.value))}
-              >
-                {[10, 20, 30, 50, 100].map((size) => (
-                  <option key={size} value={size}>
-                    {size} / page
-                  </option>
-                ))}
-              </select>
 
-              <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(1)}
-              >
-                First
-              </button>
 
-              <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              >
-                Previous
-              </button>
+            {/* PAGINATION */}
+            {totalPages > 1 && (
+              <div className="app-pagination-bar">
+                <div className="app-pagination-info">
+                  Showing <strong>{indexOfFirst + 1}</strong>-<strong>{Math.min(indexOfLast, letters.length)}</strong> of <strong>{letters.length}</strong>
+                </div>
 
-              {Array.from({ length: totalPages }, (_, pageIndex) => pageIndex + 1)
-                .filter((page) => page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1))
-                .map((page, index, pages) => {
-                  const previousPage = pages[index - 1];
-                  const shouldShowDots = previousPage && page - previousPage > 1;
+                <div className="app-pagination-controls">
+                  <select
+                    className="app-pagination-page-size"
+                    value={lettersPerPage}
+                    onChange={(event) => setLettersPerPage(Number(event.target.value))}
+                  >
+                    {[10, 20, 30, 50, 100].map((size) => (
+                      <option key={size} value={size}>
+                        {size} / page
+                      </option>
+                    ))}
+                  </select>
 
-                  return (
-                    <React.Fragment key={page}>
-                      {shouldShowDots && <span className="app-pagination-dots">...</span>}
-                      <button
-                        type="button"
-                        className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </button>
-                    </React.Fragment>
-                  );
-                })}
+                  <button
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(1)}
+                  >
+                    First
+                  </button>
 
-              <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              >
-                Next
-              </button>
+                  <button
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  >
+                    Previous
+                  </button>
 
-              <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(totalPages)}
-              >
-                Last
-              </button>
-            </div>
-          </div>
-        )}
+                  {Array.from({ length: totalPages }, (_, pageIndex) => pageIndex + 1)
+                    .filter((page) => page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1))
+                    .map((page, index, pages) => {
+                      const previousPage = pages[index - 1];
+                      const shouldShowDots = previousPage && page - previousPage > 1;
 
-        <OfferLetterPreviewModal
-          open={Boolean(previewOfferLetterTarget)}
-          offerLetter={previewOfferLetterTarget}
-          loading={previewOfferLetterLoading}
-          error={previewOfferLetterError}
-          blob={previewOfferLetterBlob}
-          contentType={previewOfferLetterContentType}
-          onClose={closePreviewOfferLetterModal}
-        />
+                      return (
+                        <React.Fragment key={page}>
+                          {shouldShowDots && <span className="app-pagination-dots">...</span>}
+                          <button
+                            type="button"
+                            className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
+                            onClick={() => setCurrentPage(page)}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
 
-        <OfferLetterSendModal
-          open={sendOfferLetterOpen}
-          offerLetter={sendOfferLetterTarget}
-          subject={sendOfferLetterSubject}
-          body={sendOfferLetterBody}
-          errors={sendOfferLetterErrors}
-          sending={Boolean(sendingOfferLetterId)}
-          onClose={closeSendOfferLetterModal}
-          onSubjectChange={handleSendOfferLetterSubjectChange}
-          onBodyChange={handleSendOfferLetterBodyChange}
-          onSubmit={handleSendOfferLetterSubmit}
-        />
+                  <button
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  >
+                    Next
+                  </button>
 
-        <SendAgainModal
-          open={resendOfferLetterOpen}
-          documentTitle={
-            resendOfferLetterKind === "relieving"
-              ? getRelievingLetterRecipientName(resendOfferLetterTarget)
-              : resendOfferLetterTarget?.candidate_Name ||
-                resendOfferLetterTarget?.candidateName ||
-                "Selected document"
-          }
-          sending={
-            resendOfferLetterKind === "offer"
-              ? Boolean(
-                  sendingOfferLetterId &&
+                  <button
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                  >
+                    Last
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <OfferLetterPreviewModal
+              open={Boolean(previewOfferLetterTarget)}
+              offerLetter={previewOfferLetterTarget}
+              loading={previewOfferLetterLoading}
+              error={previewOfferLetterError}
+              blob={previewOfferLetterBlob}
+              contentType={previewOfferLetterContentType}
+              onClose={closePreviewOfferLetterModal}
+            />
+
+            <OfferLetterSendModal
+              open={sendOfferLetterOpen}
+              offerLetter={sendOfferLetterTarget}
+              subject={sendOfferLetterSubject}
+              body={sendOfferLetterBody}
+              errors={sendOfferLetterErrors}
+              sending={Boolean(sendingOfferLetterId)}
+              onClose={closeSendOfferLetterModal}
+              onSubjectChange={handleSendOfferLetterSubjectChange}
+              onBodyChange={handleSendOfferLetterBodyChange}
+              onSubmit={handleSendOfferLetterSubmit}
+            />
+
+            <SendAgainModal
+              open={resendOfferLetterOpen}
+              documentTitle={
+                resendOfferLetterKind === "relieving"
+                  ? getRelievingLetterRecipientName(resendOfferLetterTarget)
+                  : resendOfferLetterTarget?.candidate_Name ||
+                  resendOfferLetterTarget?.candidateName ||
+                  "Selected document"
+              }
+              sending={
+                resendOfferLetterKind === "offer"
+                  ? Boolean(
+                    sendingOfferLetterId &&
                     String(sendingOfferLetterId) ===
-                      String(getOfferLetterId(resendOfferLetterTarget))
-                )
-              : Boolean(
-                  sendingRelievingLetterId &&
+                    String(getOfferLetterId(resendOfferLetterTarget))
+                  )
+                  : Boolean(
+                    sendingRelievingLetterId &&
                     String(sendingRelievingLetterId) ===
-                      String(getRelievingLetterId(resendOfferLetterTarget))
-                )
-          }
-          onClose={closeResendOfferLetterModal}
-          onConfirm={handleConfirmResendOfferLetter}
-        />
+                    String(getRelievingLetterId(resendOfferLetterTarget))
+                  )
+              }
+              onClose={closeResendOfferLetterModal}
+              onConfirm={handleConfirmResendOfferLetter}
+            />
 
-        <OfferLetterDeleteModal
-          open={Boolean(deleteOfferLetterTarget)}
-          offerLetter={deleteOfferLetterTarget}
-          deleting={Boolean(deletingOfferLetterId)}
-          onClose={closeDeleteOfferLetterModal}
-          onConfirm={handleDeleteOfferLetter}
-        />
-      </div>
+            <OfferLetterDeleteModal
+              open={Boolean(deleteOfferLetterTarget)}
+              offerLetter={deleteOfferLetterTarget}
+              deleting={Boolean(deletingOfferLetterId)}
+              onClose={closeDeleteOfferLetterModal}
+              onConfirm={handleDeleteOfferLetter}
+            />
+          </div>
         </>
       ) : (
         <>
@@ -2926,6 +2856,24 @@ HR Team`,
 
               <div className="form-group">
                 <label>
+                  <FaCalendarAlt /> Resignation Date
+                </label>
+
+                <AppDatePicker
+                  name="resignationDate"
+                  value={relievingForm.resignationDate}
+                  onChange={handleRelievingChange}
+                />
+
+                {relievingErrors.resignationDate && (
+                  <p className="field-error">
+                    {relievingErrors.resignationDate}
+                  </p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>
                   <FaCalendarAlt /> Relieving Date
                 </label>
 
@@ -3011,7 +2959,7 @@ HR Team`,
                       </td>
                     </tr>
                   ) : generatedRelievingLetters.length > 0 ? (
-                generatedRelievingLetters.map((item, index) => {
+                    generatedRelievingLetters.map((item, index) => {
                       const employeeId = getRelievingLetterEmployeeId(item);
                       const relievingLetterId = getRelievingLetterId(item);
                       const relievingLetterStatus =
@@ -3041,7 +2989,7 @@ HR Team`,
                                   isSending ||
                                   (previewRelievingLetterLoading &&
                                     String(getRelievingLetterId(previewRelievingLetterTarget)) ===
-                                      String(relievingLetterId))
+                                    String(relievingLetterId))
                                 }
                                 title="Preview"
                                 aria-label="Preview relieving letter"
@@ -3083,7 +3031,7 @@ HR Team`,
                                   !relievingLetterId ||
                                   isSending ||
                                   String(relievingDownloadingId) ===
-                                    String(relievingLetterId)
+                                  String(relievingLetterId)
                                 }
                                 title="Download"
                                 aria-label="Download relieving letter"
@@ -3099,7 +3047,7 @@ HR Team`,
                                   !relievingLetterId ||
                                   isSending ||
                                   String(deletingRelievingLetterId) ===
-                                    String(relievingLetterId)
+                                  String(relievingLetterId)
                                 }
                                 title="Delete"
                                 aria-label="Delete relieving letter"

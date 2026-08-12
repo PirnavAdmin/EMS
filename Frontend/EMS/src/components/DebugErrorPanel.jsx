@@ -139,6 +139,14 @@ function DebugErrorPanel({
     error?.api ||
     "";
   const status = details.status || error?.status || "";
+  const sourceFile = details.sourceFile || "";
+  const lineNumber = details.lineNumber || "";
+  const columnNumber = details.columnNumber || "";
+  const sourceLocation =
+    details.sourceLocation ||
+    (sourceFile
+      ? `${sourceFile}:${lineNumber || "?"}:${columnNumber || "?"}`
+      : "");
   const resolvedMessage =
     message ||
     error?.message ||
@@ -181,15 +189,23 @@ function DebugErrorPanel({
             </p>
           </div>
 
-          <button type="button" style={buttonStyle} onClick={() => window.location.reload()}>
+          <button
+            type="button"
+            style={buttonStyle}
+            onClick={onRetry || (() => window.location.reload())}
+          >
             <FaRedoAlt />
-            Reload Page
+            {onRetry ? "Try Again" : "Reload Page"}
           </button>
         </div>
 
         <div style={gridStyle}>
           <DetailRow label="Route Name" value={routeName} />
           <DetailRow label="Current URL" value={currentUrl} />
+          <DetailRow label="Source File" value={sourceFile} />
+          <DetailRow label="Line Number" value={lineNumber} />
+          <DetailRow label="Column Number" value={columnNumber} />
+          <DetailRow label="Source Location" value={sourceLocation} />
           <DetailRow label="Current Role" value={currentRole} />
           <DetailRow label="Role Name" value={currentRoleName} />
           <DetailRow label="Failed API" value={failedApi || "Not available"} />

@@ -1,5 +1,5 @@
 import { BASE_URL, SERVER_URL } from "./config";
- 
+
 const normalizePath = (path) =>
   String(path)
     .replace(/\\/g, "/")
@@ -30,6 +30,7 @@ const isUnsafeLocalPath = (value) => {
 export const API = {
   // ================= AUTH =================
   AUTH: {
+    SUPER_ADMIN_LOGIN: "/SuperAdmin/login",
     ADMIN_LOGIN: "/Admin/login",
     USER_LOGIN: "/user/login",
     REGISTER: "/user/register",
@@ -46,21 +47,50 @@ export const API = {
       CHANGE_PASSWORD: "/User/change-password",
     },
   },
- 
+
   // ================= DASHBOARD =================
   DASHBOARD: {
+    SUPER_ADMIN: "/SuperAdmin/dashboard",
     ADMIN: "/dashboard",
     USER: "/user-dashboard",
   },
- 
+
+  // ================= SUPER ADMIN =================
+  SUPER_ADMIN: {
+    LOGIN: "/SuperAdmin/login",
+    DASHBOARD: "/SuperAdmin/dashboard",
+  },
+
+  // ================= ADMIN MANAGEMENT =================
+  ADMIN: {
+    CREATE: "/Admin",
+    LIST: "/Admin",
+    UPDATE_STATUS: (adminId) => `/Admin/${adminId}/status`,
+  },
+
+  // ================= ADMIN PERMISSIONS =================
+  ADMIN_PERMISSION: {
+    SAVE: "/AdminPermission/save",
+    GET: (adminId) => `/AdminPermission/${adminId}`,
+  },
+
+  // ================= ADMIN SUBSCRIPTIONS =================
+  ADMIN_SUBSCRIPTION: {
+    CREATE: "/AdminSubscription",
+    LIST: "/AdminSubscription",
+    GET_BY_ADMIN: (adminId) => `/AdminSubscription/${adminId}`,
+    UPDATE: (adminId) => `/AdminSubscription/${adminId}`,
+    USAGE: (adminId) => `/AdminSubscription/${adminId}/usage`,
+  },
+
   // ================= ATTENDANCE =================
   ATTENDANCE: {
     CHECKIN: "/Attendance/checkin",
     CHECKOUT: "/Attendance/checkout",
- 
+
     START_BREAK: "/Attendance/start-break",
     END_BREAK: "/Attendance/end-break",
- 
+
     WEEKLY: "/Attendance/weekly",
     PREVIOUS_WEEK: "/Attendance/previous-week",
     CURRENT_MONTH: "/Attendance/current-month",
@@ -79,11 +109,11 @@ export const API = {
     RUN_ABSENT: "/Attendance/run/absent-check",
     RUN_MISSING: "/Attendance/run/missing-checkout",
     UPLOAD_MONTHLY: "/Attendance/admin/upload-monthly",
- 
+
     WORKING_HOURS: (employeeId) =>
       `/Attendance/working-hours/${employeeId}`,
   },
- 
+
   // ================= ADMIN NOTIFICATIONS =================
   ADMIN_NOTIFICATION: {
     LIST: "/admin-notifications",
@@ -91,14 +121,14 @@ export const API = {
     READ: (id) => `/admin-notifications/read/${id}`,
     READ_ALL: "/admin-notifications/read-all",
   },
- 
+
   // ================= USER NOTIFICATIONS =================
   USER_NOTIFICATION: {
     LIST: "/user-notifications",
     READ: (id) => `/user-notifications/${id}/read`,
     MARK_ALL: "/user-notifications/mark-all",
   },
- 
+
   // ================= ASSETS =================
   ASSETS: {
     LIST: "/Assets",
@@ -107,7 +137,7 @@ export const API = {
     UPDATE: (id) => `/Assets/${id}`,
     DELETE: (id) => `/Assets/${id}`,
   },
- 
+
   // ================= BRANCHES =================
   BRANCHES: {
     LIST: "/Branches",
@@ -115,7 +145,7 @@ export const API = {
     UPDATE: (id) => `/Branches/${id}`,
     DELETE: (id) => `/Branches/${id}`,
   },
- 
+
   // ================= CLIENTS =================
   CLIENTS: {
     LIST: "/Clients",
@@ -125,7 +155,7 @@ export const API = {
     UPDATE: (name) => `/Clients/${name}`,
     DELETE: (name) => `/Clients/${name}`,
   },
- 
+
   // ================= DEPARTMENTS =================
   DEPARTMENTS: {
     LIST: "/Departments",
@@ -134,7 +164,7 @@ export const API = {
     UPDATE: (id) => `/Departments/${id}`,
     DELETE: (id) => `/Departments/${id}`,
   },
- 
+
   // ================= EMPLOYEES =================
   EMPLOYEES: {
     LIST: "/Employees",
@@ -148,14 +178,14 @@ export const API = {
     EXPORT_PROFILE_PDF: (employeeId) =>
       `/Employees/export-profile-pdf/${employeeId}`,
   },
- 
+
   // ================= EMPLOYEE FULL DETAILS =================
   EMPLOYEE_FULL: {
     MY_DETAILS: "/EmployeeFullDetail/my-details",
     UPDATE_MY: "/EmployeeFullDetail/my-details",
     GET_BY_ID: (id) => `/EmployeeFullDetail/${id}`,
   },
- 
+
   // ================= EMPLOYEE PERSONAL =================
   EMPLOYEE_PERSONAL: {
     // Kept lowercase to match the current working backend path used by the app.
@@ -165,7 +195,7 @@ export const API = {
     UPDATE: (id) => `/employeepersonalinfo/${id}`,
     DELETE: (id) => `/employeepersonalinfo/${id}`,
   },
- 
+
   // ================= BANK DETAILS =================
   BANK: {
     CREATE: "/EmployeeBankDetails",
@@ -173,7 +203,15 @@ export const API = {
     UPDATE: (id) => `/EmployeeBankDetails/${id}`,
     DELETE: (id) => `/EmployeeBankDetails/${id}`,
   },
- 
+
+  EMPLOYEE_SALARY_STRUCTURE: {
+    CREATE: "/EmployeeSalaryStructure",
+    GET_BY_EMPLOYEE: (employeeId) =>
+      `/EmployeeSalaryStructure/${employeeId}`,
+    UPDATE: (employeeId) =>
+      `/EmployeeSalaryStructure/${employeeId}`,
+  },
+
   // ================= EDUCATION =================
   EDUCATION: {
     CREATE: "/EmployeeEducation",
@@ -181,7 +219,7 @@ export const API = {
     UPDATE: (id) => `/EmployeeEducation/${id}`,
     DELETE: (id) => `/EmployeeEducation/${id}`,
   },
- 
+
   // ================= EXPERIENCE =================
   EXPERIENCE: {
     CREATE: "/EmployeeExperience",
@@ -191,30 +229,57 @@ export const API = {
   //================== EMPLOYEE DOCUMENTS =================
   EMPLOYEE_DOCUMENTS: {
     UPLOAD: "/EmployeeDocuments/upload",
- 
+
     GET_BY_EMPLOYEE: (employeeId) =>
       `/EmployeeDocuments/${employeeId}`,
- 
+
     DELETE: (id) =>
       `/EmployeeDocuments/${id}`,
- 
+
     VIEW: (id) =>
       `/EmployeeDocuments/view/${id}`,
- 
+
     DOWNLOAD: (id) =>
       `/EmployeeDocuments/download/${id}`,
- 
+
     VERIFY: (id) =>
       `/EmployeeDocuments/verify/${id}`,
- 
+
     REJECT: (id) =>
       `/EmployeeDocuments/reject/${id}`,
- 
+
     CHECKLIST: (employeeId) =>
       `/EmployeeDocuments/checklist/${employeeId}`,
   },
+  //================== ONBOARDING =================
+  ONBOARDING_PERSONAL_INFO: {
+    LIST: "/OnboardingPersonalInfo",
+    CREATE: "/OnboardingPersonalInfo",
+    GET_BY_ID: (onboardingId) => `/OnboardingPersonalInfo/${onboardingId}`,
+    UPDATE: (onboardingId) => `/OnboardingPersonalInfo/${onboardingId}`,
+    DELETE: (onboardingId) => `/OnboardingPersonalInfo/${onboardingId}`,
+  },
+  ONBOARDING_EDUCATION: {
+    LIST: "/OnboardingEducation",
+    CREATE: "/OnboardingEducation",
+    GET_BY_ID: (onboardingId) => `/OnboardingEducation/${onboardingId}`,
+    UPDATE: (onboardingId) => `/OnboardingEducation/${onboardingId}`,
+  },
+  ONBOARDING_EXPERIENCE: {
+    LIST: "/OnboardingExperience",
+    CREATE: "/OnboardingExperience",
+    GET_BY_ID: (onboardingId) => `/OnboardingExperience/${onboardingId}`,
+    UPDATE: (onboardingId) => `/OnboardingExperience/${onboardingId}`,
+  },
+  ONBOARDING_DOCUMENTS: {
+    UPLOAD: "/OnboardingDocuments/upload",
+    GET_BY_ONBOARDING: (onboardingId) => `/OnboardingDocuments/${onboardingId}`,
+    GET_BY_ID: (id) => `/OnboardingDocuments/${id}`,
+    DOWNLOAD: (id) => `/OnboardingDocuments/download/${id}`,
+    DELETE: (id) => `/OnboardingDocuments/${id}`,
+  },
   //================== EMPLOYEE AGREEMENTS =================
-AGREEMENTS: {
+  AGREEMENTS: {
     UPLOAD: "/Agreement/upload",
     SIGN: "/Agreement/sign",
     ADMIN_STATUS: "/Agreement/GetAllAgreements",
@@ -226,7 +291,7 @@ AGREEMENTS: {
     SIGNED: (employeeId) => `/Agreement/Signed/${employeeId}`,
     DOWNLOAD: (id) => `/Agreement/download/${id}`,
     FILE_PATH: (id) => `/Agreement/filepath/${id}`,
-},
+  },
   // ================= LEAVE =================
   LEAVE: {
     CREATE: "/EmployeeLeave",
@@ -242,7 +307,7 @@ AGREEMENTS: {
     APPLY: "/EmployeeLeave/apply",
     MY_LEAVES: "/EmployeeLeave/my-leaves",
   },
- 
+
   // ================= WFH =================
   WFH: {
     APPLY: "/EmployeeLeave/apply-wfh",
@@ -263,8 +328,212 @@ AGREEMENTS: {
     POLICIES: "/Settings/policies",
     POLICY: (type) => `/Settings/policy/${type}`,
     UPDATE_POLICY: "/Settings/policy",
+    BRANDING: "/Settings/branding",
+    BRANDING_UPLOAD: "/Settings/branding/logo",
   },
- 
+
+  // ================= HRMS SETTINGS =================
+  APPRAISAL: {
+    LIST: "/Appraisal",
+    CREATE: "/Appraisal",
+    BY_EMPLOYEE: (employeeId) => `/Appraisal/${employeeId}`,
+    MANAGER_REVIEW: (id) => `/Appraisal/manager-review/${id}`,
+    HR_REVIEW: (id) => `/Appraisal/hr-review/${id}`,
+    DELETE: (id) => `/Appraisal/${id}`,
+  },
+
+  EMPLOYEE_CLEARANCE: {
+    CREATE: "/EmployeeClearance/create",
+    DEPARTMENT: "/EmployeeClearance/department",
+    BY_RESIGNATION: (resignationId) => `/EmployeeClearance/resignation/${resignationId}`,
+    PENDING: "/EmployeeClearance/pending",
+    COMPLETED: "/EmployeeClearance/completed",
+  },
+
+  EMPLOYEE_GOAL: {
+    LIST: "/EmployeeGoal",
+    CREATE: "/EmployeeGoal",
+    BY_EMPLOYEE: (employeeId) => `/EmployeeGoal/${employeeId}`,
+    UPDATE: (id) => `/EmployeeGoal/${id}`,
+    DELETE: (id) => `/EmployeeGoal/${id}`,
+  },
+
+  EMPLOYEE_RESIGNATION: {
+    APPLY: "/EmployeeResignation/apply",
+    UPDATE: "/EmployeeResignation/update",
+    DELETE: (resignationId) => `/EmployeeResignation/${resignationId}`,
+    BY_ID: (resignationId) => `/EmployeeResignation/${resignationId}`,
+    LIST: "/EmployeeResignation",
+    BY_EMPLOYEE: (employeeId) => `/EmployeeResignation/employee/${employeeId}`,
+    PENDING_MANAGER: "/EmployeeResignation/pending-manager",
+    MANAGER_APPROVAL: "/EmployeeResignation/manager-approval",
+    PENDING_HR: "/EmployeeResignation/pending-hr",
+    HR_APPROVAL: "/EmployeeResignation/hr-approval",
+  },
+
+  EMPLOYEE_SHIFT: {
+    ASSIGN: "/EmployeeShift/assign",
+    BULK_ASSIGN: "/EmployeeShift/bulk-assign",
+    LIST: "/EmployeeShift",
+    BY_EMPLOYEE: (employeeId) => `/EmployeeShift/${employeeId}`,
+    DELETE: (assignmentId) => `/EmployeeShift/${assignmentId}`,
+  },
+
+  EMPLOYEE_WEEKLY_OFF: {
+    LIST: "/EmployeeWeeklyOff",
+    CREATE: "/EmployeeWeeklyOff",
+    BY_ID: (id) => `/EmployeeWeeklyOff/${id}`,
+    UPDATE: (id) => `/EmployeeWeeklyOff/${id}`,
+    DELETE: (id) => `/EmployeeWeeklyOff/${id}`,
+  },
+
+  EXIT_INTERVIEW: {
+    CREATE: "/ExitInterview",
+    LIST: "/ExitInterview",
+    BY_RESIGNATION: (resignationId) => `/ExitInterview/resignation/${resignationId}`,
+    DELETE: (exitInterviewId) => `/ExitInterview/${exitInterviewId}`,
+  },
+
+  FULL_FINAL_SETTLEMENT: {
+    GENERATE: "/FullFinalSettlement/generate",
+    APPROVE: "/FullFinalSettlement/approve",
+    LIST: "/FullFinalSettlement",
+    BY_EMPLOYEE: (employeeId) => `/FullFinalSettlement/${employeeId}`,
+    DELETE: (settlementId) => `/FullFinalSettlement/${settlementId}`,
+  },
+
+  GOAL_REVIEW: {
+    LIST: "/GoalReview",
+    CREATE: "/GoalReview",
+    UPDATE: (id) => `/GoalReview/${id}`,
+    DELETE: (id) => `/GoalReview/${id}`,
+  },
+
+  PERFORMANCE_CYCLE: {
+    LIST: "/PerformanceCycle",
+    CREATE: "/PerformanceCycle",
+    BY_ID: (id) => `/PerformanceCycle/${id}`,
+    UPDATE: (id) => `/PerformanceCycle/${id}`,
+    DELETE: (id) => `/PerformanceCycle/${id}`,
+    DASHBOARD: "/PerformanceDashboard",
+  },
+
+  SHIFT: {
+    LIST: "/Shift",
+    CREATE: "/Shift",
+    BY_ID: (id) => `/Shift/${id}`,
+    UPDATE: (id) => `/Shift/${id}`,
+    DELETE: (id) => `/Shift/${id}`,
+  },
+
+  SHIFT_CHANGE_REQUEST: {
+    LIST: "/ShiftChangeRequest",
+    CREATE: "/ShiftChangeRequest",
+    BY_ID: (id) => `/ShiftChangeRequest/${id}`,
+    DELETE: (id) => `/ShiftChangeRequest/${id}`,
+    APPROVE: "/ShiftChangeRequest/approve",
+  },
+
+  SHIFT_PLANNER: {
+    LIST: "/ShiftPlanner",
+    CREATE: "/ShiftPlanner",
+    BY_ID: (id) => `/ShiftPlanner/${id}`,
+    UPDATE: (id) => `/ShiftPlanner/${id}`,
+    DELETE: (id) => `/ShiftPlanner/${id}`,
+    PUBLISH: (id) => `/ShiftPlanner/publish/${id}`,
+    COPY_WEEK: "/ShiftPlanner/copy-week",
+    COPY_MONTH: "/ShiftPlanner/copy-month",
+  },
+
+  SHIFT_ROTATION: {
+    LIST: "/ShiftRotation",
+    CREATE: "/ShiftRotation",
+    BY_ID: (id) => `/ShiftRotation/${id}`,
+    UPDATE: (id) => `/ShiftRotation/${id}`,
+    DELETE: (id) => `/ShiftRotation/${id}`,
+  },
+
+  SHIFT_SWAP: {
+    LIST: "/ShiftSwap",
+    CREATE: "/ShiftSwap",
+    BY_ID: (id) => `/ShiftSwap/${id}`,
+    DELETE: (id) => `/ShiftSwap/${id}`,
+    APPROVE: "/ShiftSwap/approve",
+  },
+
+  SHIFT_ROSTER: {
+    LIST: "/ShiftRoster",
+    CREATE: "/ShiftRoster",
+    BY_ID: (id) => `/ShiftRoster/${id}`,
+    UPDATE: (id) => `/ShiftRoster/${id}`,
+    DELETE: (id) => `/ShiftRoster/${id}`,
+    BY_EMPLOYEE: (employeeId) => `/ShiftRoster/employee/${employeeId}`,
+    BULK: "/ShiftRoster/bulk",
+  },
+
+  // ================= TAXATION =================
+  TAX_DECLARATION: {
+    LIST: "/TaxDeclaration",
+    CREATE: "/TaxDeclaration",
+    UPDATE: "/TaxDeclaration",
+    BY_EMPLOYEE: (employeeId) => `/TaxDeclaration/${employeeId}`,
+    SUBMIT: (id) => `/TaxDeclaration/submit/${id}`,
+    APPROVE: (id) => `/TaxDeclaration/approve/${id}`,
+    DELETE: (id) => `/TaxDeclaration/${id}`,
+  },
+
+  TAX_DECLARATION_ITEM: {
+    CREATE: "/TaxDeclarationItem",
+    UPDATE: "/TaxDeclarationItem",
+    BY_DECLARATION: (declarationId) => `/TaxDeclarationItem/${declarationId}`,
+    DELETE: (id) => `/TaxDeclarationItem/${id}`,
+  },
+
+  TAX_PROOF: {
+    UPLOAD: "/TaxProof/upload",
+    BY_ITEM: (itemId) => `/TaxProof/${itemId}`,
+    APPROVE: (id) => `/TaxProof/approve/${id}`,
+    REJECT: (id) => `/TaxProof/reject/${id}`,
+    DELETE: (id) => `/TaxProof/${id}`,
+  },
+
+  TDS: {
+    CALCULATE: (employeeId) => `/TDS/calculate/${employeeId}`,
+    BY_EMPLOYEE: (employeeId) => `/TDS/${employeeId}`,
+  },
+
+  TEMPLATE: {
+  LIST: "/Template",
+  CREATE: "/Template",
+  DELETE: (id) => `/Template/${id}`,
+  DOWNLOAD: (id) => `/Template/download/${id}`,
+  SET_DEFAULT: (id) => `/Template/set-default/${id}`,
+},
+
+  TEMPLATE_MODULE: {
+    LIST: "/TemplateModule",
+    CREATE: "/TemplateModule",
+    UPDATE: (id) => `/TemplateModule/${id}`,
+    DELETE: (id) => `/TemplateModule/${id}`,
+},
+
+  WORKFLOW: {
+    CREATE: "/Workflow/create",
+    ADD_STEP: "/Workflow/add-step",
+    LIST: "/Workflow",
+    STEPS: (workflowId) => `/Workflow/${workflowId}/steps`,
+    PENDING: (approverId) => `/Workflow/pending/${approverId}`,
+    HISTORY: "/Workflow/history",
+    APPROVE: "/Workflow/approve",
+  },
+
+  FORM16: {
+    GENERATE: (employeeId) => `/Form16/generate/${employeeId}`,
+    BY_EMPLOYEE: (employeeId) => `/Form16/${employeeId}`,
+    DOWNLOAD: (id) => `/Form16/download/${id}`,
+    DELETE: (id) => `/Form16/${id}`,
+  },
+
   // ================= TEAM =================
   TEAM: {
     LIST: "/Team",
@@ -280,7 +549,7 @@ AGREEMENTS: {
     AVAILABLEEMPLOYEES: "/Team/available-employees",
     MANAGERS: "/Team/managers",
   },
- 
+
   // ================= HOLIDAYS =================
   HOLIDAYS: {
     LIST: "/Holidays",
@@ -288,7 +557,7 @@ AGREEMENTS: {
     UPDATE: (id) => `/Holidays/${id}`,
     DELETE: (id) => `/Holidays/${id}`,
   },
- 
+
   // ================= JOB OPENINGS =================
   JOBS: {
     LIST: "/JobOpenings",
@@ -296,7 +565,7 @@ AGREEMENTS: {
     UPDATE: (title) => `/JobOpenings/${title}`,
     DELETE: (title) => `/JobOpenings/${title}`,
   },
- 
+
   // ================= PROJECTS =================
   PROJECTS: {
     LIST: "/Projects",
@@ -331,7 +600,7 @@ AGREEMENTS: {
     UPDATE: (id) => `/Roles/${id}`,
     DELETE: (id) => `/Roles/${id}`,
   },
- 
+
   // ================= ROLE PERMISSION =================
   ROLE_PERMISSION: {
     GET: (roleName) => `/RolePermission/${roleName}`,
@@ -351,17 +620,18 @@ AGREEMENTS: {
   PERMISSION: {
     GET: "/Permission",
   },
- 
+
   // ================= REPORTS =================
   REPORTS: {
     ALL: "/reports/all",
   },
- 
+
   // ================= PAYSLIP =================
   PAYSLIP: {
     // Kept as PaySlip because that is what the current app/backend uses.
     GENERATE: "/PaySlip/generate",
     GENERATE_ALL: "/PaySlip/generate-all",
+    SEND_ALL_EMAILS: "/PaySlip/send-all-emails",
     RECENT: "/PaySlip/recent",
     PREVIEW: (id) => `/PaySlip/preview/${id}`,
     DOWNLOAD: (id) => `/PaySlip/download/${id}`,
@@ -370,7 +640,7 @@ AGREEMENTS: {
     MY: "/PaySlip/my",
     MANUAL_GENERATE: "/manual-payslip/generate",
   },
- 
+
   // ================= OFFER LETTER =================
   OFFER: {
     // Kept Generate casing to match the current working backend route.
@@ -395,27 +665,30 @@ AGREEMENTS: {
     DOWNLOAD: (id) => `/RelievingLetter/download/${id}`,
     DELETE: (id) => `/RelievingLetter/${id}`,
   },
- 
+
   // ================= EXPERIENCE LETTER =================
   EXPERIENCE_LETTER: {
     GENERATE: "/ExperienceOfferLetter/generate",
     LIST: "/ExperienceOfferLetter/all",
     DOWNLOAD: (id) => `/ExperienceOfferLetter/download/${id}`,
   },
- 
+
   // ================= SEARCH =================
   SEARCH: {
     MODULE: "/ModuleSearch/search",
   },
- 
+
   // ================= LEAVE BALANCE =================
   LEAVE_BALANCE: {
     GET: (id) => `/LeaveBalance/${id}`,
+    BALANCE: (employeeId) => `/LeaveBalance/balance/${employeeId}`,
+    MY_LEAVE_BALANCE: "/LeaveBalance/my-leave-balance",
   },
 };
- 
+
 export const API_ENDPOINTS = {
   auth: {
+    superAdminLogin: API.AUTH.SUPER_ADMIN_LOGIN,
     adminLogin: API.AUTH.ADMIN_LOGIN,
     userLogin: API.AUTH.USER_LOGIN,
     userRegister: API.AUTH.REGISTER,
@@ -463,6 +736,26 @@ export const API_ENDPOINTS = {
     get: API.PERMISSION.GET,
   },
   dashboard: API.DASHBOARD.ADMIN,
+  superAdmin: {
+    login: API.SUPER_ADMIN.LOGIN,
+    dashboard: API.SUPER_ADMIN.DASHBOARD,
+  },
+  adminManagement: {
+    create: API.ADMIN.CREATE,
+    list: API.ADMIN.LIST,
+    updateStatus: API.ADMIN.UPDATE_STATUS,
+  },
+  adminPermission: {
+    save: API.ADMIN_PERMISSION.SAVE,
+    get: API.ADMIN_PERMISSION.GET,
+  },
+  adminSubscription: {
+    create: API.ADMIN_SUBSCRIPTION.CREATE,
+    list: API.ADMIN_SUBSCRIPTION.LIST,
+    byAdmin: API.ADMIN_SUBSCRIPTION.GET_BY_ADMIN,
+    update: API.ADMIN_SUBSCRIPTION.UPDATE,
+    usage: API.ADMIN_SUBSCRIPTION.USAGE,
+  },
   userDashboard: API.DASHBOARD.USER,
   departments: {
     list: API.DEPARTMENTS.LIST,
@@ -489,6 +782,11 @@ export const API_ENDPOINTS = {
     list: API.BANK.LIST,
     byEmployeeId: API.BANK.UPDATE,
   },
+  employeeSalaryStructure: {
+    list: API.EMPLOYEE_SALARY_STRUCTURE.CREATE,
+    byEmployeeId: API.EMPLOYEE_SALARY_STRUCTURE.GET_BY_EMPLOYEE,
+    update: API.EMPLOYEE_SALARY_STRUCTURE.UPDATE,
+  },
   employeeEducation: {
     list: API.EDUCATION.CREATE,
     byEmployeeId: API.EDUCATION.GET_BY_ID,
@@ -507,6 +805,32 @@ export const API_ENDPOINTS = {
     reject: API.EMPLOYEE_DOCUMENTS.REJECT,
     checklist: API.EMPLOYEE_DOCUMENTS.CHECKLIST,
   },
+  onboardingPersonalInfo: {
+    list: API.ONBOARDING_PERSONAL_INFO.LIST,
+    create: API.ONBOARDING_PERSONAL_INFO.CREATE,
+    byOnboardingId: API.ONBOARDING_PERSONAL_INFO.GET_BY_ID,
+    update: API.ONBOARDING_PERSONAL_INFO.UPDATE,
+    delete: API.ONBOARDING_PERSONAL_INFO.DELETE,
+  },
+  onboardingEducation: {
+    list: API.ONBOARDING_EDUCATION.LIST,
+    create: API.ONBOARDING_EDUCATION.CREATE,
+    byOnboardingId: API.ONBOARDING_EDUCATION.GET_BY_ID,
+    update: API.ONBOARDING_EDUCATION.UPDATE,
+  },
+  onboardingExperience: {
+    list: API.ONBOARDING_EXPERIENCE.LIST,
+    create: API.ONBOARDING_EXPERIENCE.CREATE,
+    byOnboardingId: API.ONBOARDING_EXPERIENCE.GET_BY_ID,
+    update: API.ONBOARDING_EXPERIENCE.UPDATE,
+  },
+  onboardingDocuments: {
+    upload: API.ONBOARDING_DOCUMENTS.UPLOAD,
+    byOnboardingId: API.ONBOARDING_DOCUMENTS.GET_BY_ONBOARDING,
+    byId: API.ONBOARDING_DOCUMENTS.GET_BY_ID,
+    download: API.ONBOARDING_DOCUMENTS.DOWNLOAD,
+    delete: API.ONBOARDING_DOCUMENTS.DELETE,
+  },
   agreements: {
     upload: API.AGREEMENTS.UPLOAD,
     sign: API.AGREEMENTS.SIGN,
@@ -524,13 +848,13 @@ export const API_ENDPOINTS = {
 
     download: API.AGREEMENTS.DOWNLOAD,
     filePath: API.AGREEMENTS.FILE_PATH,
-},
+  },
   company: {
     // 🔥 ADD THIS (MAIN COMPANY APIs)
     create: "/Company",
     getById: (id) => `/Company/${id}`,
     update: (id) => `/Company/${id}`,
- 
+
     // EXISTING
     branches: {
       list: API.BRANCHES.LIST,
@@ -545,7 +869,7 @@ export const API_ENDPOINTS = {
       byId: API.PROJECTS.UPDATE,
     },
   },
- 
+
   masters: {
     roles: {
       list: API.ROLES.LIST,
@@ -563,7 +887,7 @@ export const API_ENDPOINTS = {
   attendance: {
     checkIn: API.ATTENDANCE.CHECKIN,
     checkOut: API.ATTENDANCE.CHECKOUT,
- 
+
     startBreak: API.ATTENDANCE.START_BREAK,
     endBreak: API.ATTENDANCE.END_BREAK,
     weekly: API.ATTENDANCE.WEEKLY,
@@ -581,7 +905,7 @@ export const API_ENDPOINTS = {
     downloadWeekly: API.ATTENDANCE.DOWNLOAD_WEEKLY,
     downloadDaily: API.ATTENDANCE.DOWNLOAD_DAILY,
     uploadMonthly: API.ATTENDANCE.UPLOAD_MONTHLY,
- 
+
     workingHours: API.ATTENDANCE.WORKING_HOURS,
   },
   leave: {
@@ -611,6 +935,186 @@ export const API_ENDPOINTS = {
     policies: API.SETTINGS.POLICIES,
     policy: API.SETTINGS.POLICY,
     updatePolicy: API.SETTINGS.UPDATE_POLICY,
+    branding: API.SETTINGS.BRANDING,
+brandingUpload: API.SETTINGS.BRANDING_UPLOAD,
+  },
+  appraisal: {
+    list: API.APPRAISAL.LIST,
+    create: API.APPRAISAL.CREATE,
+    byEmployee: API.APPRAISAL.BY_EMPLOYEE,
+    managerReview: API.APPRAISAL.MANAGER_REVIEW,
+    hrReview: API.APPRAISAL.HR_REVIEW,
+    delete: API.APPRAISAL.DELETE,
+  },
+  employeeClearance: {
+    create: API.EMPLOYEE_CLEARANCE.CREATE,
+    department: API.EMPLOYEE_CLEARANCE.DEPARTMENT,
+    byResignation: API.EMPLOYEE_CLEARANCE.BY_RESIGNATION,
+    pending: API.EMPLOYEE_CLEARANCE.PENDING,
+    completed: API.EMPLOYEE_CLEARANCE.COMPLETED,
+  },
+  employeeGoal: {
+    list: API.EMPLOYEE_GOAL.LIST,
+    create: API.EMPLOYEE_GOAL.CREATE,
+    byEmployee: API.EMPLOYEE_GOAL.BY_EMPLOYEE,
+    update: API.EMPLOYEE_GOAL.UPDATE,
+    delete: API.EMPLOYEE_GOAL.DELETE,
+  },
+  employeeResignation: {
+    apply: API.EMPLOYEE_RESIGNATION.APPLY,
+    update: API.EMPLOYEE_RESIGNATION.UPDATE,
+    delete: API.EMPLOYEE_RESIGNATION.DELETE,
+    byId: API.EMPLOYEE_RESIGNATION.BY_ID,
+    list: API.EMPLOYEE_RESIGNATION.LIST,
+    byEmployee: API.EMPLOYEE_RESIGNATION.BY_EMPLOYEE,
+    pendingManager: API.EMPLOYEE_RESIGNATION.PENDING_MANAGER,
+    managerApproval: API.EMPLOYEE_RESIGNATION.MANAGER_APPROVAL,
+    pendingHr: API.EMPLOYEE_RESIGNATION.PENDING_HR,
+    hrApproval: API.EMPLOYEE_RESIGNATION.HR_APPROVAL,
+  },
+  employeeShift: {
+    assign: API.EMPLOYEE_SHIFT.ASSIGN,
+    bulkAssign: API.EMPLOYEE_SHIFT.BULK_ASSIGN,
+    list: API.EMPLOYEE_SHIFT.LIST,
+    byEmployee: API.EMPLOYEE_SHIFT.BY_EMPLOYEE,
+    delete: API.EMPLOYEE_SHIFT.DELETE,
+  },
+  employeeWeeklyOff: {
+    list: API.EMPLOYEE_WEEKLY_OFF.LIST,
+    create: API.EMPLOYEE_WEEKLY_OFF.CREATE,
+    byId: API.EMPLOYEE_WEEKLY_OFF.BY_ID,
+    update: API.EMPLOYEE_WEEKLY_OFF.UPDATE,
+    delete: API.EMPLOYEE_WEEKLY_OFF.DELETE,
+  },
+  exitInterview: {
+    create: API.EXIT_INTERVIEW.CREATE,
+    list: API.EXIT_INTERVIEW.LIST,
+    byResignation: API.EXIT_INTERVIEW.BY_RESIGNATION,
+    delete: API.EXIT_INTERVIEW.DELETE,
+  },
+  fullFinalSettlement: {
+    generate: API.FULL_FINAL_SETTLEMENT.GENERATE,
+    approve: API.FULL_FINAL_SETTLEMENT.APPROVE,
+    list: API.FULL_FINAL_SETTLEMENT.LIST,
+    byEmployee: API.FULL_FINAL_SETTLEMENT.BY_EMPLOYEE,
+    delete: API.FULL_FINAL_SETTLEMENT.DELETE,
+  },
+  goalReview: {
+    list: API.GOAL_REVIEW.LIST,
+    create: API.GOAL_REVIEW.CREATE,
+    update: API.GOAL_REVIEW.UPDATE,
+    delete: API.GOAL_REVIEW.DELETE,
+  },
+  performanceCycle: {
+    list: API.PERFORMANCE_CYCLE.LIST,
+    create: API.PERFORMANCE_CYCLE.CREATE,
+    byId: API.PERFORMANCE_CYCLE.BY_ID,
+    update: API.PERFORMANCE_CYCLE.UPDATE,
+    delete: API.PERFORMANCE_CYCLE.DELETE,
+    dashboard: API.PERFORMANCE_CYCLE.DASHBOARD,
+  },
+  shift: {
+    list: API.SHIFT.LIST,
+    create: API.SHIFT.CREATE,
+    byId: API.SHIFT.BY_ID,
+    update: API.SHIFT.UPDATE,
+    delete: API.SHIFT.DELETE,
+  },
+  shiftChangeRequest: {
+    list: API.SHIFT_CHANGE_REQUEST.LIST,
+    create: API.SHIFT_CHANGE_REQUEST.CREATE,
+    byId: API.SHIFT_CHANGE_REQUEST.BY_ID,
+    delete: API.SHIFT_CHANGE_REQUEST.DELETE,
+    approve: API.SHIFT_CHANGE_REQUEST.APPROVE,
+  },
+  shiftPlanner: {
+    list: API.SHIFT_PLANNER.LIST,
+    create: API.SHIFT_PLANNER.CREATE,
+    byId: API.SHIFT_PLANNER.BY_ID,
+    update: API.SHIFT_PLANNER.UPDATE,
+    delete: API.SHIFT_PLANNER.DELETE,
+    publish: API.SHIFT_PLANNER.PUBLISH,
+    copyWeek: API.SHIFT_PLANNER.COPY_WEEK,
+    copyMonth: API.SHIFT_PLANNER.COPY_MONTH,
+  },
+  shiftRotation: {
+    list: API.SHIFT_ROTATION.LIST,
+    create: API.SHIFT_ROTATION.CREATE,
+    byId: API.SHIFT_ROTATION.BY_ID,
+    update: API.SHIFT_ROTATION.UPDATE,
+    delete: API.SHIFT_ROTATION.DELETE,
+  },
+  shiftSwap: {
+    list: API.SHIFT_SWAP.LIST,
+    create: API.SHIFT_SWAP.CREATE,
+    byId: API.SHIFT_SWAP.BY_ID,
+    delete: API.SHIFT_SWAP.DELETE,
+    approve: API.SHIFT_SWAP.APPROVE,
+  },
+  shiftRoster: {
+    list: API.SHIFT_ROSTER.LIST,
+    create: API.SHIFT_ROSTER.CREATE,
+    byId: API.SHIFT_ROSTER.BY_ID,
+    update: API.SHIFT_ROSTER.UPDATE,
+    delete: API.SHIFT_ROSTER.DELETE,
+    byEmployee: API.SHIFT_ROSTER.BY_EMPLOYEE,
+    bulk: API.SHIFT_ROSTER.BULK,
+  },
+  taxDeclaration: {
+    list: API.TAX_DECLARATION.LIST,
+    create: API.TAX_DECLARATION.CREATE,
+    update: API.TAX_DECLARATION.UPDATE,
+    byEmployee: API.TAX_DECLARATION.BY_EMPLOYEE,
+    submit: API.TAX_DECLARATION.SUBMIT,
+    approve: API.TAX_DECLARATION.APPROVE,
+    delete: API.TAX_DECLARATION.DELETE,
+  },
+  taxDeclarationItem: {
+    create: API.TAX_DECLARATION_ITEM.CREATE,
+    update: API.TAX_DECLARATION_ITEM.UPDATE,
+    byDeclaration: API.TAX_DECLARATION_ITEM.BY_DECLARATION,
+    delete: API.TAX_DECLARATION_ITEM.DELETE,
+  },
+  taxProof: {
+    upload: API.TAX_PROOF.UPLOAD,
+    byItem: API.TAX_PROOF.BY_ITEM,
+    approve: API.TAX_PROOF.APPROVE,
+    reject: API.TAX_PROOF.REJECT,
+    delete: API.TAX_PROOF.DELETE,
+  },
+  tds: {
+    calculate: API.TDS.CALCULATE,
+    byEmployee: API.TDS.BY_EMPLOYEE,
+  },
+  template: {
+  list: API.TEMPLATE.LIST,
+  create: API.TEMPLATE.CREATE,
+  delete: API.TEMPLATE.DELETE,
+  download: API.TEMPLATE.DOWNLOAD,
+  setDefault: API.TEMPLATE.SET_DEFAULT,
+},
+
+  templateModule: {
+    list: API.TEMPLATE_MODULE.LIST,
+    create: API.TEMPLATE_MODULE.CREATE,
+    update: API.TEMPLATE_MODULE.UPDATE,
+    delete: API.TEMPLATE_MODULE.DELETE,
+},
+
+  workflow: {
+    create: API.WORKFLOW.CREATE,
+    addStep: API.WORKFLOW.ADD_STEP,
+    list: API.WORKFLOW.LIST,
+    steps: API.WORKFLOW.STEPS,
+    pending: API.WORKFLOW.PENDING,
+    history: API.WORKFLOW.HISTORY,
+    approve: API.WORKFLOW.APPROVE,
+  },
+  form16: {
+    generate: API.FORM16.GENERATE,
+    byEmployee: API.FORM16.BY_EMPLOYEE,
+    download: API.FORM16.DOWNLOAD,
+    delete: API.FORM16.DELETE,
   },
   team: {
     list: API.TEAM.LIST,
@@ -625,8 +1129,9 @@ export const API_ENDPOINTS = {
     availableEmployees: API.TEAM.AVAILABLEEMPLOYEES,
     managers: API.TEAM.MANAGERS,
     projects: {
-      list: API.PROJECTS.LIST,}
- 
+      list: API.PROJECTS.LIST,
+    }
+
   },
   tickets: {
     list: API.TICKETS.LIST,
@@ -657,6 +1162,8 @@ export const API_ENDPOINTS = {
     myPayslips: API.PAYSLIP.MY,
     recent: API.PAYSLIP.RECENT,
     generate: API.PAYSLIP.GENERATE,
+    generateAll: API.PAYSLIP.GENERATE_ALL,
+    sendAllEmails: API.PAYSLIP.SEND_ALL_EMAILS,
     preview: API.PAYSLIP.PREVIEW,
     download: API.PAYSLIP.DOWNLOAD,
     delete: API.PAYSLIP.DELETE,
@@ -687,11 +1194,15 @@ export const API_ENDPOINTS = {
   reports: {
     all: API.REPORTS.ALL,
   },
+  leaveBalance: {
+    byEmployee: API.LEAVE_BALANCE.BALANCE,
+    myLeaveBalance: API.LEAVE_BALANCE.MY_LEAVE_BALANCE,
+  },
 };
- 
+
 export const buildApiUrl = (path) =>
   `${BASE_URL}/${normalizePath(path)}`;
- 
+
 export const buildServerUrl = (path) =>
   (() => {
     const rawPath = String(path || "").trim();

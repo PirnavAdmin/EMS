@@ -10,6 +10,7 @@ import {
   getAgreementTypes,
   uploadAgreement,
 } from "../../services/agreementService";
+import { toBoolean } from "../../utils/boolean";
 import { getInputDateValue, getTodayInputValue } from "../../utils/date";
 import {
   SettingsBanner,
@@ -22,15 +23,6 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const toText = (value, fallback = "") => {
   const normalizedValue = String(value ?? "").trim();
   return normalizedValue || fallback;
-};
-
-const toBoolean = (value) => {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") return value === 1;
-
-  return ["true", "yes", "y", "1", "mandatory"].includes(
-    String(value ?? "").trim().toLowerCase()
-  );
 };
 
 const normalizeAgreement = (agreement = {}) => {
@@ -63,7 +55,9 @@ const normalizeAgreement = (agreement = {}) => {
       agreement.isMandatory ??
       agreement.IsMandatory ??
       agreement.mandatory ??
-      agreement.Mandatory
+      agreement.Mandatory,
+      false,
+      { trueValues: ["mandatory"] }
     ),
     assignToExistingEmployees: toBoolean(
       agreement.assignToExistingEmployees ??

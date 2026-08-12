@@ -476,7 +476,7 @@ Longitude:
  
 Distance:
 
-{Math.Round(distance, 2)} meters
+{Math.Round(distance, 2)} KM
  
 --------------------------------
  

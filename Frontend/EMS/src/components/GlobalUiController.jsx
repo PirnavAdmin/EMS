@@ -26,6 +26,7 @@ const MODAL_SELECTORS = [
   ".modal",
   ".projects-modal-overlay",
   ".roles-modal-overlay",
+  ".settings-modal-overlay",
 ];
 
 const MODAL_QUERY = MODAL_SELECTORS.join(", ");

@@ -10,7 +10,7 @@ import AddTeamModal from "./AddTeamModal";
 import TeamCard from "./TeamCard";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
-import { isEmployee } from "../utils/authorization";
+import { hasModulePermission, isEmployee } from "../utils/authorization";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
 
 const TEAM_ACCENTS = ["teal", "blue", "amber", "violet"];
@@ -37,6 +37,7 @@ function Teams() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
+  const canManageTeams = !isEmployee() && hasModulePermission("Teams");
 
   const getToken = useCallback(
     () =>
@@ -182,7 +183,7 @@ function Teams() {
             {teams.length} {teams.length === 1 ? "Team" : "Teams"}
           </span>
 
-          {!isEmployee() && (
+          {canManageTeams && (
             <button
               className="teams-add-btn"
               onClick={() => setIsAddTeamOpen(true)}

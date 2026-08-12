@@ -1,24 +1,18 @@
 import React, { lazy, memo, Suspense, useEffect } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-} from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
-import { ToastContainer } from "react-toastify";
-import AdminRoute from "./routes/AdminRoute";
+import PermissionRoute from "./routes/PermissionRoute";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import { usePermissionScope } from "./context/usePermissionScope";
 
 import GlobalUiController from "./components/GlobalUiController";
-// import "./components/common/toast/toast.css";
-import { toastTransition } from "./components/common/toast/toastService";
-import {
-  getStoredPermissions,
-  getStoredToken,
-} from "./utils/authStorage";
-import { hasRole, isAdmin } from "./utils/authorization";
-import { ticketPermissionMatches } from "./TicketManagement/ticketConfig";
+import { AdminPermissionProvider } from "./context/AdminPermissionContext";
+import { EmployeePermissionProvider } from "./context/EmployeePermissionContext";
+import "react-toastify/dist/ReactToastify.css";
+import "./components/common/Toast/toast.css";
+import GlobalToastContainer from "./components/common/Toast/GlobalToastContainer";
+import { getStoredToken } from "./utils/authStorage";
+import { hasRole } from "./utils/authorization";
 import {
   clearSessionTimer,
   handleAutoLogout,
@@ -36,6 +30,7 @@ import { PageSkeleton } from "./components/Skeletons";
 /* ================= HELPERS ================= */
 
 const PUBLIC_ROUTES = new Set([
+  "/",
   "/login",
   "/register",
   "/forgot-password",
@@ -72,16 +67,24 @@ const RouteFallback = memo(() => (
 ));
 
 const Register = lazyRoute("register", () => import("./Pages/loginpage/Register"));
+const LandingPage = lazyRoute("landing-page", () => import("./Pages/landing/LandingPage"));
 const Login = lazyRoute("login", () => import("./Pages/loginpage/Login"));
 const ForgotPassword = lazyRoute("forgot-password", () => import("./Pages/loginpage/ForgotPassword"));
 const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVerification"));
 const ResetPassword = lazyRoute("reset-password", () => import("./Pages/loginpage/ResetPassword"));
 
 const Dashboard = lazyRoute("dashboard", () => import("./dashboard/Dashboard"));
+const SuperAdminClients = lazyRoute("super-admin-clients", () => import("./SuperAdmin/SuperAdminClients"));
+const Subscriptions = lazyRoute("subscriptions", () => import("./SuperAdmin/Subscriptions"));
+// const Support = lazyRoute("support", () => import("./SuperAdmin/Support"));
+const SuperAdminPermissions = lazyRoute("super-admin-permissions", () => import("./SuperAdmin/SuperAdminPermissions"));
 
 const EmployeeList = lazyRoute("employees", () => import("./Employees/EmployeeList"));
 const AddEmployee = lazyRoute("add-employee", () => import("./Employees/AddEmployee/AddEmployee"));
 const ScreenPermissions = lazyRoute("screen-permissions", () => import("./Employees/ScreenPermissions/ScreenPermissions"));
+const OnboardingDetails = lazyRoute("onboarding-details", () => import("./Onboarding/OnboardingDetails"));
+const AdminOnboardingList = lazyRoute("admin-onboarding-list", () => import("./Onboarding/AdminOnboardingList"));
+const AdminOnboardingDetails = lazyRoute("admin-onboarding-details", () => import("./Onboarding/AdminOnboardingDetails"));
 
 const Departments = lazyRoute("departments", () => import("./Departments/Departments"));
 const CompanyDetails = lazyRoute("company", () => import("./Company/CompanyDetails"));
@@ -116,29 +119,17 @@ const UserPayslip = lazyRoute("user-payslip", () => import("./Payroll/UserPaysli
 const OfferLetters = lazyRoute("offer-letters", () => import("./OfferLetters/OfferLetters"));
 const Reports = lazyRoute("reports", () => import("./Reports/Reports"));
 const SettingsPage = lazyRoute("settings", () => import("./Pages/Settings/SettingsPage"));
+const HrmsSettingsPage = lazyRoute("hrms-settings", () => import("./Pages/Settings/HrmsSettingsPage"));
+const TemplateSettingsPage = lazyRoute("template-settings", () =>
+  import("./Pages/Settings/HrmsSettingsPage").then((module) => ({
+    default: module.TemplateSettingsPage,
+  }))
+);
 const AccessDenied = lazyRoute("access-denied", () => import("./Pages/AccessDenied"));
 
 const MainLayout = lazyRoute("main-layout", () => import("./MainLayout"));
 
 /* ================= ROUTES ================= */
-
-const PrivateRoute = ({ children }) => {
-  const token = getStoredToken();
-
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (isSessionExpired()) {
-    handleAutoLogout({
-      reason: "PrivateRoute detected an expired session.",
-    });
-
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-};
 
 const SessionController = () => {
   const location = useLocation();
@@ -183,9 +174,18 @@ const SessionController = () => {
         "token",
         "authToken",
         "jwtToken",
+        "refreshToken",
         "loginTime",
         "role",
-        "userData",
+        "user",
+        "userId",
+        "adminId",
+        "adminEmail",
+        "employeeId",
+        "adminPermissions",
+        "allowedModules",
+        "modules",
+        "permissions",
       ];
 
       if (authKeys.includes(event.key)) {
@@ -210,95 +210,147 @@ const SessionController = () => {
   return null;
 };
 
-/* ================= PERMISSION ================= */
+const AdminSettingsRoute = ({ children }) => (
+  <PermissionRoute module="Settings">{children}</PermissionRoute>
+);
 
-const PermissionRoute = ({ module, children }) => {
-  const modules = getStoredPermissions();
+const ProtectedMainLayout = () => {
+  const permissionScope = usePermissionScope();
 
-  // ADMIN -> full access
-  if (isAdmin()) return children;
-
-  // NO DEFAULT MODULES
-  if (!modules || modules.length === 0) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-
-  const hasAccess = (modules || []).some(
-    (item) => {
-      if ((item.canAccess ?? item.CanAccess ?? true) !== true) {
-        return false;
-      }
-
-      const normalizedModuleName = String(item.moduleName || "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-
-      if (normalizedModuleName === "all") {
-        return true;
-      }
-
-      return ticketPermissionMatches(item.moduleName, module);
-    }
-  );
-
-  if (hasAccess) {
-    return children;
-  }
-
-  return <Navigate to="/unauthorized" replace />;
+  return <MainLayout permissionScope={permissionScope} />;
 };
 
 /* ================= APP ================= */
 
 function App() {
   return (
-    <BrowserRouter>
-      <ToastContainer
-        autoClose={4000}
-        closeButton={false}
-        closeOnClick={true}
-        containerClassName="ems-toast-container"
-        draggable
-        draggablePercent={60}
-        hideProgressBar={false}
-        limit={1}
-        newestOnTop={true}
-        pauseOnFocusLoss={false}
-        pauseOnHover={true}
-        position="top-right"
-        theme="dark"
-        toastClassName={({ type }) =>
-          `ems-toast ems-toast--${type || "info"}`
-        }
-        transition={toastTransition}
-      />
-      <GlobalUiController />
-      <SessionController />
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+    <AdminPermissionProvider>
+      <EmployeePermissionProvider>
+        <GlobalToastContainer />
+        <GlobalUiController />
+        <SessionController />
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/otp" element={<OtpVerification />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/access-denied" element={<AccessDenied />} />
+          <Route path="/403" element={<AccessDenied />} />
+          <Route path="/unauthorized" element={<Navigate to="/403" replace />} />
 
           <Route
             element={
-              <PrivateRoute>
-                <MainLayout />
-              </PrivateRoute>
+            <ProtectedRoute>
+                <ProtectedMainLayout />
+              </ProtectedRoute>
             }
           >
             {/* DASHBOARD */}
+            <Route path="/onboarding" element={<Navigate to="/onboarding/details" replace />} />
+            <Route path="/onboarding/details" element={<OnboardingDetails />} />
+
+            {/* DASHBOARD */}
             <Route
               path="/dashboard"
-              element={<Dashboard />}
+              element={
+                <PermissionRoute module="Dashboard">
+                  <Dashboard />
+                </PermissionRoute>
+              }
             />
 
             {/* USER DASHBOARD */}
-            <Route path="/user-dashboard" element={<Dashboard />} />
+            <Route
+              path="/user-dashboard"
+              element={<Navigate to="/dashboard" replace />}
+            />
+
+            <Route
+              path="/super-admin/dashboard"
+              element={
+                <PermissionRoute module="Dashboard">
+                  <Dashboard />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/admin/dashboard"
+              element={
+                <PermissionRoute module="Dashboard">
+                  <Dashboard />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/employee/dashboard"
+              element={
+                <PermissionRoute module="Dashboard">
+                  <Dashboard />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/super-admin/administration"
+              element={<Navigate to="/super-admin/administration/admins" replace />}
+            />
+            <Route
+              path="/super-admin/administration/admins"
+              element={
+                <PermissionRoute module="Admin Management">
+                  <SuperAdminClients />
+                </PermissionRoute>
+              }
+            />
+            <Route
+              path="/super-admin/administration/subscriptions"
+              element={
+                <PermissionRoute module="Subscription Management">
+                  <Subscriptions />
+                </PermissionRoute>
+              }
+            />
+            <Route
+              path="/super-admin/administration/permissions"
+              element={
+                <PermissionRoute module="Permissions">
+                  <SuperAdminPermissions />
+                </PermissionRoute>
+              }
+            />
+            <Route
+              path="/admin-management"
+              element={
+                <PermissionRoute module="Admin Management">
+                  <SuperAdminClients />
+                </PermissionRoute>
+              }
+            />
+            <Route
+              path="/subscription-management"
+              element={
+                <PermissionRoute module="Subscription Management">
+                  <Subscriptions />
+                </PermissionRoute>
+              }
+            />
+            <Route
+              path="/permissions"
+              element={
+                <PermissionRoute module="Permissions">
+                  <SuperAdminPermissions />
+                </PermissionRoute>
+              }
+            />
+            <Route
+              path="/super-admin/*"
+              element={<Navigate to="/super-admin/dashboard" replace />}
+            />
 
             {/* EMPLOYEES */}
             <Route
@@ -367,6 +419,24 @@ function App() {
               element={
                 <PermissionRoute module="Projects">
                   <Projects />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/admin/onboarding"
+              element={
+                <PermissionRoute module="Onboarding List">
+                  <AdminOnboardingList />
+                </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/admin/onboarding/:onboardingId"
+              element={
+                <PermissionRoute module="Onboarding List">
+                  <AdminOnboardingDetails />
                 </PermissionRoute>
               }
             />
@@ -455,8 +525,22 @@ function App() {
             />
 
             {/* TEAMS */}
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/teams/:teamId" element={<TeamDetails />} />
+            <Route
+              path="/teams"
+              element={
+                <PermissionRoute module="Teams">
+                  <Teams />
+                </PermissionRoute>
+              }
+            />
+            <Route
+              path="/teams/:teamId"
+              element={
+                <PermissionRoute module="Teams">
+                  <TeamDetails />
+                </PermissionRoute>
+              }
+            />
 
             {/* LEAVE */}
             <Route
@@ -591,20 +675,65 @@ function App() {
             <Route
               path="/settings"
               element={
-                <AdminRoute>
+                <AdminSettingsRoute>
                   <SettingsPage />
-                </AdminRoute>
+                </AdminSettingsRoute>
+              }
+            />
+            <Route
+              path="/settings/resignation"
+              element={
+                <AdminSettingsRoute>
+                  <HrmsSettingsPage moduleKey="resignation" />
+                </AdminSettingsRoute>
+              }
+            />
+            <Route
+              path="/settings/employee-clearance"
+              element={
+                <AdminSettingsRoute>
+                  <HrmsSettingsPage moduleKey="employeeClearance" />
+                </AdminSettingsRoute>
+              }
+            />
+            <Route
+           //   path="/settings/exit-interview"
+           //   element={
+            //    <AdminSettingsRoute>
+              //    <HrmsSettingsPage moduleKey="exitInterview" />
+               // </AdminSettingsRoute>
+            //  }
+            />
+            <Route
+              path="/settings/full-final-settlement"
+              element={
+                <AdminSettingsRoute>
+                  <HrmsSettingsPage moduleKey="fullFinalSettlement" />
+                </AdminSettingsRoute>
+              }
+            />
+            <Route
+              path="/settings/shift"
+              element={
+                <AdminSettingsRoute>
+                  <HrmsSettingsPage shiftMode />
+                </AdminSettingsRoute>
+              }
+            />
+            <Route
+              path="/settings/templates"
+              element={
+                <AdminSettingsRoute>
+                  <TemplateSettingsPage />
+                </AdminSettingsRoute>
               }
             />
           </Route>
 
-          <Route
-            path="/unauthorized"
-            element={<Navigate to="/access-denied" replace />}
-          />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+          </Routes>
+        </Suspense>
+      </EmployeePermissionProvider>
+    </AdminPermissionProvider>
   );
 }
 
