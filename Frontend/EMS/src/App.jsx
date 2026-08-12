@@ -67,7 +67,7 @@ const RouteFallback = memo(() => (
 ));
 
 const Register = lazyRoute("register", () => import("./Pages/loginpage/Register"));
-const LandingPage = lazyRoute("landing-page", () => import("./Pages/landing/LandingPage"));
+// const LandingPage = lazyRoute("landing-page", () => import("./Pages/landing/LandingPage"));
 const Login = lazyRoute("login", () => import("./Pages/loginpage/Login"));
 const ForgotPassword = lazyRoute("forgot-password", () => import("./Pages/loginpage/ForgotPassword"));
 const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVerification"));
@@ -231,7 +231,7 @@ function App() {
         <SessionController />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-          <Route path="/" element={<LandingPage />} />
+          {/* <Route path="/" element={<LandingPage />} /> */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
