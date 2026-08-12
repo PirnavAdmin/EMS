@@ -498,7 +498,7 @@ else if (
           </p>
 
           <h2 className="auth-card-title">
-            Create Your Honeywell EMS Account
+            Create Your Pirnav EMS Account
           </h2>
 
           {/* <p className="auth-card-subtitle">
