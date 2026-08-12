@@ -1,0 +1,234 @@
+# =========================
+
+# .NET Build Output
+
+# =========================
+
+bin/
+
+obj/
+
+out/
+
+publish/
+ 
+# =========================
+
+# Visual Studio / Rider
+
+# =========================
+
+.vs/
+
+.vscode/
+
+.idea/
+ 
+*.suo
+
+*.user
+
+*.userosscache
+
+*.userprefs
+
+*.sln.docstates
+ 
+# =========================
+
+# .NET User Files
+
+# =========================
+
+*.rsuser
+
+*.nupkg
+
+*.snupkg
+ 
+# =========================
+
+# NuGet
+
+# =========================
+
+packages/
+
+*.nuget.props
+
+*.nuget.targets
+ 
+# =========================
+
+# Logs
+
+# =========================
+
+logs/
+
+*.log
+
+*.log.*
+
+log/
+ 
+# =========================
+
+# Environment / Secrets
+
+# =========================
+
+.env
+
+.env.*
+
+!.env.example
+
+appsettings.Development.json
+
+appsettings.Local.json
+
+appsettings.*.local.json
+ 
+# =========================
+
+# ASP.NET Generated Files
+
+# =========================
+
+wwwroot/uploads/
+
+wwwroot/GeneratedPayslips/
+
+wwwroot/GeneratedLetters/
+ 
+# =========================
+
+# EMS Generated Documents
+
+# =========================
+
+GeneratedPayslips/
+
+GeneratedLetters/
+
+GeneratedOffers/
+
+GeneratedAgreements/
+
+Uploads/
+
+uploads/
+ 
+# =========================
+
+# Temporary Files
+
+# =========================
+
+*.tmp
+
+*.temp
+
+*.cache
+
+*.bak
+
+*.backup
+
+*.old
+ 
+# =========================
+
+# Database Backups
+
+# =========================
+
+*.sql
+
+*.sql.gz
+
+*.dump
+
+*.db
+
+*.sqlite
+
+*.sqlite3
+ 
+# =========================
+
+# Certificates / Keys
+
+# =========================
+
+*.pfx
+
+*.p12
+
+*.pem
+
+*.key
+
+*.crt
+ 
+# =========================
+
+# Docker
+
+# =========================
+
+*.tar
+
+*.tar.gz
+ 
+# =========================
+
+# Coverage / Test Results
+
+# =========================
+
+TestResults/
+
+test-results/
+
+coverage/
+
+.coverage
+
+*.trx
+ 
+# =========================
+
+# OS Files
+
+# =========================
+
+.DS_Store
+
+Thumbs.db
+
+Desktop.ini
+ 
+# =========================
+
+# ReSharper
+
+# =========================
+
+_ReSharper*/
+
+*.[Rr]e[Ss]harper
+
+*.DotSettings.user
+ 
+# =========================
+
+# Swagger / Generated
+
+# =========================
+
+swagger.json
+
+swagger.yaml
+ 

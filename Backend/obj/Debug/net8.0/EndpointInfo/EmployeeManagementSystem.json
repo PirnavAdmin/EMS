@@ -11722,6 +11722,10 @@
           "password": {
             "type": "string",
             "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13739,47 +13743,6 @@
             "type": "string",
             "format": "date-time"
           },
-          "reportingManager": {
-            "type": "string",
-            "nullable": true
-          },
-          "officeLocation": {
-            "type": "string",
-            "nullable": true
-          },
-          "workLocation": {
-            "type": "string",
-            "nullable": true
-          },
-          "probationPeriod": {
-            "type": "string",
-            "nullable": true
-          },
-          "probationNoticePeriod": {
-            "type": "string",
-            "nullable": true
-          },
-          "postConfirmationNoticePeriod": {
-            "type": "string",
-            "nullable": true
-          },
-          "acceptanceDeadline": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "phone": {
-            "type": "string",
-            "nullable": true
-          },
-          "authorizedSignatory": {
-            "type": "string",
-            "nullable": true
-          },
-          "authorizedSignatoryDesignation": {
-            "type": "string",
-            "nullable": true
-          },
           "ctC_Annual": {
             "type": "number",
             "format": "double"
@@ -13818,20 +13781,6 @@
             "type": "number",
             "format": "double",
             "nullable": true
-          },
-          "gratuity": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "performanceIncentive": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "company_Id": {
-            "type": "integer",
-            "format": "int32"
           }
         },
         "additionalProperties": false

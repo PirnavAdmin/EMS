@@ -149,7 +149,9 @@ namespace EmployeeManagementSystem.Controllers
             var admin = new Admin
             {
                 Email = dto.Email,
-                Password = dto.Password
+                Password = dto.Password,
+                 Role = "Admin",
+                IsActive = true
             };
 
             _context.Admins.Add(admin);
@@ -170,7 +172,8 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     x.Id,
                     x.Email,
-                    x.IsActive
+                    x.IsActive,
+                    x.Role
                 })
                 .OrderBy(x => x.Id)
                 .ToListAsync();
@@ -207,7 +210,8 @@ namespace EmployeeManagementSystem.Controllers
 
                 adminId = admin.Id,
                 email = admin.Email,
-                isActive = admin.IsActive
+                isActive = admin.IsActive,
+                Role=admin.Role
             });
         }
         private string GenerateJwtToken(Admin admin)
@@ -216,7 +220,7 @@ namespace EmployeeManagementSystem.Controllers
             {
         new Claim("AdminId", admin.Id.ToString()),
         new Claim(ClaimTypes.Email, admin.Email),
-        new Claim(ClaimTypes.Role, "Admin")
+        new Claim(ClaimTypes.Role, admin.Role)
     };
 
             var key = new SymmetricSecurityKey(
@@ -235,6 +239,5 @@ namespace EmployeeManagementSystem.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
     }
 }

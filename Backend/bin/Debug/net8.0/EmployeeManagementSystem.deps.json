@@ -8,6 +8,7 @@
     ".NETCoreApp,Version=v8.0": {
       "EmployeeManagementSystem/1.0.0": {
         "dependencies": {
+          "Aspose.Words": "26.8.0",
           "BCrypt.Net-Next": "4.1.0",
           "ClosedXML": "0.105.0",
           "DocXToPdfConverter": "1.0.5",
@@ -37,6 +38,19 @@
         },
         "runtime": {
           "EmployeeManagementSystem.dll": {}
+        }
+      },
+      "Aspose.Words/26.8.0": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "8.0.1",
+          "SkiaSharp": "3.119.1",
+          "System.Text.Encoding.CodePages": "9.0.7"
+        },
+        "runtime": {
+          "lib/net8.0/Aspose.Words.dll": {
+            "assemblyVersion": "26.8.0.0",
+            "fileVersion": "26.8.0.0"
+          }
         }
       },
       "Azure.Core/1.38.0": {
@@ -2492,6 +2506,13 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "Aspose.Words/26.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-fF7JzhDsZzgIYEmIUA5bvdIHgF38fBvhInAKJDLnGRLPu64+9EaA/gkHcw5tDgvCpEA3FjxXuxd90ZmDrlJYiA==",
+      "path": "aspose.words/26.8.0",
+      "hashPath": "aspose.words.26.8.0.nupkg.sha512"
     },
     "Azure.Core/1.38.0": {
       "type": "package",

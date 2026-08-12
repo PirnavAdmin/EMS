@@ -263,7 +263,8 @@ namespace EmployeeManagementSystem.Data
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Register>().ToTable("users");
-            
+           
+    
 
             modelBuilder.Entity<Employee>().ToTable("employees");
 
