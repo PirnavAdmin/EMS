@@ -263,6 +263,12 @@ namespace EmployeeManagementSystem.Data
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Register>().ToTable("users");
+            modelBuilder.Entity<Register>()
+    .HasOne(u => u.Role)
+    .WithMany()
+    .HasForeignKey(u => u.RoleId)
+    .HasPrincipalKey(r => r.RoleId)
+    .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Employee>().ToTable("employees");
 
