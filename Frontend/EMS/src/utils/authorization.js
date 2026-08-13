@@ -265,24 +265,60 @@ export const modulePermissionMatches = (permissionModule, requestedModule) => {
 };
 
 export const hasModulePermission = (moduleName, action = "canAccess") => {
-  if (isSuperAdmin()) {
+  const activeRole = getUserRole() || getUserRoleName();
+  const superAdminRole = isSuperAdmin();
+  const onboardingRole = isOnboardingUser();
+
+  console.log("[authorization] hasModulePermission", {
+    moduleName,
+    action,
+    activeRole: activeRole || "unknown",
+    isSuperAdmin: superAdminRole,
+    isOnboardingUser: onboardingRole,
+  });
+
+  if (superAdminRole) {
+    console.log("[authorization] Module permission bypassed for Super Admin", {
+      moduleName,
+      action,
+      activeRole: activeRole || "unknown",
+    });
     return true;
   }
 
-  if (isOnboardingUser()) {
+  if (onboardingRole) {
+    console.log("[authorization] Module permission denied for onboarding user", {
+      moduleName,
+      action,
+      activeRole: activeRole || "unknown",
+    });
     return false;
   }
 
-  const activeRole = getUserRole() || getUserRoleName();
-
   if (activeRole === "admin") {
     const permissions = getCurrentAdminAllowedModules();
+    const permissionCount = Array.isArray(permissions) ? permissions.length : 0;
+
+    console.log("[authorization] Module permission using admin cache", {
+      moduleName,
+      action,
+      activeRole,
+      permissionCount,
+    });
 
     if (!Array.isArray(permissions) || permissions.length === 0) {
+      console.log("[authorization] Module permission result", {
+        moduleName,
+        action,
+        activeRole,
+        permissionPath: "admin-cache",
+        permissionCount,
+        result: false,
+      });
       return false;
     }
 
-    return permissions.some((permission) => {
+    const isAllowed = permissions.some((permission) => {
       const permissionModule = permission.moduleName ?? permission.ModuleName;
 
       if (
@@ -313,15 +349,42 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
         canAccess
       ) === true;
     });
+
+    console.log("[authorization] Module permission result", {
+      moduleName,
+      action,
+      activeRole,
+      permissionPath: "admin-cache",
+      permissionCount,
+      result: isAllowed,
+    });
+
+    return isAllowed;
   }
 
   const permissions = getStoredPermissions();
+  const permissionCount = Array.isArray(permissions) ? permissions.length : 0;
+
+  console.log("[authorization] Module permission using stored permissions", {
+    moduleName,
+    action,
+    activeRole: activeRole || "unknown",
+    permissionCount,
+  });
 
   if (!Array.isArray(permissions) || permissions.length === 0) {
+    console.log("[authorization] Module permission result", {
+      moduleName,
+      action,
+      activeRole: activeRole || "unknown",
+      permissionPath: "stored-permissions",
+      permissionCount,
+      result: false,
+    });
     return false;
   }
 
-  return permissions.some((permission) => {
+  const isAllowed = permissions.some((permission) => {
     const permissionModule = permission.moduleName ?? permission.ModuleName;
 
     if (
@@ -348,6 +411,17 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
 
     return (permission[action] ?? permission[action[0].toUpperCase() + action.slice(1)] ?? canAccess) === true;
   });
+
+  console.log("[authorization] Module permission result", {
+    moduleName,
+    action,
+    activeRole: activeRole || "unknown",
+    permissionPath: "stored-permissions",
+    permissionCount,
+    result: isAllowed,
+  });
+
+  return isAllowed;
 };
 
 export const hasPermission = (moduleName, action = "canAccess") =>
