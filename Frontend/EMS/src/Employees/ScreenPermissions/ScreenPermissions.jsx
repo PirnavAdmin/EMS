@@ -8,8 +8,8 @@ import { toastError, toastSuccess } from "../../components/common/toast/toastSer
 import { extractCollection } from "../../utils/collections";
 import {
   buildRolePermissionSavePayload,
-  fetchRolePermissionsByRoleName,
   getRolePermissionErrorMessage,
+  normalizeRolePermissionSnapshot,
   saveRolePermissions,
 } from "../../services/rolePermissionService";
 import {
@@ -48,6 +48,46 @@ const safeDecodeURIComponent = (value) => {
 
 const normalizeComparableText = (value) =>
   normalizeId(value).toLowerCase().replace(/\s+/g, " ");
+
+const isNumericRoleKey = (value) => /^\d+$/.test(normalizeId(value));
+
+const getRoleIdValue = (role = {}) =>
+  normalizeId(
+    role.roleId ??
+      role.RoleId ??
+      role.id ??
+      role.Id ??
+      role.role_Id ??
+      role.Role_Id ??
+      ""
+  );
+
+const getRoleSelectionKey = (role = {}) => {
+  const normalizedRoleId = normalizeId(getRoleIdValue(role));
+  const normalizedRoleName = normalizeComparableText(getRoleNameValue(role));
+
+  return normalizedRoleId || normalizedRoleName ? `${normalizedRoleId}|${normalizedRoleName}` : "";
+};
+
+const getRolePermissionParameterCandidates = (role = {}) => {
+  const roleName = getRoleNameValue(role);
+  const roleId = getRoleIdValue(role);
+  const candidates = [];
+
+  if (roleName && roleId) {
+    candidates.push(isNumericRoleKey(roleName) ? roleId : roleName);
+    candidates.push(isNumericRoleKey(roleName) ? roleName : roleId);
+  } else {
+    candidates.push(roleName, roleId);
+  }
+
+  return candidates
+    .filter(Boolean)
+    .filter((value, index, values) => index === values.findIndex((candidate) => candidate === value));
+};
+
+const buildRolePermissionApiUrl = (permissionParameter) =>
+  `/api/RolePermission/${encodeURIComponent(String(permissionParameter ?? "").trim())}`;
 
 const compareModuleIds = (left, right) => {
   const leftNumber = Number(left);
@@ -168,6 +208,7 @@ function ScreenPermissions() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const permissionRequestIdRef = useRef(0);
+  const lastLoadedRoleNameRef = useRef("");
   const permissionsRef = useRef(permissions);
 
   useEffect(() => {
@@ -180,7 +221,7 @@ function ScreenPermissions() {
 
   const permissionRows = useMemo(() => sortPermissions(permissions), [permissions]);
   const hasPermissions = permissionRows.length > 0;
-  const currentRoleId = selectedRole.roleId || initialRoleId;
+  const currentRoleId = initialRoleId || selectedRole.roleId || "";
   const currentRoleName = getRoleNameValue(selectedRole) || initialRoleName || "";
   const selectedEmployeeLabel = useMemo(() => {
     if (permissionMode !== "user") {
@@ -202,20 +243,10 @@ function ScreenPermissions() {
       return currentRoleName;
     }
 
-    if (initialRoleName) {
-      return initialRoleName;
-    }
-
-    if (currentRoleId) {
-      return `Role ${currentRoleId}`;
-    }
-
     return "the selected role";
-  }, [currentRoleId, currentRoleName, initialRoleName]);
+  }, [currentRoleName]);
   const selectedPermissionLabel =
     permissionMode === "user" ? selectedEmployeeLabel : selectedRoleLabel;
-  const selectedPermissionId =
-    permissionMode === "user" ? initialEmployeeId : currentRoleId;
   const selectedPermissionTitle =
     permissionMode === "user" ? "User Permissions" : "Role Permissions";
   const isBusy = loading || saving;
@@ -224,7 +255,7 @@ function ScreenPermissions() {
     const baseRoleId = initialRoleId;
     const baseRoleName = initialRoleName;
 
-    if (baseRoleId && baseRoleName) {
+    if (baseRoleId && baseRoleName && !isNumericRoleKey(baseRoleName)) {
       return {
         roleId: baseRoleId,
         roleName: baseRoleName,
@@ -251,8 +282,12 @@ function ScreenPermissions() {
         const matchesName =
           baseRoleName &&
           normalizeComparableText(role.roleName) === normalizeComparableText(baseRoleName);
+        const matchesNumericName =
+          baseRoleName &&
+          isNumericRoleKey(baseRoleName) &&
+          normalizeId(role.roleId) === baseRoleName;
 
-        return matchesId || matchesName;
+        return matchesId || matchesName || matchesNumericName;
       });
 
       if (matchedRole) {
@@ -272,10 +307,31 @@ function ScreenPermissions() {
   }, [initialRoleId, initialRoleName]);
 
   const loadPermissionsForRole = useCallback(
-    async (roleName, { roleId = "", clearCurrent = false } = {}) => {
-      const normalizedRoleName = normalizeId(roleName);
+    async (roleInput, { clearCurrent = false, force = false } = {}) => {
+      const selectedRole =
+        roleInput && typeof roleInput === "object" && !Array.isArray(roleInput)
+          ? {
+              roleId: getRoleIdValue(roleInput),
+              roleName: getRoleNameValue(roleInput),
+            }
+          : {
+              roleId: "",
+              roleName: normalizeId(roleInput),
+            };
 
-      if (!normalizedRoleName) {
+      console.log("[Role Permissions] Selected Role:", selectedRole);
+      console.log("[Role Permissions] Role ID:", selectedRole?.roleId);
+      console.log("[Role Permissions] Role Name:", selectedRole?.roleName);
+
+      const roleSelectionKey = getRoleSelectionKey(selectedRole);
+
+      if (!force && roleSelectionKey && lastLoadedRoleNameRef.current === roleSelectionKey) {
+        return permissionsRef.current;
+      }
+
+      const permissionParameterCandidates = getRolePermissionParameterCandidates(selectedRole);
+
+      if (!permissionParameterCandidates.length) {
         if (clearCurrent) {
           setPermissions([]);
         }
@@ -294,46 +350,81 @@ function ScreenPermissions() {
       setError("");
 
       try {
-        const snapshot = await fetchRolePermissionsByRoleName(normalizedRoleName);
+        for (let index = 0; index < permissionParameterCandidates.length; index += 1) {
+          const permissionParameter = permissionParameterCandidates[index];
+          const apiUrl = buildRolePermissionApiUrl(permissionParameter);
 
-        if (requestId !== permissionRequestIdRef.current) {
-          return snapshot.permissions || [];
+          console.log("[Role Permissions] API Parameter:", permissionParameter);
+          console.log("[Role Permissions] API URL:", apiUrl);
+          console.log("[Role Permissions] Fetching permissions...");
+
+          try {
+            const response = await api.get(API_ENDPOINTS.rolePermission.get(permissionParameter), {
+              headers: {
+                Accept: "application/json",
+              },
+            });
+
+            if (requestId !== permissionRequestIdRef.current) {
+              return permissionsRef.current;
+            }
+
+            console.log("[Role Permissions] Permission API Response:", response?.data);
+            console.log(
+              "[Role Permissions] Permissions Loaded:",
+              response?.data?.permissions ?? response?.data
+            );
+
+            const snapshot = normalizeRolePermissionSnapshot(response.data, {
+              roleId: selectedRole.roleId,
+              roleName: selectedRole.roleName,
+            });
+
+            const nextPermissions = sortPermissions(
+              (snapshot.permissions || []).map((permission) =>
+                normalizeScreenPermissionRow(permission, { strictAccess: true })
+              )
+            );
+
+            setPermissions(nextPermissions);
+            setSelectedRole((prev) => ({
+              roleId: snapshot.roleId || selectedRole.roleId || prev.roleId || initialRoleId || "",
+              roleName:
+                snapshot.roleName ||
+                selectedRole.roleName ||
+                prev.roleName ||
+                initialRoleName ||
+                "",
+            }));
+            if (roleSelectionKey) {
+              lastLoadedRoleNameRef.current = roleSelectionKey;
+            }
+
+            console.log("Final mapped React state", nextPermissions);
+
+            return nextPermissions;
+          } catch (error) {
+            if (requestId !== permissionRequestIdRef.current) {
+              return [];
+            }
+
+            console.error("[Role Permissions] Permission API Error:", error);
+            console.error("[Role Permissions] Error Response:", error?.response?.data);
+
+            if (index < permissionParameterCandidates.length - 1) {
+              continue;
+            }
+
+            const message = getRolePermissionErrorMessage(
+              error,
+              "Unable to load permissions."
+            );
+            setError(message);
+            toastError(message);
+
+            return [];
+          }
         }
-
-        console.log("Reloaded API response", snapshot);
-
-        const nextPermissions = sortPermissions(
-          (snapshot.permissions || []).map((permission) =>
-            normalizeScreenPermissionRow(permission, { strictAccess: true })
-          )
-        );
-
-        setPermissions(nextPermissions);
-        setSelectedRole((prev) => ({
-          roleId: snapshot.roleId || roleId || prev.roleId || initialRoleId || "",
-          roleName:
-            snapshot.roleName ||
-            normalizedRoleName ||
-            prev.roleName ||
-            initialRoleName ||
-            "",
-        }));
-
-        console.log("Final mapped React state", nextPermissions);
-
-        return nextPermissions;
-      } catch (requestError) {
-        if (requestId !== permissionRequestIdRef.current) {
-          return [];
-        }
-
-        console.error("Permission API Error:", requestError);
-        const message = getRolePermissionErrorMessage(
-          requestError,
-          "Unable to load permissions."
-        );
-        setError(message);
-        toastError(message);
 
         return [];
       } finally {
@@ -346,10 +437,7 @@ function ScreenPermissions() {
   );
 
   const loadPermissionsForEmployee = useCallback(
-    async (
-      employeeId,
-      { employeeName = "", roleId = "", roleName = "", clearCurrent = false } = {}
-    ) => {
+    async (employeeId, { roleId = "", roleName = "", clearCurrent = false } = {}) => {
       const normalizedEmployeeId = normalizeId(employeeId);
 
       if (!normalizedEmployeeId) {
@@ -425,10 +513,11 @@ function ScreenPermissions() {
     let isMounted = true;
 
     const bootstrap = async () => {
-      setLoading(true);
-      setError("");
-
       if (permissionMode === "user") {
+        setLoading(true);
+        setError("");
+        lastLoadedRoleNameRef.current = "";
+
         if (!initialEmployeeId) {
           setPermissions([]);
           setError("Unable to determine the selected employee.");
@@ -451,6 +540,18 @@ function ScreenPermissions() {
         return;
       }
 
+      const requestedRoleKey = getRoleSelectionKey({
+        roleId: initialRoleId,
+        roleName: initialRoleName,
+      });
+
+      if (requestedRoleKey && lastLoadedRoleNameRef.current === requestedRoleKey) {
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+
       const resolvedRole = await resolveRoleSelection();
 
       if (!isMounted) {
@@ -462,21 +563,17 @@ function ScreenPermissions() {
         roleName: resolvedRole.roleName || prev.roleName || "",
       }));
 
-      const resolvedRoleName =
-        getRoleNameValue(resolvedRole) || initialRoleName || "";
-
-      if (!resolvedRoleName) {
+      if (!resolvedRole.roleId && !resolvedRole.roleName) {
         setPermissions([]);
         setError("Unable to determine the selected role.");
         setLoading(false);
         return;
       }
 
-      await loadPermissionsForRole(resolvedRoleName, {
-        roleId: resolvedRole.roleId || initialRoleId || "",
+      await loadPermissionsForRole(resolvedRole, {
         clearCurrent: true,
       });
-  };
+    };
 
     void bootstrap();
 
@@ -564,6 +661,23 @@ function ScreenPermissions() {
     );
   };
 
+  const handleSelectAll = () => {
+    console.log("[Role Permissions] Select All clicked");
+
+    setPermissions((current) =>
+      sortPermissions(
+        current.map((permission) => ({
+          ...permission,
+          canView: true,
+          canAdd: true,
+          canEdit: true,
+          canDelete: true,
+          canAccess: true,
+        }))
+      )
+    );
+  };
+
   const handleRefresh = () => {
     if (permissionMode === "user") {
       if (!initialEmployeeId) {
@@ -580,13 +694,13 @@ function ScreenPermissions() {
       return;
     }
 
-    if (!currentRoleName) {
+    if (!currentRoleName && !currentRoleId) {
       return;
     }
 
-    void loadPermissionsForRole(currentRoleName, {
-      roleId: currentRoleId,
+    void loadPermissionsForRole(selectedRole, {
       clearCurrent: false,
+      force: true,
     });
   };
 
@@ -657,6 +771,7 @@ function ScreenPermissions() {
 
     try {
       const payload = buildRolePermissionSavePayload({
+        roleId: currentRoleId,
         roleName: currentRoleName,
         permissions: currentPermissions,
       });
@@ -664,6 +779,7 @@ function ScreenPermissions() {
       console.log("Final save payload", payload);
 
       const saveResponse = await saveRolePermissions({
+        roleId: currentRoleId,
         roleName: currentRoleName,
         permissions: currentPermissions,
       });
@@ -673,9 +789,9 @@ function ScreenPermissions() {
       toastSuccess("Permissions saved successfully.");
 
       try {
-        await loadPermissionsForRole(currentRoleName, {
-          roleId: currentRoleId,
+        await loadPermissionsForRole(selectedRole, {
           clearCurrent: false,
+          force: true,
         });
 
         await refreshPermissions({ force: true });
@@ -712,7 +828,7 @@ function ScreenPermissions() {
             <h2>{selectedPermissionTitle}</h2>
             <p>
               Configure module access for {selectedPermissionLabel}
-              {selectedPermissionId ? ` (ID: ${selectedPermissionId})` : ""}.
+              {permissionMode === "user" && initialEmployeeId ? ` (ID: ${initialEmployeeId})` : ""}.
             </p>
           </div>
 
@@ -764,6 +880,16 @@ function ScreenPermissions() {
           >
             <FaRedo /> Refresh
           </button>
+          {permissionMode !== "user" ? (
+            <button
+              className="select-all-btn"
+              type="button"
+              onClick={handleSelectAll}
+              disabled={isBusy}
+            >
+              Select All
+            </button>
+          ) : null}
           <button
             className="select-all-btn"
             type="button"

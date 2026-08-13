@@ -192,7 +192,7 @@ export const getRolePermissionErrorMessage = (
   error?.message ||
   fallback;
 
-const resolveRoleNameInput = (value) => {
+const resolveRolePermissionInput = (value) => {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return normalizeId(
       firstDefined(
@@ -211,7 +211,7 @@ const resolveRoleNameInput = (value) => {
 };
 
 export const fetchRolePermissionsByRoleName = async (roleName) => {
-  const normalizedRoleName = resolveRoleNameInput(roleName);
+  const normalizedRoleName = resolveRolePermissionInput(roleName);
 
   if (!normalizedRoleName) {
     throw new Error("Role name is required.");
@@ -264,7 +264,8 @@ export const buildRolePermissionSavePayload = ({
   roleId = "",
   permissions = [],
 } = {}) => {
-  const normalizedRoleName = resolveRoleNameInput(roleName) || resolveRoleNameInput(roleId);
+  const normalizedRoleName =
+    resolveRolePermissionInput(roleName) || resolveRolePermissionInput(roleId);
 
   if (!normalizedRoleName) {
     throw new Error("Role name is required.");

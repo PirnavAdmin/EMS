@@ -6,6 +6,8 @@ const normalizePath = (path) =>
     .replace(/^\/+/, "")
     .replace(/\/{2,}/g, "/");
 
+const encodePathSegment = (value) => encodeURIComponent(String(value ?? "").trim());
+
 const isUnsafeLocalPath = (value) => {
   const normalizedValue = String(value || "").trim();
 
@@ -604,10 +606,10 @@ export const API = {
 
   // ================= ROLE PERMISSION =================
   ROLE_PERMISSION: {
-    GET: (roleName) => `/RolePermission/${roleName}`,
+    GET: (roleName) => `/RolePermission/${encodePathSegment(roleName)}`,
     SAVE: "/RolePermission/save",
     MODULES: "/RolePermission/allowed-modules",
-    EMPLOYEES: (roleName) => `/RolePermission/employees/${roleName}`,
+    EMPLOYEES: (roleName) => `/RolePermission/employees/${encodePathSegment(roleName)}`,
   },
 
   // ================= USER PERMISSION =================
@@ -724,6 +726,8 @@ export const API_ENDPOINTS = {
   },
   rolePermission: {
     allowedModules: API.ROLE_PERMISSION.MODULES,
+    get: API.ROLE_PERMISSION.GET,
+    byRoleId: API.ROLE_PERMISSION.GET,
     byRoleName: API.ROLE_PERMISSION.GET,
     save: API.ROLE_PERMISSION.SAVE,
     employees: API.ROLE_PERMISSION.EMPLOYEES,

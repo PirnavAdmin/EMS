@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useState, useEffect } from "react";
+import React, { forwardRef, useCallback, useImperativeHandle, useState, useEffect } from "react";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 
@@ -12,8 +12,6 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
   const [branch, setBranch] = useState("");
   const [uan, setUan] = useState("");
   const [pf, setPf] = useState("");
-  const [salaryId, setSalaryId] = useState(null);
-
   const [annualCTC, setAnnualCTC] = useState("");
   const [basicSalary, setBasicSalary] = useState("");
   const [hra, setHra] = useState("");
@@ -30,6 +28,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
   const [successMsg, setSuccessMsg] = useState("");
   const [apiError, setApiError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [salarySaving, setSalarySaving] = useState(false);
   const [salaryErrors, setSalaryErrors] = useState({});
   useEffect(() => {
     if (!data) return;
@@ -45,25 +44,13 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     setPf(data.pF_Account_Number || "");
   }, [data]);
 
-  useEffect(() => {
-    if (!employeeId) return;
-    loadSalary();
-  }, [employeeId]);
-
-  useImperativeHandle(ref, () => ({
-    validate() {
-      return true;
-    },
-  }));
-
-  const loadSalary = async () => {
+  const loadSalary = useCallback(async () => {
     try {
       const res = await api.get(
         API_ENDPOINTS.employeeSalaryStructure.byEmployeeId(employeeId)
       );
       const s = res.data;
       setSalaryExists(true);
-      setSalaryId(s.id);
       setAnnualCTC(s.annualCTC || "");
       setBasicSalary(s.basicSalary || "");
       setHra(s.hra || "");
@@ -79,7 +66,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     catch {
       setSalaryExists(false);
     }
-  };
+  }, [employeeId]);
+
+  useEffect(() => {
+    if (!employeeId) return;
+    loadSalary();
+  }, [employeeId, loadSalary]);
+
+  useImperativeHandle(ref, () => ({
+    validate() {
+      return true;
+    },
+  }));
 
   const handleSalaryInput = (field, value, setter) => {
     // Remove spaces
@@ -131,6 +129,20 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
         API_ENDPOINTS.employeeSalaryStructure.list,
         payload
       );
+    }
+  };
+
+  const handleSalarySave = async () => {
+    if (salarySaving) {
+      return;
+    }
+
+    setSalarySaving(true);
+
+    try {
+      await saveSalary();
+    } finally {
+      setSalarySaving(false);
     }
   };
 
@@ -340,7 +352,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Basic Salary */}
           <div className="form-group">
-            <label>Basic Salary</label>
+            <label>Basic Salary(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -364,7 +376,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* HRA */}
           <div className="form-group">
-            <label>HRA</label>
+            <label>HRA(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -388,7 +400,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Conveyance Allowance */}
           <div className="form-group">
-            <label>Conveyance Allowance</label>
+            <label>Conveyance Allowance(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -413,7 +425,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Medical Allowance */}
           <div className="form-group">
-            <label>Medical Allowance</label>
+            <label>Medical Allowance(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -436,7 +448,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Special Allowance */}
           <div className="form-group">
-            <label>Special Allowance</label>
+            <label>Special Allowance(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -459,7 +471,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Employee PF */}
           <div className="form-group">
-            <label>Employee PF</label>
+            <label>Employee PF(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -482,7 +494,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Employer PF */}
           <div className="form-group">
-            <label>Employer PF</label>
+            <label>Employer PF(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -505,7 +517,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Professional Tax */}
           <div className="form-group">
-            <label>Professional Tax</label>
+            <label>Professional Tax(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -528,7 +540,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* TDS */}
           <div className="form-group">
-            <label>TDS</label>
+            <label>TDS(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -579,9 +591,16 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
             <button
               type="button"
               className="btn primary"
-              onClick={saveSalary}
+              onClick={handleSalarySave}
+              disabled={salarySaving}
             >
-              {salaryExists ? "Update Salary" : "Save Salary"}
+              {salarySaving
+                ? salaryExists
+                  ? "Updating..."
+                  : "Saving..."
+                : salaryExists
+                  ? "Update Salary"
+                  : "Save Salary"}
             </button>
           </div>
         )}
