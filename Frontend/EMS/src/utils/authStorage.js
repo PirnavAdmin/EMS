@@ -1371,30 +1371,54 @@ export const getStoredRoleName = () =>
   );
 
 export const getStoredPermissions = (roleHint = "") => {
-  const storageScope = getPermissionScopeForRole(
+  const resolvedRole =
     roleHint ||
-      getStoredRole() ||
-      getStoredRoleName() ||
-      getStoredJwtRole() ||
-      ""
-  );
+    getStoredRole() ||
+    getStoredRoleName() ||
+    getStoredJwtRole() ||
+    "";
+  const storage = getActiveAuthStorage();
+  const otherStorage = storage === sessionStorage ? localStorage : sessionStorage;
+  const storages = [storage, otherStorage].filter(Boolean);
+  const storageScope = getPermissionScopeForRole(resolvedRole);
   const storageKeys = storageScope
     ? getPermissionStorageKeysForScope(storageScope)
     : ADMIN_PERMISSION_STORAGE_KEYS;
+
+  console.log("[authStorage] getStoredPermissions", {
+    roleHint,
+    resolvedRole,
+    storageScope: storageScope || "unscoped",
+    storageKeys,
+  });
   const scopedPermissions = readStoredPermissionsFromKeys(storageKeys);
 
   if (scopedPermissions.length > 0) {
+    console.log("[authStorage] getStoredPermissions resolved scoped permissions", {
+      resolvedRole,
+      storageScope: storageScope || "unscoped",
+      permissionCount: scopedPermissions.length,
+    });
     return scopedPermissions;
   }
 
   const fallbackPermissions = readStoredPermissionsFromKeys(GENERIC_PERMISSION_STORAGE_KEYS);
 
   if (fallbackPermissions.length > 0) {
+    console.log("[authStorage] getStoredPermissions resolved generic permissions", {
+      resolvedRole,
+      permissionCount: fallbackPermissions.length,
+    });
     return fallbackPermissions;
   }
 
   if (!storageScope) {
     const fallbackScopes = ["admin", "employee"];
+
+    console.log("[authStorage] getStoredPermissions entering fallback scope search", {
+      resolvedRole,
+      fallbackScopes,
+    });
 
     for (const fallbackScope of fallbackScopes) {
       const fallbackKeys = getPermissionStorageKeysForScope(fallbackScope);
