@@ -14,6 +14,11 @@ const MOBILE_LAYOUT_QUERY = "(max-width: 991px)";
 function MainLayout({ permissionScope }) {
   const location = useLocation();
   const { loadingPermissions, error, errorStatus, refreshPermissions } = permissionScope;
+  const permissionScopeName = permissionScope?.permissionScope;
+  const permissionFlow = permissionScope?.permissionFlow;
+  const permissionErrorMessage =
+    typeof error === "string" ? error : error?.message || "";
+  const hasPermissionError = Boolean(error);
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === "undefined" || !window.matchMedia) {
       return false;
@@ -82,6 +87,26 @@ function MainLayout({ permissionScope }) {
     startSessionTimer();
     return undefined;
   }, []);
+
+  useEffect(() => {
+    console.log("[MainLayout] Permission state", {
+      pathname: location.pathname,
+      permissionScope: permissionScopeName || "unknown",
+      permissionFlow: permissionFlow || "unknown",
+      loadingPermissions,
+      errorStatus,
+      hasError: hasPermissionError,
+      errorMessage: permissionErrorMessage,
+    });
+  }, [
+    location.pathname,
+    loadingPermissions,
+    errorStatus,
+    hasPermissionError,
+    permissionScopeName,
+    permissionFlow,
+    permissionErrorMessage,
+  ]);
 
   useEffect(() => {
     let listener;
