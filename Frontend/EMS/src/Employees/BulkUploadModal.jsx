@@ -6,15 +6,15 @@ import {
   FaExclamationTriangle,
   FaFileAlt,
   FaSpinner,
-  FaTimes,
-} from "react-icons/fa";
+  FaTimes } from
+"react-icons/fa";
 import "./BulkUploadModal.css";
 
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 
 const EXCEL_MIME_TYPE =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const ACCEPTED_EXTENSIONS = [".xlsx", ".xls"];
 
@@ -47,7 +47,7 @@ const formatFileSize = (size = 0) => {
 function BulkUploadModal({
   open,
   onClose,
-  onUploaded,
+  onUploaded
 }) {
   const fileInputRef = useRef(null);
   const uploadLockRef = useRef(false);
@@ -176,7 +176,7 @@ function BulkUploadModal({
         formData,
         {
           headers: {
-            "Content-Type": "multipart/form-data",
+            "Content-Type": "multipart/form-data"
           },
           onUploadProgress: (progressEvent) => {
             const total = progressEvent.total || progressEvent.loaded || 0;
@@ -188,11 +188,11 @@ function BulkUploadModal({
 
             const nextProgress = Math.min(
               99,
-              Math.round((loaded / total) * 100)
+              Math.round(loaded / total * 100)
             );
 
             setUploadProgress(nextProgress);
-          },
+          }
         }
       );
 
@@ -215,15 +215,15 @@ function BulkUploadModal({
         setStatusType("success");
         setStatusMessage(
           response?.data?.message ||
-            "Employees uploaded successfully. The employee list has been refreshed."
+          "Employees uploaded successfully. The employee list has been refreshed."
         );
       }
     } catch (error) {
       const message =
-        error?.response?.data?.message ||
-        error?.response?.data ||
-        error?.message ||
-        "Employee bulk upload failed.";
+      error?.response?.data?.message ||
+      error?.response?.data ||
+      error?.message ||
+      "Employee bulk upload failed.";
 
       setStatusType("error");
       setStatusMessage(String(message));
@@ -246,12 +246,12 @@ function BulkUploadModal({
       const response = await api.get(
         API_ENDPOINTS.employees.downloadEmployeeTemplate,
         {
-          responseType: "blob",
+          responseType: "blob"
         }
       );
 
       const blob = new Blob([response.data], {
-        type: EXCEL_MIME_TYPE,
+        type: EXCEL_MIME_TYPE
       });
 
       const url = window.URL.createObjectURL(blob);
@@ -269,7 +269,7 @@ function BulkUploadModal({
       setStatusType("success");
       setStatusMessage("Employee template downloaded successfully.");
     } catch (error) {
-      console.error("Employee template download error:", error);
+
       setStatusType("error");
       setStatusMessage("Failed to download employee template.");
     } finally {
@@ -285,8 +285,8 @@ function BulkUploadModal({
         if (event.target === event.currentTarget) {
           closeModal();
         }
-      }}
-    >
+      }}>
+      
       <div className="bulk-upload-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-upload-title">
         <div className="bulk-upload-header">
           <div>
@@ -302,8 +302,8 @@ function BulkUploadModal({
             className="bulk-upload-close"
             onClick={closeModal}
             disabled={uploading}
-            aria-label="Close bulk upload modal"
-          >
+            aria-label="Close bulk upload modal">
+            
             <FaTimes />
           </button>
         </div>
@@ -313,39 +313,39 @@ function BulkUploadModal({
             type="button"
             className="bulk-upload-primary bulk-upload-template-btn"
             onClick={handleDownloadTemplate}
-            disabled={isTemplateDownloading}
-          >
-            {isTemplateDownloading ? (
-              <>
+            disabled={isTemplateDownloading}>
+            
+            {isTemplateDownloading ?
+            <>
                 <FaSpinner className="bulk-upload-spinner" aria-hidden="true" />
                 Downloading...
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <FaDownload aria-hidden="true" />
                 Download Template
               </>
-            )}
+            }
           </button>
         </div>
 
-        {statusMessage && (
-          <div className={`bulk-upload-feedback ${statusType}`}>
-            {statusType === "success" ? (
-              <FaCheckCircle aria-hidden="true" />
-            ) : statusType === "error" ? (
-              <FaExclamationTriangle aria-hidden="true" />
-            ) : (
-              <FaFileAlt aria-hidden="true" />
-            )}
+        {statusMessage &&
+        <div className={`bulk-upload-feedback ${statusType}`}>
+            {statusType === "success" ?
+          <FaCheckCircle aria-hidden="true" /> :
+          statusType === "error" ?
+          <FaExclamationTriangle aria-hidden="true" /> :
+
+          <FaFileAlt aria-hidden="true" />
+          }
             <span>{statusMessage}</span>
           </div>
-        )}
+        }
 
         <div
           className={`bulk-upload-dropzone ${dragActive ? "is-active" : ""} ${
-            selectedFile ? "has-file" : ""
-          }`}
+          selectedFile ? "has-file" : ""}`
+          }
           role="button"
           tabIndex={0}
           onClick={() => fileInputRef.current?.click()}
@@ -358,16 +358,16 @@ function BulkUploadModal({
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
+          onDrop={handleDrop}>
+          
           <input
             ref={fileInputRef}
             type="file"
             accept=".xlsx,.xls"
             className="bulk-upload-input"
             onChange={handleInputChange}
-            disabled={uploading}
-          />
+            disabled={uploading} />
+          
 
           <div className="bulk-upload-icon">
             <FaCloudUploadAlt aria-hidden="true" />
@@ -385,8 +385,8 @@ function BulkUploadModal({
               event.stopPropagation();
               fileInputRef.current?.click();
             }}
-            disabled={uploading}
-          >
+            disabled={uploading}>
+            
             Choose File
           </button>
         </div>
@@ -423,8 +423,8 @@ function BulkUploadModal({
           <div className="bulk-upload-progress-bar">
             <div
               className="bulk-upload-progress-fill"
-              style={{ width: `${uploading ? uploadProgress : statusType === "success" ? 100 : 0}%` }}
-            />
+              style={{ width: `${uploading ? uploadProgress : statusType === "success" ? 100 : 0}%` }} />
+            
           </div>
         </div>
 
@@ -433,8 +433,8 @@ function BulkUploadModal({
             type="button"
             className="bulk-upload-secondary"
             onClick={closeModal}
-            disabled={uploading}
-          >
+            disabled={uploading}>
+            
             Cancel
           </button>
 
@@ -442,21 +442,21 @@ function BulkUploadModal({
             type="button"
             className="bulk-upload-primary"
             onClick={handleUpload}
-            disabled={uploading || !selectedFile}
-          >
-            {uploading ? (
-              <>
+            disabled={uploading || !selectedFile}>
+            
+            {uploading ?
+            <>
                 <FaSpinner className="bulk-upload-spinner" aria-hidden="true" />
                 Uploading...
-              </>
-            ) : (
-              "Upload Employees"
-            )}
+              </> :
+
+            "Upload Employees"
+            }
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default BulkUploadModal;

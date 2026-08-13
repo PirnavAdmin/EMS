@@ -5,29 +5,29 @@ import {
   getStoredJwtRole,
   getStoredRole,
   getStoredRoleName,
-  getStoredToken,
-} from "../utils/authStorage";
+  getStoredToken } from
+"../utils/authStorage";
 import { isAuthenticationFailureResponse } from "../utils/authorization";
 
 import {
   handleAutoLogout,
-  isSessionExpired,
-} from "../utils/sessionManager";
- 
+  isSessionExpired } from
+"../utils/sessionManager";
+
 import {
   endPerformanceTimer,
-  startPerformanceTimer,
-} from "../utils/performance";
- 
+  startPerformanceTimer } from
+"../utils/performance";
+
 const api = axios.create({
   baseURL: BASE_URL,
- 
+
   headers: {
     Accept: "application/json",
-    "ngrok-skip-browser-warning": "true",
-  },
+    "ngrok-skip-browser-warning": "true"
+  }
 });
- 
+
 const inFlightGetRequests = new Map();
 
 const resolveRequestUrl = (url, baseURL = BASE_URL) => {
@@ -56,7 +56,7 @@ const headersForLogging = (headers) => {
 
   return { ...headers };
 };
- 
+
 // =========================
 // STABLE SERIALIZE
 // =========================
@@ -64,123 +64,122 @@ const stableSerialize = (value) => {
   if (!value) {
     return "";
   }
- 
+
   if (value instanceof URLSearchParams) {
     return value.toString();
   }
- 
+
   if (Array.isArray(value)) {
-    return `[${value
-      .map(stableSerialize)
-      .join(",")}]`;
+    return `[${value.
+    map(stableSerialize).
+    join(",")}]`;
   }
- 
+
   if (typeof value === "object") {
     return JSON.stringify(
-      Object.keys(value)
-        .sort()
-        .reduce((acc, key) => {
-          acc[key] = value[key];
-          return acc;
-        }, {})
+      Object.keys(value).
+      sort().
+      reduce((acc, key) => {
+        acc[key] = value[key];
+        return acc;
+      }, {})
     );
   }
- 
+
   return String(value);
 };
- 
+
 // =========================
 // REQUEST KEY
 // =========================
 const getRequestKey = (
-  url,
-  config = {}
-) => {
- 
+url,
+config = {}) =>
+{
+
   if (
-    config.signal ||
-    (
-      config.responseType &&
-      config.responseType !== "json"
-    )
-  ) {
+  config.signal ||
+
+  config.responseType &&
+  config.responseType !== "json")
+
+  {
     return null;
   }
- 
+
   return `${url}?${stableSerialize(
     config.params
   )}`;
 };
- 
+
 // =========================
 // DEDUPE GET REQUESTS
 // =========================
 const originalGet =
-  api.get.bind(api);
- 
+api.get.bind(api);
+
 api.get = (
-  url,
-  config = {}
-) => {
- 
+url,
+config = {}) =>
+{
+
   const requestKey =
-    config.dedupe === false
-      ? null
-      : getRequestKey(
-          url,
-          config
-        );
- 
+  config.dedupe === false ?
+  null :
+  getRequestKey(
+    url,
+    config
+  );
+
   if (!requestKey) {
     return originalGet(
       url,
       config
     );
   }
- 
+
   if (
-    inFlightGetRequests.has(
-      requestKey
-    )
-  ) {
+  inFlightGetRequests.has(
+    requestKey
+  ))
+  {
     return inFlightGetRequests.get(
       requestKey
     );
   }
- 
+
   const request =
-    originalGet(
-      url,
-      config
-    ).finally(() => {
- 
-      inFlightGetRequests.delete(
-        requestKey
-      );
- 
-    });
- 
+  originalGet(
+    url,
+    config
+  ).finally(() => {
+
+    inFlightGetRequests.delete(
+      requestKey
+    );
+
+  });
+
   inFlightGetRequests.set(
     requestKey,
     request
   );
- 
+
   return request;
 };
- 
+
 // =========================
 // FORCE LOGOUT
 // =========================
 const shouldForceLogout = (
-  config,
-  status,
-  data
-) =>
+config,
+status,
+data) =>
 
-  !config?.skipAuth &&
-  !config?.skipAuthFailureHandling &&
-  getStoredToken() &&
-  isAuthenticationFailureResponse(status, data);
+!config?.skipAuth &&
+!config?.skipAuthFailureHandling &&
+getStoredToken() &&
+isAuthenticationFailureResponse(status, data);
 
 const isNetworkOrTimeoutError = (error) => {
   if (!error) {
@@ -196,32 +195,32 @@ const isNetworkOrTimeoutError = (error) => {
   return (
     message.includes("timeout") ||
     message.includes("network error") ||
-    (!error.response && Boolean(error.request))
-  );
+    !error.response && Boolean(error.request));
+
 };
 
 // =========================
 // REQUEST INTERCEPTOR
 // =========================
 api.interceptors.request.use(
- 
+
   (config) => {
- 
+
     const token =
-      getStoredToken();
+    getStoredToken();
     const userRole =
-      getStoredJwtRole() ||
-      getStoredRoleName() ||
-      getStoredRole();
- 
+    getStoredJwtRole() ||
+    getStoredRoleName() ||
+    getStoredRole();
+
     const method =
-      (
-        config.method ||
-        "get"
-      ).toUpperCase();
- 
+    (
+    config.method ||
+    "get").
+    toUpperCase();
+
     const url =
-      config.url || "";
+    config.url || "";
     const requestUrl = resolveRequestUrl(url, config.baseURL || BASE_URL);
 
     if (!config.headers) {
@@ -236,46 +235,35 @@ api.interceptors.request.use(
       }
     }
 
-    console.log("API Request", {
-      url: requestUrl,
-      method,
-      baseURL: config.baseURL || BASE_URL,
-      params: config.params || {},
-      headers: headersForLogging(config.headers),
-      token,
-      body: config.data ?? null,
-      userRole,
-    });
- 
     config.metadata = {
       ...(config.metadata || {}),
- 
+
       performanceLabel:
-        `api:${method}:${url}`,
+      `api:${method}:${url}`
     };
- 
+
     startPerformanceTimer(
-      config.metadata
-        .performanceLabel
+      config.metadata.
+      performanceLabel
     );
- 
+
     if (
-      !config.skipAuth &&
-      token
-    ) {
- 
+    !config.skipAuth &&
+    token)
+    {
+
       if (
-        isSessionExpired()
-      ) {
+      isSessionExpired())
+      {
         endPerformanceTimer(
-          config.metadata
-            .performanceLabel
+          config.metadata.
+          performanceLabel
         );
 
         handleAutoLogout({
-          reason: "Session expired before API request",
+          reason: "Session expired before API request"
         });
- 
+
         return Promise.reject(
           new axios.CanceledError(
             "Session expired"
@@ -283,50 +271,48 @@ api.interceptors.request.use(
         );
       }
     }
- 
+
     return config;
   },
- 
+
   (error) =>
-    Promise.reject(error)
+  Promise.reject(error)
 );
- 
+
 // =========================
 // RESPONSE INTERCEPTOR
 // =========================
 api.interceptors.response.use(
- 
+
   // SUCCESS
   (response) => {
- 
+
     endPerformanceTimer(
-      response?.config?.metadata
-        ?.performanceLabel
+      response?.config?.metadata?.
+      performanceLabel
     );
 
-    console.log("Response:", response);
- 
     const responseType =
-      response?.config
-        ?.responseType;
- 
+    response?.config?.
+    responseType;
+
     if (
-      responseType &&
-      responseType !== "json"
-    ) {
- 
+    responseType &&
+    responseType !== "json")
+    {
+
       return response;
     }
- 
+
     if (
-      shouldForceLogout(
-        response?.config,
-        response?.status,
-        response?.data
-      )
-    ) {
+    shouldForceLogout(
+      response?.config,
+      response?.status,
+      response?.data
+    ))
+    {
       handleAutoLogout({
-        reason: "Authentication failure response",
+        reason: "Authentication failure response"
       });
 
       return Promise.reject(
@@ -335,70 +321,47 @@ api.interceptors.response.use(
         )
       );
     }
- 
+
     response.data =
-      sortNestedCollectionsByRecency(
-        response.data
-      );
- 
+    sortNestedCollectionsByRecency(
+      response.data
+    );
+
     return response;
   },
- 
+
   // ERROR
   (error) => {
- 
+
     const config =
-      error?.config ||
-      error?.response?.config ||
-      {};
- 
+    error?.config ||
+    error?.response?.config ||
+    {};
+
     const status =
-      error?.response?.status;
- 
+    error?.response?.status;
+
     const data =
-      error?.response?.data;
+    error?.response?.data;
 
     endPerformanceTimer(
-      config?.metadata
-        ?.performanceLabel
+      config?.metadata?.
+      performanceLabel
     );
 
     if (error?.code === "ERR_CANCELED") {
       return Promise.reject(error);
     }
 
-    const isNotificationRequest =
-      Boolean(config?.skipAuthFailureHandling);
-
-    const errorLogger =
-      isNotificationRequest
-        ? console.warn
-        : console.error;
-
-    errorLogger(isNotificationRequest ? "API Warning" : "API Error", {
-      status,
-      message: error?.response?.data || error?.message,
-      url: resolveRequestUrl(
-        config?.url || error?.response?.config?.url || "",
-        config?.baseURL || error?.response?.config?.baseURL || BASE_URL
-      ),
-      method: String(config?.method || error?.response?.config?.method || "get").toUpperCase(),
-      params: config?.params || error?.response?.config?.params || {},
-      headers: headersForLogging(config?.headers || error?.response?.config?.headers),
-      token: getStoredToken(),
-      body: config?.data ?? error?.response?.config?.data ?? null,
-      responseData: data,
-    });
-
     if (
-      shouldForceLogout(
-        config,
-        status,
-        data
-      )
-    ) {
+    shouldForceLogout(
+      config,
+      status,
+      data
+    ))
+    {
       handleAutoLogout({
-        reason: `Auth failure response (${status || "unknown status"})`,
+        reason: `Auth failure response (${status || "unknown status"})`
       });
     }
 
@@ -407,6 +370,5 @@ api.interceptors.response.use(
     );
   }
 );
- 
+
 export default api;
- 

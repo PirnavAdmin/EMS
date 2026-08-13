@@ -15,41 +15,40 @@ const getAgreementRequestCandidates = (agreementOrId, preferredFields = []) => {
 
   const fieldAliases = {
     pendingEmployeeAgreementId: [
-      "pendingEmployeeAgreementId",
-      "PendingEmployeeAgreementId",
-    ],
+    "pendingEmployeeAgreementId",
+    "PendingEmployeeAgreementId"],
+
     signedEmployeeAgreementId: [
-      "signedEmployeeAgreementId",
-      "SignedEmployeeAgreementId",
-    ],
+    "signedEmployeeAgreementId",
+    "SignedEmployeeAgreementId"],
+
     employeeAgreementId: [
-      "employeeAgreementId",
-      "EmployeeAgreementId",
-      "employeeAgreementID",
-      "EmployeeAgreementID",
-      "employeeagreementid",
-      "Employeeagreementid",
-      "employee_AgreementId",
-      "Employee_AgreementId",
-    ],
+    "employeeAgreementId",
+    "EmployeeAgreementId",
+    "employeeAgreementID",
+    "EmployeeAgreementID",
+    "employeeagreementid",
+    "Employeeagreementid",
+    "employee_AgreementId",
+    "Employee_AgreementId"],
+
     agreementId: ["agreementId", "AgreementId"],
     documentId: ["documentId", "DocumentId"],
     agreementCode: ["agreementCode", "AgreementCode", "code", "Code"],
-    id: ["id", "Id"],
+    id: ["id", "Id"]
   };
 
   const lookupOrder =
-    preferredFields.length > 0
-      ? preferredFields
-      : [
-          "pendingEmployeeAgreementId",
-          "signedEmployeeAgreementId",
-          "employeeAgreementId",
-          "agreementId",
-          "documentId",
-          "agreementCode",
-          "id",
-        ];
+  preferredFields.length > 0 ?
+  preferredFields :
+  [
+  "pendingEmployeeAgreementId",
+  "signedEmployeeAgreementId",
+  "employeeAgreementId",
+  "agreementId",
+  "documentId",
+  "agreementCode",
+  "id"];
 
   const candidates = [];
 
@@ -72,72 +71,47 @@ const requestAgreementBlob = async ({
   label,
   agreementOrId,
   preferredFields = [],
-  buildPath,
+  buildPath
 }) => {
   const candidates = getAgreementRequestCandidates(
     agreementOrId,
     preferredFields
   );
   const startedAt =
-    typeof performance !== "undefined" &&
-    typeof performance.now === "function"
-      ? performance.now()
-      : Date.now();
-
-  console.info(`[Agreement] ${label} lookup started`, {
-    candidates,
-  });
+  typeof performance !== "undefined" &&
+  typeof performance.now === "function" ?
+  performance.now() :
+  Date.now();
 
   let lastError = null;
 
   for (const candidate of candidates) {
     const path = buildPath(candidate);
 
-    console.info(`[Agreement] ${label} attempting request`, {
-      candidate,
-      path,
-    });
-    console.log("Request URL:", path);
-
     try {
       const response = await api.get(path, {
         responseType: "blob",
-        dedupe: false,
+        dedupe: false
       });
 
       const finishedAt =
-        typeof performance !== "undefined" &&
-        typeof performance.now === "function"
-          ? performance.now()
-          : Date.now();
-
-      console.info(`[Agreement] ${label} request succeeded`, {
-        candidate,
-        elapsedMs: Math.round(finishedAt - startedAt),
-      });
+      typeof performance !== "undefined" &&
+      typeof performance.now === "function" ?
+      performance.now() :
+      Date.now();
 
       return response;
     } catch (error) {
       lastError = error;
 
-      console.warn(`[Agreement] ${label} candidate failed`, {
-        candidate,
-        status: error?.response?.status,
-        message: error?.response?.data?.message || error?.message,
-      });
     }
   }
 
   const finishedAt =
-    typeof performance !== "undefined" &&
-    typeof performance.now === "function"
-      ? performance.now()
-      : Date.now();
-
-  console.error(`[Agreement] ${label} request failed`, {
-    candidates,
-    elapsedMs: Math.round(finishedAt - startedAt),
-  });
+  typeof performance !== "undefined" &&
+  typeof performance.now === "function" ?
+  performance.now() :
+  Date.now();
 
   throw lastError || new Error(`${label} request failed`);
 };
@@ -171,15 +145,13 @@ const getCollection = (responseData) => {
 };
 
 export const uploadAgreement = (formData) =>
-  api.post(API_ENDPOINTS.agreements.upload, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+api.post(API_ENDPOINTS.agreements.upload, formData, {
+  headers: {
+    "Content-Type": "multipart/form-data"
+  }
+});
 
 export const getAgreementTemplates = async () => {
-  console.log(API_ENDPOINTS.agreements);
-  console.log("Endpoint:", API_ENDPOINTS.agreements.getAll);
 
   const response = await api.get(API_ENDPOINTS.agreements.getAll);
 
@@ -200,50 +172,50 @@ export const getSignedAgreementCount = async (employeeId) => {
 };
 
 export const viewAgreement = (agreementOrId) =>
-  requestAgreementBlob({
-    label: "View Agreement",
-    agreementOrId,
-    preferredFields: [
-      "pendingEmployeeAgreementId",
-      "employeeAgreementId",
-      "agreementId",
-      "documentId",
-      "agreementCode",
-      "id",
-    ],
-    buildPath: (candidate) => API_ENDPOINTS.agreements.viewAgreement(candidate),
-  });
+requestAgreementBlob({
+  label: "View Agreement",
+  agreementOrId,
+  preferredFields: [
+  "pendingEmployeeAgreementId",
+  "employeeAgreementId",
+  "agreementId",
+  "documentId",
+  "agreementCode",
+  "id"],
+
+  buildPath: (candidate) => API_ENDPOINTS.agreements.viewAgreement(candidate)
+});
 
 export const viewSignedAgreement = (agreementOrId) =>
-  requestAgreementBlob({
-    label: "View Signed Agreement",
-    agreementOrId,
-    preferredFields: [
-      "signedEmployeeAgreementId",
-      "employeeAgreementId",
-      "agreementId",
-      "documentId",
-      "agreementCode",
-      "id",
-    ],
-    buildPath: (candidate) => API_ENDPOINTS.agreements.viewSigned(candidate),
-  });
+requestAgreementBlob({
+  label: "View Signed Agreement",
+  agreementOrId,
+  preferredFields: [
+  "signedEmployeeAgreementId",
+  "employeeAgreementId",
+  "agreementId",
+  "documentId",
+  "agreementCode",
+  "id"],
+
+  buildPath: (candidate) => API_ENDPOINTS.agreements.viewSigned(candidate)
+});
 
 export const downloadSignedAgreement = (agreementOrId) =>
-  requestAgreementBlob({
-    label: "Download Signed Agreement",
-    agreementOrId,
-    preferredFields: [
-      "signedEmployeeAgreementId",
-      "employeeAgreementId",
-      "agreementId",
-      "documentId",
-      "agreementCode",
-      "id",
-    ],
-    buildPath: (candidate) =>
-      API_ENDPOINTS.agreements.downloadSigned(candidate),
-  });
+requestAgreementBlob({
+  label: "Download Signed Agreement",
+  agreementOrId,
+  preferredFields: [
+  "signedEmployeeAgreementId",
+  "employeeAgreementId",
+  "agreementId",
+  "documentId",
+  "agreementCode",
+  "id"],
+
+  buildPath: (candidate) =>
+  API_ENDPOINTS.agreements.downloadSigned(candidate)
+});
 
 export const signAgreement = ({
   employeeId,
@@ -251,13 +223,13 @@ export const signAgreement = ({
   agreementCode,
   signatureName,
   signedLocation,
-  signatureImage,
+  signatureImage
 }) => {
   const formData = new FormData();
   const params = {
     AgreementCode: agreementCode,
     SignatureName: signatureName,
-    SignedLocation: signedLocation,
+    SignedLocation: signedLocation
   };
 
   formData.append("SignatureImage", signatureImage);
@@ -271,8 +243,8 @@ export const signAgreement = ({
   return api.post(API_ENDPOINTS.agreements.sign, formData, {
     params,
     headers: {
-      "Content-Type": "multipart/form-data",
-    },
+      "Content-Type": "multipart/form-data"
+    }
   });
 };
 
@@ -286,14 +258,14 @@ export const getPendingCount = getPendingAgreementCount;
 export const getSignedCount = getSignedAgreementCount;
 
 export const downloadAgreement = (agreementId) =>
-  api.get(API_ENDPOINTS.agreements.download(agreementId), {
-    responseType: "blob",
-    dedupe: false,
-  });
+api.get(API_ENDPOINTS.agreements.download(agreementId), {
+  responseType: "blob",
+  dedupe: false
+});
 
 export const getAgreementFile = async (agreementId) => {
   const response = await api.get(API_ENDPOINTS.agreements.filePath(agreementId), {
-    dedupe: false,
+    dedupe: false
   });
 
   return response.data;

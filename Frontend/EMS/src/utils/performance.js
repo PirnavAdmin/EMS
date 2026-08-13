@@ -4,16 +4,16 @@
 const activeTimers = new Set();
 
 export const isPerformanceLoggingEnabled = () =>
-  import.meta.env.DEV ||
-  import.meta.env.VITE_ENABLE_PERF_LOGS === "true";
+import.meta.env.DEV ||
+import.meta.env.VITE_ENABLE_PERF_LOGS === "true";
 
 // START TIMER
 export const startPerformanceTimer = (label) => {
 
   if (
-    !isPerformanceLoggingEnabled() ||
-    typeof console === "undefined"
-  ) {
+  !isPerformanceLoggingEnabled() ||
+  typeof console === "undefined")
+  {
     return;
   }
 
@@ -24,16 +24,15 @@ export const startPerformanceTimer = (label) => {
 
   activeTimers.add(label);
 
-  console.time(label);
 };
 
 // END TIMER
 export const endPerformanceTimer = (label) => {
 
   if (
-    !isPerformanceLoggingEnabled() ||
-    typeof console === "undefined"
-  ) {
+  !isPerformanceLoggingEnabled() ||
+  typeof console === "undefined")
+  {
     return;
   }
 
@@ -44,31 +43,28 @@ export const endPerformanceTimer = (label) => {
 
   activeTimers.delete(label);
 
-  console.timeEnd(label);
 };
 
 // ERROR LOG
 export const logPerformanceError = (...args) => {
 
   if (
-    !isPerformanceLoggingEnabled() ||
-    typeof console === "undefined"
-  ) {
+  !isPerformanceLoggingEnabled() ||
+  typeof console === "undefined")
+  {
     return;
   }
 
-  console.error(...args);
 };
 
 // WARNING LOG
 export const logPerformanceWarning = (...args) => {
 
   if (
-    !isPerformanceLoggingEnabled() ||
-    typeof console === "undefined"
-  ) {
+  !isPerformanceLoggingEnabled() ||
+  typeof console === "undefined")
+  {
     return;
   }
 
-  console.warn(...args);
 };

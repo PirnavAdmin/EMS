@@ -1,8 +1,8 @@
 import React from "react";
 import DebugErrorPanel from "./DebugErrorPanel";
 import {
-  APPLICATION_ERROR_EVENT,
-} from "../utils/errorReporting";
+  APPLICATION_ERROR_EVENT } from
+"../utils/errorReporting";
 
 const toErrorObject = (value) => {
   if (!value) {
@@ -26,10 +26,10 @@ const toErrorObject = (value) => {
 };
 
 const extractStackLocation = (stack = "") => {
-  const lines = String(stack || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = String(stack || "").
+  split("\n").
+  map((line) => line.trim()).
+  filter(Boolean);
 
   for (const line of lines) {
     const parenMatch = line.match(/\((.*):(\d+):(\d+)\)$/);
@@ -37,7 +37,7 @@ const extractStackLocation = (stack = "") => {
       return {
         sourceFile: parenMatch[1],
         lineNumber: Number(parenMatch[2]),
-        columnNumber: Number(parenMatch[3]),
+        columnNumber: Number(parenMatch[3])
       };
     }
 
@@ -46,7 +46,7 @@ const extractStackLocation = (stack = "") => {
       return {
         sourceFile: directMatch[1].replace(/^at\s+/, ""),
         lineNumber: Number(directMatch[2]),
-        columnNumber: Number(directMatch[3]),
+        columnNumber: Number(directMatch[3])
       };
     }
   }
@@ -57,7 +57,7 @@ const extractStackLocation = (stack = "") => {
 const formatLocation = ({
   sourceFile = "",
   lineNumber = "",
-  columnNumber = "",
+  columnNumber = ""
 } = {}) => {
   const file = String(sourceFile || "").trim();
 
@@ -78,7 +78,7 @@ const buildErrorDetails = ({
   filename = "",
   lineNumber = "",
   columnNumber = "",
-  meta = {},
+  meta = {}
 }) => {
   const stackLocation = extractStackLocation(
     error?.stack || componentStack || ""
@@ -97,26 +97,12 @@ const buildErrorDetails = ({
     sourceLocation: formatLocation({
       sourceFile,
       lineNumber: resolvedLineNumber,
-      columnNumber: resolvedColumnNumber,
-    }),
+      columnNumber: resolvedColumnNumber
+    })
   };
 };
 
-const logBoundaryError = (label, error, extra = {}) => {
-  console.groupCollapsed(label);
-  console.error(error);
-
-  if (Object.keys(extra).length > 0) {
-    console.error("Details:", extra);
-  }
-
-  if (error?.stack) {
-    console.error(error.stack);
-  }
-
-  console.trace();
-  console.groupEnd();
-};
+const logBoundaryError = () => {};
 
 class AppErrorBoundary extends React.Component {
   state = {
@@ -124,7 +110,7 @@ class AppErrorBoundary extends React.Component {
     componentStack: "",
     details: {},
     title: "Application Error",
-    message: "",
+    message: ""
   };
 
   componentDidMount() {
@@ -159,19 +145,19 @@ class AppErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     const componentStack = errorInfo?.componentStack || error.stack || "";
     const routeName =
-      typeof window !== "undefined" ? window.location.pathname : "";
+    typeof window !== "undefined" ? window.location.pathname : "";
     const currentUrl =
-      typeof window !== "undefined" ? window.location.href : "";
+    typeof window !== "undefined" ? window.location.href : "";
     const details = buildErrorDetails({
       error,
       componentStack,
       routeName,
-      currentUrl,
+      currentUrl
     });
 
     logBoundaryError("React Error:", error, {
       ...details,
-      componentStack,
+      componentStack
     });
 
     this.setState({
@@ -179,7 +165,7 @@ class AppErrorBoundary extends React.Component {
       componentStack,
       details,
       title: "JavaScript Error",
-      message: error.message || "A runtime error occurred.",
+      message: error.message || "A runtime error occurred."
     });
   }
 
@@ -188,22 +174,22 @@ class AppErrorBoundary extends React.Component {
     const error = toErrorObject(detail.error) || new Error(detail.message);
     const componentStack = detail.componentStack || error.stack || "";
     const routeName =
-      detail.meta?.routeName ||
-      (typeof window !== "undefined" ? window.location.pathname : "");
+    detail.meta?.routeName || (
+    typeof window !== "undefined" ? window.location.pathname : "");
     const currentUrl =
-      detail.meta?.currentUrl ||
-      (typeof window !== "undefined" ? window.location.href : "");
+    detail.meta?.currentUrl || (
+    typeof window !== "undefined" ? window.location.href : "");
     const details = buildErrorDetails({
       error,
       componentStack,
       routeName,
       currentUrl,
-      meta: detail.meta || {},
+      meta: detail.meta || {}
     });
 
     logBoundaryError("Application Error:", error, {
       ...details,
-      componentStack,
+      componentStack
     });
 
     this.setState({
@@ -211,7 +197,7 @@ class AppErrorBoundary extends React.Component {
       componentStack,
       details,
       title: detail.title || "Application Error",
-      message: detail.message || error.message,
+      message: detail.message || error.message
     });
   };
 
@@ -229,7 +215,7 @@ class AppErrorBoundary extends React.Component {
       currentUrl: typeof window !== "undefined" ? window.location.href : "",
       filename: event?.filename || "",
       lineNumber: event?.lineno || "",
-      columnNumber: event?.colno || "",
+      columnNumber: event?.colno || ""
     });
 
     logBoundaryError("JavaScript Error:", error, {
@@ -237,7 +223,7 @@ class AppErrorBoundary extends React.Component {
       filename: event?.filename || "",
       lineno: event?.lineno || "",
       colno: event?.colno || "",
-      ...details,
+      ...details
     });
 
     this.setState({
@@ -245,7 +231,7 @@ class AppErrorBoundary extends React.Component {
       componentStack,
       details,
       title: "JavaScript Error",
-      message: error.message,
+      message: error.message
     });
   };
 
@@ -256,19 +242,19 @@ class AppErrorBoundary extends React.Component {
 
     const reason = event?.reason;
     const error =
-      toErrorObject(reason) ||
-      new Error(typeof reason === "string" ? reason : "Unhandled promise rejection");
+    toErrorObject(reason) ||
+    new Error(typeof reason === "string" ? reason : "Unhandled promise rejection");
     const componentStack = error.stack || "";
     const details = buildErrorDetails({
       error,
       componentStack,
       routeName: typeof window !== "undefined" ? window.location.pathname : "",
-      currentUrl: typeof window !== "undefined" ? window.location.href : "",
+      currentUrl: typeof window !== "undefined" ? window.location.href : ""
     });
 
     logBoundaryError("Promise Rejection:", error, {
       reason: typeof reason === "string" ? reason : "",
-      ...details,
+      ...details
     });
 
     this.setState({
@@ -276,7 +262,7 @@ class AppErrorBoundary extends React.Component {
       componentStack,
       details,
       title: "Promise Rejection",
-      message: error.message,
+      message: error.message
     });
   };
 
@@ -286,7 +272,7 @@ class AppErrorBoundary extends React.Component {
       componentStack: "",
       details: {},
       title: "Application Error",
-      message: "",
+      message: ""
     });
   };
 
@@ -299,9 +285,8 @@ class AppErrorBoundary extends React.Component {
           error={this.state.error}
           componentStack={this.state.componentStack}
           details={this.state.details}
-          onRetry={this.handleReset}
-        />
-      );
+          onRetry={this.handleReset} />);
+
     }
 
     return this.props.children;

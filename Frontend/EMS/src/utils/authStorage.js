@@ -8,6 +8,7 @@ const AUTH_KEYS = [
   "loginTime",
   "role",
   "roleName",
+  "loginType",
   "roles",
   "roleId",
   "userType",
@@ -43,6 +44,10 @@ const AUTH_KEYS = [
   "permissions",
   "adminPermissions",
   "employeePermissions",
+  "rolePermissions",
+  "roleAllowedModules",
+  "roleModules",
+  "rolePermissionModules",
   "employeeAllowedModules",
   "employeeModules",
   "employeePermissionModules",
@@ -80,9 +85,6 @@ const ROLE_ALIASES = new Map([
   ["superadministrator", "superadmin"],
   ["admin", "admin"],
   ["administrator", "admin"],
-  ["employee", "employee"],
-  ["user", "employee"],
-  ["manager", "employee"],
   ["onboarding", "onboarding"],
   ["candidate", "onboarding"],
 ]);
@@ -95,6 +97,28 @@ const normalizeStoredRole = (value) => {
   }
 
   return ROLE_ALIASES.get(normalizedRole) || normalizedRole;
+};
+
+const normalizeLoginTypeValue = (value) => {
+  const normalizedValue = normalizeRoleValue(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (["superadmin", "superadministrator"].includes(normalizedValue)) {
+    return "super-admin";
+  }
+
+  if (["admin", "administrator"].includes(normalizedValue)) {
+    return "admin";
+  }
+
+  if (["onboarding", "candidate"].includes(normalizedValue)) {
+    return "onboarding";
+  }
+
+  return "user";
 };
 
 const EMPLOYEE_ID_KEYS = [
@@ -874,6 +898,14 @@ const EMPLOYEE_PERMISSION_STORAGE_KEYS = [
   "employeePermissionModules",
 ];
 
+const ROLE_PERMISSION_STORAGE_KEYS = [
+  "rolePermissions",
+  "roleAllowedModules",
+  "roleModules",
+  "rolePermissionModules",
+  "permissions",
+];
+
 const GENERIC_PERMISSION_STORAGE_KEYS = [
   "permissions",
   "modules",
@@ -882,21 +914,32 @@ const GENERIC_PERMISSION_STORAGE_KEYS = [
 
 const getPermissionScopeForRole = (roleValue = "") => {
   const normalizedRole = normalizeStoredRole(roleValue);
+  const normalizedLoginType = normalizeLoginTypeValue(
+    getStoredAuthValue("loginType") ||
+      getStoredAuthValue("userType") ||
+      getStoredAuthValue("accountType") ||
+      getStoredAuthValue("type") ||
+      ""
+  );
 
-  if (["admin", "superadmin"].includes(normalizedRole)) {
+  if (["admin", "super-admin"].includes(normalizedLoginType)) {
     return "admin";
   }
 
-  if (["employee", "user"].includes(normalizedRole)) {
-    return "employee";
+  if (normalizedLoginType === "user") {
+    return "role";
+  }
+
+  if (normalizedRole) {
+    return "role";
   }
 
   return "";
 };
 
 const getPermissionStorageKeysForScope = (scope = "") => {
-  if (scope === "employee") {
-    return EMPLOYEE_PERMISSION_STORAGE_KEYS;
+  if (scope === "role") {
+    return ROLE_PERMISSION_STORAGE_KEYS;
   }
 
   return ADMIN_PERMISSION_STORAGE_KEYS;
@@ -1040,6 +1083,48 @@ const extractStoredEmployeePermissionSnapshot = (value) => {
   };
 };
 
+const extractStoredRolePermissionSnapshot = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return {
+      roleId: "",
+      roleName: "",
+      modules: value,
+    };
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const modules = extractStoredPermissionList(value) || [];
+
+  return {
+    roleId: pickFirstNonEmptyValue(
+      value.roleId,
+      value.RoleId,
+      value.roleID,
+      value.data?.roleId,
+      value.data?.RoleId,
+      value.data?.roleID
+    ),
+    roleName: pickFirstNonEmptyValue(
+      value.roleName,
+      value.RoleName,
+      value.name,
+      value.Name,
+      value.data?.roleName,
+      value.data?.RoleName,
+      value.data?.name,
+      value.data?.Name
+    ),
+    modules,
+  };
+};
+
 const readStoredPermissionSnapshot = (storageKeys, extractor) => {
   const storage = getActiveAuthStorage();
   const otherStorage = storage === sessionStorage ? localStorage : sessionStorage;
@@ -1094,6 +1179,13 @@ export const getStoredEmployeePermissionSnapshot = () => {
   return readStoredPermissionSnapshotWithFallback(
     EMPLOYEE_PERMISSION_STORAGE_KEYS,
     extractStoredEmployeePermissionSnapshot
+  );
+};
+
+export const getStoredRolePermissionSnapshot = () => {
+  return readStoredPermissionSnapshotWithFallback(
+    ROLE_PERMISSION_STORAGE_KEYS,
+    extractStoredRolePermissionSnapshot
   );
 };
 
@@ -1180,6 +1272,37 @@ export const persistEmployeePermissions = (snapshot = {}) => {
   return normalizedSnapshot;
 };
 
+export const persistRolePermissions = (snapshot = {}) => {
+  const normalizedSnapshot = extractStoredRolePermissionSnapshot(snapshot) || {
+    roleId: "",
+    roleName: "",
+    modules: [],
+  };
+
+  const serializedSnapshot = JSON.stringify(normalizedSnapshot);
+  const serializedModules = JSON.stringify(
+    Array.isArray(normalizedSnapshot.modules) ? normalizedSnapshot.modules : []
+  );
+
+  getStorageTargets().forEach((storage) => {
+    storage.setItem("rolePermissions", serializedSnapshot);
+    storage.setItem("roleAllowedModules", serializedModules);
+    storage.setItem("roleModules", serializedModules);
+    storage.setItem("rolePermissionModules", serializedModules);
+    storage.setItem("permissions", serializedModules);
+
+    if (normalizedSnapshot.roleId) {
+      storage.setItem("roleId", normalizedSnapshot.roleId);
+    }
+
+    if (normalizedSnapshot.roleName) {
+      storage.setItem("roleName", normalizedSnapshot.roleName);
+    }
+  });
+
+  return normalizedSnapshot;
+};
+
 export const clearEmployeePermissionCache = () => {
   if (typeof window === "undefined") {
     return;
@@ -1196,6 +1319,23 @@ export const clearEmployeePermissionCache = () => {
     storage.removeItem("userEmail");
     storage.removeItem("employeeId");
     storage.removeItem("employeeEmail");
+  });
+};
+
+export const clearRolePermissionCache = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const storages = [window.localStorage, window.sessionStorage].filter(Boolean);
+
+  storages.forEach((storage) => {
+    ROLE_PERMISSION_STORAGE_KEYS.forEach((key) => {
+      storage.removeItem(key);
+    });
+
+    storage.removeItem("roleId");
+    storage.removeItem("roleName");
   });
 };
 
@@ -1230,6 +1370,7 @@ export const getAuthenticatedUserSnapshot = () => {
   const adminEmail = getStoredAdminEmail();
   const superAdminId = getStoredAuthValue("superAdminId");
   const userId = getStoredUserId();
+  const loginType = getStoredLoginType();
 
   const resolvedRole = normalizeStoredRole(
     storedRole ||
@@ -1254,6 +1395,7 @@ export const getAuthenticatedUserSnapshot = () => {
       null,
     role: resolvedRole,
     roleName: storedRoleName || getStoredRoles()[0] || resolvedRole || "",
+    loginType,
     roles: getStoredRoles(),
     id: userId || adminId || superAdminId || "",
     adminId,
@@ -1370,6 +1512,17 @@ export const getStoredRoleName = () =>
     getStoredAuthValue("role")
   );
 
+export const getStoredLoginType = () =>
+  normalizeLoginTypeValue(
+    getStoredAuthValue("loginType") ||
+      getStoredAuthValue("userType") ||
+      getStoredAuthValue("accountType") ||
+      getStoredAuthValue("type") ||
+      getStoredJwtRole() ||
+      getStoredRole() ||
+      getStoredRoleName()
+  );
+
 export const getStoredPermissions = (roleHint = "") => {
   const resolvedRole =
     roleHint ||
@@ -1377,76 +1530,23 @@ export const getStoredPermissions = (roleHint = "") => {
     getStoredRoleName() ||
     getStoredJwtRole() ||
     "";
-  const storage = getActiveAuthStorage();
-  const otherStorage = storage === sessionStorage ? localStorage : sessionStorage;
-  const storages = [storage, otherStorage].filter(Boolean);
   const storageScope = getPermissionScopeForRole(resolvedRole);
   const storageKeys = storageScope
     ? getPermissionStorageKeysForScope(storageScope)
-    : ADMIN_PERMISSION_STORAGE_KEYS;
-
-  console.log("[authStorage] getStoredPermissions", {
-    roleHint,
-    resolvedRole,
-    storageScope: storageScope || "unscoped",
-    storageKeys,
-  });
-  const scopedPermissions = readStoredPermissionsFromKeys(storageKeys);
+    : [];
+  const scopedPermissions = storageKeys.length > 0
+    ? readStoredPermissionsFromKeys(storageKeys)
+    : [];
 
   if (scopedPermissions.length > 0) {
-    console.log("[authStorage] getStoredPermissions resolved scoped permissions", {
-      resolvedRole,
-      storageScope: storageScope || "unscoped",
-      permissionCount: scopedPermissions.length,
-    });
     return scopedPermissions;
   }
 
-  const fallbackPermissions = readStoredPermissionsFromKeys(GENERIC_PERMISSION_STORAGE_KEYS);
+  if (storageScope === "role") {
+    const legacyPermissions = readStoredPermissionsFromKeys(EMPLOYEE_PERMISSION_STORAGE_KEYS);
 
-  if (fallbackPermissions.length > 0) {
-    console.log("[authStorage] getStoredPermissions resolved generic permissions", {
-      resolvedRole,
-      permissionCount: fallbackPermissions.length,
-    });
-    return fallbackPermissions;
-  }
-
-  if (!storageScope) {
-    const fallbackScopes = ["admin", "employee"];
-
-    console.log("[authStorage] getStoredPermissions entering fallback scope search", {
-      resolvedRole,
-      fallbackScopes,
-    });
-
-    for (const fallbackScope of fallbackScopes) {
-      const fallbackKeys = getPermissionStorageKeysForScope(fallbackScope);
-
-      for (const store of storages) {
-        if (!store) {
-          continue;
-        }
-
-        for (const key of fallbackKeys) {
-          const storedValue = store.getItem(key);
-
-          if (storedValue === null) {
-            continue;
-          }
-
-          try {
-            const parsedValue = JSON.parse(storedValue);
-            const permissions = extractStoredPermissionList(parsedValue);
-
-            if (Array.isArray(permissions)) {
-              return permissions;
-            }
-          } catch {
-            // Keep looking in the next storage/key pair.
-          }
-        }
-      }
+    if (legacyPermissions.length > 0) {
+      return legacyPermissions;
     }
   }
 
@@ -1461,14 +1561,13 @@ export const hasStoredPermissionsCache = (roleHint = "") => {
   );
   const storageKeys = storageScope
     ? getPermissionStorageKeysForScope(storageScope)
-    : ADMIN_PERMISSION_STORAGE_KEYS;
+    : [];
 
   return (
-    hasPermissionCacheKey(storage, storageKeys) ||
-    hasPermissionCacheKey(otherStorage, storageKeys) ||
-    hasPermissionCacheKey(storage, GENERIC_PERMISSION_STORAGE_KEYS) ||
-    hasPermissionCacheKey(otherStorage, GENERIC_PERMISSION_STORAGE_KEYS) ||
-    (!storageScope &&
+    (storageKeys.length > 0 &&
+      (hasPermissionCacheKey(storage, storageKeys) ||
+        hasPermissionCacheKey(otherStorage, storageKeys))) ||
+    (storageScope === "role" &&
       (hasPermissionCacheKey(storage, EMPLOYEE_PERMISSION_STORAGE_KEYS) ||
         hasPermissionCacheKey(otherStorage, EMPLOYEE_PERMISSION_STORAGE_KEYS)))
   );

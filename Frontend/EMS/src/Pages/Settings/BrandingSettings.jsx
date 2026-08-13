@@ -3,8 +3,8 @@ import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import {
   fetchBrandingLogos,
-  notifyBrandingLogoUpdated,
-} from "../../utils/brandingLogo";
+  notifyBrandingLogoUpdated } from
+"../../utils/brandingLogo";
 
 export default function BrandingSettings() {
   const [companyLogo, setCompanyLogo] = useState("");
@@ -87,8 +87,8 @@ export default function BrandingSettings() {
 
       await api.post(API_ENDPOINTS.settings.brandingUpload, formData, {
         headers: {
-          "Content-Type": "multipart/form-data",
-        },
+          "Content-Type": "multipart/form-data"
+        }
       });
 
       const refreshedCompanyLogo = await refreshCompanyLogo();
@@ -107,8 +107,6 @@ export default function BrandingSettings() {
 
       alert("Logo uploaded successfully.");
     } catch (error) {
-      console.error("Logo upload failed:", error);
-      console.error("Response:", error?.response?.data);
 
       alert(error?.response?.data?.message || "Failed to upload logo.");
     } finally {
@@ -134,77 +132,77 @@ export default function BrandingSettings() {
           border: "1px solid #d9eeee",
           borderRadius: "12px",
           padding: "30px",
-          maxWidth: "600px",
-        }}
-      >
+          maxWidth: "600px"
+        }}>
+        
         <h3 style={{ marginBottom: "15px" }}>Company Logo</h3>
 
-        {displayLogoSrc && !imageLoadError ? (
-          <div
-            style={{
-              marginBottom: "25px",
-              padding: "20px",
-              border: "1px solid #e5eeee",
-              borderRadius: "10px",
-              textAlign: "center",
-            }}
-          >
+        {displayLogoSrc && !imageLoadError ?
+        <div
+          style={{
+            marginBottom: "25px",
+            padding: "20px",
+            border: "1px solid #e5eeee",
+            borderRadius: "10px",
+            textAlign: "center"
+          }}>
+          
             <img
-              src={displayLogoSrc}
-              alt="Company Logo"
-              onError={() => setImageLoadError(true)}
-              style={{
-                maxWidth: "300px",
-                maxHeight: "150px",
-                objectFit: "contain",
-              }}
-            />
-          </div>
-        ) : brandingLoaded ? (
-          <div
+            src={displayLogoSrc}
+            alt="Company Logo"
+            onError={() => setImageLoadError(true)}
             style={{
-              marginBottom: "25px",
-              padding: "20px",
-              border: "1px dashed #d9eeee",
-              borderRadius: "10px",
-              textAlign: "center",
-              color: "#6b7f86",
-            }}
-          >
+              maxWidth: "300px",
+              maxHeight: "150px",
+              objectFit: "contain"
+            }} />
+          
+          </div> :
+        brandingLoaded ?
+        <div
+          style={{
+            marginBottom: "25px",
+            padding: "20px",
+            border: "1px dashed #d9eeee",
+            borderRadius: "10px",
+            textAlign: "center",
+            color: "#6b7f86"
+          }}>
+          
             No branding logo uploaded yet.
-          </div>
-        ) : (
-          <div
-            style={{
-              marginBottom: "25px",
-              padding: "20px",
-              border: "1px dashed #d9eeee",
-              borderRadius: "10px",
-              textAlign: "center",
-              color: "#6b7f86",
-              minHeight: "190px",
-            }}
-          />
-        )}
+          </div> :
+
+        <div
+          style={{
+            marginBottom: "25px",
+            padding: "20px",
+            border: "1px dashed #d9eeee",
+            borderRadius: "10px",
+            textAlign: "center",
+            color: "#6b7f86",
+            minHeight: "190px"
+          }} />
+
+        }
 
         <input
           ref={fileInputRef}
           type="file"
           accept=".png,.jpg,.jpeg,.webp,.svg"
-          onChange={handleFileChange}
-        />
+          onChange={handleFileChange} />
+        
 
         <div style={{ marginTop: "20px" }}>
           <button
             type="button"
             className="app-button-primary"
             onClick={handleUpload}
-            disabled={uploading}
-          >
+            disabled={uploading}>
+            
             {uploading ? "Uploading..." : "Upload Logo"}
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }

@@ -10,80 +10,79 @@ import {
   buildAdminPermissionSavePayload,
   fetchAdminPermissionsByAdminId,
   getAdminPermissionErrorMessage,
-  saveAdminPermissions,
-} from "../services/adminPermissionService";
+  saveAdminPermissions } from
+"../services/adminPermissionService";
 import {
   getAdmins,
-  getApiErrorMessage,
-} from "../services/superAdminService";
+  getApiErrorMessage } from
+"../services/superAdminService";
 import { getStoredToken } from "../utils/authStorage";
 
 const ACTIONS = [
-  { key: "canView", label: "View" },
-  { key: "canAdd", label: "Add" },
-  { key: "canEdit", label: "Edit" },
-  { key: "canDelete", label: "Delete" },
-];
+{ key: "canView", label: "View" },
+{ key: "canAdd", label: "Add" },
+{ key: "canEdit", label: "Edit" },
+{ key: "canDelete", label: "Delete" }];
 
 const normalizeId = (value) => String(value ?? "").trim();
 
 const sortPermissions = (permissions = []) =>
-  [...permissions]
-    .filter((permission) => permission?.moduleName)
-    .sort((left, right) => Number(left.moduleId || 0) - Number(right.moduleId || 0));
+[...permissions].
+filter((permission) => permission?.moduleName).
+sort((left, right) => Number(left.moduleId || 0) - Number(right.moduleId || 0));
 
 const calculateFullAccess = (permission = {}) =>
-  Boolean(
-    permission.canView &&
-      permission.canAdd &&
-      permission.canEdit &&
-      permission.canDelete
-  );
+Boolean(
+  permission.canView &&
+  permission.canAdd &&
+  permission.canEdit &&
+  permission.canDelete
+);
 
 const normalizeAdminPermissionRow = (permission = {}) => {
   const normalizedPermission = {
     ...permission,
     moduleId: normalizeId(
       permission.moduleId ??
-        permission.ModuleId ??
-        permission.screenId ??
-        permission.ScreenId ??
-        permission.permissionId ??
-        permission.PermissionId ??
-        permission.moduleName ??
-        ""
+      permission.ModuleId ??
+      permission.screenId ??
+      permission.ScreenId ??
+      permission.permissionId ??
+      permission.PermissionId ??
+      permission.moduleName ??
+      ""
     ),
     moduleName: normalizeId(permission.moduleName ?? permission.ModuleName ?? ""),
     canView: Boolean(permission.canView ?? permission.CanView ?? false),
     canAdd: Boolean(permission.canAdd ?? permission.CanAdd ?? false),
     canEdit: Boolean(permission.canEdit ?? permission.CanEdit ?? false),
-    canDelete: Boolean(permission.canDelete ?? permission.CanDelete ?? false),
+    canDelete: Boolean(permission.canDelete ?? permission.CanDelete ?? false)
   };
 
   return {
     ...normalizedPermission,
-    canAccess: calculateFullAccess(normalizedPermission),
+    canAccess: calculateFullAccess(normalizedPermission)
   };
 };
 
 const isAuthFailure = (error) =>
-  [401, 403].includes(Number(error?.response?.status)) ||
-  error?.code === "ERR_CANCELED";
+[401, 403].includes(Number(error?.response?.status)) ||
+error?.code === "ERR_CANCELED";
 
 const permissionKeyLabel = (key) =>
-  ACTIONS.find((action) => action.key === key)?.label || key;
+ACTIONS.find((action) => action.key === key)?.label || key;
 
 const normalizeModuleId = (permission) =>
-  normalizeId(
-    permission?.moduleId ?? 
-      permission?.ModuleId ??
-      permission?.screenId ??
-      permission?.ScreenId ??
-      permission?.permissionId ??
-      permission?.PermissionId ??
-      permission?.moduleName ?? 
-      ""
-  );
+normalizeId(
+  permission?.moduleId ??
+  permission?.ModuleId ??
+  permission?.screenId ??
+  permission?.ScreenId ??
+  permission?.permissionId ??
+  permission?.PermissionId ??
+  permission?.moduleName ??
+  ""
+);
 
 function SuperAdminPermissions() {
   const location = useLocation();
@@ -105,12 +104,12 @@ function SuperAdminPermissions() {
   }, [permissions]);
 
   useEffect(() => {
-    console.log("Final mapped React state", permissions);
+
   }, [permissions]);
 
   const selectedAdmin = useMemo(
     () =>
-      admins.find((admin) => normalizeId(admin.adminId) === selectedAdminId) || null,
+    admins.find((admin) => normalizeId(admin.adminId) === selectedAdminId) || null,
     [admins, selectedAdminId]
   );
 
@@ -135,7 +134,7 @@ function SuperAdminPermissions() {
   const isBusy = loading || saving;
   const selectedAdminExists = Boolean(
     selectedAdminId &&
-      admins.some((admin) => normalizeId(admin.adminId) === selectedAdminId)
+    admins.some((admin) => normalizeId(admin.adminId) === selectedAdminId)
   );
 
   const loadPermissionsForAdmin = async (adminId, { showLoading = true } = {}) => {
@@ -153,7 +152,6 @@ function SuperAdminPermissions() {
     }
 
     setError("");
-    console.log("Selected Admin:", normalizedAdminId);
 
     try {
       const snapshot = await fetchAdminPermissionsByAdminId(normalizedAdminId);
@@ -162,8 +160,6 @@ function SuperAdminPermissions() {
         return snapshot.permissions || [];
       }
 
-      console.log("Reloaded API response", snapshot);
-
       const mappedPermissions = sortPermissions(
         (Array.isArray(snapshot.permissions) ? snapshot.permissions : []).map(
           (permission) => normalizeAdminPermissionRow(permission)
@@ -171,7 +167,6 @@ function SuperAdminPermissions() {
       );
 
       setPermissions(mappedPermissions);
-      console.log("Final mapped React state", mappedPermissions);
 
       return mappedPermissions;
     } catch (requestError) {
@@ -183,7 +178,6 @@ function SuperAdminPermissions() {
         return [];
       }
 
-      console.error("Permission API Error:", requestError);
       setError("Unable to load permissions.");
       toastError("Unable to load permissions.");
 
@@ -213,9 +207,9 @@ function SuperAdminPermissions() {
         setAdmins(normalizedAdmins);
 
         const initialAdminId =
-          queryAdminId ||
-          selectedAdminId ||
-          normalizeId(normalizedAdmins[0]?.adminId || "");
+        queryAdminId ||
+        selectedAdminId ||
+        normalizeId(normalizedAdmins[0]?.adminId || "");
 
         if (initialAdminId && initialAdminId !== selectedAdminId) {
           setSelectedAdminId(initialAdminId);
@@ -223,7 +217,7 @@ function SuperAdminPermissions() {
 
         if (initialAdminId) {
           await loadPermissionsForAdmin(initialAdminId, {
-            showLoading: false,
+            showLoading: false
           });
         } else {
           setPermissions([]);
@@ -237,7 +231,6 @@ function SuperAdminPermissions() {
           return;
         }
 
-        console.error("Permission API Error:", requestError);
         const message = getApiErrorMessage(requestError, "Unable to load admins.");
         setError(message);
         toastError(message);
@@ -287,30 +280,26 @@ function SuperAdminPermissions() {
     }
 
     setPermissions((current) =>
-      sortPermissions(
-        current.map((permission) => {
-          const currentModuleId = normalizeId(normalizeModuleId(permission));
+    sortPermissions(
+      current.map((permission) => {
+        const currentModuleId = normalizeId(normalizeModuleId(permission));
 
-          if (currentModuleId !== normalizedModuleId) {
-            return permission;
-          }
+        if (currentModuleId !== normalizedModuleId) {
+          return permission;
+        }
 
-          const currentPermission = normalizeAdminPermissionRow(permission);
-          const nextPermission = normalizeAdminPermissionRow({
-            ...currentPermission,
-            canView: enabled,
-            canAdd: enabled,
-            canEdit: enabled,
-            canDelete: enabled,
-          });
+        const currentPermission = normalizeAdminPermissionRow(permission);
+        const nextPermission = normalizeAdminPermissionRow({
+          ...currentPermission,
+          canView: enabled,
+          canAdd: enabled,
+          canEdit: enabled,
+          canDelete: enabled
+        });
 
-          console.log("Previous row state", currentPermission);
-          console.log("Updated row state", nextPermission);
-          console.log("Full Access toggle state", nextPermission.canAccess);
-
-          return nextPermission;
-        })
-      )
+        return nextPermission;
+      })
+    )
     );
   };
 
@@ -323,27 +312,23 @@ function SuperAdminPermissions() {
     }
 
     setPermissions((current) =>
-      sortPermissions(
-        current.map((permission) => {
-          const currentModuleId = normalizeId(normalizeModuleId(permission));
+    sortPermissions(
+      current.map((permission) => {
+        const currentModuleId = normalizeId(normalizeModuleId(permission));
 
-          if (currentModuleId !== normalizedModuleId) {
-            return permission;
-          }
+        if (currentModuleId !== normalizedModuleId) {
+          return permission;
+        }
 
-          const currentPermission = normalizeAdminPermissionRow(permission);
-          const nextPermission = normalizeAdminPermissionRow({
-            ...currentPermission,
-            [field]: Boolean(value),
-          });
+        const currentPermission = normalizeAdminPermissionRow(permission);
+        const nextPermission = normalizeAdminPermissionRow({
+          ...currentPermission,
+          [field]: Boolean(value)
+        });
 
-          console.log("Previous row state", currentPermission);
-          console.log("Updated row state", nextPermission);
-          console.log("Full Access toggle state", nextPermission.canAccess);
-
-          return nextPermission;
-        })
-      )
+        return nextPermission;
+      })
+    )
     );
   };
 
@@ -357,7 +342,7 @@ function SuperAdminPermissions() {
 
     try {
       const currentPermissions = sortPermissions(permissionsRef.current).map((permission) =>
-        normalizeAdminPermissionRow(permission)
+      normalizeAdminPermissionRow(permission)
       );
       const token = getStoredToken();
 
@@ -370,30 +355,17 @@ function SuperAdminPermissions() {
 
       const payload = buildAdminPermissionSavePayload({
         adminId: selectedAdminId,
-        permissions: currentPermissions,
+        permissions: currentPermissions
       });
-
-      console.log("Selected Admin:", selectedAdminId);
-      console.log("Final save payload", payload);
-      console.log("JWT");
-      console.log(token);
-      console.log("Permissions");
-      console.log(currentPermissions);
 
       await saveAdminPermissions({
         adminId: selectedAdminId,
-        permissions: currentPermissions,
+        permissions: currentPermissions
       });
 
       toastSuccess("Permissions saved successfully.");
       await loadPermissionsForAdmin(selectedAdminId);
     } catch (requestError) {
-      console.error("Save Permission Error");
-      console.error(requestError);
-      console.error(requestError?.response);
-      console.error(requestError?.response?.status);
-      console.error(requestError?.response?.data);
-      console.error(requestError?.response?.headers);
 
       const message = getAdminPermissionErrorMessage(
         requestError,
@@ -422,16 +394,16 @@ function SuperAdminPermissions() {
             className="emp-download-btn"
             type="button"
             onClick={handleRefresh}
-            disabled={isBusy || !selectedAdminId}
-          >
+            disabled={isBusy || !selectedAdminId}>
+            
             <FaRedo /> Refresh
           </button>
           <button
             className="emp-add-btn"
             type="button"
             onClick={handleSave}
-            disabled={isBusy || !selectedAdminId}
-          >
+            disabled={isBusy || !selectedAdminId}>
+            
             <FaSave /> Save Permissions
           </button>
         </div>
@@ -446,12 +418,12 @@ function SuperAdminPermissions() {
             className="emp-filter-select"
             value={selectedAdminId}
             onChange={handleAdminChange}
-            disabled={isBusy || admins.length === 0}
-          >
+            disabled={isBusy || admins.length === 0}>
+            
             <option value="">{admins.length > 0 ? "Select Admin" : "No admins available"}</option>
-            {selectedAdminId && !selectedAdminExists ? (
-              <option value={selectedAdminId}>{selectedAdminLabel}</option>
-            ) : null}
+            {selectedAdminId && !selectedAdminExists ?
+            <option value={selectedAdminId}>{selectedAdminLabel}</option> :
+            null}
             {admins.map((admin) => {
               const adminId = normalizeId(admin.adminId);
               const label = admin.name || admin.email || `Admin ${adminId}`;
@@ -460,118 +432,118 @@ function SuperAdminPermissions() {
                 <option key={adminId || label} value={adminId}>
                   {label}
                   {admin.email ? ` (${admin.email})` : ""}
-                </option>
-              );
+                </option>);
+
             })}
           </select>
         </label>
       </div>
 
-      {loading ? (
-        <div style={{ marginBottom: 16, color: "var(--text-secondary)" }}>
+      {loading ?
+      <div style={{ marginBottom: 16, color: "var(--text-secondary)" }}>
           Loading permissions...
-        </div>
-      ) : null}
+        </div> :
+      null}
 
-      {error ? (
-        <div
-          className="sidebar-status-panel sidebar-status-error"
-          style={{ marginBottom: 20 }}
-        >
+      {error ?
+      <div
+        className="sidebar-status-panel sidebar-status-error"
+        style={{ marginBottom: 20 }}>
+        
           <div className="sidebar-status-copy">
             <div>
               <div className="sidebar-status-title">Permissions unavailable</div>
               <div className="sidebar-status-text">{error}</div>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div> :
+      null}
 
       <div className="emp-table-container">
-        {loading && !hasPermissions ? (
-          <TableSkeleton rows={8} columns={6} />
-        ) : (
-          <table className="emp-table super-admin-table--compact">
+        {loading && !hasPermissions ?
+        <TableSkeleton rows={8} columns={6} /> :
+
+        <table className="emp-table super-admin-table--compact">
             <thead>
               <tr>
                 <th>Module</th>
-                {ACTIONS.map((action) => (
-                  <th key={action.key}>{action.label}</th>
-                ))}
+                {ACTIONS.map((action) =>
+              <th key={action.key}>{action.label}</th>
+              )}
                 <th>Full Access</th>
               </tr>
             </thead>
             <tbody>
-              {hasPermissions ? (
-                permissionRows.map((permission, rowIndex) => (
-                  <tr key={normalizeModuleId(permission) || rowIndex}>
+              {hasPermissions ?
+            permissionRows.map((permission, rowIndex) =>
+            <tr key={normalizeModuleId(permission) || rowIndex}>
                     <td>{permission.moduleName}</td>
-                    {ACTIONS.map((action) => (
-                      <td key={action.key}>
+                    {ACTIONS.map((action) =>
+              <td key={action.key}>
                         <input
-                          type="checkbox"
-                          className="permission-checkbox"
-                          checked={Boolean(permission[action.key])}
-                          disabled={isBusy}
-                          onChange={(event) =>
-                            handlePermissionChange(
-                              normalizeModuleId(permission),
-                              action.key,
-                              event.target.checked
-                            )
-                          }
-                          aria-label={`${permission.moduleName} ${permissionKeyLabel(action.key)}`}
-                        />
+                  type="checkbox"
+                  className="permission-checkbox"
+                  checked={Boolean(permission[action.key])}
+                  disabled={isBusy}
+                  onChange={(event) =>
+                  handlePermissionChange(
+                    normalizeModuleId(permission),
+                    action.key,
+                    event.target.checked
+                  )
+                  }
+                  aria-label={`${permission.moduleName} ${permissionKeyLabel(action.key)}`} />
+                
                       </td>
-                    ))}
+              )}
                     <td className="permission-access-col">
                       <label
-                        className={`permission-switch ${
-                          permission.canAccess === true ? "active" : ""
-                        }`}
-                      >
+                  className={`permission-switch ${
+                  permission.canAccess === true ? "active" : ""}`
+                  }>
+                  
                         <input
-                          type="checkbox"
-                          checked={Boolean(permission.canAccess)}
-                          onChange={(event) =>
-                            handlePermissionChange(
-                              normalizeModuleId(permission),
-                              "canAccess",
-                              event.target.checked
-                            )
-                          }
-                          aria-label={`${permission.moduleName} Full Access`}
-                        />
+                    type="checkbox"
+                    checked={Boolean(permission.canAccess)}
+                    onChange={(event) =>
+                    handlePermissionChange(
+                      normalizeModuleId(permission),
+                      "canAccess",
+                      event.target.checked
+                    )
+                    }
+                    aria-label={`${permission.moduleName} Full Access`} />
+                  
                         <span className="permission-slider" aria-hidden="true" />
                       </label>
                     </td>
                   </tr>
-                ))
-              ) : error ? (
-                <tr>
+            ) :
+            error ?
+            <tr>
                   <td
-                    colSpan={ACTIONS.length + 2}
-                    style={{ textAlign: "center", padding: "24px" }}
-                  >
+                colSpan={ACTIONS.length + 2}
+                style={{ textAlign: "center", padding: "24px" }}>
+                
                     Unable to load permissions.
                   </td>
-                </tr>
-              ) : (
-                <tr>
+                </tr> :
+
+            <tr>
                   <td
-                    colSpan={ACTIONS.length + 2}
-                    style={{ textAlign: "center", padding: "24px" }}
-                  >
+                colSpan={ACTIONS.length + 2}
+                style={{ textAlign: "center", padding: "24px" }}>
+                
                     No modules were returned by the permission API.
                   </td>
                 </tr>
-              )}
+            }
             </tbody>
           </table>
-        )}
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default SuperAdminPermissions;

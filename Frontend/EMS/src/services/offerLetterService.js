@@ -64,17 +64,17 @@ const getMeaningfulMessage = (text) => {
       parsed?.detail ||
       parsed?.Detail ||
       parsed?.exceptionMessage ||
-      ""
-    );
+      "");
+
   } catch {
+
     // Fall through to plain-text heuristics.
   }
-
   if (
-    /^system\./i.test(normalizedText) ||
-    /stack trace/i.test(normalizedText) ||
-    /\n\s*at\s+/i.test(normalizedText)
-  ) {
+  /^system\./i.test(normalizedText) ||
+  /stack trace/i.test(normalizedText) ||
+  /\n\s*at\s+/i.test(normalizedText))
+  {
     return "";
   }
 
@@ -93,14 +93,13 @@ const resolveSalaryStructureCtc = (payload) => {
 
   if (payload && typeof payload === "object") {
     const ctcCandidates = [
-      payload.ctc,
-      payload.annualCtc,
-      payload.AnnualCtc,
-      payload.ctcAnnual,
-      payload.ctc_Annual,
-      payload.monthlyCtc,
-      payload.monthlyCTC,
-    ];
+    payload.ctc,
+    payload.annualCtc,
+    payload.AnnualCtc,
+    payload.ctcAnnual,
+    payload.ctc_Annual,
+    payload.monthlyCtc,
+    payload.monthlyCTC];
 
     for (const candidate of ctcCandidates) {
       if (candidate === null || candidate === undefined || candidate === "") {
@@ -119,10 +118,10 @@ const resolveSalaryStructureCtc = (payload) => {
 };
 
 export const getOfferLetterApiErrorMessage = async (
-  error,
-  fallbackMessage = "Unable to complete the offer letter request.",
-  letterLabel = "offer letter"
-) => {
+error,
+fallbackMessage = "Unable to complete the offer letter request.",
+letterLabel = "offer letter") =>
+{
   const status = error?.response?.status;
   const responseData = error?.response?.data;
 
@@ -165,18 +164,18 @@ export const getOfferLetterApiErrorMessage = async (
   }
 
   const objectMessage =
-    responseData && typeof responseData === "object" && !Array.isArray(responseData)
-      ? responseData.message ||
-        responseData.Message ||
-        responseData.error ||
-        responseData.Error ||
-        responseData.title ||
-        responseData.Title ||
-        responseData.detail ||
-        responseData.Detail ||
-        responseData.exceptionMessage ||
-        ""
-      : "";
+  responseData && typeof responseData === "object" && !Array.isArray(responseData) ?
+  responseData.message ||
+  responseData.Message ||
+  responseData.error ||
+  responseData.Error ||
+  responseData.title ||
+  responseData.Title ||
+  responseData.detail ||
+  responseData.Detail ||
+  responseData.exceptionMessage ||
+  "" :
+  "";
 
   if (objectMessage) {
     return objectMessage;
@@ -198,14 +197,14 @@ export const getOfferLetterApiErrorMessage = async (
 };
 
 export const getAllOfferLetters = (config = {}) =>
-  api.get(API_ENDPOINTS.offerLetters.all, withAuthHeaders(config));
+api.get(API_ENDPOINTS.offerLetters.all, withAuthHeaders(config));
 
 export const generateOfferLetter = (payload, config = {}) =>
-  api.post(
-    API_ENDPOINTS.offerLetters.generate,
-    payload,
-    withAuthHeaders(config)
-  );
+api.post(
+  API_ENDPOINTS.offerLetters.generate,
+  payload,
+  withAuthHeaders(config)
+);
 
 export const calculateOfferLetterBreakup = (payload, config = {}) =>
 {
@@ -213,40 +212,33 @@ export const calculateOfferLetterBreakup = (payload, config = {}) =>
   const url = API_ENDPOINTS.offerLetters.calculateBreakup(ctc);
   const headers = withAuthHeaders(config);
 
-  console.log({
-    url,
-    method: "GET",
-    body: undefined,
-    headers,
-  });
-
   return api.get(url, {
     ...headers,
-    dedupe: false,
+    dedupe: false
   });
 };
 
 export const previewOfferLetter = (id, config = {}) =>
-  api.get(API_ENDPOINTS.offerLetters.preview(id), {
-    ...withAuthHeaders(config),
-    responseType: "blob",
-    dedupe: false,
-  });
+api.get(API_ENDPOINTS.offerLetters.preview(id), {
+  ...withAuthHeaders(config),
+  responseType: "blob",
+  dedupe: false
+});
 
 export const sendOfferLetter = (payload, config = {}) =>
-  api.post(API_ENDPOINTS.offerLetters.send, payload, withAuthHeaders(config));
+api.post(API_ENDPOINTS.offerLetters.send, payload, withAuthHeaders(config));
 
 export const getOfferLetterSendStatus = (id, config = {}) =>
-  api.get(API_ENDPOINTS.offerLetters.sendStatus(id), {
-    ...withAuthHeaders(config),
-    dedupe: false,
-  });
+api.get(API_ENDPOINTS.offerLetters.sendStatus(id), {
+  ...withAuthHeaders(config),
+  dedupe: false
+});
 
 export const downloadOfferLetter = (id, config = {}) =>
-  api.get(API_ENDPOINTS.offerLetters.download(id), {
-    ...withAuthHeaders(config),
-    responseType: "blob",
-  });
+api.get(API_ENDPOINTS.offerLetters.download(id), {
+  ...withAuthHeaders(config),
+  responseType: "blob"
+});
 
 export const deleteOfferLetter = (id, config = {}) =>
-  api.delete(API_ENDPOINTS.offerLetters.delete(id), withAuthHeaders(config));
+api.delete(API_ENDPOINTS.offerLetters.delete(id), withAuthHeaders(config));

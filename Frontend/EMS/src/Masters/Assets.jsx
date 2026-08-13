@@ -13,20 +13,20 @@ const EMPTY_ASSET = {
   assigned: "",
   status: "Assigned",
   description: "",
-  images: [],
+  images: []
 };
 
 const ASSET_STATUS_OPTIONS = ["Assigned", "Available", "Under Repair"];
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 const ALLOWED_IMAGE_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/webp",
-  "image/gif",
-  "image/svg+xml",
-]);
+"image/png",
+"image/jpeg",
+"image/jpg",
+"image/webp",
+"image/gif",
+"image/svg+xml"]
+);
 
 const normalizeImagePaths = (value) => {
   let rawImages = [];
@@ -48,34 +48,34 @@ const normalizeImagePaths = (value) => {
     }
   }
 
-  return rawImages
-    .map((image) =>
-      String(image || "")
-        .replace(/\\/g, "/")
-        .trim()
-    )
-    .filter((image) => {
-      if (!image) return false;
+  return rawImages.
+  map((image) =>
+  String(image || "").
+  replace(/\\/g, "/").
+  trim()
+  ).
+  filter((image) => {
+    if (!image) return false;
 
-      const normalized = image.toLowerCase();
-      return !["0", "1", "null", "undefined", "false"].includes(normalized);
-    });
+    const normalized = image.toLowerCase();
+    return !["0", "1", "null", "undefined", "false"].includes(normalized);
+  });
 };
 
 const getAssetEmployeeName = (item) =>
-  normalizeText(
-    item.employeeName ??
-    item.EmployeeName ??
-    item.employeeFullName ??
-    item.EmployeeFullName ??
-    item.assignedEmployeeName ??
-    item.AssignedEmployeeName ??
-    item.assignedToName ??
-    item.AssignedToName ??
-    item.empName ??
-    item.EmpName ??
-    ""
-  );
+normalizeText(
+  item.employeeName ??
+  item.EmployeeName ??
+  item.employeeFullName ??
+  item.EmployeeFullName ??
+  item.assignedEmployeeName ??
+  item.AssignedEmployeeName ??
+  item.assignedToName ??
+  item.AssignedToName ??
+  item.empName ??
+  item.EmpName ??
+  ""
+);
 
 const formatAssetAssigneeLabel = (name, code) => {
   if (name && code) {
@@ -86,31 +86,31 @@ const formatAssetAssigneeLabel = (name, code) => {
 };
 
 const getEmployeeCodeFromRecord = (employee) =>
-  formatEmployeeCode(
+formatEmployeeCode(
 
-    employee.employee_Id ??
-    employee.employee_id ??
+  employee.employee_Id ??
+  employee.employee_id ??
 
-    employee.employeeId ??
-    employee.EmployeeId ??
+  employee.employeeId ??
+  employee.EmployeeId ??
 
-    employee.employeeCode ??
-    employee.EmployeeCode ??
+  employee.employeeCode ??
+  employee.EmployeeCode ??
 
-    employee.empCode ??
-    employee.EmpCode ??
+  employee.empCode ??
+  employee.EmpCode ??
 
-    employee.code ??
-    employee.Code ??
+  employee.code ??
+  employee.Code ??
 
-    employee.Employee_Id ??
+  employee.Employee_Id ??
 
-    employee.id ??
-    employee.Id ??
+  employee.id ??
+  employee.Id ??
 
-    ""
+  ""
 
-  );
+);
 
 const getEmployeeNameFromRecord = (employee) => {
 
@@ -139,8 +139,7 @@ const getEmployeeNameFromRecord = (employee) => {
     employee.employeeDisplayName ??
     employee.EmployeeDisplayName ??
 
-    `${employee.firstName ?? employee.FirstName ?? ""} ${employee.lastName ?? employee.LastName ?? ""
-    }`
+    `${employee.firstName ?? employee.FirstName ?? ""} ${employee.lastName ?? employee.LastName ?? ""}`
 
   );
 };
@@ -170,22 +169,22 @@ const extractApiErrorDetails = (error) => {
   const data = error?.response?.data;
   const validationMessages = flattenErrorMessages(data?.errors);
   const candidateMessages = [
-    data?.message,
-    data?.error,
-    data?.title,
-    ...validationMessages,
-    typeof data === "string" ? data : "",
-    error?.message,
-  ]
-    .flatMap((item) => flattenErrorMessages(item))
-    .filter(Boolean);
+  data?.message,
+  data?.error,
+  data?.title,
+  ...validationMessages,
+  typeof data === "string" ? data : "",
+  error?.message].
+
+  flatMap((item) => flattenErrorMessages(item)).
+  filter(Boolean);
 
   return {
     status: error?.response?.status ?? null,
     data,
     validationMessages,
     message:
-      candidateMessages[0] || "Something went wrong while saving the asset.",
+    candidateMessages[0] || "Something went wrong while saving the asset."
   };
 };
 
@@ -280,20 +279,13 @@ export default function Assets() {
 
   const fetchAssets = async () => {
     try {
-      console.log("Fetching assets API...");
 
       const res = await api.get(API_ENDPOINTS.masters.assets.list);
 
-      console.log("Full API Response:", res);
-      console.log("Response Data:", res.data);
-
       const extractedData = extractCollection(res.data);
-
-      console.log("Extracted Collection:", extractedData);
 
       const formatted = sortByNewestIdFirst(
         extractedData.map((item, index) => {
-          console.log(`Processing Asset ${index + 1}:`, item);
 
           const employeeCode = formatEmployeeCode(
             item.employeeCode ??
@@ -306,125 +298,112 @@ export default function Assets() {
           );
 
           const employeeNameFromApi =
-            getAssetEmployeeName(item);
+          getAssetEmployeeName(item);
           const employeeFromList =
-            employees.find((emp) => {
+          employees.find((emp) => {
 
-              const empCode =
-                formatEmployeeCode(
+            const empCode =
+            formatEmployeeCode(
 
-                  emp.employee_Id ??
-                  emp.employee_id ??
-                  emp.employeeId ??
-                  emp.EmployeeId ??
-                  emp.employeeCode ??
-                  emp.EmployeeCode ??
-                  emp.empCode ??
-                  emp.EmpCode ??
-                  emp.code ??
-                  emp.Code ??
-                  ""
+              emp.employee_Id ??
+              emp.employee_id ??
+              emp.employeeId ??
+              emp.EmployeeId ??
+              emp.employeeCode ??
+              emp.EmployeeCode ??
+              emp.empCode ??
+              emp.EmpCode ??
+              emp.code ??
+              emp.Code ??
+              ""
 
-                );
+            );
 
-              console.log(
-                "EMP CODE CHECK:",
-                empCode,
-                employeeCode
-              );
+            return (
+              empCode === employeeCode);
 
-              return (
-                empCode === employeeCode
-              );
-
-            });
-
-          console.log(
-            "Matched Employee:",
-            employeeCode,
-            employeeFromList
-          );
+          });
 
           const employeeName =
-            employees.find((emp) => {
+          employees.find((emp) => {
 
-              const empCode =
-                formatEmployeeCode(
+            const empCode =
+            formatEmployeeCode(
 
-                  emp.employee_Id ??
-                  emp.employee_id ??
-                  emp.employeeId ??
-                  emp.EmployeeId ??
-                  emp.employeeCode ??
-                  emp.EmployeeCode ??
-                  emp.empCode ??
-                  emp.EmpCode ??
-                  emp.code ??
-                  emp.Code ??
-                  ""
+              emp.employee_Id ??
+              emp.employee_id ??
+              emp.employeeId ??
+              emp.EmployeeId ??
+              emp.employeeCode ??
+              emp.EmployeeCode ??
+              emp.empCode ??
+              emp.EmpCode ??
+              emp.code ??
+              emp.Code ??
+              ""
 
-                );
+            );
 
-              return empCode === employeeCode;
+            return empCode === employeeCode;
 
-            })?.employeeName ||
+          })?.employeeName ||
 
-            employees.find((emp) => {
+          employees.find((emp) => {
 
-              const empCode =
-                formatEmployeeCode(
+            const empCode =
+            formatEmployeeCode(
 
-                  emp.employee_Id ??
-                  emp.employee_id ??
-                  emp.employeeId ??
-                  emp.EmployeeId ??
-                  emp.employeeCode ??
-                  emp.EmployeeCode ??
-                  emp.empCode ??
-                  emp.EmpCode ??
-                  emp.code ??
-                  emp.Code ??
-                  ""
+              emp.employee_Id ??
+              emp.employee_id ??
+              emp.employeeId ??
+              emp.EmployeeId ??
+              emp.employeeCode ??
+              emp.EmployeeCode ??
+              emp.empCode ??
+              emp.EmpCode ??
+              emp.code ??
+              emp.Code ??
+              ""
 
-                );
+            );
 
-              return empCode === employeeCode;
+            return empCode === employeeCode;
 
-            })?.employee_Name ||
+          })?.employee_Name ||
 
-            employees.find((emp) => {
+          employees.find((emp) => {
 
-              const empCode =
-                formatEmployeeCode(
+            const empCode =
+            formatEmployeeCode(
 
-                  emp.employee_Id ??
-                  emp.employee_id ??
-                  emp.employeeId ??
-                  emp.EmployeeId ??
-                  emp.employeeCode ??
-                  emp.EmployeeCode ??
-                  emp.empCode ??
-                  emp.EmpCode ??
-                  emp.code ??
-                  emp.Code ??
-                  ""
+              emp.employee_Id ??
+              emp.employee_id ??
+              emp.employeeId ??
+              emp.EmployeeId ??
+              emp.employeeCode ??
+              emp.EmployeeCode ??
+              emp.empCode ??
+              emp.EmpCode ??
+              emp.code ??
+              emp.Code ??
+              ""
 
-                );
+            );
 
-              return empCode === employeeCode;
+            return empCode === employeeCode;
 
-            })?.name ||
+          })?.name ||
 
-            "";
+          "";
 
           const formattedAsset = {
             assetId:
-              item.assetId ??
-              item.AssetId ??
-              item.assetID ??
-              item.id ??
-              item.Id ??
-              null,
+            item.assetId ??
+            item.AssetId ??
+            item.assetID ??
+            item.id ??
+            item.Id ??
+            null,
 
             assetName: normalizeText(item.assetName ?? item.AssetName ?? ""),
 
@@ -453,26 +432,19 @@ export default function Assets() {
               item.ImagePath ??
               item.images ??
               item.Images
-            ),
+            )
           };
-
-          console.log("Formatted Asset:", formattedAsset);
 
           return formattedAsset;
         }),
         (item) => item.assetId
       );
 
-      console.log("Final Formatted Assets:", formatted);
-
       setAssets(formatted);
     } catch (err) {
-      console.error("Error fetching assets:", err);
 
       if (err.response) {
-        console.error("Error Response Data:", err.response.data);
-        console.error("Error Response Status:", err.response.status);
-        console.error("Error Response Headers:", err.response.headers);
+
       }
 
       toastError("Failed to load assets.");
@@ -488,18 +460,13 @@ export default function Assets() {
 
       employeeList.forEach((emp, index) => {
 
-        console.log(
-          `Employee ${index + 1}:`,
-          emp
-        );
-
       });
 
       setEmployees(employeeList);
 
       return employeeList;
     } catch (error) {
-      console.error("Error fetching employees for asset assignment:", error);
+
       setEmployeeLoadError(
         "Unable to load employee codes. Refresh the page and try again."
       );
@@ -539,43 +506,43 @@ export default function Assets() {
       uniqueEmployees.set(code.toLowerCase(), {
         code,
         name,
-        label: formatAssetAssigneeLabel(name, code),
+        label: formatAssetAssigneeLabel(name, code)
       });
     });
 
     return Array.from(uniqueEmployees.values()).sort((left, right) =>
-      left.code.localeCompare(right.code, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      })
+    left.code.localeCompare(right.code, undefined, {
+      numeric: true,
+      sensitivity: "base"
+    })
     );
   }, [employees]);
 
   const employeeCodeLookup = useMemo(
     () =>
-      new Map(
-        employeeOptions.map((employee) => [employee.code.toLowerCase(), employee])
-      ),
+    new Map(
+      employeeOptions.map((employee) => [employee.code.toLowerCase(), employee])
+    ),
     [employeeOptions]
   );
 
   const matchedAssignedEmployee = useMemo(() => {
 
     const normalizedCode =
-      formatEmployeeCode(
-        String(newAsset.assigned || "")
-          .split("-")[0]
-          .trim()
-      ).toLowerCase();
+    formatEmployeeCode(
+      String(newAsset.assigned || "").
+      split("-")[0].
+      trim()
+    ).toLowerCase();
 
-    return normalizedCode
-      ? employeeCodeLookup.get(normalizedCode) ?? null
-      : null;
+    return normalizedCode ?
+    employeeCodeLookup.get(normalizedCode) ?? null :
+    null;
 
   }, [
-    employeeCodeLookup,
-    newAsset.assigned
-  ]);
+  employeeCodeLookup,
+  newAsset.assigned]
+  );
 
   const validateField = (name, draft = newAsset) => {
     const value = String(draft[name] ?? "").trim();
@@ -611,8 +578,8 @@ export default function Assets() {
 
       const duplicate = assets.find(
         (asset) =>
-          asset.serialNo?.toLowerCase() === value.toLowerCase() &&
-          asset.assetId !== editId
+        asset.serialNo?.toLowerCase() === value.toLowerCase() &&
+        asset.assetId !== editId
       );
 
       if (duplicate) return "Serial Number already exists";
@@ -623,9 +590,9 @@ export default function Assets() {
 
       // validation for Assigned and Under Repair
       if (
-        draft.status === "Assigned" ||
-        draft.status === "Under Repair"
-      ) {
+      draft.status === "Assigned" ||
+      draft.status === "Under Repair")
+      {
 
         if (!value) {
           return "Employee Code is required";
@@ -646,13 +613,12 @@ export default function Assets() {
       return "";
     }
 
-
     if (name === "status") {
       if (!value) return "Status is required";
 
-      return ASSET_STATUS_OPTIONS.includes(value)
-        ? ""
-        : "Select a valid status";
+      return ASSET_STATUS_OPTIONS.includes(value) ?
+      "" :
+      "Select a valid status";
     }
 
     return "";
@@ -663,27 +629,27 @@ export default function Assets() {
       name: validateField("name", draft),
       serial: validateField("serial", draft),
       assigned: validateField("assigned", draft),
-      status: validateField("status", draft),
+      status: validateField("status", draft)
     };
 
     if (
-      draft.status === "Under Repair" &&
-      previewImages.length === 0 &&
-      draft.images.length === 0
-    ) {
+    draft.status === "Under Repair" &&
+    previewImages.length === 0 &&
+    draft.images.length === 0)
+    {
 
       nextErrors.images =
-        "Image is required for Under Repair assets";
+      "Image is required for Under Repair assets";
 
     }
 
     if (
-      draft.status === "Under Repair" &&
-      !draft.description?.trim()
-    ) {
+    draft.status === "Under Repair" &&
+    !draft.description?.trim())
+    {
 
       nextErrors.description =
-        "Description is required for Under Repair assets";
+      "Description is required for Under Repair assets";
 
     }
 
@@ -714,16 +680,16 @@ export default function Assets() {
 
       return {
         ...prev,
-        assigned: assignedError,
+        assigned: assignedError
       };
     });
   }, [
-    employeeCodeLookup,
-    employeeLoadError,
-    employeeOptions.length,
-    employeesLoaded,
-    newAsset,
-  ]);
+  employeeCodeLookup,
+  employeeLoadError,
+  employeeOptions.length,
+  employeesLoaded,
+  newAsset]
+  );
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -736,12 +702,12 @@ export default function Assets() {
 
       // remove spaces + special chars
       sanitizedValue =
-        sanitizedValue.replace(/[^A-Za-z0-9]/g, "");
+      sanitizedValue.replace(/[^A-Za-z0-9]/g, "");
 
     } else {
 
       sanitizedValue =
-        sanitizedValue.replace(/[^A-Za-z0-9 ]/g, "");
+      sanitizedValue.replace(/[^A-Za-z0-9 ]/g, "");
 
     }
 
@@ -761,24 +727,24 @@ export default function Assets() {
     const draft = {
       ...newAsset,
       [name]:
-        name === "assigned"
-          ? formatEmployeeCode(sanitizedValue)
-          : sanitizedValue,
+      name === "assigned" ?
+      formatEmployeeCode(sanitizedValue) :
+      sanitizedValue
     };
 
     if (
-      name === "status" &&
-      value === "Available"
-    ) {
+    name === "status" &&
+    value === "Available")
+    {
 
       draft.assigned = "";
 
     }
 
     if (
-      name === "status" &&
-      value === "Under Repair"
-    ) {
+    name === "status" &&
+    value === "Under Repair")
+    {
 
       setShowRepairPopup(true);
 
@@ -790,7 +756,7 @@ export default function Assets() {
     setErrors((prev) => {
       const nextErrors = {
         ...prev,
-        [name]: validateField(name, draft),
+        [name]: validateField(name, draft)
       };
 
       if (name === "status") {
@@ -834,7 +800,7 @@ export default function Assets() {
 
     setNewAsset((prev) => ({
       ...prev,
-      images: files,
+      images: files
     }));
     setApiError("");
 
@@ -852,7 +818,7 @@ export default function Assets() {
       name: newAsset.name.trim().replace(/\s+/g, " "),
       serial: newAsset.serial.trim(),
       assigned: formatEmployeeCode(newAsset.assigned),
-      status: newAsset.status.trim(),
+      status: newAsset.status.trim()
     };
 
     setNewAsset(trimmedAsset);
@@ -867,26 +833,26 @@ export default function Assets() {
       setSaving(true);
 
       const normalizedAssignedCode =
-        trimmedAsset.status === "Assigned" ||
-          trimmedAsset.status === "Under Repair"
-          ? matchedAssignedEmployee?.code || trimmedAsset.assigned
-          : "";
+      trimmedAsset.status === "Assigned" ||
+      trimmedAsset.status === "Under Repair" ?
+      matchedAssignedEmployee?.code || trimmedAsset.assigned :
+      "";
 
       if (
-        (trimmedAsset.status === "Assigned" ||
-          trimmedAsset.status === "Under Repair") &&
-        (!normalizedAssignedCode ||
-          !employeeCodeLookup.has(normalizedAssignedCode.toLowerCase()))
-      ) {
+      (trimmedAsset.status === "Assigned" ||
+      trimmedAsset.status === "Under Repair") && (
+      !normalizedAssignedCode ||
+      !employeeCodeLookup.has(normalizedAssignedCode.toLowerCase())))
+      {
         const employeeError =
-          validateField("assigned", {
-            ...trimmedAsset,
-            assigned: normalizedAssignedCode,
-          }) || "Enter a valid employee code from the employee list";
+        validateField("assigned", {
+          ...trimmedAsset,
+          assigned: normalizedAssignedCode
+        }) || "Enter a valid employee code from the employee list";
 
         setErrors((prev) => ({
           ...prev,
-          assigned: employeeError,
+          assigned: employeeError
         }));
         toastError(employeeError);
         return;
@@ -907,9 +873,9 @@ export default function Assets() {
       );
 
       if (
-        trimmedAsset.status === "Assigned" ||
-        trimmedAsset.status === "Under Repair"
-      ) {
+      trimmedAsset.status === "Assigned" ||
+      trimmedAsset.status === "Under Repair")
+      {
         formData.append("AssignedTo", normalizedAssignedCode);
         formData.append("EmployeeCode", normalizedAssignedCode);
 
@@ -930,24 +896,22 @@ export default function Assets() {
         formData.append("ExistingImagePathsJson", JSON.stringify(existingImagePaths));
       }
 
-      trimmedAsset.images
-        .filter((image) => image instanceof File)
-        .forEach((image) => {
-          formData.append("Images", image, image.name);
-        });
+      trimmedAsset.images.
+      filter((image) => image instanceof File).
+      forEach((image) => {
+        formData.append("Images", image, image.name);
+      });
 
       const requestEntries = Array.from(formData.entries()).map(([key, value]) => [
-        key,
-        value instanceof File
-          ? {
-            name: value.name,
-            type: value.type,
-            size: value.size,
-          }
-          : value,
-      ]);
-
-      console.log("Asset save request payload:", requestEntries);
+      key,
+      value instanceof File ?
+      {
+        name: value.name,
+        type: value.type,
+        size: value.size
+      } :
+      value]
+      );
 
       if (editId) {
         await api.put(API_ENDPOINTS.masters.assets.byId(editId), formData);
@@ -959,10 +923,6 @@ export default function Assets() {
       closeForm();
       await fetchAssets();
     } catch (error) {
-      console.error("Error saving asset:", error);
-      console.error("Asset save error response:", error?.response?.data);
-      console.error("Asset save error status:", error?.response?.status);
-      console.error("Asset save error headers:", error?.response?.headers);
 
       const backendDetails = extractApiErrorDetails(error);
       const fieldErrors = getAssetFieldErrorsFromApiError(error);
@@ -971,7 +931,7 @@ export default function Assets() {
       if (Object.keys(fieldErrors).length > 0) {
         setErrors((prev) => ({
           ...prev,
-          ...fieldErrors,
+          ...fieldErrors
         }));
       }
 
@@ -992,7 +952,7 @@ export default function Assets() {
       assigned: asset.assignedTo,
       status: asset.status,
       description: asset.description || "",
-      images: [],
+      images: []
     });
 
     setPreviewImages(asset.images || []);
@@ -1009,7 +969,7 @@ export default function Assets() {
       setAssetToDelete(null);
       await fetchAssets();
     } catch (error) {
-      console.error("Error deleting asset:", error);
+
       toastError("Unable to delete asset.");
     }
   };
@@ -1034,37 +994,36 @@ export default function Assets() {
   const filteredAssets = assets.filter((asset) => {
 
     const search =
-      searchTerm.toLowerCase();
+    searchTerm.toLowerCase();
 
     const matchesSearch =
-      asset.employeeName?.toLowerCase().includes(search) ||
-      asset.assignedTo?.toLowerCase().includes(search);
+    asset.employeeName?.toLowerCase().includes(search) ||
+    asset.assignedTo?.toLowerCase().includes(search);
 
     const matchesStatus =
-      !statusFilter ||
-      asset.status === statusFilter;
+    !statusFilter ||
+    asset.status === statusFilter;
 
     const matchesAsset =
-      asset.assetName
-        ?.toLowerCase()
-        .includes(assetFilter.toLowerCase());
+    asset.assetName?.
+    toLowerCase().
+    includes(assetFilter.toLowerCase());
 
     return (
       matchesSearch &&
       matchesStatus &&
-      matchesAsset
-    );
+      matchesAsset);
 
   });
   const indexOfLast = currentPage * ASSETS_PER_PAGE;
   const indexOfFirst = indexOfLast - ASSETS_PER_PAGE;
   const currentAssets =
-    filteredAssets.slice(
-      indexOfFirst,
-      indexOfLast
-    );
+  filteredAssets.slice(
+    indexOfFirst,
+    indexOfLast
+  );
   const totalPages =
-    Math.max(1, Math.ceil(filteredAssets.length / ASSETS_PER_PAGE));
+  Math.max(1, Math.ceil(filteredAssets.length / ASSETS_PER_PAGE));
 
   const imagePreviewItems = useMemo(() => previewImages, [previewImages]);
 
@@ -1089,13 +1048,13 @@ export default function Assets() {
   }, [previewImages]);
 
   return (
-    <div className="assets-page">
-<div className="assets-header">
-        <div className="assets-header-copy">
-          <h2>Asset Management</h2>
-          <p>Track and manage company assets</p>
-        </div>
-
+    <div className="assets-page">
+<div className="assets-header">
+        <div className="assets-header-copy">
+          <h2>Asset Management</h2>
+          <p>Track and manage company assets</p>
+        </div>
+
         <button
           className="assets-add-btn app-button-primary"
           type="button"
@@ -1106,607 +1065,607 @@ export default function Assets() {
             setPreviewImages([]);
             setNewAsset(EMPTY_ASSET);
             setShowForm(true);
-          }}
-        >
-          + Add Asset
-        </button>
-      </div>
-      <div className="assets-toolbar">
-
-        {/* SEARCH */}
-
-        <div className="assets-toolbar-search">
-
+          }}>
+          
+          + Add Asset
+        </button>
+      </div>
+      <div className="assets-toolbar">
+
+        {/* SEARCH */}
+
+        <div className="assets-toolbar-search">
+
           <input
             type="text"
             placeholder="Search employee name or ID..."
             value={searchTerm}
             onChange={(e) =>
-              setSearchTerm(e.target.value)
+            setSearchTerm(e.target.value)
             }
-            className="assets-toolbar-input app-input"
-          />
-
-          {/* <span
-            style={{
-              position: "absolute",
-              left: "18px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: "18px",
-              color: "var(--text-muted)",
-            }}
-          >
-            ðŸ”
-          </span> */}
-
-        </div>
-
-        {/* STATUS FILTER */}
-
+            className="assets-toolbar-input app-input" />
+          
+
+          {/* <span
+             style={{
+               position: "absolute",
+               left: "18px",
+               top: "50%",
+               transform: "translateY(-50%)",
+               fontSize: "18px",
+               color: "var(--text-muted)",
+             }}
+            >
+             ðŸ”
+            </span> */}
+
+        </div>
+
+        {/* STATUS FILTER */}
+
         <select
           value={statusFilter}
           onChange={(e) =>
-            setStatusFilter(e.target.value)
+          setStatusFilter(e.target.value)
           }
-          className="assets-toolbar-select app-select"
-        >
-          <option value="">All Status</option>
-          <option value="Assigned">Assigned</option>
-          <option value="Available">Available</option>
-          <option value="Under Repair">Under Repair</option>
-        </select>
-
-        {/* ASSET FILTER */}
-
+          className="assets-toolbar-select app-select">
+          
+          <option value="">All Status</option>
+          <option value="Assigned">Assigned</option>
+          <option value="Available">Available</option>
+          <option value="Under Repair">Under Repair</option>
+        </select>
+
+        {/* ASSET FILTER */}
+
         <input
           type="text"
           placeholder="Filter asset name..."
           value={assetFilter}
           onChange={(e) =>
-            setAssetFilter(e.target.value)
+          setAssetFilter(e.target.value)
           }
-          className="assets-toolbar-input assets-toolbar-input--compact app-input"
-        />
-
-        {/* RESET BUTTON */}
-
-        {/* <button
-          type="button"
-          className="reset-btn app-button-secondary"
-          onClick={() => {
-            setSearchTerm("");
-            setStatusFilter("");
-            setAssetFilter("");
-          }}
-        >
-          Reset
-        </button> */}
-
-      </div>
-      <div className="assets-table-wrap app-table-scroll">
-        <table className="assets-table">
-          <thead>
-            <tr>
-              <th className="assets-col-employee">Employee Name (Code)</th>
-              <th className="assets-col-serial">Serial Number</th>
-              <th className="assets-col-asset">Asset Name</th>
-              <th className="assets-col-image">Image</th>
-              <th className="assets-col-status">Status</th>
-              <th className="assets-col-actions">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {currentAssets.length > 0 ? (
-              currentAssets.map((asset) => (
-                <tr key={asset.assetId ?? asset.serialNo}>
-                  <td className="assets-col-employee">
-
+          className="assets-toolbar-input assets-toolbar-input--compact app-input" />
+        
+
+        {/* RESET BUTTON */}
+
+        {/* <button
+           type="button"
+           className="reset-btn app-button-secondary"
+           onClick={() => {
+             setSearchTerm("");
+             setStatusFilter("");
+             setAssetFilter("");
+           }}
+          >
+           Reset
+          </button> */}
+
+      </div>
+      <div className="assets-table-wrap app-table-scroll">
+        <table className="assets-table">
+          <thead>
+            <tr>
+              <th className="assets-col-employee">Employee Name (Code)</th>
+              <th className="assets-col-serial">Serial Number</th>
+              <th className="assets-col-asset">Asset Name</th>
+              <th className="assets-col-image">Image</th>
+              <th className="assets-col-status">Status</th>
+              <th className="assets-col-actions">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {currentAssets.length > 0 ?
+            currentAssets.map((asset) =>
+            <tr key={asset.assetId ?? asset.serialNo}>
+                  <td className="assets-col-employee">
+
                     <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                        gap: "2px",
-                        lineHeight: "1.2",
-                      }}
-                    >
-
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          fontWeight: "600",
-                          color: "var(--text-strong)",
-                          maxWidth: "260px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          display: "block",
-                        }}
-                        title={asset.employeeName || "-"}
-                      >
-                        {asset.employeeName || "-"}
-                      </span>
-
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          color: "var(--text-muted)",
-                          fontWeight: "500",
-                        }}
-                        title={asset.assignedTo || "-"}
-                      >
-                        {asset.assignedTo || "-"}
-                      </span>
-
-                    </div>
-
-                  </td>
-
-                  <td className="assets-col-serial">
-                    <span className="asset-cell-text" title={asset.serialNo || "-"}>
-                      {asset.serialNo || "-"}
-                    </span>
-                  </td>
-
-                  <td className="assets-col-asset">
-                    <span className="asset-cell-text asset-name-text" title={asset.assetName || "-"}>
-                      {asset.assetName || "-"}
-                    </span>
-                  </td>
-
-                  <td className="assets-col-image">
-                    {asset.images && asset.images.length > 0 ? (
-                      <button
-                        className="assets-view-images-btn"
-                        type="button"
-                        onClick={() => {
-
-                          setSelectedImages({
-                            images: asset.images,
-                            description: asset.description || "",
-                          });
-
-                          setShowImageModal(true);
-
-                        }}
-                      >
-                        View Images ({asset.images.length})
-                      </button>
-                    ) : (
-                      <span className="asset-empty-image">No Image</span>
-                    )}
-                  </td>
-
-                  <td className="assets-col-status">
-                    <span
-                      className={
-                        asset.status === "Assigned"
-                          ? "asset-status-badge asset-status-badge--assigned"
-                          : asset.status === "Available"
-                            ? "asset-status-badge asset-status-badge--available"
-                            : "asset-status-badge asset-status-badge--repair"
-                      }
-                    >
-                      {asset.status || "-"}
-                    </span>
-                  </td>
-
-                  <td className="assets-col-actions assets-action-cell">
-                    <div className="assets-action-buttons">
-                      <button
-                        className="assets-edit-btn app-action-button app-action-button--edit"
-                        type="button"
-                        onClick={() => handleEdit(asset)}
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        className="assets-delete-btn app-action-button app-action-button--delete"
-                        type="button"
-                        onClick={() => {
-                          setAssetToDelete(asset);
-                          setShowDeletePopup(true);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="app-table-empty-cell">
-                  No assets found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {filteredAssets.length > 0 && (
-        <AppPagination
-          totalItems={filteredAssets.length}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          itemLabel="assets"
-        />
-      )}
-
-      {showForm && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>{editId ? "Edit Asset" : "Add Asset"}</h3>
-
-            {apiError && <p className="asset-submit-error">{apiError}</p>}
-
-            {/* EMPLOYEE CODE */}
-
-            <div className="asset-field-group">
-              <label htmlFor="asset-assigned-input">Employee Code or Name</label>
-
-              <input
-                id="asset-assigned-input"
-                type="text"
-                name="assigned"
-                value={newAsset.assigned}
-                onChange={handleChange}
-                className={errors.assigned ? "has-error" : ""}
-                disabled={newAsset.status === "Available"}
-                list="asset-employee-options"
-              />
-
-              <datalist id="asset-employee-options">
-                {employeeOptions.map((employee) => (
-                  <option
-                    key={employee.code}
-                    value={employee.code}
-                    label={employee.name || employee.code}
-                  />
-                ))}
-              </datalist>
-
-              {(newAsset.status === "Assigned" ||
-                newAsset.status === "Under Repair") &&
-                matchedAssignedEmployee?.name && (
-                  <p
-                    className="asset-helper"
-                    style={{
-                      fontWeight: "400",
-                    }}
-                  >
-                    Assigning this asset to{" "}
-                    <span
-                      style={{
-                        fontWeight: "700",
-                        color: "var(--text-strong)",
-                        display: "inline-block",
-                        maxWidth: "220px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        verticalAlign: "bottom",
-                      }}
-                      title={matchedAssignedEmployee.name}
-                    >
-                      {matchedAssignedEmployee.name}
-                    </span>
-                  </p>
-                )}
-
-              {(newAsset.status === "Assigned" ||
-                newAsset.status === "Under Repair") &&
-                !matchedAssignedEmployee &&
-                employeeLoadError && (
-                  <p className="asset-helper asset-helper--warning">
-                    {employeeLoadError}
-                  </p>
-                )}
-
-              {errors.assigned && (
-                <p className="asset-error">
-                  {errors.assigned}
-                </p>
-              )}
-            </div>
-
-            {/* ASSET NAME */}
-
-            <div className="asset-field-group">
-              <label htmlFor="asset-name-input">Asset Name</label>
-
-              <input
-                id="asset-name-input"
-                type="text"
-                name="name"
-                value={newAsset.name}
-                onChange={handleChange}
-                className={errors.name ? "has-error" : ""}
-              />
-
-              {errors.name && (
-                <p className="asset-error">
-                  {errors.name}
-                </p>
-              )}
-            </div>
-
-            {/* SERIAL NUMBER */}
-
-            <div className="asset-field-group">
-              <label htmlFor="asset-serial-input">Serial Number</label>
-
-              <input
-                id="asset-serial-input"
-                type="text"
-                name="serial"
-                value={newAsset.serial}
-                onChange={handleChange}
-                className={errors.serial ? "has-error" : ""}
-              />
-
-              {errors.serial && (
-                <p className="asset-error">
-                  {errors.serial}
-                </p>
-              )}
-            </div>
-
-            {/* STATUS */}
-
-            <div className="asset-field-group">
-              <label htmlFor="asset-status-select">Status</label>
-
-              <select
-                id="asset-status-select"
-                name="status"
-                value={newAsset.status}
-                onChange={handleChange}
-              >
-                {ASSET_STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-
-              {errors.status && (
-                <p className="asset-error">
-                  {errors.status}
-                </p>
-              )}
-            </div>
-
-            {/* IMAGES */}
-
-            {/* IMAGES */}
-
-            {/* IMAGES */}
-
-            <div className="asset-field-group">
-
-              <label htmlFor="asset-image-input">
-
-                Images
-
-                {newAsset.status === "Under Repair" && (
-                  <span
-                    style={{
-                      color: "red",
-                      marginLeft: "4px",
-                    }}
-                  >
-                    *
-                  </span>
-                )}
-
-              </label>
-
-              <input
-                id="asset-image-input"
-                type="file"
-                accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
-                multiple
-                onChange={handleImageChange}
-              />
-
-              {errors.images && (
-                <p className="asset-error">
-                  {errors.images}
-                </p>
-              )}
-
-            </div>
-
-            <div className="image-preview">
-              {imagePreviewItems.map((image, index) =>
-                image ? (
-                  <img
-                    key={index}
-                    src={typeof image === "string" ? buildServerUrl(image) : image}
-                    alt="preview"
-                    style={{ width: "60px", marginRight: "6px" }}
-                  />
-                ) : null
-              )}
-            </div>
-
-            {/* UNDER REPAIR DESCRIPTION */}
-
-            {newAsset.status === "Under Repair" && (
-              <div className="asset-field-group">
-
-                <label>
-                  Repair Description
-                </label>
-
-                <textarea
-                  name="description"
-                  value={newAsset.description || ""}
-                  onChange={(e) =>
-                    setNewAsset((prev) => ({
-                      ...prev,
-                      description: e.target.value
-                        .replace(/^\s+/g, "")
-                        .slice(0, 250),
-                    }))
-                  }
-                  placeholder="Enter repair issue description"
-                  rows={4}
                   style={{
-                    resize: "none",
-                  }}
-                />
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    gap: "2px",
+                    lineHeight: "1.2"
+                  }}>
+                  
+
+                      <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--text-strong)",
+                      maxWidth: "260px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      display: "block"
+                    }}
+                    title={asset.employeeName || "-"}>
+                    
+                        {asset.employeeName || "-"}
+                      </span>
+
+                      <span
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--text-muted)",
+                      fontWeight: "500"
+                    }}
+                    title={asset.assignedTo || "-"}>
+                    
+                        {asset.assignedTo || "-"}
+                      </span>
+
+                    </div>
+
+                  </td>
+
+                  <td className="assets-col-serial">
+                    <span className="asset-cell-text" title={asset.serialNo || "-"}>
+                      {asset.serialNo || "-"}
+                    </span>
+                  </td>
+
+                  <td className="assets-col-asset">
+                    <span className="asset-cell-text asset-name-text" title={asset.assetName || "-"}>
+                      {asset.assetName || "-"}
+                    </span>
+                  </td>
+
+                  <td className="assets-col-image">
+                    {asset.images && asset.images.length > 0 ?
+                <button
+                  className="assets-view-images-btn"
+                  type="button"
+                  onClick={() => {
 
-                {errors.description && (
-                  <p className="asset-error">
-                    {errors.description}
-                  </p>
-                )}
+                    setSelectedImages({
+                      images: asset.images,
+                      description: asset.description || ""
+                    });
 
-              </div>
-            )}
+                    setShowImageModal(true);
 
-            <div className="asset-modal-actions">
-              <button
-                type="button"
-                className="asset-delete-cancel-btn"
-                onClick={closeForm}
-                disabled={saving}
-              >
-                Cancel
-              </button>
+                  }}>
+                  
+                        View Images ({asset.images.length})
+                      </button> :
 
-              <button
-                type="button"
-                className="asset-update-btn"
-                onClick={handleSubmit}
-                disabled={saving}
-              >
-                {saving ? (editId ? "Updating..." : "Saving...") : editId ? "Update" : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <span className="asset-empty-image">No Image</span>
+                }
+                  </td>
+
+                  <td className="assets-col-status">
+                    <span
+                  className={
+                  asset.status === "Assigned" ?
+                  "asset-status-badge asset-status-badge--assigned" :
+                  asset.status === "Available" ?
+                  "asset-status-badge asset-status-badge--available" :
+                  "asset-status-badge asset-status-badge--repair"
+                  }>
+                  
+                      {asset.status || "-"}
+                    </span>
+                  </td>
+
+                  <td className="assets-col-actions assets-action-cell">
+                    <div className="assets-action-buttons">
+                      <button
+                    className="assets-edit-btn app-action-button app-action-button--edit"
+                    type="button"
+                    onClick={() => handleEdit(asset)}>
+                    
+                        Edit
+                      </button>
+
+                      <button
+                    className="assets-delete-btn app-action-button app-action-button--delete"
+                    type="button"
+                    onClick={() => {
+                      setAssetToDelete(asset);
+                      setShowDeletePopup(true);
+                    }}>
+                    
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+            ) :
 
-      {showRepairPopup && (
-        <div className="asset-delete-overlay">
+            <tr>
+                <td colSpan="6" className="app-table-empty-cell">
+                  No assets found
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      {filteredAssets.length > 0 &&
+      <AppPagination
+        totalItems={filteredAssets.length}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        itemLabel="assets" />
 
-          <div className="asset-delete-modal">
+      }
+
+      {showForm &&
+      <div className="modal">
+          <div className="modal-content">
+            <h3>{editId ? "Edit Asset" : "Add Asset"}</h3>
+
+            {apiError && <p className="asset-submit-error">{apiError}</p>}
+
+            {/* EMPLOYEE CODE */}
+
+            <div className="asset-field-group">
+              <label htmlFor="asset-assigned-input">Employee Code or Name</label>
+
+              <input
+              id="asset-assigned-input"
+              type="text"
+              name="assigned"
+              value={newAsset.assigned}
+              onChange={handleChange}
+              className={errors.assigned ? "has-error" : ""}
+              disabled={newAsset.status === "Available"}
+              list="asset-employee-options" />
+            
+
+              <datalist id="asset-employee-options">
+                {employeeOptions.map((employee) =>
+              <option
+                key={employee.code}
+                value={employee.code}
+                label={employee.name || employee.code} />
 
-            <h3>
-              Under Repair Asset
-            </h3>
-
+              )}
+              </datalist>
+
+              {(newAsset.status === "Assigned" ||
+            newAsset.status === "Under Repair") &&
+            matchedAssignedEmployee?.name &&
             <p
+              className="asset-helper"
               style={{
-                margin: "14px 0",
-              }}
-            >
-              Please upload image and add
-              repair description.
-            </p>
-
-            <div
-              className="asset-delete-actions"
-            >
-
-              <button
-                type="button"
-                className="asset-delete-cancel-btn"
-                onClick={() =>
-                  setShowRepairPopup(false)
-                }
-              >
-                OK
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {showDeletePopup && (
-        <div className="asset-delete-overlay">
-          <div className="asset-delete-modal">
-            <h3>Confirm Delete</h3>
-
-            <p style={{ margin: "15px 0" }}>
-              Are you sure you want to delete this asset?
-            </p>
-
-            <div className="asset-delete-actions">
-              <button
-                onClick={() => setShowDeletePopup(false)}
-                className="asset-delete-cancel-btn"
-                type="button"
-              >
-                Cancel
-              </button>
-
-              <button className="asset-delete-btn" type="button" onClick={confirmDeleteAsset}>
-                Yes, Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showImageModal && (
-        <div className="image-modal-overlay">
-          <div className="image-modal">
-            <h3>Asset Images</h3>
-            {selectedImages?.description && (
-              <div
+                fontWeight: "400"
+              }}>
+              
+                    Assigning this asset to{" "}
+                    <span
                 style={{
-                  marginBottom: "16px",
-                  padding: "12px",
-                  background: "var(--bg-muted)",
-                  borderRadius: "10px",
-                  fontSize: "14px",
-                  color: "var(--text-body)",
-                  lineHeight: "1.5",
+                  fontWeight: "700",
+                  color: "var(--text-strong)",
+                  display: "inline-block",
+                  maxWidth: "220px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  verticalAlign: "bottom"
                 }}
-              >
-                <strong>Description:</strong>{" "}
-                {selectedImages.description}
+                title={matchedAssignedEmployee.name}>
+                
+                      {matchedAssignedEmployee.name}
+                    </span>
+                  </p>
+            }
+
+              {(newAsset.status === "Assigned" ||
+            newAsset.status === "Under Repair") &&
+            !matchedAssignedEmployee &&
+            employeeLoadError &&
+            <p className="asset-helper asset-helper--warning">
+                    {employeeLoadError}
+                  </p>
+            }
+
+              {errors.assigned &&
+            <p className="asset-error">
+                  {errors.assigned}
+                </p>
+            }
+            </div>
+
+            {/* ASSET NAME */}
+
+            <div className="asset-field-group">
+              <label htmlFor="asset-name-input">Asset Name</label>
+
+              <input
+              id="asset-name-input"
+              type="text"
+              name="name"
+              value={newAsset.name}
+              onChange={handleChange}
+              className={errors.name ? "has-error" : ""} />
+            
+
+              {errors.name &&
+            <p className="asset-error">
+                  {errors.name}
+                </p>
+            }
+            </div>
+
+            {/* SERIAL NUMBER */}
+
+            <div className="asset-field-group">
+              <label htmlFor="asset-serial-input">Serial Number</label>
+
+              <input
+              id="asset-serial-input"
+              type="text"
+              name="serial"
+              value={newAsset.serial}
+              onChange={handleChange}
+              className={errors.serial ? "has-error" : ""} />
+            
+
+              {errors.serial &&
+            <p className="asset-error">
+                  {errors.serial}
+                </p>
+            }
+            </div>
+
+            {/* STATUS */}
+
+            <div className="asset-field-group">
+              <label htmlFor="asset-status-select">Status</label>
+
+              <select
+              id="asset-status-select"
+              name="status"
+              value={newAsset.status}
+              onChange={handleChange}>
+              
+                {ASSET_STATUS_OPTIONS.map((status) =>
+              <option key={status} value={status}>
+                    {status}
+                  </option>
+              )}
+              </select>
+
+              {errors.status &&
+            <p className="asset-error">
+                  {errors.status}
+                </p>
+            }
+            </div>
+
+            {/* IMAGES */}
+
+            {/* IMAGES */}
+
+            {/* IMAGES */}
+
+            <div className="asset-field-group">
+
+              <label htmlFor="asset-image-input">
+
+                Images
+
+                {newAsset.status === "Under Repair" &&
+              <span
+                style={{
+                  color: "red",
+                  marginLeft: "4px"
+                }}>
+                
+                    *
+                  </span>
+              }
+
+              </label>
+
+              <input
+              id="asset-image-input"
+              type="file"
+              accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
+              multiple
+              onChange={handleImageChange} />
+            
+
+              {errors.images &&
+            <p className="asset-error">
+                  {errors.images}
+                </p>
+            }
+
+            </div>
+
+            <div className="image-preview">
+              {imagePreviewItems.map((image, index) =>
+            image ?
+            <img
+              key={index}
+              src={typeof image === "string" ? buildServerUrl(image) : image}
+              alt="preview"
+              style={{ width: "60px", marginRight: "6px" }} /> :
+
+            null
+            )}
+            </div>
+
+            {/* UNDER REPAIR DESCRIPTION */}
+
+            {newAsset.status === "Under Repair" &&
+          <div className="asset-field-group">
+
+                <label>
+                  Repair Description
+                </label>
+
+                <textarea
+              name="description"
+              value={newAsset.description || ""}
+              onChange={(e) =>
+              setNewAsset((prev) => ({
+                ...prev,
+                description: e.target.value.
+                replace(/^\s+/g, "").
+                slice(0, 250)
+              }))
+              }
+              placeholder="Enter repair issue description"
+              rows={4}
+              style={{
+                resize: "none"
+              }} />
+            
+
+                {errors.description &&
+            <p className="asset-error">
+                    {errors.description}
+                  </p>
+            }
+
               </div>
-            )}
-
-            <div className="image-grid">
-              {selectedImages?.images?.map((image, index) => (
-                <a
-                  key={index}
-                  href={buildServerUrl(image)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img
-                    src={buildServerUrl(image)}
-                    alt="asset"
-                    style={{ cursor: "pointer" }}
-                  />
-                </a>
-              ))}
-            </div>
-
-            <button
-              className="close-image-btn"
+          }
+
+            <div className="asset-modal-actions">
+              <button
               type="button"
-              onClick={() => setShowImageModal(false)}
-            >
-              Close
-            </button>
-          </div>
+              className="asset-delete-cancel-btn"
+              onClick={closeForm}
+              disabled={saving}>
+              
+                Cancel
+              </button>
+
+              <button
+              type="button"
+              className="asset-update-btn"
+              onClick={handleSubmit}
+              disabled={saving}>
+              
+                {saving ? editId ? "Updating..." : "Saving..." : editId ? "Update" : "Save"}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
-  );
+      }
+
+      {showRepairPopup &&
+      <div className="asset-delete-overlay">
+
+          <div className="asset-delete-modal">
+
+            <h3>
+              Under Repair Asset
+            </h3>
+
+            <p
+            style={{
+              margin: "14px 0"
+            }}>
+            
+              Please upload image and add
+              repair description.
+            </p>
+
+            <div
+            className="asset-delete-actions">
+            
+
+              <button
+              type="button"
+              className="asset-delete-cancel-btn"
+              onClick={() =>
+              setShowRepairPopup(false)
+              }>
+              
+                OK
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      }
+
+      {showDeletePopup &&
+      <div className="asset-delete-overlay">
+          <div className="asset-delete-modal">
+            <h3>Confirm Delete</h3>
+
+            <p style={{ margin: "15px 0" }}>
+              Are you sure you want to delete this asset?
+            </p>
+
+            <div className="asset-delete-actions">
+              <button
+              onClick={() => setShowDeletePopup(false)}
+              className="asset-delete-cancel-btn"
+              type="button">
+              
+                Cancel
+              </button>
+
+              <button className="asset-delete-btn" type="button" onClick={confirmDeleteAsset}>
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      {showImageModal &&
+      <div className="image-modal-overlay">
+          <div className="image-modal">
+            <h3>Asset Images</h3>
+            {selectedImages?.description &&
+          <div
+            style={{
+              marginBottom: "16px",
+              padding: "12px",
+              background: "var(--bg-muted)",
+              borderRadius: "10px",
+              fontSize: "14px",
+              color: "var(--text-body)",
+              lineHeight: "1.5"
+            }}>
+            
+                <strong>Description:</strong>{" "}
+                {selectedImages.description}
+              </div>
+          }
+
+            <div className="image-grid">
+              {selectedImages?.images?.map((image, index) =>
+            <a
+              key={index}
+              href={buildServerUrl(image)}
+              target="_blank"
+              rel="noopener noreferrer">
+              
+                  <img
+                src={buildServerUrl(image)}
+                alt="asset"
+                style={{ cursor: "pointer" }} />
+              
+                </a>
+            )}
+            </div>
+
+            <button
+            className="close-image-btn"
+            type="button"
+            onClick={() => setShowImageModal(false)}>
+            
+              Close
+            </button>
+          </div>
+        </div>
+      }
+    </div>);
+
 }

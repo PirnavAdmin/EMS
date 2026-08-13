@@ -7,22 +7,22 @@ import { API_ENDPOINTS } from "../api/endpoints";
 const createInitialState = (member, teamProjectName) => {
   const hasProjectOverride = Boolean(member?.crossTeam || member?.overrideProjectName);
   const hasDayOverride =
-    Boolean(member?.overrideWfoDays?.length) || Boolean(member?.overrideWfhDays?.length);
+  Boolean(member?.overrideWfoDays?.length) || Boolean(member?.overrideWfhDays?.length);
 
   return {
     differentProject: hasProjectOverride,
     projectId:
-      Number(
-        member?.overrideProjectId ??
-        member?.projectId ??
-        ""
-      ) || "",
+    Number(
+      member?.overrideProjectId ??
+      member?.projectId ??
+      ""
+    ) || "",
     projectName: member?.overrideProjectName || member?.projectName || teamProjectName || "",
     customReportingDays: hasDayOverride,
     reportingDays:
-      member?.overrideWfoDays?.length > 0
-        ? [...member.overrideWfoDays]
-        : [...(member?.wfoDays || TEAM_DAY_OPTIONS)],
+    member?.overrideWfoDays?.length > 0 ?
+    [...member.overrideWfoDays] :
+    [...(member?.wfoDays || TEAM_DAY_OPTIONS)]
   };
 };
 
@@ -31,20 +31,20 @@ function OverrideMemberModal({
   member,
   teamProjectName = "",
   onClose,
-  onSave,
+  onSave
 }) {
   const [form, setForm] = useState(() =>
-    createInitialState(member, teamProjectName)
+  createInitialState(member, teamProjectName)
   );
   const [errors, setErrors] = useState({});
   const [projects, setProjects] = useState([]);
 
   useEffect(() => {
-    console.log("Projects =>", projects);
+
   }, [projects]);
 
   useEffect(() => {
-    console.log("Form =>", form);
+
   }, [form]);
 
   useEffect(() => {
@@ -58,38 +58,36 @@ function OverrideMemberModal({
     const fetchProjects = async () => {
       try {
         const token =
-          localStorage.getItem("token") ||
-          sessionStorage.getItem("token");
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
 
         const res = await api.get(
           API_ENDPOINTS.team.projects.list,
           {
             headers: {
-              Authorization: `Bearer ${token}`,
-            },
+              Authorization: `Bearer ${token}`
+            }
           }
         );
 
         const data =
-          res.data?.data ??
-          res.data?.list ??
-          res.data ??
-          [];
-
-        console.log("Projects Response", data);
+        res.data?.data ??
+        res.data?.list ??
+        res.data ??
+        [];
 
         const formatted = (Array.isArray(data) ? data : []).map((p, index) => ({
           id:
-            p.project_Id ??
-            p.projectId ??
-            p.id ??
-            `project-${index}`,
+          p.project_Id ??
+          p.projectId ??
+          p.id ??
+          `project-${index}`,
 
           project_Name:
-            p.project_Name ??
-            p.projectName ??
-            p.name ??
-            "Unknown Project"
+          p.project_Name ??
+          p.projectName ??
+          p.name ??
+          "Unknown Project"
         }));
 
         setProjects(formatted);
@@ -97,7 +95,7 @@ function OverrideMemberModal({
         setProjects(formatted);
 
       } catch (err) {
-        console.error(err);
+
         setProjects([]);
       }
     };
@@ -131,33 +129,31 @@ function OverrideMemberModal({
   const updateField = (name, value) => {
     setForm((current) => ({
       ...current,
-      [name]: value,
+      [name]: value
     }));
 
     setErrors((current) => ({
       ...current,
-      [name]: "",
+      [name]: ""
     }));
   };
 
   const toggleDay = (day) => {
     setForm((current) => {
       const isSelected = current.reportingDays.includes(day);
-      const nextDays = isSelected
-        ? current.reportingDays.filter((item) => item !== day)
-        : [...current.reportingDays, day];
+      const nextDays = isSelected ?
+      current.reportingDays.filter((item) => item !== day) :
+      [...current.reportingDays, day];
 
       return {
         ...current,
-        reportingDays: nextDays,
+        reportingDays: nextDays
       };
     });
   };
 
   const validate = () => {
     const nextErrors = {};
-
-
 
     if (form.customReportingDays && form.reportingDays.length === 0) {
       nextErrors.reportingDays = "Select at least one reporting day";
@@ -183,7 +179,7 @@ function OverrideMemberModal({
 
       onClose?.();
     } catch (error) {
-      console.error(error);
+
     }
   };
 
@@ -198,14 +194,14 @@ function OverrideMemberModal({
         if (event.target === event.currentTarget) {
           onClose?.();
         }
-      }}
-    >
+      }}>
+      
       <div
         className="team-modal team-modal-small"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="override-member-title"
-      >
+        aria-labelledby="override-member-title">
+        
         <div className="team-modal-header">
           <div>
             <h3 id="override-member-title" className="team-modal-title">
@@ -220,8 +216,8 @@ function OverrideMemberModal({
             type="button"
             className="team-modal-close"
             onClick={onClose}
-            aria-label="Close override modal"
-          >
+            aria-label="Close override modal">
+            
             <FaTimes />
           </button>
         </div>
@@ -233,9 +229,9 @@ function OverrideMemberModal({
                 type="checkbox"
                 checked={form.differentProject}
                 onChange={(event) =>
-                  updateField("differentProject", event.target.checked)
-                }
-              />
+                updateField("differentProject", event.target.checked)
+                } />
+              
               <span>Different Project (cross-team)</span>
             </label>
 
@@ -248,37 +244,37 @@ function OverrideMemberModal({
                   disabled={!form.differentProject}
                   onChange={(e) => {
 
-                    const projectId = e.target.value
-                      ? Number(e.target.value)
-                      : "";
+                    const projectId = e.target.value ?
+                    Number(e.target.value) :
+                    "";
 
                     const selectedProject = projects.find(
-                      p => p.id === projectId
+                      (p) => p.id === projectId
                     );
 
-                    setForm(prev => ({
+                    setForm((prev) => ({
                       ...prev,
                       projectId,
                       projectName: selectedProject?.project_Name || ""
                     }));
-                  }}
-                >
+                  }}>
+                  
                   <option value="">Select Project</option>
 
-                  {projects.map(project => (
-                    <option
-                      key={`${project.id}-${project.project_Name}`}
-                      value={project.id}
-                    >
+                  {projects.map((project) =>
+                  <option
+                    key={`${project.id}-${project.project_Name}`}
+                    value={project.id}>
+                    
                       {project.project_Name}
                     </option>
-                  ))}
+                  )}
                 </select>
                 <FaChevronDown className="team-select-chevron" aria-hidden="true" />
               </div>
-              {errors.projectName ? (
-                <span className="team-form-error">{errors.projectName}</span>
-              ) : null}
+              {errors.projectName ?
+              <span className="team-form-error">{errors.projectName}</span> :
+              null}
             </div>
 
             <label className="team-checkbox-field">
@@ -286,9 +282,9 @@ function OverrideMemberModal({
                 type="checkbox"
                 checked={form.customReportingDays}
                 onChange={(event) =>
-                  updateField("customReportingDays", event.target.checked)
-                }
-              />
+                updateField("customReportingDays", event.target.checked)
+                } />
+              
               <span>Custom Reporting Days</span>
             </label>
 
@@ -302,25 +298,25 @@ function OverrideMemberModal({
                     <button
                       key={day}
                       type="button"
-                      className={`teams-day-button ${isSelected ? "is-active" : ""} ${form.customReportingDays ? "is-editable" : "is-locked"
-                        }`}
+                      className={`teams-day-button ${isSelected ? "is-active" : ""} ${form.customReportingDays ? "is-editable" : "is-locked"}`
+                      }
                       onClick={() => {
                         if (form.customReportingDays) {
                           toggleDay(day);
                         }
                       }}
-                      disabled={!form.customReportingDays}
-                    >
+                      disabled={!form.customReportingDays}>
+                      
                       {isSelected ? <FaCheck aria-hidden="true" /> : null}
                       <span>{day}</span>
-                    </button>
-                  );
+                    </button>);
+
                 })}
               </div>
 
-              {errors.reportingDays ? (
-                <span className="team-form-error">{errors.reportingDays}</span>
-              ) : null}
+              {errors.reportingDays ?
+              <span className="team-form-error">{errors.reportingDays}</span> :
+              null}
             </div>
           </div>
         </div>
@@ -335,8 +331,8 @@ function OverrideMemberModal({
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default OverrideMemberModal;

@@ -1,74 +1,81 @@
 import { useEffect } from "react";
 import { useAdminPermissions } from "./AdminPermissionContext";
 import { useEmployeePermissions } from "./EmployeePermissionContext";
-import { getStoredJwtRole, getStoredRole, getStoredRoleName } from "../utils/authStorage";
-import { isAdmin, isEmployee, isSuperAdmin } from "../utils/authorization";
+import {
+  getStoredJwtRole,
+  getStoredLoginType,
+  getStoredRole,
+  getStoredRoleName } from
+"../utils/authStorage";
+import { isAdmin, isEmployee, isRolePermissionRole, isSuperAdmin, resolveAuthRole } from "../utils/authorization";
 
-const resolvePermissionScope = (roleValue = "") => {
-  const role =
-    roleValue ||
-    getStoredRole() ||
-    getStoredRoleName() ||
-    getStoredJwtRole() ||
-    "";
-
-  if (isSuperAdmin(role)) {
-    return "superadmin";
-  }
-
-  if (isAdmin(role)) {
-    return "admin";
-  }
-
-  if (isEmployee(role)) {
-    return "employee";
-  }
-
-  return "admin";
-};
+const resolvePermissionScope = (roleValue = "") =>
+resolveAuthRole(
+  roleValue ||
+  getStoredRole() ||
+  getStoredRoleName() ||
+  getStoredJwtRole() ||
+  "",
+  ""
+);
 
 export const usePermissionScope = () => {
   const adminPermissions = useAdminPermissions();
   const employeePermissions = useEmployeePermissions();
-  const resolvedRole =
-    getStoredRole() ||
-    getStoredRoleName() ||
-    getStoredJwtRole() ||
-    "";
-  const scope = resolvePermissionScope(resolvedRole);
-  const permissionFlow =
-    scope === "superadmin"
-      ? "superadmin-bypass"
-      : scope === "employee"
-        ? "role-permission"
-        : scope === "admin"
-          ? "admin-permission"
-          : "no-permission-api";
-  const adminPermissionCount = Array.isArray(adminPermissions?.allowedModules)
-    ? adminPermissions.allowedModules.length
-    : 0;
-  const employeePermissionCount = Array.isArray(employeePermissions?.allowedModules)
-    ? employeePermissions.allowedModules.length
-    : 0;
+  const authenticatedRole = resolvePermissionScope();
+  const loginType = getStoredLoginType() || (
+  isSuperAdmin(authenticatedRole) ?
+  "super-admin" :
+  isAdmin(authenticatedRole) ?
+  "admin" :
+  isEmployee(authenticatedRole) || isRolePermissionRole(authenticatedRole) ?
+  "user" :
+  "");
+  const adminRole = isAdmin(authenticatedRole);
+  const employeeRole = isEmployee(authenticatedRole);
+  const rolePermissionRole = isRolePermissionRole(authenticatedRole);
+  const permissionFlow = loginType === "admin" ?
+  "admin-permission" :
+  loginType === "super-admin" ?
+  "superadmin-bypass" :
+  loginType === "user" ?
+  "role-permission" :
+  adminRole ?
+  "admin-permission" :
+  employeeRole || rolePermissionRole ?
+  "role-permission" :
+  "no-permission-api";
+  const adminPermissionCount = Array.isArray(adminPermissions?.allowedModules) ?
+  adminPermissions.allowedModules.length :
+  0;
+  const employeePermissionCount = Array.isArray(employeePermissions?.allowedModules) ?
+  employeePermissions.allowedModules.length :
+  0;
 
   const selectedPermissions =
-    scope === "employee" ? employeePermissions : adminPermissions;
+  loginType === "admin" || loginType === "super-admin" ?
+  adminPermissions :
+  employeePermissions;
 
   useEffect(() => {
-    console.log("[permissionScope] Resolved permission flow", {
-      resolvedRole: resolvedRole || "unknown",
-      permissionScope: scope,
-      permissionFlow,
-      adminPermissionCount,
-      employeePermissionCount,
-    });
-  }, [resolvedRole, scope, permissionFlow, adminPermissionCount, employeePermissionCount]);
+
+  }, [
+  authenticatedRole,
+  loginType,
+  permissionFlow,
+  adminPermissionCount,
+  employeePermissionCount,
+  selectedPermissions]
+  );
 
   return {
     ...selectedPermissions,
-    permissionScope: scope,
+    permissionScope: authenticatedRole,
+    authenticatedRole,
+    loginType,
+    selectedPermissionFlow: permissionFlow,
     permissionFlow,
     adminPermissions,
-    employeePermissions,
+    employeePermissions
   };
 };

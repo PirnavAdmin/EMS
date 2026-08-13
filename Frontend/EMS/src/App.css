@@ -720,12 +720,8 @@
 @media (max-width: 991px) {
   .app-layout {
     --layout-gutter: clamp(14px, 1.5vw, 20px);
-  }
-
-  .app-main,
-  .app-main.is-collapsed {
-    width: 100%;
-    margin-left: 0;
+    --layout-sidebar-width: clamp(200px, 24vw, 232px);
+    --layout-sidebar-collapsed-width: clamp(64px, 7vw, 72px);
   }
 }
 
@@ -747,12 +743,8 @@
 @media (max-width: 576px) {
   .app-layout {
     --layout-gutter: 12px;
-  }
-
-  .app-main,
-  .app-main.is-collapsed {
-    width: 100%;
-    margin-left: 0;
+    --layout-sidebar-width: clamp(180px, 52vw, 204px);
+    --layout-sidebar-collapsed-width: 60px;
   }
 
   .page-shell {
@@ -854,6 +846,8 @@
 @media (max-width: 576px) {
   .app-layout {
     --layout-gutter: 10px;
+    --layout-sidebar-width: clamp(180px, 52vw, 204px);
+    --layout-sidebar-collapsed-width: 60px;
   }
 
   .app-header-inner {

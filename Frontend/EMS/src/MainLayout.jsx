@@ -3,71 +3,23 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { App as CapApp } from "@capacitor/app";
 import Sidebar from "./Sidebar/Sidebar";
 import Header from "./dashboard/Header";
-import MobileBottomNav from "./components/mobile/MobileBottomNav";
 import { PageSkeleton } from "./components/Skeletons";
 import { getStoredToken } from "./utils/authStorage";
-import { isOnboardingUser } from "./utils/authorization";
 import { handleAutoLogout, isSessionExpired, startSessionTimer, clearSessionTimer } from "./utils/sessionManager";
-
-const MOBILE_LAYOUT_QUERY = "(max-width: 991px)";
 
 function MainLayout({ permissionScope }) {
   const location = useLocation();
   const { loadingPermissions, error, errorStatus, refreshPermissions } = permissionScope;
   const permissionScopeName = permissionScope?.permissionScope;
   const permissionFlow = permissionScope?.permissionFlow;
+  const loginType = permissionScope?.loginType;
+  const allowedModules = Array.isArray(permissionScope?.allowedModules) ?
+  permissionScope.allowedModules :
+  [];
   const permissionErrorMessage =
-    typeof error === "string" ? error : error?.message || "";
+  typeof error === "string" ? error : error?.message || "";
   const hasPermissionError = Boolean(error);
-  const [isMobileViewport, setIsMobileViewport] = useState(() => {
-    if (typeof window === "undefined" || !window.matchMedia) {
-      return false;
-    }
-
-    return window.matchMedia(MOBILE_LAYOUT_QUERY).matches;
-  });
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    if (!window.matchMedia) {
-      return undefined;
-    }
-
-    const mediaQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
-
-    const handleViewportChange = (event) => {
-      setIsMobileViewport(event.matches);
-      setMobileSidebarOpen(false);
-    };
-
-    handleViewportChange(mediaQuery);
-
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleViewportChange);
-
-      return () => mediaQuery.removeEventListener("change", handleViewportChange);
-    }
-
-    mediaQuery.addListener(handleViewportChange);
-
-    return () => mediaQuery.removeListener(handleViewportChange);
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") {
-      return undefined;
-    }
-
-    const shouldLockScroll = isMobileViewport && mobileSidebarOpen;
-    const previousOverflow = document.body.style.overflow;
-
-    document.body.style.overflow = shouldLockScroll ? "hidden" : "";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isMobileViewport, mobileSidebarOpen]);
 
   useEffect(() => {
     const token = getStoredToken();
@@ -79,7 +31,7 @@ function MainLayout({ permissionScope }) {
 
     if (isSessionExpired()) {
       handleAutoLogout({
-        reason: "MainLayout detected an expired session during initialization",
+        reason: "MainLayout detected an expired session during initialization"
       });
       return undefined;
     }
@@ -89,24 +41,18 @@ function MainLayout({ permissionScope }) {
   }, []);
 
   useEffect(() => {
-    console.log("[MainLayout] Permission state", {
-      pathname: location.pathname,
-      permissionScope: permissionScopeName || "unknown",
-      permissionFlow: permissionFlow || "unknown",
-      loadingPermissions,
-      errorStatus,
-      hasError: hasPermissionError,
-      errorMessage: permissionErrorMessage,
-    });
+
   }, [
-    location.pathname,
-    loadingPermissions,
-    errorStatus,
-    hasPermissionError,
-    permissionScopeName,
-    permissionFlow,
-    permissionErrorMessage,
-  ]);
+  location.pathname,
+  loadingPermissions,
+  errorStatus,
+  hasPermissionError,
+  permissionScopeName,
+  loginType,
+  permissionFlow,
+  allowedModules,
+  permissionErrorMessage]
+  );
 
   useEffect(() => {
     let listener;
@@ -115,9 +61,7 @@ function MainLayout({ permissionScope }) {
       try {
         if (CapApp && typeof CapApp.addListener === "function") {
           listener = await CapApp.addListener("backButton", ({ canGoBack }) => {
-            if (mobileSidebarOpen) {
-              setMobileSidebarOpen(false);
-            } else if (canGoBack) {
+            if (canGoBack) {
               window.history.back();
             } else {
               CapApp.exitApp();
@@ -125,9 +69,9 @@ function MainLayout({ permissionScope }) {
           });
         }
       } catch {
+
         // Native plugin is not available in standard browser sessions.
-      }
-    };
+      }};
 
     setupListener();
 
@@ -136,7 +80,7 @@ function MainLayout({ permissionScope }) {
         listener.remove();
       }
     };
-  }, [mobileSidebarOpen]);
+  }, []);
 
   if (loadingPermissions) {
     return (
@@ -144,8 +88,8 @@ function MainLayout({ permissionScope }) {
         <div className="app-route-skeleton" style={{ padding: "24px" }}>
           <PageSkeleton variant="dashboard" />
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   if (errorStatus === 403) {
@@ -162,9 +106,9 @@ function MainLayout({ permissionScope }) {
             display: "grid",
             placeItems: "center",
             padding: "32px",
-            background: "linear-gradient(180deg, var(--bg-primary), var(--bg-secondary))",
-          }}
-        >
+            background: "linear-gradient(180deg, var(--bg-primary), var(--bg-secondary))"
+          }}>
+          
           <div
             className="app-surface"
             style={{
@@ -172,9 +116,9 @@ function MainLayout({ permissionScope }) {
               padding: "32px",
               borderRadius: "24px",
               boxShadow: "0 20px 60px rgba(15,108,189,.12)",
-              textAlign: "center",
-            }}
-          >
+              textAlign: "center"
+            }}>
+            
             <h2 style={{ margin: 0, color: "var(--text-primary)" }}>
               Unable to load your permissions
             </h2>
@@ -187,45 +131,32 @@ function MainLayout({ permissionScope }) {
               onClick={() => {
                 void refreshPermissions({ force: true }).catch(() => {});
               }}
-              style={{ minWidth: 160 }}
-            >
+              style={{ minWidth: 160 }}>
+              
               Retry
             </button>
           </div>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   return (
     <div
-      className={`app-layout ${isMobileViewport ? "is-mobile" : ""} ${
-        mobileSidebarOpen ? "is-mobile-sidebar-open" : ""
-      }`}
-    >
+      className="app-layout">
+      
       <Sidebar
         key={location.pathname}
-        collapsed={collapsed}
-        isMobile={isMobileViewport}
-        mobileOpen={mobileSidebarOpen}
-        onClose={() => setMobileSidebarOpen(false)}
-      />
+        collapsed={collapsed} />
+      
 
-      <div
-        className={`app-main ${!isMobileViewport && collapsed ? "is-collapsed" : ""}`}
-      >
+      <div className={`app-main ${collapsed ? "is-collapsed" : ""}`}>
         <Header
           collapsed={collapsed}
-          isMobileViewport={isMobileViewport}
           onToggle={() => {
-            if (isMobileViewport) {
-              setMobileSidebarOpen((prev) => !prev);
-              return;
-            }
-
             setCollapsed((prev) => !prev);
-          }}
-        />
+          }} />
+        
 
         <div className="app-main-scroll">
           <main className="page-shell">
@@ -234,21 +165,8 @@ function MainLayout({ permissionScope }) {
         </div>
       </div>
 
-      {!isOnboardingUser() && (
-        <MobileBottomNav
-          onToggleSidebar={() => {
-            if (isMobileViewport) {
-              setMobileSidebarOpen((prev) => !prev);
-              return;
-            }
+    </div>);
 
-            setCollapsed((prev) => !prev);
-          }}
-          sidebarOpen={mobileSidebarOpen}
-        />
-      )}
-    </div>
-  );
 }
 
 export default MainLayout;

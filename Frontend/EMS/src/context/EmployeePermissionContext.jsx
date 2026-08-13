@@ -6,42 +6,47 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState,
-} from "react";
+  useState } from
+"react";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import {
   clearEmployeePermissionCache,
-  fetchAllowedEmployeeModules,
   getEmployeePermissionErrorMessage,
-  isEmployeePermissionAuthFailure,
-} from "../services/employeePermissionService";
+  isEmployeePermissionAuthFailure } from
+"../services/employeePermissionService";
+import { fetchAllowedRoleModules } from "../services/rolePermissionService";
 import {
   clearAuthData,
   getAuthenticatedUserSnapshot,
   getStoredEmployeeEmail,
   getStoredEmployeeId,
+  getStoredAuthValue,
   getStoredEmployeePermissionSnapshot,
   getStoredRefreshToken,
+  getStoredLoginType,
+  getStoredPermissions,
   getStoredRole,
   getStoredRoleName,
   getStoredToken,
-  persistEmployeePermissions,
-} from "../utils/authStorage";
+  persistRolePermissions } from
+"../utils/authStorage";
 import {
   isEmployee,
+  isAdmin,
   isSuperAdmin,
+  isRolePermissionRole,
   modulePermissionMatches,
-  normalizeLoginRole,
-  normalizePermissionList,
-} from "../utils/authorization";
+  resolveAuthRole,
+  normalizePermissionList } from
+"../utils/authorization";
 
 const EmployeePermissionContext = createContext(null);
 
 const normalizeModuleName = (value) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+String(value ?? "").
+trim().
+toLowerCase().
+replace(/[^a-z0-9]/g, "");
 
 const matchesModule = (permission, moduleName) => {
   const permissionName = String(
@@ -58,8 +63,8 @@ const matchesModule = (permission, moduleName) => {
     modulePermissionMatches(
       normalizeModuleName(permissionName),
       normalizeModuleName(moduleName)
-    )
-  );
+    ));
+
 };
 
 const normalizeSnapshot = (snapshot = {}) => {
@@ -67,7 +72,7 @@ const normalizeSnapshot = (snapshot = {}) => {
     return {
       userId: "",
       userEmail: "",
-      modules: normalizePermissionList(snapshot),
+      modules: normalizePermissionList(snapshot)
     };
   }
 
@@ -76,37 +81,50 @@ const normalizeSnapshot = (snapshot = {}) => {
   return {
     userId: String(
       payload.userId ??
-        payload.UserId ??
-        payload.employeeId ??
-        payload.EmployeeId ??
-        snapshot.userId ??
-        snapshot.UserId ??
-        snapshot.employeeId ??
-        snapshot.EmployeeId ??
-        getStoredEmployeeId() ??
-        ""
+      payload.UserId ??
+      payload.employeeId ??
+      payload.EmployeeId ??
+      snapshot.userId ??
+      snapshot.UserId ??
+      snapshot.employeeId ??
+      snapshot.EmployeeId ??
+      getStoredEmployeeId() ??
+      ""
     ).trim(),
     userEmail: String(
       payload.userEmail ??
-        payload.UserEmail ??
-        payload.employeeEmail ??
-        payload.EmployeeEmail ??
-        payload.email ??
-        payload.Email ??
-        snapshot.userEmail ??
-        snapshot.UserEmail ??
-        snapshot.employeeEmail ??
-        snapshot.EmployeeEmail ??
-        snapshot.email ??
-        snapshot.Email ??
-        getStoredEmployeeEmail() ??
-        ""
+      payload.UserEmail ??
+      payload.employeeEmail ??
+      payload.EmployeeEmail ??
+      payload.email ??
+      payload.Email ??
+      snapshot.userEmail ??
+      snapshot.UserEmail ??
+      snapshot.employeeEmail ??
+      snapshot.EmployeeEmail ??
+      snapshot.email ??
+      snapshot.Email ??
+      getStoredEmployeeEmail() ??
+      ""
     ).trim(),
-    modules: normalizePermissionList(payload),
+    modules: normalizePermissionList(payload)
   };
 };
 
-const readCachedSnapshot = () => {
+const isPermissionScope = (roleValue) =>
+isEmployee(roleValue) || isRolePermissionRole(roleValue);
+
+const readCachedSnapshot = (roleValue = "") => {
+  const modules = getStoredPermissions(roleValue);
+
+  if (Array.isArray(modules) && modules.length > 0) {
+    return {
+      roleId: "",
+      roleName: roleValue,
+      modules
+    };
+  }
+
   const snapshot = getStoredEmployeePermissionSnapshot();
 
   if (snapshot && Array.isArray(snapshot.modules) && snapshot.modules.length > 0) {
@@ -117,31 +135,40 @@ const readCachedSnapshot = () => {
 };
 
 const resolvePermission = (permissions, moduleName) =>
-  permissions.find((permission) => matchesModule(permission, moduleName)) || null;
+permissions.find((permission) => matchesModule(permission, moduleName)) || null;
 
 const resolvePermissionRole = () =>
-  normalizeLoginRole(getStoredRole() || getStoredRoleName() || "user", "user");
-
-const isEmployeeScope = (roleValue) => isEmployee(roleValue);
+resolveAuthRole(getStoredRole() || getStoredRoleName() || "user", "user");
 
 export const EmployeePermissionProvider = ({ children }) => {
-  const initialSnapshot = readCachedSnapshot();
   const initialAuthSnapshot = getAuthenticatedUserSnapshot();
-  const initialRole = normalizeLoginRole(
+  const initialRole = resolveAuthRole(
     initialAuthSnapshot.role ||
-      initialAuthSnapshot.roleName ||
-      getStoredRole() ||
-      getStoredRoleName() ||
-      "user",
+    initialAuthSnapshot.roleName ||
+    getStoredRole() ||
+    getStoredRoleName() ||
+    "user",
     "user"
   );
+  const initialLoginType =
+  initialAuthSnapshot.loginType || getStoredLoginType() || "";
+  const initialPermissionLoginType =
+  initialLoginType || (
+  isSuperAdmin(initialRole) ?
+  "super-admin" :
+  isPermissionScope(initialRole) ?
+  "user" :
+  "");
+  const initialSnapshot = readCachedSnapshot(initialRole);
   const hasCachedPermissions = Boolean(initialSnapshot?.modules?.length);
   const hasSyncedPermissionsRef = useRef(false);
   const [status, setStatus] = useState(
     () =>
-      initialAuthSnapshot.token && isEmployeeScope(initialRole) && !hasCachedPermissions
-        ? "loading"
-        : "ready"
+    initialAuthSnapshot.token &&
+    initialPermissionLoginType === "user" &&
+    !hasCachedPermissions ?
+    "loading" :
+    "ready"
   );
   const [error, setError] = useState("");
   const [errorStatus, setErrorStatus] = useState(0);
@@ -170,20 +197,27 @@ export const EmployeePermissionProvider = ({ children }) => {
 
   const isLoading = status === "loading";
   const isReady = status === "ready";
+  const resolvedLoginType =
+  getStoredLoginType() || (
+  isSuperAdmin(role) ?
+  "super-admin" :
+  isPermissionScope(role) ?
+  "user" :
+  "");
 
   const syncAuthState = useCallback(() => {
     const authSnapshot = getAuthenticatedUserSnapshot();
-    const normalizedRole = normalizeLoginRole(
+    const normalizedRole = resolveAuthRole(
       authSnapshot.role ||
-        authSnapshot.roleName ||
-        getStoredRole() ||
-        getStoredRoleName() ||
-        "user",
+      authSnapshot.roleName ||
+      getStoredRole() ||
+      getStoredRoleName() ||
+      "user",
       "user"
     );
     const normalizedUser = authSnapshot.user || null;
     const normalizedRefreshToken =
-      authSnapshot.refreshToken || getStoredRefreshToken() || "";
+    authSnapshot.refreshToken || getStoredRefreshToken() || "";
 
     setToken(authSnapshot.token || "");
     setRole(normalizedRole);
@@ -196,7 +230,7 @@ export const EmployeePermissionProvider = ({ children }) => {
       role: normalizedRole,
       user: normalizedUser,
       refreshToken: normalizedRefreshToken,
-      isAuthenticated: Boolean(authSnapshot.token),
+      isAuthenticated: Boolean(authSnapshot.token)
     };
   }, []);
 
@@ -232,20 +266,20 @@ export const EmployeePermissionProvider = ({ children }) => {
 
   const canAccessModule = useCallback(
     (moduleName) =>
-      isEmployeeScope(role) &&
-      resolvePermission(allowedModules, moduleName)?.canAccess === true,
+    isPermissionScope(role) &&
+    resolvePermission(allowedModules, moduleName)?.canAccess === true,
     [allowedModules, role]
   );
 
   const getPermissionForModule = useCallback(
     (moduleName) =>
-      isEmployeeScope(role) ? resolvePermission(allowedModules, moduleName) : null,
+    isPermissionScope(role) ? resolvePermission(allowedModules, moduleName) : null,
     [allowedModules, role]
   );
 
   const canViewModule = useCallback(
     (moduleName) => {
-      if (!isEmployeeScope(role)) {
+      if (!isPermissionScope(role)) {
         return false;
       }
 
@@ -257,7 +291,7 @@ export const EmployeePermissionProvider = ({ children }) => {
 
   const canAddModule = useCallback(
     (moduleName) => {
-      if (!isEmployeeScope(role)) {
+      if (!isPermissionScope(role)) {
         return false;
       }
 
@@ -269,7 +303,7 @@ export const EmployeePermissionProvider = ({ children }) => {
 
   const canEditModule = useCallback(
     (moduleName) => {
-      if (!isEmployeeScope(role)) {
+      if (!isPermissionScope(role)) {
         return false;
       }
 
@@ -281,7 +315,7 @@ export const EmployeePermissionProvider = ({ children }) => {
 
   const canDeleteModule = useCallback(
     (moduleName) => {
-      if (!isEmployeeScope(role)) {
+      if (!isPermissionScope(role)) {
         return false;
       }
 
@@ -301,33 +335,74 @@ export const EmployeePermissionProvider = ({ children }) => {
         return [];
       }
 
-      const currentRole = normalizeLoginRole(
+      const currentRole = resolveAuthRole(
         authSnapshot.role || resolvePermissionRole() || "user",
         "user"
       );
       const currentRoleLabel = String(
         authSnapshot.roleName ||
-          authSnapshot.role ||
-          getStoredRoleName() ||
-          getStoredRole() ||
-          currentRole
+        authSnapshot.role ||
+        getStoredRoleName() ||
+        getStoredRole() ||
+        currentRole
       ).trim();
-      const isSuperAdminRole = isSuperAdmin(currentRole);
-      const permissionFlow = isEmployeeScope(currentRole)
-        ? "role-permission"
-        : isSuperAdminRole
-          ? "superadmin-bypass"
-          : "no-permission-api";
+      const currentLoginType =
+      authSnapshot.loginType || getStoredLoginType() || "";
+      const currentRoleId =
+      authSnapshot.roleId ||
+      authSnapshot.user?.roleId ||
+      authSnapshot.user?.RoleId ||
+      getStoredAuthValue("roleId") ||
+      "";
+      const currentAdminId =
+      authSnapshot.adminId || getStoredAuthValue("adminId") || "";
+      const currentEmployeeId =
+      authSnapshot.employeeId || getStoredAuthValue("employeeId") || "";
+      const resolvedLoginType =
+      currentLoginType || (
+      isSuperAdmin(currentRole) ?
+      "super-admin" :
+      isPermissionScope(currentRole) ?
+      "user" :
+      "");
+      const isSuperAdminRole =
+      resolvedLoginType === "super-admin" || isSuperAdmin(currentRole);
+      const isAdminRole =
+      resolvedLoginType === "admin" || isAdmin(currentRole);
+      const isUserRole =
+      resolvedLoginType === "user" ||
+      !currentLoginType && !isAdminRole && !isSuperAdminRole && Boolean(currentRole);
+      const permissionFlow = isSuperAdminRole ?
+      "superadmin-bypass" :
+      isAdminRole ?
+      "admin-permission" :
+      isUserRole ?
+      "role-permission" :
+      "no-permission-api";
+      const selectedPermissionApi = isUserRole ?
+      "/RolePermission/allowed-modules" :
+      isAdminRole || isSuperAdminRole ?
+      "/AdminPermission/allowed-modules" :
+      "none";
+      const permissionScope = permissionFlow === "role-permission" ?
+      "role" :
+      permissionFlow === "admin-permission" ?
+      "admin" :
+      permissionFlow === "superadmin-bypass" ?
+      "superadmin" :
+      "unknown";
 
-      if (!isEmployeeScope(currentRole)) {
-        console.log("Authenticated Role:", currentRoleLabel || currentRole || "unknown");
-        console.log("Selected Permission Flow:", permissionFlow);
+      if (isAdminRole || isSuperAdminRole) {
 
-        if (isSuperAdminRole) {
-          console.log("Skipping permission API for Super Admin");
-        }
+        setAllowedModules([]);
+        setStatus("ready");
+        setError("");
+        setErrorStatus(0);
+        return [];
+      }
 
-        console.log("Selected Permission API:", "none");
+      if (!isUserRole) {
+
         setAllowedModules([]);
         setStatus("ready");
         setError("");
@@ -336,10 +411,12 @@ export const EmployeePermissionProvider = ({ children }) => {
       }
 
       if (!force) {
-        const cachedSnapshot = readCachedSnapshot();
+        const cachedSnapshot = readCachedSnapshot(currentRole);
 
         if (cachedSnapshot?.modules?.length > 0) {
+
           applySnapshot(cachedSnapshot);
+
           return cachedSnapshot.modules;
         }
       }
@@ -348,44 +425,43 @@ export const EmployeePermissionProvider = ({ children }) => {
       setError("");
       setErrorStatus(0);
 
-      const currentUserId =
-        authSnapshot.userId ||
-        authSnapshot.employeeId ||
-        getStoredEmployeeId() ||
-        "";
-      const currentUserEmail =
-        authSnapshot.userEmail ||
-        authSnapshot.email ||
-        getStoredEmployeeEmail() ||
-        "";
-
-      console.log("Authenticated Role:", currentRoleLabel || currentRole);
-      console.log("Selected Permission Flow:", permissionFlow);
-      console.log("Selected Permission API:", "/RolePermission/allowed-modules");
-      console.log("JWT Token:", authSnapshot.token || getStoredToken() || "");
-
       try {
-        const modules = await fetchAllowedEmployeeModules({
+        const modules = await fetchAllowedRoleModules({
           force,
-          userId: currentUserId,
-          userEmail: currentUserEmail,
           role: currentRoleLabel || currentRole,
+          roleName: currentRoleLabel || currentRole,
+          roleId: currentRoleId,
+          adminId: currentAdminId,
+          employeeId: currentEmployeeId,
+          loginType: resolvedLoginType,
+          permissionScope,
+          permissionFlow
         });
 
-        console.log("Permission Response:", modules);
+        const apiModules = Array.isArray(modules) ? modules : [];
+        const storedModulesBeforeWrite = getStoredPermissions(currentRole);
+        const modulesToPersist =
+        apiModules.length > 0 ? apiModules : storedModulesBeforeWrite;
 
         const snapshot = {
-          userId: currentUserId,
-          userEmail: currentUserEmail,
-          modules,
+          roleId: currentRoleId || authSnapshot.roleId || "",
+          roleName: currentRoleLabel || currentRole,
+          modules: modulesToPersist
         };
 
         applySnapshot(snapshot);
-        persistEmployeePermissions(snapshot);
 
-        console.log("Visible Modules:", modules);
+        if (apiModules.length > 0) {
+          persistRolePermissions(snapshot);
+        }
 
-        return modules;
+        const storedPermissions = getStoredPermissions(currentRole);
+        const finalAllowedModules =
+        Array.isArray(storedPermissions) && storedPermissions.length > 0 ?
+        storedPermissions :
+        modulesToPersist;
+
+        return finalAllowedModules;
       } catch (fetchError) {
         const errorStatusCode = Number(fetchError?.response?.status || 0);
 
@@ -400,9 +476,9 @@ export const EmployeePermissionProvider = ({ children }) => {
         setError(
           getEmployeePermissionErrorMessage(
             fetchError,
-            errorStatusCode === 403
-              ? "You do not have permission to access this resource."
-              : "Unable to load your assigned modules."
+            errorStatusCode === 403 ?
+            "You do not have permission to access this resource." :
+            "Unable to load your assigned modules."
           )
         );
 
@@ -414,11 +490,11 @@ export const EmployeePermissionProvider = ({ children }) => {
 
   useEffect(() => {
     if (
-      !token ||
-      !isEmployeeScope(role) ||
-      hasSyncedPermissionsRef.current ||
-      allowedModules.length > 0
-    ) {
+    !token ||
+    resolvedLoginType !== "user" ||
+    hasSyncedPermissionsRef.current ||
+    allowedModules.length > 0)
+    {
       return undefined;
     }
 
@@ -427,7 +503,7 @@ export const EmployeePermissionProvider = ({ children }) => {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [allowedModules.length, refreshPermissions, role, token]);
+  }, [allowedModules.length, refreshPermissions, resolvedLoginType, token]);
 
   const value = useMemo(
     () => ({
@@ -435,6 +511,7 @@ export const EmployeePermissionProvider = ({ children }) => {
       error,
       errorStatus,
       token,
+      loginType: resolvedLoginType,
       role,
       user,
       refreshToken,
@@ -460,37 +537,47 @@ export const EmployeePermissionProvider = ({ children }) => {
       getPermissionForModule,
       refreshPermissions,
       clearPermissionState,
+      authenticatedRole: role,
+      selectedPermissionFlow:
+      resolvedLoginType === "admin" ?
+      "admin-permission" :
+      resolvedLoginType === "super-admin" ?
+      "superadmin-bypass" :
+      resolvedLoginType === "user" ?
+      "role-permission" :
+      "no-permission-api"
     }),
     [
-      allowedModules,
-      canAccessModule,
-      canAddModule,
-      canDeleteModule,
-      canEditModule,
-      canViewModule,
-      clearPermissionState,
-      error,
-      errorStatus,
-      getPermissionForModule,
-      isAuthenticated,
-      isLoading,
-      isReady,
-      refreshPermissions,
-      refreshToken,
-      role,
-      status,
-      token,
-      user,
-      userEmail,
-      userId,
-    ]
+    allowedModules,
+    canAccessModule,
+    canAddModule,
+    canDeleteModule,
+    canEditModule,
+    canViewModule,
+    clearPermissionState,
+    error,
+    errorStatus,
+    getPermissionForModule,
+    isAuthenticated,
+    isLoading,
+    isReady,
+    refreshPermissions,
+    refreshToken,
+    resolvedLoginType,
+    role,
+    status,
+    token,
+    user,
+    userEmail,
+    userId]
+
   );
 
   return (
-    <EmployeePermissionContext.Provider value={value}>
-      {children}
-    </EmployeePermissionContext.Provider>
-  );
+    <EmployeePermissionContext.Provider value={value}>
+      {children}
+    </EmployeePermissionContext.Provider>);
+
 };
 
 export const useEmployeePermissions = () => {

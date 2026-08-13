@@ -7,30 +7,30 @@ import {
   getStoredJwtRole,
   getStoredRole,
   getStoredRoleName,
-  getStoredToken,
-} from "../utils/authStorage";
+  getStoredToken } from
+"../utils/authStorage";
 import { getInputDateValue } from "../utils/date";
 
 const extractFirstNonEmptyValue = (values = []) =>
-  values.find((value) => {
-    if (value === null || value === undefined) {
-      return false;
-    }
+values.find((value) => {
+  if (value === null || value === undefined) {
+    return false;
+  }
 
-    if (typeof value === "string") {
-      return value.trim().length > 0;
-    }
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
 
-    if (Array.isArray(value)) {
-      return value.length > 0;
-    }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
 
-    if (typeof value === "object") {
-      return Object.keys(value).length > 0;
-    }
+  if (typeof value === "object") {
+    return Object.keys(value).length > 0;
+  }
 
-    return true;
-  });
+  return true;
+});
 
 const extractValidationMessage = (data) => {
   if (!data) {
@@ -42,17 +42,17 @@ const extractValidationMessage = (data) => {
   }
 
   const directMessage = extractFirstNonEmptyValue([
-    data.message,
-    data.Message,
-    data.error,
-    data.Error,
-    data.title,
-    data.Title,
-    data.detail,
-    data.Detail,
-    data.exceptionMessage,
-    data.ExceptionMessage,
-  ]);
+  data.message,
+  data.Message,
+  data.error,
+  data.Error,
+  data.title,
+  data.Title,
+  data.detail,
+  data.Detail,
+  data.exceptionMessage,
+  data.ExceptionMessage]
+  );
 
   if (typeof directMessage === "string") {
     return directMessage.trim();
@@ -61,10 +61,10 @@ const extractValidationMessage = (data) => {
   const errorCollection = data.errors || data.Errors;
 
   if (errorCollection && typeof errorCollection === "object") {
-    const collectedMessages = Object.values(errorCollection)
-      .flatMap((entry) => (Array.isArray(entry) ? entry : [entry]))
-      .map((entry) => String(entry || "").trim())
-      .filter(Boolean);
+    const collectedMessages = Object.values(errorCollection).
+    flatMap((entry) => Array.isArray(entry) ? entry : [entry]).
+    map((entry) => String(entry || "").trim()).
+    filter(Boolean);
 
     if (collectedMessages.length > 0) {
       return collectedMessages.join(", ");
@@ -76,7 +76,7 @@ const extractValidationMessage = (data) => {
 
 const buildAttendanceDashboardHeaders = (token) => ({
   Accept: "application/json",
-  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  ...(token ? { Authorization: `Bearer ${token}` } : {})
 });
 
 const getClientTimezone = () => {
@@ -98,14 +98,14 @@ const getCurrentAttendanceWindow = () => {
     month: today.getMonth() + 1,
     year: today.getFullYear(),
     fromDate: getInputDateValue(new Date(today.getFullYear(), today.getMonth(), 1)),
-    toDate: getInputDateValue(today),
+    toDate: getInputDateValue(today)
   };
 };
 
 const resolveAttendanceRole = () =>
-  getStoredJwtRole() ||
-  getStoredRoleName() ||
-  getStoredRole();
+getStoredJwtRole() ||
+getStoredRoleName() ||
+getStoredRole();
 
 const buildAttendanceWindowParams = () => {
   const { month, year, fromDate, toDate } = getCurrentAttendanceWindow();
@@ -118,19 +118,19 @@ const buildAttendanceWindowParams = () => {
     month,
     year,
     fromDate,
-    toDate,
+    toDate
   };
 };
 
 const buildUserAttendanceDashboardParams = () => ({
   ...getStoredIdentityParams(),
   ...getStoredTenantContextParams(),
-  ...buildAttendanceWindowParams(),
+  ...buildAttendanceWindowParams()
 });
 
 const buildAdminAttendanceOverviewParams = () => ({
   ...getStoredTenantContextParams(),
-  ...buildAttendanceWindowParams(),
+  ...buildAttendanceWindowParams()
 });
 
 const getTokenClaims = () => {
@@ -138,64 +138,64 @@ const getTokenClaims = () => {
 
   return {
     employeeId:
-      payload.employeeId ||
-      payload.employee_Id ||
-      payload.EmployeeId ||
-      payload.Employee_Id ||
-      "",
+    payload.employeeId ||
+    payload.employee_Id ||
+    payload.EmployeeId ||
+    payload.Employee_Id ||
+    "",
     userId:
-      payload.userId ||
-      payload.user_Id ||
-      payload.UserId ||
-      payload.nameid ||
-      payload.sub ||
-      "",
+    payload.userId ||
+    payload.user_Id ||
+    payload.UserId ||
+    payload.nameid ||
+    payload.sub ||
+    "",
     organizationId:
-      payload.organizationId ||
-      payload.organization_Id ||
-      payload.organizationID ||
-      payload.orgId ||
-      payload.OrganizationId ||
-      payload.Organization_Id ||
-      payload.OrganizationID ||
-      "",
+    payload.organizationId ||
+    payload.organization_Id ||
+    payload.organizationID ||
+    payload.orgId ||
+    payload.OrganizationId ||
+    payload.Organization_Id ||
+    payload.OrganizationID ||
+    "",
     branchId:
-      payload.branchId ||
-      payload.branch_Id ||
-      payload.branchID ||
-      payload.BranchId ||
-      payload.Branch_Id ||
-      payload.BranchID ||
-      "",
+    payload.branchId ||
+    payload.branch_Id ||
+    payload.branchID ||
+    payload.BranchId ||
+    payload.Branch_Id ||
+    payload.BranchID ||
+    "",
     companyId:
-      payload.companyId ||
-      payload.company_Id ||
-      payload.companyID ||
-      payload.CompanyId ||
-      payload.Company_Id ||
-      payload.CompanyID ||
-      "",
+    payload.companyId ||
+    payload.company_Id ||
+    payload.companyID ||
+    payload.CompanyId ||
+    payload.Company_Id ||
+    payload.CompanyID ||
+    "",
     tenantId:
-      payload.tenantId ||
-      payload.tenant_Id ||
-      payload.tenantID ||
-      payload.TenantId ||
-      payload.Tenant_Id ||
-      payload.TenantID ||
-      "",
+    payload.tenantId ||
+    payload.tenant_Id ||
+    payload.tenantID ||
+    payload.TenantId ||
+    payload.Tenant_Id ||
+    payload.TenantID ||
+    "",
     role:
-      payload.role ||
-      payload.roleName ||
-      payload.Role ||
-      payload.RoleName ||
-      "",
+    payload.role ||
+    payload.roleName ||
+    payload.Role ||
+    payload.RoleName ||
+    ""
   };
 };
 
 export const getAttendanceDashboardErrorMessage = (
-  error,
-  fallbackMessage = "Unable to load attendance overview right now."
-) => {
+error,
+fallbackMessage = "Unable to load attendance overview right now.") =>
+{
   const status = error?.response?.status;
   const data = error?.response?.data;
   const validationMessage = extractValidationMessage(data);
@@ -234,23 +234,13 @@ const logAttendanceDashboardRequest = ({
   headers,
   token,
   userRole,
-  claims,
+  claims
 }) => {
-  console.log(label, {
-    url,
-    method: "GET",
-    baseURL: api.defaults.baseURL,
-    params,
-    headers,
-    token,
-    body: undefined,
-    userRole,
-    claims,
-  });
+
 };
 
 export const getUserAttendanceDashboard = async ({
-  signal,
+  signal
 } = {}) => {
   const url = API_ENDPOINTS.attendance.userDashboardOverview;
   const token = getStoredToken();
@@ -266,19 +256,19 @@ export const getUserAttendanceDashboard = async ({
     headers,
     token,
     userRole,
-    claims,
+    claims
   });
 
   return api.get(url, {
     signal,
     params,
     headers,
-    dedupe: false,
+    dedupe: false
   });
 };
 
 export const getAdminAttendanceOverview = async ({
-  signal,
+  signal
 } = {}) => {
   const url = API_ENDPOINTS.attendance.adminDashboardOverview;
   const token = getStoredToken();
@@ -294,13 +284,13 @@ export const getAdminAttendanceOverview = async ({
     headers,
     token,
     userRole,
-    claims,
+    claims
   });
 
   return api.get(url, {
     signal,
     params,
     headers,
-    dedupe: false,
+    dedupe: false
   });
 };

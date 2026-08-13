@@ -20,7 +20,7 @@ export const GPS_CONFIG = {
   ACCEPTABLE_ACCURACY_M: 300, // <= 300m -> acceptable
   MAX_ATTEMPTS: 2, // Legacy compatibility; kept unchanged
   RETRY_DELAY_MS: 3000, // Legacy compatibility; kept unchanged
-  TIMEOUT_MS: 45000,
+  TIMEOUT_MS: 45000
 };
 
 const ACQUISITION_WINDOW_MS = 20000;
@@ -28,14 +28,14 @@ const MIN_READINGS_TARGET = 10;
 const CLUSTER_DISTANCE_MIN_M = 120;
 const CLUSTER_DISTANCE_MAX_M = 400;
 const FINAL_ACCURACY_WARNING =
-  "Unable to obtain an accurate location within 300 meters. Please move to an open area, enable Windows Location Services or GPS, and try again.";
+"Unable to obtain an accurate location within 300 meters. Please move to an open area, enable Windows Location Services or GPS, and try again.";
 
 const isFiniteNumber = (value) =>
-  typeof value === "number" && Number.isFinite(value);
+typeof value === "number" && Number.isFinite(value);
 
 const createLocationError = (code, message) => {
   const error = new Error(message || code);
-  
+
   error.code = code;
   return error;
 };
@@ -43,21 +43,21 @@ const createLocationError = (code, message) => {
 const summarizeError = (error) => ({
   name: error?.name,
   code: error?.code,
-  message: error?.message,
+  message: error?.message
 });
 
 const summarizeReading = (reading) =>
-  reading
-    ? {
-        latitude: reading.latitude,
-        longitude: reading.longitude,
-        accuracy: reading.accuracy,
-        timestamp: reading.timestamp,
-        speed: reading.speed,
-        heading: reading.heading,
-        ...(reading.reason ? { reason: reading.reason } : {}),
-      }
-    : null;
+reading ?
+{
+  latitude: reading.latitude,
+  longitude: reading.longitude,
+  accuracy: reading.accuracy,
+  timestamp: reading.timestamp,
+  speed: reading.speed,
+  heading: reading.heading,
+  ...(reading.reason ? { reason: reading.reason } : {})
+} :
+null;
 
 const summarizePosition = (position) => {
   const coords = position?.coords || {};
@@ -68,7 +68,7 @@ const summarizePosition = (position) => {
     accuracy: coords.accuracy ?? null,
     timestamp: position?.timestamp ?? null,
     speed: coords.speed ?? null,
-    heading: coords.heading ?? null,
+    heading: coords.heading ?? null
   };
 };
 
@@ -78,32 +78,32 @@ const buildReading = ({
   accuracy,
   timestamp,
   speed = null,
-  heading = null,
+  heading = null
 }) => ({
   latitude,
   longitude,
   accuracy,
   timestamp,
   speed: speed ?? null,
-  heading: heading ?? null,
+  heading: heading ?? null
 });
 
 const validateReadingShape = (reading) => {
   if (
-    !reading ||
-    !isFiniteNumber(reading.latitude) ||
-    !isFiniteNumber(reading.longitude) ||
-    !isFiniteNumber(reading.accuracy) ||
-    !isFiniteNumber(reading.timestamp) ||
-    reading.latitude < -90 ||
-    reading.latitude > 90 ||
-    reading.longitude < -180 ||
-    reading.longitude > 180 ||
-    reading.latitude === 0 ||
-    reading.longitude === 0 ||
-    reading.timestamp <= 0 ||
-    reading.accuracy < 0
-  ) {
+  !reading ||
+  !isFiniteNumber(reading.latitude) ||
+  !isFiniteNumber(reading.longitude) ||
+  !isFiniteNumber(reading.accuracy) ||
+  !isFiniteNumber(reading.timestamp) ||
+  reading.latitude < -90 ||
+  reading.latitude > 90 ||
+  reading.longitude < -180 ||
+  reading.longitude > 180 ||
+  reading.latitude === 0 ||
+  reading.longitude === 0 ||
+  reading.timestamp <= 0 ||
+  reading.accuracy < 0)
+  {
     throw createLocationError(
       "INVALID_READING",
       "Invalid GPS reading received."
@@ -120,7 +120,7 @@ const normalizeReadingFromPosition = (position) => {
     accuracy: Number(coords.accuracy),
     timestamp: Number(position?.timestamp ?? Date.now()),
     speed: coords.speed ?? null,
-    heading: coords.heading ?? null,
+    heading: coords.heading ?? null
   });
 
   validateReadingShape(reading);
@@ -144,11 +144,11 @@ const normalizeGeolocationError = (error) => {
   }
 
   if (
-    error.code === "PERMISSION_DENIED" ||
-    error.name === "NotAllowedError" ||
-    error.name === "SecurityError" ||
-    /permission/i.test(error.message || "")
-  ) {
+  error.code === "PERMISSION_DENIED" ||
+  error.name === "NotAllowedError" ||
+  error.name === "SecurityError" ||
+  /permission/i.test(error.message || ""))
+  {
     return createLocationError(
       1,
       "Location permission is required to mark attendance."
@@ -156,10 +156,10 @@ const normalizeGeolocationError = (error) => {
   }
 
   if (
-    error.code === "POSITION_UNAVAILABLE" ||
-    error.name === "NotFoundError" ||
-    /unavailable|disabled|gps/i.test(error.message || "")
-  ) {
+  error.code === "POSITION_UNAVAILABLE" ||
+  error.name === "NotFoundError" ||
+  /unavailable|disabled|gps/i.test(error.message || ""))
+  {
     return createLocationError(
       2,
       "Unable to retrieve GPS location. Please ensure GPS is enabled."
@@ -179,7 +179,7 @@ const normalizeGeolocationError = (error) => {
   );
 };
 
-const toRadians = (value) => (value * Math.PI) / 180;
+const toRadians = (value) => value * Math.PI / 180;
 
 const distanceMeters = (a, b) => {
   const earthRadiusMeters = 6371000;
@@ -190,8 +190,8 @@ const distanceMeters = (a, b) => {
   const sinDeltaLat = Math.sin(deltaLat / 2);
   const sinDeltaLng = Math.sin(deltaLng / 2);
   const haversine =
-    sinDeltaLat * sinDeltaLat +
-    Math.cos(lat1) * Math.cos(lat2) * sinDeltaLng * sinDeltaLng;
+  sinDeltaLat * sinDeltaLat +
+  Math.cos(lat1) * Math.cos(lat2) * sinDeltaLng * sinDeltaLng;
 
   return 2 * earthRadiusMeters * Math.asin(Math.min(1, Math.sqrt(haversine)));
 };
@@ -210,9 +210,9 @@ const median = (values) => {
 };
 
 const deriveClusterThresholdMeters = (readings) => {
-  const accuracies = readings
-    .map((reading) => reading.accuracy)
-    .filter((value) => isFiniteNumber(value) && value >= 0);
+  const accuracies = readings.
+  map((reading) => reading.accuracy).
+  filter((value) => isFiniteNumber(value) && value >= 0);
 
   if (!accuracies.length) {
     return CLUSTER_DISTANCE_MIN_M;
@@ -260,11 +260,11 @@ const scoreCluster = (cluster) => {
   const timestampValues = cluster.map((reading) => reading.timestamp);
   const centroid = {
     latitude:
-      cluster.reduce((sum, reading) => sum + reading.latitude, 0) /
-      cluster.length,
+    cluster.reduce((sum, reading) => sum + reading.latitude, 0) /
+    cluster.length,
     longitude:
-      cluster.reduce((sum, reading) => sum + reading.longitude, 0) /
-      cluster.length,
+    cluster.reduce((sum, reading) => sum + reading.longitude, 0) /
+    cluster.length
   };
 
   const spread = cluster.reduce((maxDistance, reading) => {
@@ -276,10 +276,10 @@ const scoreCluster = (cluster) => {
     size: cluster.length,
     minAccuracy: Math.min(...accuracyValues),
     averageAccuracy:
-      accuracyValues.reduce((sum, value) => sum + value, 0) / cluster.length,
+    accuracyValues.reduce((sum, value) => sum + value, 0) / cluster.length,
     latestTimestamp: Math.max(...timestampValues),
     spread,
-    centroid,
+    centroid
   };
 };
 
@@ -290,7 +290,7 @@ function selectBestReadingFromReadings(readings) {
       selectedCluster: [],
       ignoredReadings: [],
       clusterThresholdMeters: CLUSTER_DISTANCE_MIN_M,
-      clusters: [],
+      clusters: []
     };
   }
 
@@ -301,51 +301,51 @@ function selectBestReadingFromReadings(readings) {
       ignoredReadings: [],
       clusterThresholdMeters: CLUSTER_DISTANCE_MIN_M,
       clusters: [
-        {
-          cluster: readings,
-          score: scoreCluster(readings),
-        },
-      ],
+      {
+        cluster: readings,
+        score: scoreCluster(readings)
+      }]
+
     };
   }
 
   const clusterThresholdMeters = deriveClusterThresholdMeters(readings);
-  const clusters = clusterReadings(readings, clusterThresholdMeters)
-    .map((cluster) => ({
-      cluster,
-      score: scoreCluster(cluster),
-    }))
-    .sort((left, right) => {
-      if (right.score.size !== left.score.size) {
-        return right.score.size - left.score.size;
-      }
+  const clusters = clusterReadings(readings, clusterThresholdMeters).
+  map((cluster) => ({
+    cluster,
+    score: scoreCluster(cluster)
+  })).
+  sort((left, right) => {
+    if (right.score.size !== left.score.size) {
+      return right.score.size - left.score.size;
+    }
 
-      if (left.score.spread !== right.score.spread) {
-        return left.score.spread - right.score.spread;
-      }
+    if (left.score.spread !== right.score.spread) {
+      return left.score.spread - right.score.spread;
+    }
 
-      if (left.score.minAccuracy !== right.score.minAccuracy) {
-        return left.score.minAccuracy - right.score.minAccuracy;
-      }
+    if (left.score.minAccuracy !== right.score.minAccuracy) {
+      return left.score.minAccuracy - right.score.minAccuracy;
+    }
 
-      if (left.score.averageAccuracy !== right.score.averageAccuracy) {
-        return left.score.averageAccuracy - right.score.averageAccuracy;
-      }
+    if (left.score.averageAccuracy !== right.score.averageAccuracy) {
+      return left.score.averageAccuracy - right.score.averageAccuracy;
+    }
 
-      return right.score.latestTimestamp - left.score.latestTimestamp;
-    });
+    return right.score.latestTimestamp - left.score.latestTimestamp;
+  });
 
   const selectedCluster = clusters[0]?.cluster || [];
   const selectedReading =
-    selectedCluster
-      .slice()
-      .sort((left, right) => {
-        if (left.accuracy !== right.accuracy) {
-          return left.accuracy - right.accuracy;
-        }
+  selectedCluster.
+  slice().
+  sort((left, right) => {
+    if (left.accuracy !== right.accuracy) {
+      return left.accuracy - right.accuracy;
+    }
 
-        return right.timestamp - left.timestamp;
-      })[0] || null;
+    return right.timestamp - left.timestamp;
+  })[0] || null;
 
   const selectedSet = new Set(selectedCluster);
   const ignoredReadings = readings.filter((reading) => !selectedSet.has(reading));
@@ -355,7 +355,7 @@ function selectBestReadingFromReadings(readings) {
     selectedCluster,
     ignoredReadings,
     clusterThresholdMeters,
-    clusters,
+    clusters
   };
 }
 
@@ -373,9 +373,9 @@ const evaluateReadingAcceptance = (reading, state) => {
   }
 
   if (
-    state.seenTimestamps.has(reading.timestamp) ||
-    reading.timestamp <= state.lastAcceptedTimestamp
-  ) {
+  state.seenTimestamps.has(reading.timestamp) ||
+  reading.timestamp <= state.lastAcceptedTimestamp)
+  {
     return { accepted: false, reason: "stale-timestamp" };
   }
 
@@ -383,201 +383,174 @@ const evaluateReadingAcceptance = (reading, state) => {
 };
 
 const collectReadingsFromWatch = () =>
-  new Promise((resolve) => {
-    const startedAt = Date.now();
-    const acceptedReadings = [];
-    const ignoredReadings = [];
-    const seenTimestamps = new Set();
-    let lastAcceptedTimestamp = -Infinity;
-    let watchId = null;
-    let timerId = null;
-    let finished = false;
-    let stopReason = "window_elapsed";
-    let lastError = null;
+new Promise((resolve) => {
+  const startedAt = Date.now();
+  const acceptedReadings = [];
+  const ignoredReadings = [];
+  const seenTimestamps = new Set();
+  let lastAcceptedTimestamp = -Infinity;
+  let watchId = null;
+  let timerId = null;
+  let finished = false;
+  let stopReason = "window_elapsed";
+  let lastError = null;
 
-    const hasGeolocation =
-      typeof navigator !== "undefined" &&
-      navigator.geolocation &&
-      typeof navigator.geolocation.watchPosition === "function" &&
-      typeof navigator.geolocation.clearWatch === "function";
+  const hasGeolocation =
+  typeof navigator !== "undefined" &&
+  navigator.geolocation &&
+  typeof navigator.geolocation.watchPosition === "function" &&
+  typeof navigator.geolocation.clearWatch === "function";
 
-    const cleanup = () => {
-      if (timerId !== null) {
-        clearTimeout(timerId);
-        timerId = null;
-      }
-
-      if (
-        watchId !== null &&
-        typeof navigator !== "undefined" &&
-        navigator.geolocation &&
-        typeof navigator.geolocation.clearWatch === "function"
-      ) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-      }
-
-      console.log("[GPS] GPS Stopped:", {
-        reason: stopReason,
-        timeTakenMs: Date.now() - startedAt,
-        readingsCaptured: acceptedReadings.length,
-      });
-    };
-
-    const finish = (reason) => {
-      if (finished) return;
-      finished = true;
-      stopReason = reason;
-      cleanup();
-      resolve({
-        readings: acceptedReadings,
-        ignoredReadings,
-        lastError,
-        durationMs: Date.now() - startedAt,
-        stopReason,
-      });
-    };
-
-    const recordIgnoredReading = (reason, reading, extra = {}) => {
-      const entry = {
-        reason,
-        reading: reading ? summarizeReading(reading) : null,
-        ...extra,
-      };
-
-      ignoredReadings.push(entry);
-      console.warn("[GPS] Ignored Outliers:", entry);
-    };
-
-    console.log("[GPS] GPS Started:", {
-      mode: "watchPosition",
-      windowMs: ACQUISITION_WINDOW_MS,
-      timeoutMs: GPS_CONFIG.TIMEOUT_MS,
-      highAccuracy: true,
-      maximumAge: 0,
-      targetReadings: MIN_READINGS_TARGET,
-    });
-
-    if (!hasGeolocation) {
-      lastError = createLocationError(
-        "UNSUPPORTED",
-        "Geolocation is not supported by your browser."
-      );
-      finish("unsupported");
-      return;
+  const cleanup = () => {
+    if (timerId !== null) {
+      clearTimeout(timerId);
+      timerId = null;
     }
 
-    timerId = setTimeout(() => finish("window_elapsed"), ACQUISITION_WINDOW_MS);
+    if (
+    watchId !== null &&
+    typeof navigator !== "undefined" &&
+    navigator.geolocation &&
+    typeof navigator.geolocation.clearWatch === "function")
+    {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
 
-    try {
-      watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          if (finished) {
-            return;
-          }
+  };
 
-          let reading;
+  const finish = (reason) => {
+    if (finished) return;
+    finished = true;
+    stopReason = reason;
+    cleanup();
+    resolve({
+      readings: acceptedReadings,
+      ignoredReadings,
+      lastError,
+      durationMs: Date.now() - startedAt,
+      stopReason
+    });
+  };
 
-          try {
-            reading = normalizeReadingFromPosition(position);
-          } catch (error) {
-            const normalizedError = normalizeGeolocationError(error);
-            lastError = normalizedError;
-            recordIgnoredReading(
-              "invalid-reading",
-              summarizePosition(position),
-              {
-                error: summarizeError(normalizedError),
-              }
-            );
-            return;
-          }
+  const recordIgnoredReading = (reason, reading, extra = {}) => {
+    const entry = {
+      reason,
+      reading: reading ? summarizeReading(reading) : null,
+      ...extra
+    };
 
-          const evaluation = evaluateReadingAcceptance(reading, {
-            seenTimestamps,
-            lastAcceptedTimestamp,
-          });
+    ignoredReadings.push(entry);
 
-          if (!evaluation.accepted) {
-            recordIgnoredReading(evaluation.reason, reading);
-            return;
-          }
+  };
 
-          acceptedReadings.push(reading);
-          seenTimestamps.add(reading.timestamp);
-          lastAcceptedTimestamp = reading.timestamp;
-          lastError = null;
+  if (!hasGeolocation) {
+    lastError = createLocationError(
+      "UNSUPPORTED",
+      "Geolocation is not supported by your browser."
+    );
+    finish("unsupported");
+    return;
+  }
 
-          console.log("[GPS] Each Reading:", summarizeReading(reading));
+  timerId = setTimeout(() => finish("window_elapsed"), ACQUISITION_WINDOW_MS);
 
-          if (acceptedReadings.length === MIN_READINGS_TARGET) {
-            console.log("[GPS] Minimum reading target reached.");
-          }
+  try {
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (finished) {
+          return;
+        }
 
-          const currentSelection = selectBestReadingFromReadings(
-            acceptedReadings
-          );
+        let reading;
 
-          if (currentSelection.selectedReading) {
-            console.log("[GPS] Current Best Candidate:", {
-              clusterCount: currentSelection.clusters.length,
-              clusterThresholdMeters: currentSelection.clusterThresholdMeters,
-              selectedClusterScore: currentSelection.clusters[0]?.score || null,
-              selectedReading: summarizeReading(
-                currentSelection.selectedReading
-              ),
-            });
-          }
-
-          if (
-            acceptedReadings.length >= MIN_READINGS_TARGET &&
-            currentSelection.selectedReading &&
-            currentSelection.selectedReading.accuracy <=
-              GPS_CONFIG.ACCEPTABLE_ACCURACY_M
-          ) {
-            console.log(
-              "[GPS] Final best location selected within acquisition window."
-            );
-            finish(
-              currentSelection.selectedReading.accuracy <=
-                GPS_CONFIG.EXCELLENT_ACCURACY_M
-                ? "excellent_fix"
-                : "acceptable_fix"
-            );
-          }
-        },
-        (error) => {
-          if (finished) {
-            return;
-          }
-
+        try {
+          reading = normalizeReadingFromPosition(position);
+        } catch (error) {
           const normalizedError = normalizeGeolocationError(error);
           lastError = normalizedError;
-
-          console.warn("[GPS] Watch error:", summarizeError(normalizedError));
-
-          if (
-            normalizedError.code === 1 ||
-            normalizedError.code === "UNSUPPORTED"
-          ) {
-            finish(
-              normalizedError.code === "UNSUPPORTED"
-                ? "unsupported"
-                : "permission_denied"
-            );
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: GPS_CONFIG.TIMEOUT_MS,
+          recordIgnoredReading(
+            "invalid-reading",
+            summarizePosition(position),
+            {
+              error: summarizeError(normalizedError)
+            }
+          );
+          return;
         }
-      );
-    } catch (error) {
-      lastError = normalizeGeolocationError(error);
-      finish("fatal_error");
-    }
-  });
+
+        const evaluation = evaluateReadingAcceptance(reading, {
+          seenTimestamps,
+          lastAcceptedTimestamp
+        });
+
+        if (!evaluation.accepted) {
+          recordIgnoredReading(evaluation.reason, reading);
+          return;
+        }
+
+        acceptedReadings.push(reading);
+        seenTimestamps.add(reading.timestamp);
+        lastAcceptedTimestamp = reading.timestamp;
+        lastError = null;
+
+        if (acceptedReadings.length === MIN_READINGS_TARGET) {
+
+        }
+
+        const currentSelection = selectBestReadingFromReadings(
+          acceptedReadings
+        );
+
+        if (currentSelection.selectedReading) {
+
+        }
+
+        if (
+        acceptedReadings.length >= MIN_READINGS_TARGET &&
+        currentSelection.selectedReading &&
+        currentSelection.selectedReading.accuracy <=
+        GPS_CONFIG.ACCEPTABLE_ACCURACY_M)
+        {
+
+          finish(
+            currentSelection.selectedReading.accuracy <=
+            GPS_CONFIG.EXCELLENT_ACCURACY_M ?
+            "excellent_fix" :
+            "acceptable_fix"
+          );
+        }
+      },
+      (error) => {
+        if (finished) {
+          return;
+        }
+
+        const normalizedError = normalizeGeolocationError(error);
+        lastError = normalizedError;
+
+        if (
+        normalizedError.code === 1 ||
+        normalizedError.code === "UNSUPPORTED")
+        {
+          finish(
+            normalizedError.code === "UNSUPPORTED" ?
+            "unsupported" :
+            "permission_denied"
+          );
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: GPS_CONFIG.TIMEOUT_MS
+      }
+    );
+  } catch (error) {
+    lastError = normalizeGeolocationError(error);
+    finish("fatal_error");
+  }
+});
 
 /**
  * Classifies an accuracy value (meters) into a validation tier.
@@ -602,14 +575,14 @@ export const classifyAccuracy = (accuracy) => {
       tier: "acceptable",
       allowed: true,
       warning:
-        "GPS accuracy is lower than expected. Attendance has been recorded.",
+      "GPS accuracy is lower than expected. Attendance has been recorded."
     };
   }
 
   return {
     tier: "poor",
     allowed: false,
-    warning: FINAL_ACCURACY_WARNING,
+    warning: FINAL_ACCURACY_WARNING
   };
 };
 
@@ -665,7 +638,7 @@ export const acquireReliableLocation = async () => {
     ignoredReadings: ignoredDuringCollection = [],
     lastError,
     durationMs,
-    stopReason,
+    stopReason
   } = acquisition;
 
   const attemptsMade = readings.length;
@@ -687,26 +660,18 @@ export const acquireReliableLocation = async () => {
     selectedCluster,
     ignoredReadings: clusterIgnoredReadings,
     clusterThresholdMeters,
-    clusters,
+    clusters
   } = selection;
 
   const ignoredOutliers = [
-    ...ignoredDuringCollection,
-    ...clusterIgnoredReadings.map((reading) => ({
-      reason: "cluster-outlier",
-      reading: summarizeReading(reading),
-    })),
-  ];
-
-  console.log("[GPS] Selected Cluster:", {
-    clusterCount: clusters.length,
-    clusterThresholdMeters,
-    selectedClusterScore: clusters[0]?.score || null,
-    members: selectedCluster.map((reading) => summarizeReading(reading)),
-  });
+  ...ignoredDuringCollection,
+  ...clusterIgnoredReadings.map((reading) => ({
+    reason: "cluster-outlier",
+    reading: summarizeReading(reading)
+  }))];
 
   if (ignoredOutliers.length) {
-    console.warn("[GPS] Ignored Outliers:", ignoredOutliers);
+
   }
 
   if (!selectedReading) {
@@ -715,13 +680,6 @@ export const acquireReliableLocation = async () => {
       FINAL_ACCURACY_WARNING
     );
   }
-
-  console.log("[GPS] Final Latitude:", selectedReading.latitude);
-  console.log("[GPS] Final Longitude:", selectedReading.longitude);
-  console.log("[GPS] Final Accuracy:", selectedReading.accuracy);
-  console.log("[GPS] Time Taken:", `${durationMs}ms`);
-  console.log("[GPS] Retry count:", attemptsMade);
-  console.log("[GPS] Final selection stop reason:", stopReason);
 
   const { tier, allowed, warning } = classifyAccuracy(selectedReading.accuracy);
 
@@ -733,6 +691,6 @@ export const acquireReliableLocation = async () => {
     tier,
     allowed,
     warning,
-    attempts: attemptsMade,
+    attempts: attemptsMade
   };
 };

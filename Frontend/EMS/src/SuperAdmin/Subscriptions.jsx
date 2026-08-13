@@ -11,8 +11,8 @@ import {
   getAdminSubscriptions,
   getAdmins,
   getApiErrorMessage,
-  updateAdminSubscription,
-} from "../services/superAdminService";
+  updateAdminSubscription } from
+"../services/superAdminService";
 import { formatDate } from "../utils/date";
 
 const ROWS_PER_PAGE = 10;
@@ -21,7 +21,7 @@ const initialForm = {
   startDate: "",
   endDate: "",
   maximumUsers: "",
-  isActive: true,
+  isActive: true
 };
 
 const statusClass = (value) => String(value || "").toLowerCase().replace(/\s+/g, "-");
@@ -43,9 +43,9 @@ function Subscriptions() {
     setLoading(true);
     try {
       const [subscriptionList, adminList] = await Promise.all([
-        getAdminSubscriptions(),
-        getAdmins(),
-      ]);
+      getAdminSubscriptions(),
+      getAdmins()]
+      );
       setSubscriptions(subscriptionList);
       setAdmins(adminList);
     } catch (error) {
@@ -66,7 +66,7 @@ function Subscriptions() {
   const visibleSubscriptions = useMemo(() => {
     const query = search.trim().toLowerCase();
     return subscriptions.filter((item) =>
-      !query || `${item.admin} ${item.adminId} ${item.plan} ${item.status} ${item.billingCycle}`.toLowerCase().includes(query)
+    !query || `${item.admin} ${item.adminId} ${item.plan} ${item.status} ${item.billingCycle}`.toLowerCase().includes(query)
     );
   }, [search, subscriptions]);
 
@@ -86,8 +86,8 @@ function Subscriptions() {
       endDate: String(subscription.endDate || "").slice(0, 10),
       maximumUsers: subscription.maxUsers || subscription.maximumUsers || "",
       isActive:
-        subscription.isActive ??
-        subscription.status === "Active",
+      subscription.isActive ??
+      subscription.status === "Active"
     });
     setShowForm(true);
   };
@@ -99,11 +99,11 @@ function Subscriptions() {
 
   const validateForm = () => {
     if (
-      !form.adminId ||
-      !form.startDate ||
-      !form.endDate ||
-      !form.maximumUsers
-    ) {
+    !form.adminId ||
+    !form.startDate ||
+    !form.endDate ||
+    !form.maximumUsers)
+    {
       return "Please fill all required fields.";
     }
 
@@ -134,10 +134,8 @@ function Subscriptions() {
       startDate: new Date(form.startDate).toISOString(),
       endDate: new Date(form.endDate).toISOString(),
       isActive: form.isActive,
-      status: form.isActive ? "Active" : "Inactive",
+      status: form.isActive ? "Active" : "Inactive"
     };
-
-    console.log("Payload:", payload);
 
     try {
       if (editing) {
@@ -147,7 +145,7 @@ function Subscriptions() {
           startDate: new Date(form.startDate).toISOString(),
           endDate: new Date(form.endDate).toISOString(),
           isActive: form.isActive,
-          status: form.isActive ? "Active" : "Inactive",
+          status: form.isActive ? "Active" : "Inactive"
         });
         toastSuccess("Subscription updated successfully.");
       } else {
@@ -180,7 +178,7 @@ function Subscriptions() {
   const allowedUsers = usage?.allowedUsers ?? usage?.AllowedUsers ?? usage?.maximumUsers ?? 0;
   const currentUsers = usage?.currentUsers ?? usage?.CurrentUsers ?? 0;
   const remainingUsers = usage?.remainingUsers ?? usage?.RemainingUsers ?? Math.max(Number(allowedUsers) - Number(currentUsers), 0);
-  const usagePercentage = usage?.usagePercentage ?? usage?.UsagePercentage ?? (allowedUsers ? Math.round((Number(currentUsers) / Number(allowedUsers)) * 100) : 0);
+  const usagePercentage = usage?.usagePercentage ?? usage?.UsagePercentage ?? (allowedUsers ? Math.round(Number(currentUsers) / Number(allowedUsers) * 100) : 0);
 
   return (
     <div className="emp-page-unique super-admin-page">
@@ -199,10 +197,10 @@ function Subscriptions() {
         <input className="emp-search-box" placeholder="Search subscriptions" value={search} onChange={(event) => setSearch(event.target.value)} />
       </div>
 
-      {loading ? (
-        <TableSkeleton rows={10} columns={9} />
-      ) : (
-        <div className="emp-table-container">
+      {loading ?
+      <TableSkeleton rows={10} columns={9} /> :
+
+      <div className="emp-table-container">
           <table className="emp-table super-admin-table--compact">
             <thead>
               <tr>
@@ -211,12 +209,12 @@ function Subscriptions() {
             </thead>
             <tbody>
               {pagedSubscriptions.map((subscription) => {
-                const isActive =
-                  subscription.isActive ??
-                  (subscription.status === "Active");
+              const isActive =
+              subscription.isActive ??
+              subscription.status === "Active";
 
-                return (
-                  <tr key={subscription.adminId || subscription.id || subscription.Id}>
+              return (
+                <tr key={subscription.adminId || subscription.id || subscription.Id}>
                   <td>{subscription.admin || subscription.adminId || "-"}</td>
 
                   <td>{subscription.maxUsers ?? subscription.maximumUsers}</td>
@@ -226,9 +224,9 @@ function Subscriptions() {
                   <td>{formatDate(subscription.endDate)}</td>
                   <td>
                     <span
-                      className={`super-admin-badge ${statusClass(isActive ? "Active" : "Inactive")
-                        }`}
-                    >
+                      className={`super-admin-badge ${statusClass(isActive ? "Active" : "Inactive")}`
+                      }>
+                      
                       {isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
@@ -238,18 +236,18 @@ function Subscriptions() {
                       {usageLoading === String(subscription.adminId) ? "Loading..." : "Usage"}
                     </button>
                   </td>
-                </tr>
-                );
-              })}
+                </tr>);
+
+            })}
             </tbody>
           </table>
         </div>
-      )}
+      }
 
       <AppPagination totalItems={visibleSubscriptions.length} currentPage={page} pageSize={ROWS_PER_PAGE} onPageChange={setPage} itemLabel="subscriptions" />
 
-      {showForm ? (
-        <div className="emp-modal-overlay">
+      {showForm ?
+      <div className="emp-modal-overlay">
           <form className="emp-modal-box super-admin-form" onSubmit={handleSubmit}>
             <div className="super-admin-modal-title">
               <h3>{editing ? "Edit Subscription" : "Create Subscription"}</h3>
@@ -265,15 +263,15 @@ function Subscriptions() {
             <label>
               Status
               <select
-                name="isActive"
-                value={form.isActive ? "true" : "false"}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    isActive: e.target.value === "true",
-                  }))
-                }
-              >
+              name="isActive"
+              value={form.isActive ? "true" : "false"}
+              onChange={(e) =>
+              setForm((prev) => ({
+                ...prev,
+                isActive: e.target.value === "true"
+              }))
+              }>
+              
                 <option value="true">Active</option>
                 <option value="false">Inactive</option>
               </select>
@@ -283,11 +281,11 @@ function Subscriptions() {
               <button className="emp-save-btn" type="submit" disabled={saving}><FaSave /> {saving ? "Saving..." : "Save"}</button>
             </div>
           </form>
-        </div>
-      ) : null}
+        </div> :
+      null}
 
-      {usage ? (
-        <div className="emp-modal-overlay">
+      {usage ?
+      <div className="emp-modal-overlay">
           <div className="emp-modal-box">
             <div className="super-admin-modal-title">
               <h3>Subscription Usage</h3>
@@ -301,10 +299,10 @@ function Subscriptions() {
             </div>
             <div className="super-admin-progress"><span style={{ width: `${Math.min(Number(usagePercentage) || 0, 100)}%` }} /></div>
           </div>
-        </div>
-      ) : null}
-    </div>
-  );
+        </div> :
+      null}
+    </div>);
+
 }
 
 export default Subscriptions;

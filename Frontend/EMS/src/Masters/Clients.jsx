@@ -4,8 +4,8 @@ import {
   FaMapMarkerAlt,
   FaPhoneAlt,
   FaEnvelope,
-  FaEllipsisV,
-} from "react-icons/fa";
+  FaEllipsisV } from
+"react-icons/fa";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
@@ -18,7 +18,7 @@ const EMPTY_CLIENT_FORM = {
   location: "",
   phone: "",
   email: "",
-  active_Projects: 0,
+  active_Projects: 0
 };
 
 const getTextOrFallback = (value, fallback = "-") => {
@@ -54,7 +54,7 @@ function Clients() {
       const res = await api.get(API_ENDPOINTS.masters.clients.list);
       setClients(extractCollection(res.data));
     } catch (err) {
-      console.error("Fetch Error:", err);
+
       toastError("Failed to load clients.");
     }
   };
@@ -72,7 +72,7 @@ function Clients() {
 
       setProjectCounts(counts);
     } catch (err) {
-      console.error("Project Count Error:", err);
+
       toastError("Failed to load client project counts.");
     }
   };
@@ -206,8 +206,8 @@ function Clients() {
 
       // ALLOW ONLY gmail/yahoo/pirnav
       if (
-        !/^[A-Za-z][A-Za-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(value)
-      ) {
+      !/^[A-Za-z][A-Za-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(value))
+      {
         return "Email must be like demo@gmail.com";
       }
 
@@ -228,7 +228,7 @@ function Clients() {
       description: validateField("description", draft),
       location: validateField("location", draft),
       phone: validateField("phone", draft),
-      email: validateField("email", draft),
+      email: validateField("email", draft)
     };
 
     const cleanedErrors = Object.fromEntries(
@@ -254,7 +254,7 @@ function Clients() {
 
       setProjects(filteredProjects);
     } catch (error) {
-      console.error("Project fetch failed:", error);
+
       setProjects([]);
     }
   };
@@ -267,54 +267,54 @@ function Clients() {
 
     if (name === "client_Name") {
 
-      nextValue = value
-        .replace(/[^A-Za-z\s]/g, "")
-        .replace(/\s+/g, " ")
-        .replace(/^\s+/g, "")
-        .slice(0, 25);
+      nextValue = value.
+      replace(/[^A-Za-z\s]/g, "").
+      replace(/\s+/g, " ").
+      replace(/^\s+/g, "").
+      slice(0, 25);
 
     }
 
     if (name === "description") {
 
-      nextValue = value
-        .replace(/[^A-Za-z\s]/g, "")
-        .replace(/\s+/g, " ")
-        .replace(/^\s+/g, "")
-        .slice(0, 30);
+      nextValue = value.
+      replace(/[^A-Za-z\s]/g, "").
+      replace(/\s+/g, " ").
+      replace(/^\s+/g, "").
+      slice(0, 30);
 
     }
 
     if (name === "location") {
 
-      nextValue = value
-        .replace(/[^A-Za-z\s]/g, "")
-        .replace(/\s+/g, " ")
-        .replace(/^\s+/g, "")
-        .slice(0, 15);
+      nextValue = value.
+      replace(/[^A-Za-z\s]/g, "").
+      replace(/\s+/g, " ").
+      replace(/^\s+/g, "").
+      slice(0, 15);
 
     }
 
     if (name === "phone") {
 
-      nextValue = value
-        .replace(/\D/g, "")
-        .slice(0, 10);
+      nextValue = value.
+      replace(/\D/g, "").
+      slice(0, 10);
 
     }
 
     if (name === "email") {
 
-      nextValue = value
-        .toLowerCase()
-        .replace(/\s/g, "")
-        .slice(0, 40);
+      nextValue = value.
+      toLowerCase().
+      replace(/\s/g, "").
+      slice(0, 40);
 
     }
 
     const draft = {
       ...newClient,
-      [name]: nextValue,
+      [name]: nextValue
     };
 
     setNewClient(draft);
@@ -323,12 +323,12 @@ function Clients() {
 
       const nextErrors = {
         ...prev,
-        [name]: validateField(name, draft),
+        [name]: validateField(name, draft)
       };
 
       return Object.fromEntries(
-        Object.entries(nextErrors)
-          .filter(([, error]) => error)
+        Object.entries(nextErrors).
+        filter(([, error]) => error)
       );
 
     });
@@ -362,7 +362,7 @@ function Clients() {
       description: newClient.description.trim().replace(/\s+/g, " "),
       location: newClient.location.trim().replace(/\s+/g, " "),
       email: newClient.email.trim(),
-      phone: newClient.phone.trim(),
+      phone: newClient.phone.trim()
     };
 
     setNewClient(trimmedClient);
@@ -382,8 +382,8 @@ function Clients() {
           trimmedClient,
           {
             headers: {
-              "Content-Type": "application/json",
-            },
+              "Content-Type": "application/json"
+            }
           }
         );
 
@@ -396,12 +396,12 @@ function Clients() {
             description: trimmedClient.description,
             location: trimmedClient.location,
             phone: trimmedClient.phone,
-            email: trimmedClient.email,
+            email: trimmedClient.email
           },
           {
             headers: {
-              "Content-Type": "application/json",
-            },
+              "Content-Type": "application/json"
+            }
           }
         );
 
@@ -412,7 +412,7 @@ function Clients() {
       await loadClients();
       await loadProjectCounts();
     } catch (error) {
-      console.error("Save Error:", error);
+
       toastError(error.response?.data?.message || "Unable to save client.");
     } finally {
       setSaving(false);
@@ -429,14 +429,14 @@ function Clients() {
 
       toastSuccess("Client deleted successfully.");
       setClients((prev) =>
-        prev.filter(
-          (item) => item.client_Name !== client.client_Name
-        )
+      prev.filter(
+        (item) => item.client_Name !== client.client_Name
+      )
       );
       setMenuOpenIndex(null);
       await loadProjectCounts();
     } catch (error) {
-      console.error("Delete Error:", error);
+
       toastError("Unable to delete client.");
     }
   };
@@ -451,7 +451,7 @@ function Clients() {
   };
 
   const visibleProjectItems = useMemo(
-    () => (Array.isArray(projects) ? projects : []),
+    () => Array.isArray(projects) ? projects : [],
     [projects]
   );
 
@@ -480,431 +480,431 @@ function Clients() {
 
   return (
     <div className="clients-page">
-<div className="clients-header">
-        <div className="clients-header-copy">
-          <h2>Clients</h2>
-          <p>Manage client relationships</p>
-        </div>
-
+<div className="clients-header">
+        <div className="clients-header-copy">
+          <h2>Clients</h2>
+          <p>Manage client relationships</p>
+        </div>
+
         <button
           className="add-client-btn app-button-primary"
           type="button"
-          onClick={openCreateModal}
-        >
-          + Add Client
-        </button>
-      </div>
+          onClick={openCreateModal}>
+          
+          + Add Client
+        </button>
+      </div>
+
+      <div className="clients-grid">
+        {clients.length === 0 ?
+        <div className="clients-empty-state app-empty-state">
+            No clients found.
+          </div> :
 
-      <div className="clients-grid">
-        {clients.length === 0 ? (
-          <div className="clients-empty-state app-empty-state">
-            No clients found.
-          </div>
-        ) : (
-          visibleClients.map((client, index) => {
-            const clientName = getTextOrFallback(client.client_Name);
-            const clientDescription = getTextOrFallback(
-              client.description,
-              "No description provided."
-            );
-            const clientLocation = getTextOrFallback(client.location);
-            const clientPhone = getTextOrFallback(client.phone);
-            const clientEmail = getTextOrFallback(client.email);
+        visibleClients.map((client, index) => {
+          const clientName = getTextOrFallback(client.client_Name);
+          const clientDescription = getTextOrFallback(
+            client.description,
+            "No description provided."
+          );
+          const clientLocation = getTextOrFallback(client.location);
+          const clientPhone = getTextOrFallback(client.phone);
+          const clientEmail = getTextOrFallback(client.email);
+
+          return (
+            <article className="client-card" key={client.id || index}>
+                <div className="card-header">
+                  <div className="avatar">{getClientInitials(client.client_Name)}</div>
+
+                  <div className="menu-wrapper">
+                    <button
+                    className="menu-icon-btn"
+                    type="button"
+                    aria-label={`Open actions for ${clientName}`}
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpenIndex === index}
+                    onClick={() =>
+                    setMenuOpenIndex(menuOpenIndex === index ? null : index)
+                    }>
+                    
+                      <FaEllipsisV className="menu-icon" aria-hidden="true" />
+                    </button>
+
+                    {menuOpenIndex === index &&
+                  <div className="menu-dropdown" role="menu">
+                        <button
+                      className="menu-dropdown-item"
+                      type="button"
+                      role="menuitem"
+                      onClick={() => handleEdit(client)}>
+                      
+                          Edit
+                        </button>
+                        <button
+                      className="menu-dropdown-item menu-dropdown-item--danger"
+                      type="button"
+                      role="menuitem"
+                      onClick={() => handleDelete(client)}>
+                      
+                          Delete
+                        </button>
+                      </div>
+                  }
+                  </div>
+                </div>
+
+                <div className="client-card-body">
+                  <h3 className="client-name" title={clientName}>
+                    {clientName}
+                  </h3>
+
+                  <p className="client-desc" title={clientDescription}>
+                    {clientDescription}
+                  </p>
+
+                  <div className="client-info">
+                    <p className="client-info-item" title={clientLocation}>
+                      <FaMapMarkerAlt aria-hidden="true" />
+                      <span>{clientLocation}</span>
+                    </p>
+                    <p className="client-info-item" title={clientPhone}>
+                      <FaPhoneAlt aria-hidden="true" />
+                      <span>{clientPhone}</span>
+                    </p>
+                    <p className="client-info-item" title={clientEmail}>
+                      <FaEnvelope aria-hidden="true" />
+                      <span>{clientEmail}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="card-divider"></div>
+
+                <div className="card-footer">
+                  <span className="client-project-count">
+                    {projectCounts[client.client_Name] || 0} active projects
+                  </span>
+
+                  <button
+                  className="view-link"
+                  type="button"
+                  onClick={() => handleViewClient(client)}>
+                  
+                    View
+                  </button>
+                </div>
+              </article>);
+
+        })
+        }
+      </div>
+
+      {clients.length > 0 &&
+      <div className="app-pagination-bar">
+          <div className="app-pagination-info">
+            Showing <strong>{indexOfFirstClient + 1}</strong>-<strong>{Math.min(indexOfLastClient, clients.length)}</strong> of <strong>{clients.length}</strong>
+          </div>
+
+          <div className="app-pagination-controls">
+            <select
+            className="app-pagination-page-size"
+            value={clientsPerPage}
+            onChange={(event) => setClientsPerPage(Number(event.target.value))}>
+            
+              {[10, 20, 30, 50, 100].map((size) =>
+            <option key={size} value={size}>
+                  {size} / page
+                </option>
+            )}
+            </select>
+
+            <button
+            type="button"
+            className="app-pagination-button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(1)}>
+            
+              First
+            </button>
+
+            <button
+            type="button"
+            className="app-pagination-button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}>
+            
+              Previous
+            </button>
+
+            {Array.from({ length: totalPages }, (_, pageIndex) => pageIndex + 1).
+          filter((page) => page === 1 || page === totalPages || page >= currentPage - 1 && page <= currentPage + 1).
+          map((page, index, pages) => {
+            const previousPage = pages[index - 1];
+            const shouldShowDots = previousPage && page - previousPage > 1;
 
             return (
-              <article className="client-card" key={client.id || index}>
-                <div className="card-header">
-                  <div className="avatar">{getClientInitials(client.client_Name)}</div>
-
-                  <div className="menu-wrapper">
+              <React.Fragment key={page}>
+                    {shouldShowDots && <span className="app-pagination-dots">...</span>}
                     <button
-                      className="menu-icon-btn"
-                      type="button"
-                      aria-label={`Open actions for ${clientName}`}
-                      aria-haspopup="menu"
-                      aria-expanded={menuOpenIndex === index}
-                    onClick={() =>
-                        setMenuOpenIndex(menuOpenIndex === index ? null : index)
-                      }
-                    >
-                      <FaEllipsisV className="menu-icon" aria-hidden="true" />
-                    </button>
+                  type="button"
+                  className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
+                  onClick={() => setCurrentPage(page)}>
+                  
+                      {page}
+                    </button>
+                  </React.Fragment>);
 
-                    {menuOpenIndex === index && (
-                      <div className="menu-dropdown" role="menu">
-                        <button
-                        className="menu-dropdown-item"
-                        type="button"
-                        role="menuitem"
-                        onClick={() => handleEdit(client)}
-                      >
-                          Edit
-                        </button>
-                        <button
-                        className="menu-dropdown-item menu-dropdown-item--danger"
-                        type="button"
-                        role="menuitem"
-                        onClick={() => handleDelete(client)}
-                      >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="client-card-body">
-                  <h3 className="client-name" title={clientName}>
-                    {clientName}
-                  </h3>
-
-                  <p className="client-desc" title={clientDescription}>
-                    {clientDescription}
-                  </p>
-
-                  <div className="client-info">
-                    <p className="client-info-item" title={clientLocation}>
-                      <FaMapMarkerAlt aria-hidden="true" />
-                      <span>{clientLocation}</span>
-                    </p>
-                    <p className="client-info-item" title={clientPhone}>
-                      <FaPhoneAlt aria-hidden="true" />
-                      <span>{clientPhone}</span>
-                    </p>
-                    <p className="client-info-item" title={clientEmail}>
-                      <FaEnvelope aria-hidden="true" />
-                      <span>{clientEmail}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="card-divider"></div>
-
-                <div className="card-footer">
-                  <span className="client-project-count">
-                    {projectCounts[client.client_Name] || 0} active projects
-                  </span>
-
-                  <button
-                    className="view-link"
-                    type="button"
-                    onClick={() => handleViewClient(client)}
-                  >
-                    View
-                  </button>
-                </div>
-              </article>
-            );
-          })
-        )}
-      </div>
-
-      {clients.length > 0 && (
-        <div className="app-pagination-bar">
-          <div className="app-pagination-info">
-            Showing <strong>{indexOfFirstClient + 1}</strong>-<strong>{Math.min(indexOfLastClient, clients.length)}</strong> of <strong>{clients.length}</strong>
-          </div>
-
-          <div className="app-pagination-controls">
-            <select
-              className="app-pagination-page-size"
-              value={clientsPerPage}
-              onChange={(event) => setClientsPerPage(Number(event.target.value))}
-            >
-              {[10, 20, 30, 50, 100].map((size) => (
-                <option key={size} value={size}>
-                  {size} / page
-                </option>
-              ))}
-            </select>
-
+          })}
+
             <button
-              type="button"
-              className="app-pagination-button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(1)}
-            >
-              First
-            </button>
-
+            type="button"
+            className="app-pagination-button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}>
+            
+              Next
+            </button>
+
             <button
-              type="button"
-              className="app-pagination-button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            >
-              Previous
-            </button>
-
-            {Array.from({ length: totalPages }, (_, pageIndex) => pageIndex + 1)
-              .filter((page) => page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1))
-              .map((page, index, pages) => {
-                const previousPage = pages[index - 1];
-                const shouldShowDots = previousPage && page - previousPage > 1;
-
-                return (
-                  <React.Fragment key={page}>
-                    {shouldShowDots && <span className="app-pagination-dots">...</span>}
-                    <button
-                      type="button"
-                      className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-
-            <button
-              type="button"
-              className="app-pagination-button"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            >
-              Next
-            </button>
-
-            <button
-              type="button"
-              className="app-pagination-button"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(totalPages)}
-            >
-              Last
-            </button>
-          </div>
+            type="button"
+            className="app-pagination-button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(totalPages)}>
+            
+              Last
+            </button>
+          </div>
         </div>
-      )}
-
-      {showDrawer && selectedClient && (
-        <div
-          className="client-view-overlay"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setShowDrawer(false);
-            }
-          }}
-        >
+      }
+
+      {showDrawer && selectedClient &&
+      <div
+        className="client-view-overlay"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            setShowDrawer(false);
+          }
+        }}>
+        
           <div
-            className="client-view-modal"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="view-header">
-              <div className="view-left">
-                <div className="view-avatar">
-                  {getClientInitials(selectedClient.client_Name)}
-                </div>
-
-                <div className="view-copy">
-                  <h2 title={getTextOrFallback(selectedClient.client_Name)}>
-                    {getTextOrFallback(selectedClient.client_Name)}
-                  </h2>
+          className="client-view-modal"
+          onClick={(event) => event.stopPropagation()}>
+          
+            <div className="view-header">
+              <div className="view-left">
+                <div className="view-avatar">
+                  {getClientInitials(selectedClient.client_Name)}
+                </div>
+
+                <div className="view-copy">
+                  <h2 title={getTextOrFallback(selectedClient.client_Name)}>
+                    {getTextOrFallback(selectedClient.client_Name)}
+                  </h2>
                   <p
-                    title={getTextOrFallback(
-                      selectedClient.description,
-                      "No description provided."
-                    )}
-                  >
+                  title={getTextOrFallback(
+                    selectedClient.description,
+                    "No description provided."
+                  )}>
+                  
                     {getTextOrFallback(
-                      selectedClient.description,
-                      "No description provided."
-                    )}
-                  </p>
-                </div>
-              </div>
-
+                    selectedClient.description,
+                    "No description provided."
+                  )}
+                  </p>
+                </div>
+              </div>
+
               <button
-                className="view-close"
-                type="button"
-                aria-label="Close client details"
-                onClick={() => setShowDrawer(false)}
-              >
-                X
-              </button>
-            </div>
-
-            <div className="view-contact">
+              className="view-close"
+              type="button"
+              aria-label="Close client details"
+              onClick={() => setShowDrawer(false)}>
+              
+                X
+              </button>
+            </div>
+
+            <div className="view-contact">
               <p
-                className="contact-item"
-                title={getTextOrFallback(selectedClient.location)}
-              >
-                <FaMapMarkerAlt className="contact-icon" />
-                <span>{getTextOrFallback(selectedClient.location)}</span>
-              </p>
+              className="contact-item"
+              title={getTextOrFallback(selectedClient.location)}>
+              
+                <FaMapMarkerAlt className="contact-icon" />
+                <span>{getTextOrFallback(selectedClient.location)}</span>
+              </p>
               <p
-                className="contact-item"
-                title={getTextOrFallback(selectedClient.phone)}
-              >
-                <FaPhoneAlt className="contact-icon" />
-                <span>{getTextOrFallback(selectedClient.phone)}</span>
-              </p>
+              className="contact-item"
+              title={getTextOrFallback(selectedClient.phone)}>
+              
+                <FaPhoneAlt className="contact-icon" />
+                <span>{getTextOrFallback(selectedClient.phone)}</span>
+              </p>
               <p
-                className="contact-item"
-                title={getTextOrFallback(selectedClient.email)}
-              >
-                <FaEnvelope className="contact-icon" />
-                <span>{getTextOrFallback(selectedClient.email)}</span>
-              </p>
-            </div>
-
-            <div className="view-projects">
-              <h4>PROJECTS ({visibleProjectItems.length})</h4>
-
-              <div className="project-list">
-                {visibleProjectItems.length > 0 ? (
-                  visibleProjectItems.map((project, index) => (
-                    <div className="project-card" key={index}>
-                      <div className="project-card-copy">
-                        <h5 title={getTextOrFallback(project.project_Name)}>
-                          {getTextOrFallback(project.project_Name)}
-                        </h5>
-
-                        <p>
-                          {project.start_Date
-                            ? formatDate(project.start_Date)
-                            : "-"}
-                        </p>
-                      </div>
-
-                      <span className="status active">{project.status}</span>
+              className="contact-item"
+              title={getTextOrFallback(selectedClient.email)}>
+              
+                <FaEnvelope className="contact-icon" />
+                <span>{getTextOrFallback(selectedClient.email)}</span>
+              </p>
+            </div>
+
+            <div className="view-projects">
+              <h4>PROJECTS ({visibleProjectItems.length})</h4>
+
+              <div className="project-list">
+                {visibleProjectItems.length > 0 ?
+              visibleProjectItems.map((project, index) =>
+              <div className="project-card" key={index}>
+                      <div className="project-card-copy">
+                        <h5 title={getTextOrFallback(project.project_Name)}>
+                          {getTextOrFallback(project.project_Name)}
+                        </h5>
+
+                        <p>
+                          {project.start_Date ?
+                    formatDate(project.start_Date) :
+                    "-"}
+                        </p>
+                      </div>
+
+                      <span className="status active">{project.status}</span>
                     </div>
-                  ))
-                ) : (
-                  <p className="no-projects">No Projects Found</p>
-                )}
-              </div>
-            </div>
-          </div>
+              ) :
+
+              <p className="no-projects">No Projects Found</p>
+              }
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-
-      {showModal && (
-        <div className="clients-add-modal-overlay-unique">
-          <div className="clients-add-modal-box-unique">
-            <h3>{isUpdate ? "Update Client" : "Add Client"}</h3>
-
-            <div className="clients-field-group">
-              <label htmlFor="client-name-input">Client Name</label>
+      }
+
+      {showModal &&
+      <div className="clients-add-modal-overlay-unique">
+          <div className="clients-add-modal-box-unique">
+            <h3>{isUpdate ? "Update Client" : "Add Client"}</h3>
+
+            <div className="clients-field-group">
+              <label htmlFor="client-name-input">Client Name</label>
               <input
-                id="client-name-input"
-                className={`clients-add-input-unique ${errors.client_Name ? "has-error" : ""}`}
-                type="text"
-                value={newClient.client_Name}
-                onChange={(event) =>
-                  handleChange({
-                    target: { name: "client_Name", value: event.target.value },
-                  })
-                }
-              />
-              {errors.client_Name && (
-                <p className="client-form-error">{errors.client_Name}</p>
-              )}
-            </div>
-
-            <div className="clients-field-group">
-              <label htmlFor="client-description-input">Description</label>
+              id="client-name-input"
+              className={`clients-add-input-unique ${errors.client_Name ? "has-error" : ""}`}
+              type="text"
+              value={newClient.client_Name}
+              onChange={(event) =>
+              handleChange({
+                target: { name: "client_Name", value: event.target.value }
+              })
+              } />
+            
+              {errors.client_Name &&
+            <p className="client-form-error">{errors.client_Name}</p>
+            }
+            </div>
+
+            <div className="clients-field-group">
+              <label htmlFor="client-description-input">Description</label>
               <input
-                id="client-description-input"
-                className={`clients-add-input-unique ${errors.description ? "has-error" : ""}`}
-                type="text"
-                value={newClient.description}
-                onChange={(event) =>
-                  handleChange({
-                    target: { name: "description", value: event.target.value },
-                  })
-                }
-              />
-              {errors.description && (
-                <p className="client-form-error">{errors.description}</p>
-              )}
-            </div>
-
-            <div className="clients-field-group">
-              <label htmlFor="client-location-input">Location</label>
+              id="client-description-input"
+              className={`clients-add-input-unique ${errors.description ? "has-error" : ""}`}
+              type="text"
+              value={newClient.description}
+              onChange={(event) =>
+              handleChange({
+                target: { name: "description", value: event.target.value }
+              })
+              } />
+            
+              {errors.description &&
+            <p className="client-form-error">{errors.description}</p>
+            }
+            </div>
+
+            <div className="clients-field-group">
+              <label htmlFor="client-location-input">Location</label>
               <input
-                id="client-location-input"
-                className={`clients-add-input-unique ${errors.location ? "has-error" : ""}`}
-                type="text"
-                value={newClient.location}
-                onChange={(event) =>
-                  handleChange({
-                    target: { name: "location", value: event.target.value },
-                  })
-                }
-              />
-              {errors.location && (
-                <p className="client-form-error">{errors.location}</p>
-              )}
-            </div>
-
-            <div className="clients-field-group">
-              <label htmlFor="client-phone-input">Phone</label>
+              id="client-location-input"
+              className={`clients-add-input-unique ${errors.location ? "has-error" : ""}`}
+              type="text"
+              value={newClient.location}
+              onChange={(event) =>
+              handleChange({
+                target: { name: "location", value: event.target.value }
+              })
+              } />
+            
+              {errors.location &&
+            <p className="client-form-error">{errors.location}</p>
+            }
+            </div>
+
+            <div className="clients-field-group">
+              <label htmlFor="client-phone-input">Phone</label>
               <input
-                id="client-phone-input"
-                className={`clients-add-input-unique ${errors.phone ? "has-error" : ""}`}
-                type="text"
-                inputMode="numeric"
-                value={newClient.phone}
-                onChange={(event) =>
-                  handleChange({
-                    target: { name: "phone", value: event.target.value },
-                  })
-                }
-              />
-              {errors.phone && (
-                <p className="client-form-error">{errors.phone}</p>
-              )}
-            </div>
-
-            <div className="clients-field-group">
-              <label htmlFor="client-email-input">Email</label>
+              id="client-phone-input"
+              className={`clients-add-input-unique ${errors.phone ? "has-error" : ""}`}
+              type="text"
+              inputMode="numeric"
+              value={newClient.phone}
+              onChange={(event) =>
+              handleChange({
+                target: { name: "phone", value: event.target.value }
+              })
+              } />
+            
+              {errors.phone &&
+            <p className="client-form-error">{errors.phone}</p>
+            }
+            </div>
+
+            <div className="clients-field-group">
+              <label htmlFor="client-email-input">Email</label>
               <input
-                id="client-email-input"
-                className={`clients-add-input-unique ${errors.email ? "has-error" : ""}`}
-                type="email"
-                value={newClient.email}
-                onChange={(event) =>
-                  handleChange({
-                    target: { name: "email", value: event.target.value },
-                  })
-                }
-              />
-              {errors.email && (
-                <p className="client-form-error">{errors.email}</p>
-              )}
-            </div>
-
-            <div className="clients-add-actions-unique">
+              id="client-email-input"
+              className={`clients-add-input-unique ${errors.email ? "has-error" : ""}`}
+              type="email"
+              value={newClient.email}
+              onChange={(event) =>
+              handleChange({
+                target: { name: "email", value: event.target.value }
+              })
+              } />
+            
+              {errors.email &&
+            <p className="client-form-error">{errors.email}</p>
+            }
+            </div>
+
+            <div className="clients-add-actions-unique">
               <button
-                className="clients-add-cancel-btn-unique"
-                type="button"
-                onClick={closeModal}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-
+              className="clients-add-cancel-btn-unique"
+              type="button"
+              onClick={closeModal}
+              disabled={saving}>
+              
+                Cancel
+              </button>
+
               <button
-                className="clients-add-save-btn-unique"
-                type="button"
-                onClick={handleSaveClient}
-                disabled={saving}
-              >
-                {saving
-                  ? isUpdate
-                    ? "Updating..."
-                    : "Saving..."
-                  : isUpdate
-                    ? "Update"
-                    : "Save"}
-              </button>
-            </div>
-          </div>
+              className="clients-add-save-btn-unique"
+              type="button"
+              onClick={handleSaveClient}
+              disabled={saving}>
+              
+                {saving ?
+              isUpdate ?
+              "Updating..." :
+              "Saving..." :
+              isUpdate ?
+              "Update" :
+              "Save"}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 }
 
 export default Clients;

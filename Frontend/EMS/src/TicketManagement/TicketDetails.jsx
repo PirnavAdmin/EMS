@@ -7,8 +7,8 @@ import {
   FaPaperclip,
   FaSpinner,
   FaTrash,
-  FaUser,
-} from "react-icons/fa";
+  FaUser } from
+"react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
@@ -23,14 +23,14 @@ import {
   getTicketPriorityLabel,
   getTicketStatusLabel,
   getTicketStatusOptions,
-  normalizeTicketStatus,
-} from "./ticketConfig";
+  normalizeTicketStatus } from
+"./ticketConfig";
 import {
   deleteTicket,
   fetchTicketById,
   getTicketApiErrorMessage,
-  updateTicketStatus,
-} from "../services/ticketService";
+  updateTicketStatus } from
+"../services/ticketService";
 import { getStoredRole } from "../utils/authStorage";
 import { isAdmin } from "../utils/authorization";
 
@@ -46,13 +46,13 @@ function TicketDetails() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [ticket, setTicket] = useState(null);
 
-  const basePath = location.pathname.startsWith("/employee/")
-    ? "/employee/my-tickets"
-    : "/admin/tickets";
+  const basePath = location.pathname.startsWith("/employee/") ?
+  "/employee/my-tickets" :
+  "/admin/tickets";
 
   const loadTicket = useCallback(async () => {
     if (!ticketId) {
-      console.error("Ticket Id is missing.");
+
       setLoading(false);
       return;
     }
@@ -64,7 +64,6 @@ function TicketDetails() {
 
       setTicket(record);
     } catch (error) {
-      console.error(error);
 
       const errorMessage = await getTicketApiErrorMessage(
         error,
@@ -92,51 +91,51 @@ function TicketDetails() {
       return [];
     }
 
-    const rawTimeline = Array.isArray(ticket.raw?.timeline)
-      ? ticket.raw.timeline
-      : Array.isArray(ticket.raw?.Timeline)
-        ? ticket.raw.Timeline
-        : [];
+    const rawTimeline = Array.isArray(ticket.raw?.timeline) ?
+    ticket.raw.timeline :
+    Array.isArray(ticket.raw?.Timeline) ?
+    ticket.raw.Timeline :
+    [];
 
     if (rawTimeline.length > 0) {
       return rawTimeline.map((item, index) => ({
         label:
-          item?.label ||
-          item?.stage ||
-          item?.status ||
-          `Step ${index + 1}`,
+        item?.label ||
+        item?.stage ||
+        item?.status ||
+        `Step ${index + 1}`,
         detail:
-          item?.detail ||
-          item?.message ||
-          item?.description ||
-          item?.note ||
-          "",
+        item?.detail ||
+        item?.message ||
+        item?.description ||
+        item?.note ||
+        "",
         date:
-          item?.date ||
-          item?.createdAt ||
-          item?.updatedAt ||
-          item?.timestamp ||
-          "",
+        item?.date ||
+        item?.createdAt ||
+        item?.updatedAt ||
+        item?.timestamp ||
+        ""
       }));
     }
 
     return [
-      {
-        label: "Created",
-        detail: ticket.createdBy || "Ticket submitted",
-        date: ticket.createdDate,
-      },
-      {
-        label: "Updated",
-        detail: ticket.status || "Latest status change",
-        date: ticket.updatedDate,
-      },
-      {
-        label: getTicketStatusLabel(ticket.status),
-        detail: "Current ticket state",
-        date: ticket.updatedDate || ticket.createdDate,
-      },
-    ];
+    {
+      label: "Created",
+      detail: ticket.createdBy || "Ticket submitted",
+      date: ticket.createdDate
+    },
+    {
+      label: "Updated",
+      detail: ticket.status || "Latest status change",
+      date: ticket.updatedDate
+    },
+    {
+      label: getTicketStatusLabel(ticket.status),
+      detail: "Current ticket state",
+      date: ticket.updatedDate || ticket.createdDate
+    }];
+
   }, [ticket]);
 
   const commentItems = useMemo(() => {
@@ -147,22 +146,22 @@ function TicketDetails() {
     return (ticket.comments || []).map((comment, index) => ({
       key: comment?.id || comment?.commentId || `${index}`,
       author:
-        comment?.author ||
-        comment?.createdBy ||
-        comment?.userName ||
-        comment?.name ||
-        "Comment",
+      comment?.author ||
+      comment?.createdBy ||
+      comment?.userName ||
+      comment?.name ||
+      "Comment",
       message:
-        comment?.message ||
-        comment?.comment ||
-        comment?.text ||
-        comment?.description ||
-        "",
+      comment?.message ||
+      comment?.comment ||
+      comment?.text ||
+      comment?.description ||
+      "",
       date:
-        comment?.createdAt ||
-        comment?.date ||
-        comment?.timestamp ||
-        "",
+      comment?.createdAt ||
+      comment?.date ||
+      comment?.timestamp ||
+      ""
     }));
   }, [ticket]);
 
@@ -173,28 +172,28 @@ function TicketDetails() {
 
     return (ticket.attachments || []).map((attachment, index) => {
       const rawPath =
-        attachment?.url ||
-        attachment?.fileUrl ||
-        attachment?.path ||
-        attachment?.filePath ||
-        attachment?.downloadUrl ||
-        attachment?.FileUrl ||
-        attachment?.FilePath ||
-        "";
+      attachment?.url ||
+      attachment?.fileUrl ||
+      attachment?.path ||
+      attachment?.filePath ||
+      attachment?.downloadUrl ||
+      attachment?.FileUrl ||
+      attachment?.FilePath ||
+      "";
 
       return {
         key: attachment?.id || attachment?.attachmentId || `${index}`,
         label:
-          attachment?.name ||
-          attachment?.fileName ||
-          attachment?.FileName ||
-          `Attachment ${index + 1}`,
+        attachment?.name ||
+        attachment?.fileName ||
+        attachment?.FileName ||
+        `Attachment ${index + 1}`,
         url: rawPath ? buildServerUrl(rawPath) : "",
         size:
-          attachment?.size ||
-          attachment?.fileSize ||
-          attachment?.FileSize ||
-          "",
+        attachment?.size ||
+        attachment?.fileSize ||
+        attachment?.FileSize ||
+        ""
       };
     });
   }, [ticket]);
@@ -219,7 +218,7 @@ function TicketDetails() {
       toast.success("Ticket status updated.");
       await loadTicket();
     } catch (error) {
-      console.error("Status update failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to update the ticket status right now."
@@ -241,7 +240,7 @@ function TicketDetails() {
       toast.success("Ticket deleted successfully.");
       navigate(basePath, { replace: true });
     } catch (error) {
-      console.error("Delete failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to delete the ticket right now."
@@ -257,8 +256,8 @@ function TicketDetails() {
     return (
       <div className="ticket-page">
         <PageSkeleton variant="dashboard" cardCount={3} tableRows={0} />
-      </div>
-    );
+      </div>);
+
   }
 
   if (!ticket) {
@@ -266,10 +265,10 @@ function TicketDetails() {
       <div className="ticket-page">
         <EmptyState
           className="ticket-empty-state"
-          message="Ticket details are unavailable."
-        />
-      </div>
-    );
+          message="Ticket details are unavailable." />
+        
+      </div>);
+
   }
 
   return (
@@ -290,39 +289,39 @@ function TicketDetails() {
           <button
             type="button"
             className="ticket-button secondary"
-            onClick={() => navigate(basePath)}
-          >
+            onClick={() => navigate(basePath)}>
+            
             <FaArrowLeft aria-hidden="true" />
             Back
           </button>
 
-          {canEdit ? (
-            <button
-              type="button"
-              className="ticket-button secondary"
-              onClick={() =>
-                navigate(
-                  basePath === "/employee/my-tickets"
-                    ? `/employee/my-tickets/edit/${ticket.ticketId}`
-                    : `/admin/tickets/edit/${ticket.ticketId}`
-                )
-              }
-            >
+          {canEdit ?
+          <button
+            type="button"
+            className="ticket-button secondary"
+            onClick={() =>
+            navigate(
+              basePath === "/employee/my-tickets" ?
+              `/employee/my-tickets/edit/${ticket.ticketId}` :
+              `/admin/tickets/edit/${ticket.ticketId}`
+            )
+            }>
+            
               <FaEdit aria-hidden="true" />
               Edit
-            </button>
-          ) : null}
+            </button> :
+          null}
 
-          {canDelete ? (
-            <button
-              type="button"
-              className="ticket-button danger"
-              onClick={() => setDeleteOpen(true)}
-            >
+          {canDelete ?
+          <button
+            type="button"
+            className="ticket-button danger"
+            onClick={() => setDeleteOpen(true)}>
+            
               <FaTrash aria-hidden="true" />
               Delete
-            </button>
-          ) : null}
+            </button> :
+          null}
         </div>
       </div>
 
@@ -336,8 +335,8 @@ function TicketDetails() {
                 canUpdate={Boolean(role)}
                 onChange={handleStatusChange}
                 disabled={saving}
-                role={isAdminUser ? "admin" : "user"}
-              />
+                role={isAdminUser ? "admin" : "user"} />
+              
             </div>
 
             <div className="ticket-detail-chips">
@@ -363,28 +362,27 @@ function TicketDetails() {
               <FaPaperclip aria-hidden="true" />
             </div>
 
-            {attachmentItems.length === 0 ? (
-              <EmptyState
-                className="ticket-empty-state compact"
-                message="No attachments were included with this ticket."
-              />
-            ) : (
-              <div className="ticket-attachment-list">
-                {attachmentItems.map((attachment) => (
-                  <a
-                    className="ticket-attachment-item ticket-attachment-link"
-                    href={attachment.url || "#"}
-                    target={attachment.url ? "_blank" : undefined}
-                    rel="noreferrer"
-                    key={attachment.key}
-                  >
+            {attachmentItems.length === 0 ?
+            <EmptyState
+              className="ticket-empty-state compact"
+              message="No attachments were included with this ticket." /> :
+
+            <div className="ticket-attachment-list">
+                {attachmentItems.map((attachment) =>
+              <a
+                className="ticket-attachment-item ticket-attachment-link"
+                href={attachment.url || "#"}
+                target={attachment.url ? "_blank" : undefined}
+                rel="noreferrer"
+                key={attachment.key}>
+                
                     <span>{attachment.label}</span>
                     <small>{attachment.size || "File"}</small>
                     {attachment.url ? <FaDownload aria-hidden="true" /> : null}
                   </a>
-                ))}
+              )}
               </div>
-            )}
+            }
           </div>
 
           <div className="ticket-details-section">
@@ -393,22 +391,21 @@ function TicketDetails() {
               <FaUser aria-hidden="true" />
             </div>
 
-            {commentItems.length === 0 ? (
-              <EmptyState
-                className="ticket-empty-state compact"
-                message="No comments are available for this ticket."
-              />
-            ) : (
-              <div className="ticket-comment-list">
-                {commentItems.map((comment) => (
-                  <div className="ticket-comment-card" key={comment.key}>
+            {commentItems.length === 0 ?
+            <EmptyState
+              className="ticket-empty-state compact"
+              message="No comments are available for this ticket." /> :
+
+            <div className="ticket-comment-list">
+                {commentItems.map((comment) =>
+              <div className="ticket-comment-card" key={comment.key}>
                     <strong>{comment.author}</strong>
                     <span>{formatDateTime(comment.date)}</span>
                     <p>{comment.message || "No comment text provided."}</p>
                   </div>
-                ))}
+              )}
               </div>
-            )}
+            }
           </div>
         </div>
 
@@ -448,8 +445,8 @@ function TicketDetails() {
           <div className="ticket-surface ticket-details-panel">
             <h3>Status Timeline</h3>
             <div className="ticket-timeline">
-              {timelineItems.map((item, index) => (
-                <div className="ticket-timeline-item" key={`${item.label}-${index}`}>
+              {timelineItems.map((item, index) =>
+              <div className="ticket-timeline-item" key={`${item.label}-${index}`}>
                   <div className="ticket-timeline-dot" />
                   <div>
                     <strong>{item.label}</strong>
@@ -457,7 +454,7 @@ function TicketDetails() {
                     <small>{formatDateTime(item.date)}</small>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -477,8 +474,8 @@ function TicketDetails() {
         </div>
       </div>
 
-      {deleteOpen ? (
-        <div className="delete-overlay ticket-delete-overlay" role="presentation">
+      {deleteOpen ?
+      <div className="delete-overlay ticket-delete-overlay" role="presentation">
           <div className="ticket-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="ticket-details-delete-title">
             <div className="ticket-delete-icon">
               <FaTrash aria-hidden="true" />
@@ -489,57 +486,57 @@ function TicketDetails() {
             </p>
             <div className="ticket-delete-actions">
               <button
-                type="button"
-                className="ticket-button secondary"
-                onClick={() => setDeleteOpen(false)}
-                disabled={saving}
-              >
+              type="button"
+              className="ticket-button secondary"
+              onClick={() => setDeleteOpen(false)}
+              disabled={saving}>
+              
                 Cancel
               </button>
               <button
-                type="button"
-                className="ticket-button danger"
-                onClick={handleDelete}
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
+              type="button"
+              className="ticket-button danger"
+              onClick={handleDelete}
+              disabled={saving}>
+              
+                {saving ?
+              <>
                     <FaSpinner className="ticket-button-spinner" />
                     Deleting...
-                  </>
-                ) : (
-                  "Delete Ticket"
-                )}
+                  </> :
+
+              "Delete Ticket"
+              }
               </button>
             </div>
           </div>
-        </div>
-      ) : null}
-    </div>
-  );
+        </div> :
+      null}
+    </div>);
+
 }
 
 function StatusPicker({ ticket, onChange, disabled, role }) {
   const options = getTicketStatusOptions(role === "admin" ? "admin" : "user");
   const currentStatus = normalizeTicketStatus(ticket.status);
-  const selectOptions = options.includes(currentStatus)
-    ? options
-    : [currentStatus, ...options];
+  const selectOptions = options.includes(currentStatus) ?
+  options :
+  [currentStatus, ...options];
 
   return (
     <select
       className="ticket-status-select details"
       disabled={disabled}
       value={currentStatus}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      {selectOptions.map((status) => (
-        <option key={status} value={status}>
+      onChange={(event) => onChange(event.target.value)}>
+      
+      {selectOptions.map((status) =>
+      <option key={status} value={status}>
           {status}
         </option>
-      ))}
-    </select>
-  );
+      )}
+    </select>);
+
 }
 
 export default TicketDetails;

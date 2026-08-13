@@ -5,7 +5,7 @@ const toSerializableError = (error) => {
     return {
       name: "Error",
       message: "Unknown application error.",
-      stack: "",
+      stack: ""
     };
   }
 
@@ -13,7 +13,7 @@ const toSerializableError = (error) => {
     return {
       name: "Error",
       message: error,
-      stack: "",
+      stack: ""
     };
   }
 
@@ -23,10 +23,10 @@ const toSerializableError = (error) => {
     stack: error.stack || "",
     status: error.response?.status ?? error.status ?? "",
     api:
-      error.config?.url ||
-      error.response?.config?.url ||
-      error.api ||
-      "",
+    error.config?.url ||
+    error.response?.config?.url ||
+    error.api ||
+    ""
   };
 };
 
@@ -35,9 +35,9 @@ export const reportApplicationError = (error, meta = {}) => {
   const payload = {
     title: meta.title || "Application Error",
     message:
-      meta.message ||
-      normalizedError.message ||
-      "An unexpected application error occurred.",
+    meta.message ||
+    normalizedError.message ||
+    "An unexpected application error occurred.",
     error: normalizedError,
     componentStack: meta.componentStack || "",
     meta: {
@@ -45,12 +45,9 @@ export const reportApplicationError = (error, meta = {}) => {
       routeName: meta.routeName || meta.route || "",
       currentUrl: meta.currentUrl || (typeof window !== "undefined" ? window.location.href : ""),
       failedApi: meta.failedApi || normalizedError.api || "",
-      status: meta.status ?? normalizedError.status ?? "",
-    },
+      status: meta.status ?? normalizedError.status ?? ""
+    }
   };
-
-  console.error(meta.logLabel || "Application Error:", error);
-  console.trace();
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(

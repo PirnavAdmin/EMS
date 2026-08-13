@@ -10,23 +10,22 @@ import {
   buildRolePermissionSavePayload,
   getRolePermissionErrorMessage,
   normalizeRolePermissionSnapshot,
-  saveRolePermissions,
-} from "../../services/rolePermissionService";
+  saveRolePermissions } from
+"../../services/rolePermissionService";
 import {
   buildUserPermissionSavePayload,
   fetchUserPermissionsByEmployeeId,
   getUserPermissionErrorMessage,
-  saveUserPermissions,
-} from "../../services/permissionService";
+  saveUserPermissions } from
+"../../services/permissionService";
 import { useAdminPermissions } from "../../context/AdminPermissionContext";
 import "./ScreenPermissions.css";
 
 const ACTIONS = [
-  { key: "canView", label: "View" },
-  { key: "canAdd", label: "Add" },
-  { key: "canEdit", label: "Edit" },
-  { key: "canDelete", label: "Delete" },
-];
+{ key: "canView", label: "View" },
+{ key: "canAdd", label: "Add" },
+{ key: "canEdit", label: "Edit" },
+{ key: "canDelete", label: "Delete" }];
 
 const GRANULAR_FIELDS = new Set(ACTIONS.map((action) => action.key));
 
@@ -47,20 +46,20 @@ const safeDecodeURIComponent = (value) => {
 };
 
 const normalizeComparableText = (value) =>
-  normalizeId(value).toLowerCase().replace(/\s+/g, " ");
+normalizeId(value).toLowerCase().replace(/\s+/g, " ");
 
 const isNumericRoleKey = (value) => /^\d+$/.test(normalizeId(value));
 
 const getRoleIdValue = (role = {}) =>
-  normalizeId(
-    role.roleId ??
-      role.RoleId ??
-      role.id ??
-      role.Id ??
-      role.role_Id ??
-      role.Role_Id ??
-      ""
-  );
+normalizeId(
+  role.roleId ??
+  role.RoleId ??
+  role.id ??
+  role.Id ??
+  role.role_Id ??
+  role.Role_Id ??
+  ""
+);
 
 const getRoleSelectionKey = (role = {}) => {
   const normalizedRoleId = normalizeId(getRoleIdValue(role));
@@ -81,13 +80,13 @@ const getRolePermissionParameterCandidates = (role = {}) => {
     candidates.push(roleName, roleId);
   }
 
-  return candidates
-    .filter(Boolean)
-    .filter((value, index, values) => index === values.findIndex((candidate) => candidate === value));
+  return candidates.
+  filter(Boolean).
+  filter((value, index, values) => index === values.findIndex((candidate) => candidate === value));
 };
 
 const buildRolePermissionApiUrl = (permissionParameter) =>
-  `/api/RolePermission/${encodeURIComponent(String(permissionParameter ?? "").trim())}`;
+`/api/RolePermission/${encodeURIComponent(String(permissionParameter ?? "").trim())}`;
 
 const compareModuleIds = (left, right) => {
   const leftNumber = Number(left);
@@ -99,14 +98,14 @@ const compareModuleIds = (left, right) => {
 
   return String(left ?? "").localeCompare(String(right ?? ""), undefined, {
     numeric: true,
-    sensitivity: "base",
+    sensitivity: "base"
   });
 };
 
 const sortPermissions = (permissions = []) =>
-  [...permissions]
-    .filter((permission) => permission?.moduleName || permission?.moduleId)
-    .sort((left, right) => compareModuleIds(left.moduleId, right.moduleId));
+[...permissions].
+filter((permission) => permission?.moduleName || permission?.moduleId).
+sort((left, right) => compareModuleIds(left.moduleId, right.moduleId));
 
 const normalizeScreenPermissionRow = (permission = {}, { strictAccess = false } = {}) => {
   const normalizedPermission = {
@@ -117,56 +116,56 @@ const normalizeScreenPermissionRow = (permission = {}, { strictAccess = false } 
     canView: Boolean(permission.canView ?? permission.CanView ?? false),
     canAdd: Boolean(permission.canAdd ?? permission.CanAdd ?? false),
     canEdit: Boolean(permission.canEdit ?? permission.CanEdit ?? false),
-    canDelete: Boolean(permission.canDelete ?? permission.CanDelete ?? false),
+    canDelete: Boolean(permission.canDelete ?? permission.CanDelete ?? false)
   };
 
   const hasFullGranularAccess = ACTIONS.every((action) => Boolean(normalizedPermission[action.key]));
 
   return {
     ...normalizedPermission,
-    canAccess: strictAccess
-      ? Boolean(normalizedPermission.canAccess && hasFullGranularAccess)
-      : hasFullGranularAccess,
+    canAccess: strictAccess ?
+    Boolean(normalizedPermission.canAccess && hasFullGranularAccess) :
+    hasFullGranularAccess
   };
 };
 
 const normalizeRoleRecord = (role = {}) => ({
   roleId: normalizeId(
     role.roleId ??
-      role.id ??
-      role.role_Id ??
-      role.RoleId ??
-      role.Role_Id ??
-      ""
+    role.id ??
+    role.role_Id ??
+    role.RoleId ??
+    role.Role_Id ??
+    ""
   ),
   roleName: normalizeId(
     role.roleName ??
-      role.name ??
-      role.RoleName ??
-      role.Name ??
-      "No Name"
-  ),
+    role.name ??
+    role.RoleName ??
+    role.Name ??
+    "No Name"
+  )
 });
 
 const getRoleNameValue = (role = {}) =>
-  normalizeId(
-    role.roleName ??
-      role.RoleName ??
-      role.name ??
-      role.Name ??
-      ""
-  );
+normalizeId(
+  role.roleName ??
+  role.RoleName ??
+  role.name ??
+  role.Name ??
+  ""
+);
 
 const getEmployeeNameValue = (employee) =>
-  normalizeId(
-    (employee ?? {}).employeeName ??
-      (employee ?? {}).EmployeeName ??
-      (employee ?? {}).name ??
-      (employee ?? {}).Name ??
-      (employee ?? {}).fullName ??
-      (employee ?? {}).FullName ??
-      ""
-  );
+normalizeId(
+  (employee ?? {}).employeeName ??
+  (employee ?? {}).EmployeeName ??
+  (employee ?? {}).name ??
+  (employee ?? {}).Name ??
+  (employee ?? {}).fullName ??
+  (employee ?? {}).FullName ??
+  ""
+);
 
 function ScreenPermissions() {
   const navigate = useNavigate();
@@ -179,29 +178,29 @@ function ScreenPermissions() {
   const locationStateEmployee = location.state?.employee ?? location.state?.user ?? null;
   const locationStateEmployeeId = normalizeId(
     locationStateEmployee?.employeeId ??
-      locationStateEmployee?.EmployeeId ??
-      locationStateEmployee?.employee_Id ??
-      locationStateEmployee?.Employee_Id ??
-      location.state?.employeeId ??
-      location.state?.EmployeeId ??
-      location.state?.id ??
-      location.state?.Id ??
-      ""
+    locationStateEmployee?.EmployeeId ??
+    locationStateEmployee?.employee_Id ??
+    locationStateEmployee?.Employee_Id ??
+    location.state?.employeeId ??
+    location.state?.EmployeeId ??
+    location.state?.id ??
+    location.state?.Id ??
+    ""
   );
   const queryRoleId = normalizeId(searchParams.get("roleId") || searchParams.get("id"));
   const queryRoleName = normalizeId(searchParams.get("roleName"));
   const queryEmployeeId = normalizeId(searchParams.get("employeeId") || searchParams.get("userId"));
   const initialRoleId = locationStateRoleId || queryRoleId;
   const initialRoleName =
-    locationStateRoleName || queryRoleName || safeDecodeURIComponent(routeRoleName);
+  locationStateRoleName || queryRoleName || safeDecodeURIComponent(routeRoleName);
   const initialEmployeeId = locationStateEmployeeId || queryEmployeeId;
   const permissionMode = initialEmployeeId ? "user" : "role";
   const locationStateEmployeeName =
-    permissionMode === "user" ? getEmployeeNameValue(locationStateEmployee) : "";
+  permissionMode === "user" ? getEmployeeNameValue(locationStateEmployee) : "";
 
   const [selectedRole, setSelectedRole] = useState(() => ({
     roleId: initialRoleId,
-    roleName: initialRoleName,
+    roleName: initialRoleName
   }));
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -216,7 +215,7 @@ function ScreenPermissions() {
   }, [permissions]);
 
   useEffect(() => {
-    console.log("Final mapped React state", permissions);
+
   }, [permissions]);
 
   const permissionRows = useMemo(() => sortPermissions(permissions), [permissions]);
@@ -246,9 +245,9 @@ function ScreenPermissions() {
     return "the selected role";
   }, [currentRoleName]);
   const selectedPermissionLabel =
-    permissionMode === "user" ? selectedEmployeeLabel : selectedRoleLabel;
+  permissionMode === "user" ? selectedEmployeeLabel : selectedRoleLabel;
   const selectedPermissionTitle =
-    permissionMode === "user" ? "User Permissions" : "Role Permissions";
+  permissionMode === "user" ? "User Permissions" : "Role Permissions";
   const isBusy = loading || saving;
 
   const resolveRoleSelection = useCallback(async () => {
@@ -258,34 +257,34 @@ function ScreenPermissions() {
     if (baseRoleId && baseRoleName && !isNumericRoleKey(baseRoleName)) {
       return {
         roleId: baseRoleId,
-        roleName: baseRoleName,
+        roleName: baseRoleName
       };
     }
 
     if (!baseRoleId && !baseRoleName) {
       return {
         roleId: "",
-        roleName: "",
+        roleName: ""
       };
     }
 
     try {
       const response = await api.get(API_ENDPOINTS.masters.roles.list, {
         headers: {
-          Accept: "application/json",
-        },
+          Accept: "application/json"
+        }
       });
 
       const roles = extractCollection(response.data).map(normalizeRoleRecord);
       const matchedRole = roles.find((role) => {
         const matchesId = baseRoleId && normalizeId(role.roleId) === baseRoleId;
         const matchesName =
-          baseRoleName &&
-          normalizeComparableText(role.roleName) === normalizeComparableText(baseRoleName);
+        baseRoleName &&
+        normalizeComparableText(role.roleName) === normalizeComparableText(baseRoleName);
         const matchesNumericName =
-          baseRoleName &&
-          isNumericRoleKey(baseRoleName) &&
-          normalizeId(role.roleId) === baseRoleName;
+        baseRoleName &&
+        isNumericRoleKey(baseRoleName) &&
+        normalizeId(role.roleId) === baseRoleName;
 
         return matchesId || matchesName || matchesNumericName;
       });
@@ -293,35 +292,31 @@ function ScreenPermissions() {
       if (matchedRole) {
         return {
           roleId: matchedRole.roleId || baseRoleId,
-          roleName: matchedRole.roleName || baseRoleName,
+          roleName: matchedRole.roleName || baseRoleName
         };
       }
     } catch (lookupError) {
-      console.error("Role Resolution Error", lookupError);
+
     }
 
     return {
       roleId: baseRoleId,
-      roleName: baseRoleName,
+      roleName: baseRoleName
     };
   }, [initialRoleId, initialRoleName]);
 
   const loadPermissionsForRole = useCallback(
     async (roleInput, { clearCurrent = false, force = false } = {}) => {
       const selectedRole =
-        roleInput && typeof roleInput === "object" && !Array.isArray(roleInput)
-          ? {
-              roleId: getRoleIdValue(roleInput),
-              roleName: getRoleNameValue(roleInput),
-            }
-          : {
-              roleId: "",
-              roleName: normalizeId(roleInput),
-            };
-
-      console.log("[Role Permissions] Selected Role:", selectedRole);
-      console.log("[Role Permissions] Role ID:", selectedRole?.roleId);
-      console.log("[Role Permissions] Role Name:", selectedRole?.roleName);
+      roleInput && typeof roleInput === "object" && !Array.isArray(roleInput) ?
+      {
+        roleId: getRoleIdValue(roleInput),
+        roleName: getRoleNameValue(roleInput)
+      } :
+      {
+        roleId: "",
+        roleName: normalizeId(roleInput)
+      };
 
       const roleSelectionKey = getRoleSelectionKey(selectedRole);
 
@@ -354,35 +349,25 @@ function ScreenPermissions() {
           const permissionParameter = permissionParameterCandidates[index];
           const apiUrl = buildRolePermissionApiUrl(permissionParameter);
 
-          console.log("[Role Permissions] API Parameter:", permissionParameter);
-          console.log("[Role Permissions] API URL:", apiUrl);
-          console.log("[Role Permissions] Fetching permissions...");
-
           try {
             const response = await api.get(API_ENDPOINTS.rolePermission.get(permissionParameter), {
               headers: {
-                Accept: "application/json",
-              },
+                Accept: "application/json"
+              }
             });
 
             if (requestId !== permissionRequestIdRef.current) {
               return permissionsRef.current;
             }
 
-            console.log("[Role Permissions] Permission API Response:", response?.data);
-            console.log(
-              "[Role Permissions] Permissions Loaded:",
-              response?.data?.permissions ?? response?.data
-            );
-
             const snapshot = normalizeRolePermissionSnapshot(response.data, {
               roleId: selectedRole.roleId,
-              roleName: selectedRole.roleName,
+              roleName: selectedRole.roleName
             });
 
             const nextPermissions = sortPermissions(
               (snapshot.permissions || []).map((permission) =>
-                normalizeScreenPermissionRow(permission, { strictAccess: true })
+              normalizeScreenPermissionRow(permission, { strictAccess: true })
               )
             );
 
@@ -390,26 +375,21 @@ function ScreenPermissions() {
             setSelectedRole((prev) => ({
               roleId: snapshot.roleId || selectedRole.roleId || prev.roleId || initialRoleId || "",
               roleName:
-                snapshot.roleName ||
-                selectedRole.roleName ||
-                prev.roleName ||
-                initialRoleName ||
-                "",
+              snapshot.roleName ||
+              selectedRole.roleName ||
+              prev.roleName ||
+              initialRoleName ||
+              ""
             }));
             if (roleSelectionKey) {
               lastLoadedRoleNameRef.current = roleSelectionKey;
             }
-
-            console.log("Final mapped React state", nextPermissions);
 
             return nextPermissions;
           } catch (error) {
             if (requestId !== permissionRequestIdRef.current) {
               return [];
             }
-
-            console.error("[Role Permissions] Permission API Error:", error);
-            console.error("[Role Permissions] Error Response:", error?.response?.data);
 
             if (index < permissionParameterCandidates.length - 1) {
               continue;
@@ -465,11 +445,9 @@ function ScreenPermissions() {
           return snapshot.permissions || [];
         }
 
-        console.log("Reloaded API response", snapshot);
-
         const nextPermissions = sortPermissions(
           (snapshot.permissions || []).map((permission) =>
-            normalizeScreenPermissionRow(permission, { strictAccess: true })
+          normalizeScreenPermissionRow(permission, { strictAccess: true })
           )
         );
 
@@ -477,13 +455,11 @@ function ScreenPermissions() {
         setSelectedRole((prev) => ({
           roleId: roleId || prev.roleId || initialRoleId || "",
           roleName:
-            roleName ||
-            prev.roleName ||
-            initialRoleName ||
-            "",
+          roleName ||
+          prev.roleName ||
+          initialRoleName ||
+          ""
         }));
-
-        console.log("Final mapped React state", nextPermissions);
 
         return nextPermissions;
       } catch (requestError) {
@@ -491,7 +467,6 @@ function ScreenPermissions() {
           return [];
         }
 
-        console.error("Permission API Error:", requestError);
         const message = getUserPermissionErrorMessage(
           requestError,
           "Unable to load permissions."
@@ -527,14 +502,14 @@ function ScreenPermissions() {
 
         setSelectedRole((prev) => ({
           roleId: initialRoleId || prev.roleId || "",
-          roleName: initialRoleName || prev.roleName || "",
+          roleName: initialRoleName || prev.roleName || ""
         }));
 
         await loadPermissionsForEmployee(initialEmployeeId, {
           employeeName: locationStateEmployeeName,
           roleId: initialRoleId,
           roleName: initialRoleName,
-          clearCurrent: true,
+          clearCurrent: true
         });
 
         return;
@@ -542,7 +517,7 @@ function ScreenPermissions() {
 
       const requestedRoleKey = getRoleSelectionKey({
         roleId: initialRoleId,
-        roleName: initialRoleName,
+        roleName: initialRoleName
       });
 
       if (requestedRoleKey && lastLoadedRoleNameRef.current === requestedRoleKey) {
@@ -560,7 +535,7 @@ function ScreenPermissions() {
 
       setSelectedRole((prev) => ({
         roleId: resolvedRole.roleId || prev.roleId || "",
-        roleName: resolvedRole.roleName || prev.roleName || "",
+        roleName: resolvedRole.roleName || prev.roleName || ""
       }));
 
       if (!resolvedRole.roleId && !resolvedRole.roleName) {
@@ -571,7 +546,7 @@ function ScreenPermissions() {
       }
 
       await loadPermissionsForRole(resolvedRole, {
-        clearCurrent: true,
+        clearCurrent: true
       });
     };
 
@@ -582,99 +557,94 @@ function ScreenPermissions() {
       permissionRequestIdRef.current += 1;
     };
   }, [
-    initialEmployeeId,
-    initialRoleId,
-    initialRoleName,
-    locationStateEmployeeName,
-    loadPermissionsForEmployee,
-    loadPermissionsForRole,
-    permissionMode,
-    resolveRoleSelection,
-  ]);
+  initialEmployeeId,
+  initialRoleId,
+  initialRoleName,
+  locationStateEmployeeName,
+  loadPermissionsForEmployee,
+  loadPermissionsForRole,
+  permissionMode,
+  resolveRoleSelection]
+  );
 
   const handlePermissionChange = (moduleId, field, value) => {
     const normalizedModuleId = normalizeId(moduleId);
 
-    if (!normalizedModuleId || (!GRANULAR_FIELDS.has(field) && field !== "canAccess")) {
+    if (!normalizedModuleId || !GRANULAR_FIELDS.has(field) && field !== "canAccess") {
       return;
     }
 
     setPermissions((current) =>
-      sortPermissions(
-        current.map((permission) => {
-          const currentModuleId = normalizeId(permission.moduleId ?? permission.ModuleId ?? "");
+    sortPermissions(
+      current.map((permission) => {
+        const currentModuleId = normalizeId(permission.moduleId ?? permission.ModuleId ?? "");
 
-          if (currentModuleId !== normalizedModuleId) {
-            return permission;
-          }
+        if (currentModuleId !== normalizedModuleId) {
+          return permission;
+        }
 
-          const currentPermission = normalizeScreenPermissionRow(permission, {
-            strictAccess: false,
-          });
+        const currentPermission = normalizeScreenPermissionRow(permission, {
+          strictAccess: false
+        });
 
-          let nextPermission = currentPermission;
-          const nextValue = Boolean(value);
+        let nextPermission = currentPermission;
+        const nextValue = Boolean(value);
 
-          if (field === "canAccess") {
-            if (nextValue) {
-              nextPermission = normalizeScreenPermissionRow(
-                {
-                  ...currentPermission,
-                  canAccess: true,
-                  canView: true,
-                  canAdd: true,
-                  canEdit: true,
-                  canDelete: true,
-                },
-                { strictAccess: true }
-              );
-            } else {
-              nextPermission = normalizeScreenPermissionRow(
-                {
-                  ...currentPermission,
-                  canAccess: false,
-                  canView: false,
-                  canAdd: false,
-                  canEdit: false,
-                  canDelete: false,
-                },
-                { strictAccess: true }
-              );
-            }
+        if (field === "canAccess") {
+          if (nextValue) {
+            nextPermission = normalizeScreenPermissionRow(
+              {
+                ...currentPermission,
+                canAccess: true,
+                canView: true,
+                canAdd: true,
+                canEdit: true,
+                canDelete: true
+              },
+              { strictAccess: true }
+            );
           } else {
             nextPermission = normalizeScreenPermissionRow(
               {
                 ...currentPermission,
-                [field]: nextValue,
+                canAccess: false,
+                canView: false,
+                canAdd: false,
+                canEdit: false,
+                canDelete: false
               },
-              { strictAccess: false }
+              { strictAccess: true }
             );
           }
+        } else {
+          nextPermission = normalizeScreenPermissionRow(
+            {
+              ...currentPermission,
+              [field]: nextValue
+            },
+            { strictAccess: false }
+          );
+        }
 
-          console.log("Previous row state", currentPermission);
-          console.log("Updated row state", nextPermission);
-          console.log("Full Access toggle state", nextPermission.canAccess);
-
-          return nextPermission;
-        })
-      )
+        return nextPermission;
+      })
+    )
     );
   };
 
   const handleSelectAll = () => {
-    console.log("[Role Permissions] Select All clicked");
 
     setPermissions((current) =>
-      sortPermissions(
-        current.map((permission) => ({
-          ...permission,
-          canView: true,
-          canAdd: true,
-          canEdit: true,
-          canDelete: true,
-          canAccess: true,
-        }))
-      )
+    sortPermissions(
+      current.map((permission) => ({
+        ...permission,
+        canView: true,
+        canAdd: true,
+        canEdit: true,
+        canDelete: true,
+        canAccess: true
+      }))
+    )
     );
   };
 
@@ -688,7 +658,7 @@ function ScreenPermissions() {
         employeeName: locationStateEmployeeName,
         roleId: initialRoleId,
         roleName: initialRoleName,
-        clearCurrent: false,
+        clearCurrent: false
       });
 
       return;
@@ -700,13 +670,13 @@ function ScreenPermissions() {
 
     void loadPermissionsForRole(selectedRole, {
       clearCurrent: false,
-      force: true,
+      force: true
     });
   };
 
   const handleSave = async () => {
     const currentPermissions = sortPermissions(permissionsRef.current).map((permission) =>
-      normalizeScreenPermissionRow(permission, { strictAccess: true })
+    normalizeScreenPermissionRow(permission, { strictAccess: true })
     );
 
     if (permissionMode === "user") {
@@ -723,17 +693,13 @@ function ScreenPermissions() {
       try {
         const payload = buildUserPermissionSavePayload({
           employeeId: initialEmployeeId,
-          permissions: currentPermissions,
+          permissions: currentPermissions
         });
-
-        console.log("Final save payload", payload);
 
         const saveResponse = await saveUserPermissions({
           employeeId: initialEmployeeId,
-          permissions: currentPermissions,
+          permissions: currentPermissions
         });
-
-        console.log("API Response:", saveResponse);
 
         toastSuccess("User permissions saved successfully.");
 
@@ -741,10 +707,9 @@ function ScreenPermissions() {
           employeeName: locationStateEmployeeName,
           roleId: initialRoleId,
           roleName: initialRoleName,
-          clearCurrent: false,
+          clearCurrent: false
         });
       } catch (requestError) {
-        console.error("Save Error", requestError.response?.data);
 
         const message = getUserPermissionErrorMessage(
           requestError,
@@ -773,30 +738,25 @@ function ScreenPermissions() {
       const payload = buildRolePermissionSavePayload({
         roleId: currentRoleId,
         roleName: currentRoleName,
-        permissions: currentPermissions,
+        permissions: currentPermissions
       });
-
-      console.log("Final save payload", payload);
 
       const saveResponse = await saveRolePermissions({
         roleId: currentRoleId,
         roleName: currentRoleName,
-        permissions: currentPermissions,
+        permissions: currentPermissions
       });
-
-      console.log("API Response:", saveResponse);
 
       toastSuccess("Permissions saved successfully.");
 
       try {
         await loadPermissionsForRole(selectedRole, {
           clearCurrent: false,
-          force: true,
+          force: true
         });
 
         await refreshPermissions({ force: true });
       } catch (refreshError) {
-        console.error("Sidebar Permission Refresh Error:", refreshError);
 
         const message = getRolePermissionErrorMessage(
           refreshError,
@@ -807,7 +767,6 @@ function ScreenPermissions() {
         toastError(message);
       }
     } catch (requestError) {
-      console.error("Save Error", requestError.response?.data);
 
       const message = getRolePermissionErrorMessage(
         requestError,
@@ -833,8 +792,8 @@ function ScreenPermissions() {
           </div>
 
           <dl>
-            {permissionMode === "user" ? (
-              <>
+            {permissionMode === "user" ?
+            <>
                 <div>
                   <dt>Employee Name</dt>
                   <dd>{selectedEmployeeLabel}</dd>
@@ -847,9 +806,9 @@ function ScreenPermissions() {
                   <dt>Role Name</dt>
                   <dd>{currentRoleName || initialRoleName || "Pending"}</dd>
                 </div>
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <div>
                   <dt>Role Name</dt>
                   <dd>{selectedRoleLabel}</dd>
@@ -859,7 +818,7 @@ function ScreenPermissions() {
                   <dd>{currentRoleId || "Pending"}</dd>
                 </div>
               </>
-            )}
+            }
           </dl>
         </div>
 
@@ -868,64 +827,64 @@ function ScreenPermissions() {
             className="permission-secondary-btn"
             type="button"
             onClick={() => navigate("/roles")}
-            disabled={saving}
-          >
+            disabled={saving}>
+            
             <FaArrowLeft /> Back to Roles
           </button>
           <button
             className="permission-secondary-btn"
             type="button"
             onClick={handleRefresh}
-            disabled={isBusy || !currentRoleName}
-          >
+            disabled={isBusy || !currentRoleName}>
+            
             <FaRedo /> Refresh
           </button>
-          {permissionMode !== "user" ? (
-            <button
-              className="select-all-btn"
-              type="button"
-              onClick={handleSelectAll}
-              disabled={isBusy}
-            >
+          {permissionMode !== "user" ?
+          <button
+            className="select-all-btn"
+            type="button"
+            onClick={handleSelectAll}
+            disabled={isBusy}>
+            
               Select All
-            </button>
-          ) : null}
+            </button> :
+          null}
           <button
             className="select-all-btn"
             type="button"
             onClick={handleSave}
             disabled={
-              isBusy ||
-              (permissionMode === "user"
-                ? !initialEmployeeId
-                : !currentRoleName)
-            }
-          >
+            isBusy || (
+            permissionMode === "user" ?
+            !initialEmployeeId :
+            !currentRoleName)
+            }>
+            
             <FaSave />
-            {saving
-              ? "Saving..."
-              : permissionMode === "user"
-                ? "Save User Permissions"
-                : "Save Permissions"}
+            {saving ?
+            "Saving..." :
+            permissionMode === "user" ?
+            "Save User Permissions" :
+            "Save Permissions"}
           </button>
         </div>
       </div>
 
-      {loading && !hasPermissions ? (
-        <div style={{ marginBottom: 16 }}>
+      {loading && !hasPermissions ?
+      <div style={{ marginBottom: 16 }}>
           <TableSkeleton rows={8} columns={6} />
-        </div>
-      ) : null}
+        </div> :
+      null}
 
-      {loading && hasPermissions ? (
-        <div className="permission-loading">Loading permissions...</div>
-      ) : null}
+      {loading && hasPermissions ?
+      <div className="permission-loading">Loading permissions...</div> :
+      null}
 
-      {error ? (
-        <div
-          className="sidebar-status-panel sidebar-status-error"
-          style={{ marginBottom: 20 }}
-        >
+      {error ?
+      <div
+        className="sidebar-status-panel sidebar-status-error"
+        style={{ marginBottom: 20 }}>
+        
           <div className="sidebar-status-copy">
             <div>
               <div className="sidebar-status-title">Permissions unavailable</div>
@@ -934,113 +893,113 @@ function ScreenPermissions() {
           </div>
 
           <button
-            type="button"
-            className="sidebar-status-retry"
-            onClick={handleRefresh}
-            disabled={
-              isBusy ||
-              (permissionMode === "user" ? !initialEmployeeId : !currentRoleName)
-            }
-          >
+          type="button"
+          className="sidebar-status-retry"
+          onClick={handleRefresh}
+          disabled={
+          isBusy || (
+          permissionMode === "user" ? !initialEmployeeId : !currentRoleName)
+          }>
+          
             Retry
           </button>
-        </div>
-      ) : null}
+        </div> :
+      null}
 
       <div className="permission-group">
         <div className="group-header">MODULES</div>
 
         <div className="permission-matrix-wrap" aria-busy={isBusy}>
-          {loading && !hasPermissions ? null : (
-            <table className="permission-matrix">
+          {loading && !hasPermissions ? null :
+          <table className="permission-matrix">
               <thead>
                 <tr>
                   <th>Module</th>
-                  {ACTIONS.map((action) => (
-                    <th key={action.key}>{action.label}</th>
-                  ))}
+                  {ACTIONS.map((action) =>
+                <th key={action.key}>{action.label}</th>
+                )}
                   <th>Full Access</th>
                 </tr>
               </thead>
               <tbody>
-                {hasPermissions ? (
-                  permissionRows.map((permission, rowIndex) => {
-                    const moduleKey =
-                      normalizeId(permission.moduleId ?? permission.ModuleId ?? "") ||
-                      permission.moduleName ||
-                      rowIndex;
+                {hasPermissions ?
+              permissionRows.map((permission, rowIndex) => {
+                const moduleKey =
+                normalizeId(permission.moduleId ?? permission.ModuleId ?? "") ||
+                permission.moduleName ||
+                rowIndex;
 
-                    return (
-                      <tr key={moduleKey}>
+                return (
+                  <tr key={moduleKey}>
                         <td>{permission.moduleName}</td>
-                        {ACTIONS.map((action) => (
-                          <td key={action.key}>
+                        {ACTIONS.map((action) =>
+                    <td key={action.key}>
                             <input
-                              type="checkbox"
-                              className="permission-checkbox"
-                              checked={Boolean(permission[action.key])}
-                              disabled={isBusy}
-                              onChange={(event) =>
-                                handlePermissionChange(
-                                  permission.moduleId ?? permission.ModuleId,
-                                  action.key,
-                                  event.target.checked
-                                )
-                              }
-                              aria-label={`${permission.moduleName} ${action.label}`}
-                            />
+                        type="checkbox"
+                        className="permission-checkbox"
+                        checked={Boolean(permission[action.key])}
+                        disabled={isBusy}
+                        onChange={(event) =>
+                        handlePermissionChange(
+                          permission.moduleId ?? permission.ModuleId,
+                          action.key,
+                          event.target.checked
+                        )
+                        }
+                        aria-label={`${permission.moduleName} ${action.label}`} />
+                      
                           </td>
-                        ))}
+                    )}
                         <td className="permission-access-col">
                           <label
-                            className={`permission-switch ${
-                              permission.canAccess === true ? "active" : ""
-                            }`}
-                          >
+                        className={`permission-switch ${
+                        permission.canAccess === true ? "active" : ""}`
+                        }>
+                        
                             <input
-                              type="checkbox"
-                              checked={Boolean(permission.canAccess)}
-                              onChange={(event) =>
-                                handlePermissionChange(
-                                  permission.moduleId ?? permission.ModuleId,
-                                  "canAccess",
-                                  event.target.checked
-                                )
-                              }
-                              aria-label={`${permission.moduleName} Full Access`}
-                            />
+                          type="checkbox"
+                          checked={Boolean(permission.canAccess)}
+                          onChange={(event) =>
+                          handlePermissionChange(
+                            permission.moduleId ?? permission.ModuleId,
+                            "canAccess",
+                            event.target.checked
+                          )
+                          }
+                          aria-label={`${permission.moduleName} Full Access`} />
+                        
                             <span className="permission-slider" aria-hidden="true" />
                           </label>
                         </td>
-                      </tr>
-                    );
-                  })
-                ) : error ? (
-                  <tr>
+                      </tr>);
+
+              }) :
+              error ?
+              <tr>
                     <td
-                      colSpan={ACTIONS.length + 2}
-                      style={{ textAlign: "center", padding: "24px" }}
-                    >
+                  colSpan={ACTIONS.length + 2}
+                  style={{ textAlign: "center", padding: "24px" }}>
+                  
                       Unable to load permissions.
                     </td>
-                  </tr>
-                ) : (
-                  <tr>
+                  </tr> :
+
+              <tr>
                     <td
-                      colSpan={ACTIONS.length + 2}
-                      style={{ textAlign: "center", padding: "24px" }}
-                    >
+                  colSpan={ACTIONS.length + 2}
+                  style={{ textAlign: "center", padding: "24px" }}>
+                  
                       No modules were returned by the permission API.
                     </td>
                   </tr>
-                )}
+              }
               </tbody>
             </table>
-          )}
+          }
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default ScreenPermissions;

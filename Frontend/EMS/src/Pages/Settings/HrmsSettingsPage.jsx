@@ -9,8 +9,8 @@ import {
   FaSearch,
   FaSync,
   FaTimes,
-  FaTrash,
-} from "react-icons/fa";
+  FaTrash } from
+"react-icons/fa";
 import AppPagination from "../../components/AppPagination";
 import { toastError, toastSuccess } from "@/components/common/toast/toastService";
 import {
@@ -21,15 +21,15 @@ import {
   listHrmsSettings,
   runHrmsWorkflowAction,
   updateHrmsSettingsRecord,
-  uploadHrmsBulkRecords,
-} from "../../services/hrmsSettingsService";
+  uploadHrmsBulkRecords } from
+"../../services/hrmsSettingsService";
 import {
   hasAddPermission,
   hasDeletePermission,
   hasEditPermission,
   hasModulePermission,
-  hasViewPermission,
-} from "../../utils/authorization";
+  hasViewPermission } from
+"../../utils/authorization";
 import { SettingsBanner, SettingsCard, SettingsField, SettingsStatPill } from "./SettingsShared";
 import { shiftModuleOptions, shiftModulesConfig, standaloneSettingsModules } from "./hrmsSettingsConfig";
 import { templateModuleOptions, templateModulesConfig } from "./templateConfig";
@@ -39,16 +39,16 @@ import templateModuleService from "../../services/templateModuleService";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const getRecordId = (record, config) =>
-  record?.[config.idKey] ??
-  record?.[`${config.idKey?.charAt(0).toUpperCase()}${config.idKey?.slice(1)}`] ??
-  record?.id ??
-  record?.Id ??
-  record?.employeeId ??
-  record?.EmployeeId ??
-  record?.resignationId ??
-  record?.ResignationId ??
-  record?.assignmentId ??
-  record?.AssignmentId;
+record?.[config.idKey] ??
+record?.[`${config.idKey?.charAt(0).toUpperCase()}${config.idKey?.slice(1)}`] ??
+record?.id ??
+record?.Id ??
+record?.employeeId ??
+record?.EmployeeId ??
+record?.resignationId ??
+record?.ResignationId ??
+record?.assignmentId ??
+record?.AssignmentId;
 
 const normalizeDisplayValue = (value) => {
   if (value === null || value === undefined || value === "") {
@@ -92,50 +92,50 @@ const buildInitialValues = (fields = [], record = null) => {
     }
 
     values[field.name] =
-      field.type === "file"
-        ? null
-        : safeRecord?.[field.name] ??
-        safeRecord?.[
-        field.name.charAt(0).toUpperCase() +
-        field.name.slice(1)
-        ] ??
-        "";
+    field.type === "file" ?
+    null :
+    safeRecord?.[field.name] ??
+    safeRecord?.[
+    field.name.charAt(0).toUpperCase() +
+    field.name.slice(1)] ??
+
+    "";
 
     return values;
   }, {});
 };
 
 const buildPayload = (fields = [], values = {}) =>
-  fields.reduce((payload, field) => {
-    payload[field.name] = coerceFieldValue(field, values[field.name]);
-    return payload;
-  }, {});
+fields.reduce((payload, field) => {
+  payload[field.name] = coerceFieldValue(field, values[field.name]);
+  return payload;
+}, {});
 
 const validateValues = (fields = [], values = {}) =>
-  fields.reduce((errors, field) => {
-    if (field.required && !String(values[field.name] ?? "").trim()) {
-      if (field.type === "file" && values[field.name]) {
-        return errors;
-      }
-
-      errors[field.name] = `${field.label} is required.`;
+fields.reduce((errors, field) => {
+  if (field.required && !String(values[field.name] ?? "").trim()) {
+    if (field.type === "file" && values[field.name]) {
+      return errors;
     }
 
-    return errors;
-  }, {});
+    errors[field.name] = `${field.label} is required.`;
+  }
+
+  return errors;
+}, {});
 
 const filterRecords = (records, config, search, filterValues) => {
   const normalizedSearch = String(search || "").trim().toLowerCase();
-  const searchFields = config.searchFields?.length
-    ? config.searchFields
-    : config.columns.map((column) => column.key);
+  const searchFields = config.searchFields?.length ?
+  config.searchFields :
+  config.columns.map((column) => column.key);
 
   return records.filter((record) => {
     const matchesSearch =
-      !normalizedSearch ||
-      searchFields.some((field) =>
-        normalizeDisplayValue(record?.[field]).toLowerCase().includes(normalizedSearch)
-      );
+    !normalizedSearch ||
+    searchFields.some((field) =>
+    normalizeDisplayValue(record?.[field]).toLowerCase().includes(normalizedSearch)
+    );
 
     if (!matchesSearch) {
       return false;
@@ -149,7 +149,7 @@ const filterRecords = (records, config, search, filterValues) => {
       }
 
       return String(record?.[filter.key] ?? "").toLowerCase() ===
-        String(selectedValue).toLowerCase();
+      String(selectedValue).toLowerCase();
     });
   });
 };
@@ -157,68 +157,67 @@ const filterRecords = (records, config, search, filterValues) => {
 function DynamicFormFields({ fields, values, errors, onChange, disabled = false }) {
   return (
     <div className="settings-form-grid settings-grid settings-grid-2">
-      {fields.map((field) => (
-        <SettingsField
-          key={field.name}
-          label={field.label}
-          required={field.required}
-          error={errors[field.name]}
-          className={field.fullWidth ? "settings-field--full" : ""}
-        >
-          {field.type === "textarea" ? (
-            <textarea
-              className="settings-textarea"
-              name={field.name}
-              value={values[field.name] ?? ""}
-              onChange={onChange}
-              disabled={disabled}
-              rows={5}
-            />
-          ) : field.type === "select" ? (
-            <select
-              className="settings-select"
-              name={field.name}
-              value={values[field.name] ?? ""}
-              onChange={onChange}
-              disabled={disabled}
-            >
+      {fields.map((field) =>
+      <SettingsField
+        key={field.name}
+        label={field.label}
+        required={field.required}
+        error={errors[field.name]}
+        className={field.fullWidth ? "settings-field--full" : ""}>
+        
+          {field.type === "textarea" ?
+        <textarea
+          className="settings-textarea"
+          name={field.name}
+          value={values[field.name] ?? ""}
+          onChange={onChange}
+          disabled={disabled}
+          rows={5} /> :
+
+        field.type === "select" ?
+        <select
+          className="settings-select"
+          name={field.name}
+          value={values[field.name] ?? ""}
+          onChange={onChange}
+          disabled={disabled}>
+          
               <option value="">Select {field.label}</option>
               {(field.options || []).map((option) => {
-                const optionValue =
-                  typeof option === "string" ? option : option.value;
-                const optionLabel =
-                  typeof option === "string" ? option : option.label;
+            const optionValue =
+            typeof option === "string" ? option : option.value;
+            const optionLabel =
+            typeof option === "string" ? option : option.label;
 
-                return (
-                  <option key={optionValue} value={optionValue}>
+            return (
+              <option key={optionValue} value={optionValue}>
                     {optionLabel}
-                  </option>
-                );
-              })}
-            </select>
-          ) : field.type === "file" ? (
-            <input
-              className="settings-input"
-              type="file"
-              name={field.name}
-              accept={field.accept}
-              onChange={onChange}
-              disabled={disabled}
-            />
-          ) : (
-            <input
-              className={field.type === "time" ? "settings-time-input" : "settings-input"}
-              type={field.type || "text"}
-              name={field.name}
-              value={values[field.name] ?? ""}
-              onChange={onChange}
-              disabled={disabled}
-            />
-          )}
+                  </option>);
+
+          })}
+            </select> :
+        field.type === "file" ?
+        <input
+          className="settings-input"
+          type="file"
+          name={field.name}
+          accept={field.accept}
+          onChange={onChange}
+          disabled={disabled} /> :
+
+        <input
+          className={field.type === "time" ? "settings-time-input" : "settings-input"}
+          type={field.type || "text"}
+          name={field.name}
+          value={values[field.name] ?? ""}
+          onChange={onChange}
+          disabled={disabled} />
+
+        }
         </SettingsField>
-      ))}
-    </div>
-  );
+      )}
+    </div>);
+
 }
 
 function ModalShell({ title, children, footer, onClose }) {
@@ -234,8 +233,8 @@ function ModalShell({ title, children, footer, onClose }) {
         <div className="settings-modal-body">{children}</div>
         {footer && <div className="settings-modal-footer">{footer}</div>}
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 function RecordModal({ mode, config, record, onClose, onSubmit, saving }) {
@@ -243,7 +242,7 @@ function RecordModal({ mode, config, record, onClose, onSubmit, saving }) {
   const safeRecord = record ?? {};
 
   const [values, setValues] = useState(() =>
-    buildInitialValues(config.formFields ?? [], safeRecord)
+  buildInitialValues(config.formFields ?? [], safeRecord)
   );
   const [errors, setErrors] = useState({});
 
@@ -251,7 +250,7 @@ function RecordModal({ mode, config, record, onClose, onSubmit, saving }) {
     const { name, type, value, files } = event.target;
     const nextValues = {
       ...values,
-      [name]: type === "file" ? files?.[0] || null : value,
+      [name]: type === "file" ? files?.[0] || null : value
     };
     setValues(nextValues);
     setErrors(validateValues(config.formFields, nextValues));
@@ -268,10 +267,7 @@ function RecordModal({ mode, config, record, onClose, onSubmit, saving }) {
 
     const payload = buildPayload(config.formFields, values);
 
-console.log("VALUES:", values);
-console.log("PAYLOAD:", payload);
-
-onSubmit(payload);
+    onSubmit(payload);
   };
 
   return (
@@ -279,27 +275,27 @@ onSubmit(payload);
       title={`${mode === "edit" ? "Edit" : mode === "view" ? "View" : "Add"} ${config.title}`}
       onClose={onClose}
       footer={
-        <>
+      <>
           <button type="button" className="app-button-ghost" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          {!readOnly && (
-            <button type="button" className="app-button-primary" onClick={handleSubmit} disabled={saving}>
+          {!readOnly &&
+        <button type="button" className="app-button-primary" onClick={handleSubmit} disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </button>
-          )}
+        }
         </>
-      }
-    >
+      }>
+      
       <DynamicFormFields
         fields={config.formFields}
         values={values}
         errors={errors}
         onChange={handleChange}
-        disabled={saving || readOnly}
-      />
-    </ModalShell>
-  );
+        disabled={saving || readOnly} />
+      
+    </ModalShell>);
+
 }
 
 function WorkflowModal({ action, record, onClose, onSubmit, saving }) {
@@ -310,7 +306,7 @@ function WorkflowModal({ action, record, onClose, onSubmit, saving }) {
     const { name, type, value, files } = event.target;
     const nextValues = {
       ...values,
-      [name]: type === "file" ? files?.[0] || null : value,
+      [name]: type === "file" ? files?.[0] || null : value
     };
     setValues(nextValues);
     setErrors(validateValues(action.fields || [], nextValues));
@@ -334,7 +330,7 @@ function WorkflowModal({ action, record, onClose, onSubmit, saving }) {
       title={action.label}
       onClose={onClose}
       footer={
-        <>
+      <>
           <button type="button" className="app-button-ghost" onClick={onClose} disabled={saving}>
             Cancel
           </button>
@@ -342,25 +338,24 @@ function WorkflowModal({ action, record, onClose, onSubmit, saving }) {
             {saving ? "Working..." : action.label}
           </button>
         </>
+      }>
+      
+      {action.fields?.length ?
+      <DynamicFormFields
+        fields={action.fields}
+        values={values}
+        errors={errors}
+        onChange={handleChange}
+        disabled={saving} /> :
+
+      <SettingsBanner
+        title="Confirm action"
+        message={`Run ${action.label} for this record?`}
+        tone="info" />
+
       }
-    >
-      {action.fields?.length ? (
-        <DynamicFormFields
-          fields={action.fields}
-          values={values}
-          errors={errors}
-          onChange={handleChange}
-          disabled={saving}
-        />
-      ) : (
-        <SettingsBanner
-          title="Confirm action"
-          message={`Run ${action.label} for this record?`}
-          tone="info"
-        />
-      )}
-    </ModalShell>
-  );
+    </ModalShell>);
+
 }
 
 function BulkUploadModal({ config, onClose, onUploaded, uploading }) {
@@ -371,38 +366,38 @@ function BulkUploadModal({ config, onClose, onUploaded, uploading }) {
       title={config.bulkUpload.label}
       onClose={onClose}
       footer={
-        <>
+      <>
           <button type="button" className="app-button-ghost" onClick={onClose} disabled={uploading}>
             Cancel
           </button>
           <button
-            type="button"
-            className="app-button-primary"
-            onClick={() => onUploaded(file)}
-            disabled={!file || uploading}
-          >
+          type="button"
+          className="app-button-primary"
+          onClick={() => onUploaded(file)}
+          disabled={!file || uploading}>
+          
             {uploading ? "Uploading..." : "Upload"}
           </button>
         </>
-      }
-    >
+      }>
+      
       <SettingsField label="Upload File" required>
         <input
           className="settings-input"
           type="file"
           onChange={(event) => setFile(event.target.files?.[0] || null)}
-          disabled={uploading}
-        />
+          disabled={uploading} />
+        
       </SettingsField>
-      {uploading && (
-        <SettingsBanner
-          title="Upload in progress"
-          message="Validating and uploading records."
-          tone="info"
-        />
-      )}
-    </ModalShell>
-  );
+      {uploading &&
+      <SettingsBanner
+        title="Upload in progress"
+        message="Validating and uploading records."
+        tone="info" />
+
+      }
+    </ModalShell>);
+
 }
 
 function HrmsSettingsPage({
@@ -413,17 +408,17 @@ function HrmsSettingsPage({
   moduleOptions,
   initialModuleKey,
   pageTitle,
-  pageDescription,
+  pageDescription
 }) {
   const [selectedShiftModule, setSelectedShiftModule] = useState("shiftMaster");
   const [selectedConfigModule, setSelectedConfigModule] = useState(
     initialModuleKey || moduleOptions?.[0]?.value || ""
   );
-  const activeConfig = shiftMode
-    ? shiftModulesConfig[selectedShiftModule]
-    : configMap
-      ? configMap[selectedConfigModule]
-      : providedConfig || standaloneSettingsModules[moduleKey];
+  const activeConfig = shiftMode ?
+  shiftModulesConfig[selectedShiftModule] :
+  configMap ?
+  configMap[selectedConfigModule] :
+  providedConfig || standaloneSettingsModules[moduleKey];
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -454,33 +449,33 @@ function HrmsSettingsPage({
     workflow: "canEdit",
     publish: "canEdit",
     copy: "canEdit",
-    bulkUpload: "canAdd",
+    bulkUpload: "canAdd"
   };
   const canWorkflow = (permission) =>
-    hasModulePermission(
-      modulePermissionName,
-      permissionActionMap[permission] || permission || "canEdit"
-    );
+  hasModulePermission(
+    modulePermissionName,
+    permissionActionMap[permission] || permission || "canEdit"
+  );
 
   const fetchRecords = async () => {
     setLoading(true);
     setLoadError("");
 
     try {
-      const endpointFilter = (activeConfig.filters || [])
-        .map((filter) => filter.options?.find((option) => option.value === filterValues[filter.key]))
-        .find((option) => option?.endpoint);
-      const listConfig = endpointFilter
-        ? { ...activeConfig, api: { ...activeConfig.api, list: endpointFilter.endpoint } }
-        : activeConfig;
+      const endpointFilter = (activeConfig.filters || []).
+      map((filter) => filter.options?.find((option) => option.value === filterValues[filter.key])).
+      find((option) => option?.endpoint);
+      const listConfig = endpointFilter ?
+      { ...activeConfig, api: { ...activeConfig.api, list: endpointFilter.endpoint } } :
+      activeConfig;
       const nextRecords = await listHrmsSettings(listConfig);
 
       setRecords(
-        Array.isArray(nextRecords)
-          ? nextRecords
-          : nextRecords
-            ? [nextRecords]
-            : []
+        Array.isArray(nextRecords) ?
+        nextRecords :
+        nextRecords ?
+        [nextRecords] :
+        []
       );
     } catch (error) {
       const message = getHrmsErrorMessage(error, `Unable to load ${activeConfig.title}.`);
@@ -509,14 +504,14 @@ function HrmsSettingsPage({
     if (activeConfig.moduleName !== "Templates") return;
 
     templateModuleService.getAll().then((res) => {
-        setTemplateModules(
-            res.data.map(x => ({
-                value: x.moduleId,
-                label: x.moduleName
-            }))
-        );
+      setTemplateModules(
+        res.data.map((x) => ({
+          value: x.moduleId,
+          label: x.moduleName
+        }))
+      );
     });
-}, [activeConfig.moduleName]);
+  }, [activeConfig.moduleName]);
 
   const filteredRecords = useMemo(
     () => filterRecords(records, activeConfig, search, filterValues),
@@ -655,10 +650,10 @@ function HrmsSettingsPage({
       <div className="settings-page">
         <SettingsBanner
           title="Module not found"
-          message="The requested settings module is not configured."
-        />
-      </div>
-    );
+          message="The requested settings module is not configured." />
+        
+      </div>);
+
   }
 
   if (!canView) {
@@ -666,10 +661,10 @@ function HrmsSettingsPage({
       <div className="settings-page">
         <SettingsBanner
           title="Access denied"
-          message="You do not have permission to view this settings module."
-        />
-      </div>
-    );
+          message="You do not have permission to view this settings module." />
+        
+      </div>);
+
   }
 
   return (
@@ -679,11 +674,11 @@ function HrmsSettingsPage({
         title={activeConfig.title}
         description={activeConfig.description}
         meta={null}
-        className="hrms-settings-card hrms-settings-card-no-top"
-      >
+        className="hrms-settings-card hrms-settings-card-no-top">
+        
         <div className="hrms-settings-toolbar">
-          {shiftMode && (
-            <>
+          {shiftMode &&
+          <>
               <SettingsField label="Category">
                 <select className="settings-select" value="shift" disabled>
                   <option value="shift">Shift Module</option>
@@ -691,57 +686,57 @@ function HrmsSettingsPage({
               </SettingsField>
               <SettingsField label="Module">
                 <select
-                  className="settings-select"
-                  value={selectedShiftModule}
-                  onChange={(event) => setSelectedShiftModule(event.target.value)}
-                >
-                  {shiftModuleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                className="settings-select"
+                value={selectedShiftModule}
+                onChange={(event) => setSelectedShiftModule(event.target.value)}>
+                
+                  {shiftModuleOptions.map((option) =>
+                <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
-                  ))}
+                )}
                 </select>
               </SettingsField>
             </>
-          )}
+          }
 
-          {configMap && moduleOptions?.length > 0 && (
-            <SettingsField label="Module">
+          {configMap && moduleOptions?.length > 0 &&
+          <SettingsField label="Module">
               <select
-                className="settings-select"
-                value={selectedConfigModule}
-                onChange={(event) => setSelectedConfigModule(event.target.value)}
-              >
-                {moduleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
+              className="settings-select"
+              value={selectedConfigModule}
+              onChange={(event) => setSelectedConfigModule(event.target.value)}>
+              
+                {moduleOptions.map((option) =>
+              <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
-                ))}
+              )}
               </select>
             </SettingsField>
-          )}
+          }
 
-          {(activeConfig?.filters ?? []).map((filter) => (
-            <SettingsField key={filter.key} label={filter.label}>
+          {(activeConfig?.filters ?? []).map((filter) =>
+          <SettingsField key={filter.key} label={filter.label}>
               <select
-                className="settings-select"
-                value={filterValues[filter.key] || ""}
-                onChange={(event) =>
-                  setFilterValues((previous) => ({
-                    ...previous,
-                    [filter.key]: event.target.value,
-                  }))
-                }
-              >
+              className="settings-select"
+              value={filterValues[filter.key] || ""}
+              onChange={(event) =>
+              setFilterValues((previous) => ({
+                ...previous,
+                [filter.key]: event.target.value
+              }))
+              }>
+              
                 <option value="">All</option>
-                {(filter.options || []).map((option) => (
-                  <option key={option.value} value={option.value}>
+                {(filter.options || []).map((option) =>
+              <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
-                ))}
+              )}
               </select>
             </SettingsField>
-          ))}
+          )}
 
           <SettingsField label="Search" className="hrms-search-field">
             <div className="hrms-search-input">
@@ -751,154 +746,154 @@ function HrmsSettingsPage({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search"
-                disabled={loading}
-              />
+                disabled={loading} />
+              
             </div>
           </SettingsField>
 
           <div className="hrms-settings-actions">
             {/* <button type="button" className="app-button-ghost" onClick={fetchRecords} disabled={loading}>
-              <FaSync />
-              Refresh
-            </button> */}
-            {activeConfig.bulkUpload && canWorkflow(activeConfig.bulkUpload.permission) && (
-              <button
-                type="button"
-                className="app-button-ghost"
-                onClick={() => setShowBulkUpload(true)}
-                disabled={actionLoading}
-              >
+               <FaSync />
+               Refresh
+              </button> */}
+            {activeConfig.bulkUpload && canWorkflow(activeConfig.bulkUpload.permission) &&
+            <button
+              type="button"
+              className="app-button-ghost"
+              onClick={() => setShowBulkUpload(true)}
+              disabled={actionLoading}>
+              
                 <FaFileUpload />
                 {activeConfig.bulkUpload.label}
               </button>
-            )}
+            }
             {(activeConfig?.toolbarActions ?? []).map((action) =>
-              canWorkflow(action.permission || "workflow") ? (
-                <button
-                  key={action.key}
-                  type="button"
-                  className="app-button-ghost"
-                  onClick={() => handleToolbarAction(action)}
-                  disabled={actionLoading}
-                >
+            canWorkflow(action.permission || "workflow") ?
+            <button
+              key={action.key}
+              type="button"
+              className="app-button-ghost"
+              onClick={() => handleToolbarAction(action)}
+              disabled={actionLoading}>
+              
                   {action.label}
-                </button>
-              ) : null
+                </button> :
+            null
             )}
-            {canAdd && activeConfig.api.create && (
-              <button
-                type="button"
-                className="app-button-primary"
-                onClick={() => setModalState({ mode: "add", record: null })}
-                disabled={actionLoading}
-              >
+            {canAdd && activeConfig.api.create &&
+            <button
+              type="button"
+              className="app-button-primary"
+              onClick={() => setModalState({ mode: "add", record: null })}
+              disabled={actionLoading}>
+              
                 <FaPlus />
                 Add
               </button>
-            )}
+            }
           </div>
         </div>
 
-        {loadError && (
-          <SettingsBanner title="Unable to load records" message={loadError} tone="error" />
-        )}
+        {loadError &&
+        <SettingsBanner title="Unable to load records" message={loadError} tone="error" />
+        }
 
         <div className="hrms-table-wrap">
           <table className="hrms-settings-table">
             <thead>
               <tr>
-                {activeConfig.columns.map((column) => (
-                  <th key={column.key}>{column.label}</th>
-                ))}
+                {activeConfig.columns.map((column) =>
+                <th key={column.key}>{column.label}</th>
+                )}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
+              {loading ?
+              <tr>
                   <td colSpan={activeConfig.columns.length + 1} className="hrms-table-state">
                     Loading records...
                   </td>
-                </tr>
-              ) : pagedRecords.length === 0 ? (
-                <tr>
+                </tr> :
+              pagedRecords.length === 0 ?
+              <tr>
                   <td colSpan={activeConfig.columns.length + 1} className="hrms-table-state">
                     No records found.
                   </td>
-                </tr>
-              ) : (
-                (Array.isArray(pagedRecords)
-                  ? pagedRecords
-                  : []
-                ).map((record, index) => {
-                  const recordId = getRecordId(record, activeConfig) || index;
+                </tr> :
 
-                  return (
-                    <tr key={`${recordId}-${index}`}>
-                      {activeConfig.columns.map((column) => (
-                        <td key={column.key}>{normalizeDisplayValue(record?.[column.key])}</td>
-                      ))}
+              (Array.isArray(pagedRecords) ?
+              pagedRecords :
+              []).
+              map((record, index) => {
+                const recordId = getRecordId(record, activeConfig) || index;
+
+                return (
+                  <tr key={`${recordId}-${index}`}>
+                      {activeConfig.columns.map((column) =>
+                    <td key={column.key}>{normalizeDisplayValue(record?.[column.key])}</td>
+                    )}
                       <td>
                         <div className="hrms-row-actions">
                           <button
-                            type="button"
-                            className="settings-icon-button"
-                            onClick={() => setModalState({ mode: "view", record })}
-                            title="View"
-                            aria-label="View"
-                          >
+                          type="button"
+                          className="settings-icon-button"
+                          onClick={() => setModalState({ mode: "view", record })}
+                          title="View"
+                          aria-label="View">
+                          
                             <FaEye />
                           </button>
-                          {canEdit && activeConfig.api.update && (
-                            <button
-                              type="button"
-                              className="settings-icon-button"
-                              onClick={() =>
-                                setModalState({ mode: "edit", record })
-                              }
-                              title="Edit"
-                              aria-label="Edit"
-                            >
+                          {canEdit && activeConfig.api.update &&
+                        <button
+                          type="button"
+                          className="settings-icon-button"
+                          onClick={() =>
+                          setModalState({ mode: "edit", record })
+                          }
+                          title="Edit"
+                          aria-label="Edit">
+                          
                               <FaEdit />
                             </button>
-                          )}
-                          {canDelete && activeConfig.api.delete && (
-                            <button
-                              type="button"
-                              className="settings-icon-button is-danger"
-                              onClick={() => handleDelete(record)}
-                              title="Delete"
-                              aria-label="Delete"
-                              disabled={actionLoading}
-                            >
+                        }
+                          {canDelete && activeConfig.api.delete &&
+                        <button
+                          type="button"
+                          className="settings-icon-button is-danger"
+                          onClick={() => handleDelete(record)}
+                          title="Delete"
+                          aria-label="Delete"
+                          disabled={actionLoading}>
+                          
                               <FaTrash />
                             </button>
-                          )}
+                        }
                          {(activeConfig?.workflowButtons ?? []).map((action) =>
-  activeConfig.moduleName === "Templates" || canWorkflow(action.permission) ? (
-                              <button
-                                key={action.key}
-                                type="button"
-                                className="app-button-ghost hrms-workflow-button"
-                                onClick={() =>
-                                  action.fields?.length
-                                    ? setWorkflowState({ action, record })
-                                    : handleWorkflow({}, record, action)
-                                }
-                                disabled={actionLoading}
-                              >
+                        activeConfig.moduleName === "Templates" || canWorkflow(action.permission) ?
+                        <button
+                          key={action.key}
+                          type="button"
+                          className="app-button-ghost hrms-workflow-button"
+                          onClick={() =>
+                          action.fields?.length ?
+                          setWorkflowState({ action, record }) :
+                          handleWorkflow({}, record, action)
+                          }
+                          disabled={actionLoading}>
+                          
                                 {action.label}
-                              </button>
-                            ) : null
-                          )}
+                              </button> :
+                        null
+                        )}
 
                           
                         </div>
                       </td>
-                    </tr>
-                  );
-                })
-              )}
+                    </tr>);
+
+              })
+              }
             </tbody>
           </table>
         </div>
@@ -910,61 +905,59 @@ function HrmsSettingsPage({
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          itemLabel="records"
-        />
+          itemLabel="records" />
+        
       </SettingsCard>
 
       {modalState &&
-        activeConfig &&
-        activeConfig.formFields &&
-        Array.isArray(activeConfig.formFields) && (
-         <RecordModal
-    mode={modalState.mode}
-    config={{
-        ...activeConfig,
-        formFields: activeConfig.formFields.map((field) =>
-            field.name === "moduleId"
-                ? { ...field, options: templateModules }
-                : field
-        ),
-    }}
-    record={modalState.record}
-    onClose={() => setModalState(null)}
-    onSubmit={handleSubmitRecord}
-    saving={actionLoading}
-/>
-)}
+      activeConfig &&
+      activeConfig.formFields &&
+      Array.isArray(activeConfig.formFields) &&
+      <RecordModal
+        mode={modalState.mode}
+        config={{
+          ...activeConfig,
+          formFields: activeConfig.formFields.map((field) =>
+          field.name === "moduleId" ?
+          { ...field, options: templateModules } :
+          field
+          )
+        }}
+        record={modalState.record}
+        onClose={() => setModalState(null)}
+        onSubmit={handleSubmitRecord}
+        saving={actionLoading} />
 
-      {workflowState && (
-        <WorkflowModal
-          action={workflowState.action}
-          record={workflowState.record}
-          onClose={() => setWorkflowState(null)}
-          onSubmit={handleWorkflow}
-          saving={actionLoading}
-        />
-      )}
+      }
 
-      {showBulkUpload && (
-        <BulkUploadModal
-          config={activeConfig}
-          onClose={() => setShowBulkUpload(false)}
-          onUploaded={handleBulkUpload}
-          uploading={actionLoading}
-        />
-      )}
-    </div>
-  );
+      {workflowState &&
+      <WorkflowModal
+        action={workflowState.action}
+        record={workflowState.record}
+        onClose={() => setWorkflowState(null)}
+        onSubmit={handleWorkflow}
+        saving={actionLoading} />
+
+      }
+
+      {showBulkUpload &&
+      <BulkUploadModal
+        config={activeConfig}
+        onClose={() => setShowBulkUpload(false)}
+        onUploaded={handleBulkUpload}
+        uploading={actionLoading} />
+
+      }
+    </div>);
+
 }
 
-export const TemplateSettingsPage = () => (
-  <HrmsSettingsPage
-    configMap={templateModulesConfig}
-    moduleOptions={templateModuleOptions}
-    initialModuleKey="templates"
-    pageTitle="Template Settings"
-    pageDescription="Manage document templates with upload, download, delete, and live template listing."
-  />
-);
+export const TemplateSettingsPage = () =>
+<HrmsSettingsPage
+  configMap={templateModulesConfig}
+  moduleOptions={templateModuleOptions}
+  initialModuleKey="templates"
+  pageTitle="Template Settings"
+  pageDescription="Manage document templates with upload, download, delete, and live template listing." />;
 
 export default HrmsSettingsPage;

@@ -5,8 +5,8 @@ import React, {
   useId,
   useMemo,
   useRef,
-  useState,
-} from "react";
+  useState } from
+"react";
 import {
   FaArrowLeft,
   FaCalendarAlt,
@@ -21,8 +21,8 @@ import {
   FaTimesCircle,
   FaUsers,
   FaCheckCircle,
-  FaTimes,
-} from "react-icons/fa";
+  FaTimes } from
+"react-icons/fa";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
@@ -43,35 +43,34 @@ import {
   fetchProjectTickets,
   getAutoAssignErrorMessage,
   getTicketApiErrorMessage,
-  uploadTicketBulkFile,
-} from "../services/ticketService";
+  uploadTicketBulkFile } from
+"../services/ticketService";
 import {
   getPriorityTone,
   getStatusTone,
   getTicketPriorityLabel,
   getTicketSearchText,
   getTicketStatusLabel,
-  normalizeTicketStatus,
-} from "../TicketManagement/ticketConfig";
+  normalizeTicketStatus } from
+"../TicketManagement/ticketConfig";
 
 const PROJECT_MEMBER_COLLECTION_KEYS = [
-  "teamMembers",
-  "projectMembers",
-  "project_Members",
-  "members",
-  "memberDetails",
-  "assignedEmployees",
-  "employeeDetails",
-  "teamMemberTechnologies",
-  "memberTechnologies",
-  "employeeTechnologies",
-];
+"teamMembers",
+"projectMembers",
+"project_Members",
+"members",
+"memberDetails",
+"assignedEmployees",
+"employeeDetails",
+"teamMemberTechnologies",
+"memberTechnologies",
+"employeeTechnologies"];
 
 const TEXT_EMPTY_VALUES = new Set(["", "-", "n/a", "na", "none", "null", "undefined"]);
 const PLACEHOLDER_TEXT = "Not Available";
 
 const firstDefined = (...values) =>
-  values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
+values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
 
 const toText = (value) => {
   if (value === null || value === undefined) {
@@ -111,43 +110,43 @@ const displayValue = (value, fallback = PLACEHOLDER_TEXT) => {
 };
 
 const getEmployeeId = (member = {}) =>
-  toText(
-    firstDefined(
-      member.employee_Id,
-      member.employee_id,
-      member.employeeId,
-      member.Employee_Id,
-      member.EmployeeID,
-      member.id,
-      member.employee?.employee_Id,
-      member.employee?.employee_id,
-      member.employee?.employeeId,
-      member.employee?.EmployeeID,
-      member.employee?.id
-    )
-  );
+toText(
+  firstDefined(
+    member.employee_Id,
+    member.employee_id,
+    member.employeeId,
+    member.Employee_Id,
+    member.EmployeeID,
+    member.id,
+    member.employee?.employee_Id,
+    member.employee?.employee_id,
+    member.employee?.employeeId,
+    member.employee?.EmployeeID,
+    member.employee?.id
+  )
+);
 
 const getEmployeeName = (member = {}) =>
-  toText(
-    firstDefined(
-      member.employeeName,
-      member.employee_Name,
-      member.name,
-      member.fullName,
-      member.employeeFullName,
-      member.employee?.employeeName,
-      member.employee?.employee_Name,
-      member.employee?.name,
-      member.employee?.fullName,
-      member.employee?.employeeFullName,
-      member.employee?.firstName && member.employee?.lastName
-        ? `${member.employee.firstName} ${member.employee.lastName}`
-        : "",
-      member.firstName && member.lastName
-        ? `${member.firstName} ${member.lastName}`
-        : ""
-    )
-  );
+toText(
+  firstDefined(
+    member.employeeName,
+    member.employee_Name,
+    member.name,
+    member.fullName,
+    member.employeeFullName,
+    member.employee?.employeeName,
+    member.employee?.employee_Name,
+    member.employee?.name,
+    member.employee?.fullName,
+    member.employee?.employeeFullName,
+    member.employee?.firstName && member.employee?.lastName ?
+    `${member.employee.firstName} ${member.employee.lastName}` :
+    "",
+    member.firstName && member.lastName ?
+    `${member.firstName} ${member.lastName}` :
+    ""
+  )
+);
 
 const getMemberKey = (member = {}) => {
   const employeeId = getEmployeeId(member);
@@ -193,13 +192,12 @@ const indexMembersByEmployeeId = (members = []) => {
 
 const extractProjectCollection = (payload) => {
   const candidates = [
-    payload,
-    payload?.data,
-    payload?.data?.data,
-    payload?.result,
-    payload?.items,
-    payload?.records,
-  ];
+  payload,
+  payload?.data,
+  payload?.data?.data,
+  payload?.result,
+  payload?.items,
+  payload?.records];
 
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
@@ -217,57 +215,54 @@ const matchesProjectId = (project = {}, projectId = "") => {
   }
 
   return [
-    project.project_Id,
-    project.projectId,
-    project.projectID,
-    project.id,
-    project.Project_Id,
-    project.ProjectID,
-  ].some((value) => String(value || "").trim().toLowerCase() === targetId);
+  project.project_Id,
+  project.projectId,
+  project.projectID,
+  project.id,
+  project.Project_Id,
+  project.ProjectID].
+  some((value) => String(value || "").trim().toLowerCase() === targetId);
 };
 
 const resolveMemberStatus = (member = {}) =>
-  (() => {
-    if (member.isActive === true) {
-      return {
-        kind: "active",
-        label: "Active Today",
-      };
-    }
+(() => {
+  if (member.isActive === true) {
+    return {
+      kind: "active",
+      label: "Active Today"
+    };
+  }
 
-    if (member.isActive === false) {
-      return {
-        kind: "inactive",
-        label: "Inactive Today",
-      };
-    }
+  if (member.isActive === false) {
+    return {
+      kind: "inactive",
+      label: "Inactive Today"
+    };
+  }
 
-    const attendanceStatus = toText(
-      firstDefined(
-        member.attendanceStatus,
-        member.attendance_status
-      )
-    );
+  const attendanceStatus = toText(
+    firstDefined(
+      member.attendanceStatus,
+      member.attendance_status
+    )
+  );
 
-    if (attendanceStatus === "Active") {
-      return { kind: "active", label: "Active Today" };
-    }
+  if (attendanceStatus === "Active") {
+    return { kind: "active", label: "Active Today" };
+  }
 
-    if (attendanceStatus === "Inactive") {
-      return { kind: "inactive", label: "Inactive Today" };
-    }
+  if (attendanceStatus === "Inactive") {
+    return { kind: "inactive", label: "Inactive Today" };
+  }
 
-    return { kind: "unknown", label: "Unknown" };
-  })();
+  return { kind: "unknown", label: "Unknown" };
+})();
 
 const normalizeProjectMember = (member = {}) => {
-  console.log("Raw API Member:", member);
-  console.log("API isActive:", member.isActive);
-  console.log("API attendanceStatus:", member.attendanceStatus);
 
-  const source = member?.employee && typeof member.employee === "object"
-    ? { ...member.employee, ...member }
-    : member;
+  const source = member?.employee && typeof member.employee === "object" ?
+  { ...member.employee, ...member } :
+  member;
 
   const employeeId = getEmployeeId(source);
   const employeeName = getEmployeeName(source) || employeeId;
@@ -291,10 +286,8 @@ const normalizeProjectMember = (member = {}) => {
     employeeName,
     technology,
     activityKind,
-    activityLabel,
+    activityLabel
   };
-
-  console.log("Resolved Activity:", activityKind);
 
   return normalizedMember;
 };
@@ -310,9 +303,9 @@ const normalizeProjectMembers = (project = {}) => {
 
     value.forEach((entry) => {
       const normalized = normalizeProjectMember(
-        typeof entry === "string" || typeof entry === "number"
-          ? { employeeId: entry, employeeName: entry }
-          : entry
+        typeof entry === "string" || typeof entry === "number" ?
+        { employeeId: entry, employeeName: entry } :
+        entry
       );
 
       const memberKey = getMemberKey(normalized) || `member-${mergedMembers.size}`;
@@ -321,16 +314,16 @@ const normalizeProjectMembers = (project = {}) => {
     });
   });
 
-  return Array.from(mergedMembers.values())
-    .map((member) => ({
-      ...member,
-      employeeId: member.employeeId || member.employee_Id || "",
-      employeeName: member.employeeName || member.name || member.fullName || member.employeeId || "",
-      technology: member.technology || "",
-      activityKind: member.activityKind || "unknown",
-      activityLabel: member.activityLabel || "Unknown",
-    }))
-    .filter((member) => member.employeeId || member.employeeName);
+  return Array.from(mergedMembers.values()).
+  map((member) => ({
+    ...member,
+    employeeId: member.employeeId || member.employee_Id || "",
+    employeeName: member.employeeName || member.name || member.fullName || member.employeeId || "",
+    technology: member.technology || "",
+    activityKind: member.activityKind || "unknown",
+    activityLabel: member.activityLabel || "Unknown"
+  })).
+  filter((member) => member.employeeId || member.employeeName);
 };
 
 const mergeProjectMembersByEmployeeId = (detailsMembers = [], projectsMembers = []) => {
@@ -358,28 +351,24 @@ const mergeProjectMembersByEmployeeId = (detailsMembers = [], projectsMembers = 
     const projectsMember = projectsLookup.get(employeeId) || null;
     const mergedMember = mergeDefinedValues(detailsMember || projectsMember || {}, {
       isActive: projectsMember?.isActive,
-      attendanceStatus: projectsMember?.attendanceStatus,
+      attendanceStatus: projectsMember?.attendanceStatus
     });
     const status = resolveMemberStatus(mergedMember);
     const finalMember = {
       ...mergedMember,
       activityKind: status.kind,
-      activityLabel: status.label,
+      activityLabel: status.label
     };
-
-    console.log("Projects API Member", projectsMember);
-    console.log("Project Details API Member", detailsMember);
-    console.log("Merged Member", finalMember);
 
     return finalMember;
   });
 };
 
 const resolveProjectText = (project = {}, keys = []) =>
-  toText(firstDefined(...keys.map((key) => project?.[key])));
+toText(firstDefined(...keys.map((key) => project?.[key])));
 
 const resolveProjectDate = (project = {}, keys = []) =>
-  toText(firstDefined(...keys.map((key) => project?.[key])));
+toText(firstDefined(...keys.map((key) => project?.[key])));
 
 const getProjectStatusTone = (status = "") => {
   const normalized = String(status || "").toLowerCase();
@@ -392,14 +381,13 @@ const getProjectStatusTone = (status = "") => {
 
 const unwrapProjectPayload = (payload) => {
   const candidates = [
-    payload?.data,
-    payload?.data?.data,
-    payload?.result,
-    payload?.project,
-    payload?.item,
-    payload?.record,
-    payload,
-  ];
+  payload?.data,
+  payload?.data?.data,
+  payload?.result,
+  payload?.project,
+  payload?.item,
+  payload?.record,
+  payload];
 
   for (const candidate of candidates) {
     if (candidate && !Array.isArray(candidate) && typeof candidate === "object") {
@@ -421,61 +409,61 @@ const normalizeProjectRecord = (project = {}) => {
   return {
     ...source,
     id: resolveProjectText(source, [
-      "project_Id",
-      "projectId",
-      "id",
-      "projectID",
-      "Project_Id",
-      "ProjectID",
-    ]),
+    "project_Id",
+    "projectId",
+    "id",
+    "projectID",
+    "Project_Id",
+    "ProjectID"]
+    ),
     name: resolveProjectText(source, [
-      "project_Name",
-      "projectName",
-      "name",
-    ]),
+    "project_Name",
+    "projectName",
+    "name"]
+    ),
     clientName: resolveProjectText(source, [
-      "clientName",
-      "client_Name",
-      "client",
-      "clientDetails",
-    ]),
+    "clientName",
+    "client_Name",
+    "client",
+    "clientDetails"]
+    ),
     clientId: resolveProjectText(source, [
-      "clientId",
-      "client_Id",
-      "clientID",
-    ]),
+    "clientId",
+    "client_Id",
+    "clientID"]
+    ),
     startDate: resolveProjectDate(source, [
-      "start_Date",
-      "startDate",
-      "start_date",
-    ]),
+    "start_Date",
+    "startDate",
+    "start_date"]
+    ),
     endDate: resolveProjectDate(source, [
-      "end_Date",
-      "endDate",
-      "end_date",
-    ]),
+    "end_Date",
+    "endDate",
+    "end_date"]
+    ),
     status: resolveProjectText(source, [
-      "status",
-      "projectStatus",
-      "project_Status",
-    ]),
+    "status",
+    "projectStatus",
+    "project_Status"]
+    ),
     projectManager: resolveProjectText(source, [
-      "projectManager",
-      "projectManagerName",
-      "manager",
-      "managerName",
-      "reportingManager",
-      "reportingManagerName",
-    ]),
+    "projectManager",
+    "projectManagerName",
+    "manager",
+    "managerName",
+    "reportingManager",
+    "reportingManagerName"]
+    ),
     description: resolveProjectText(source, [
-      "description",
-      "projectDescription",
-      "project_Description",
-      "summary",
-      "projectSummary",
-    ]),
+    "description",
+    "projectDescription",
+    "project_Description",
+    "summary",
+    "projectSummary"]
+    ),
     members,
-    projectMembers: members,
+    projectMembers: members
   };
 };
 
@@ -485,46 +473,42 @@ const formatProjectDate = (value) => {
 };
 
 const memberStatusOptions = [
-  { value: "All", label: "All" },
-  { value: "Active", label: "Active" },
-  { value: "Inactive", label: "Inactive" },
-];
+{ value: "All", label: "All" },
+{ value: "Active", label: "Active" },
+{ value: "Inactive", label: "Inactive" }];
 
 const ACCEPTED_TICKET_EXTENSIONS = [".xls", ".xlsx"];
 
 const PROJECT_TICKET_TABLE_COLUMNS = [
-  { key: "ticketId", label: "Ticket ID", width: "120px" },
-  { key: "title", label: "Title", width: "220px" },
-  { key: "category", label: "Category", width: "150px" },
-  { key: "priority", label: "Priority", width: "120px" },
-  { key: "status", label: "Status", width: "140px" },
-  { key: "assignedTo", label: "Assigned To", width: "180px" },
-  { key: "assignedDate", label: "Assigned Date", width: "140px" },
-  { key: "dueDate", label: "Due Date", width: "140px" },
-];
+{ key: "ticketId", label: "Ticket ID", width: "120px" },
+{ key: "title", label: "Title", width: "220px" },
+{ key: "category", label: "Category", width: "150px" },
+{ key: "priority", label: "Priority", width: "120px" },
+{ key: "status", label: "Status", width: "140px" },
+{ key: "assignedTo", label: "Assigned To", width: "180px" },
+{ key: "assignedDate", label: "Assigned Date", width: "140px" },
+{ key: "dueDate", label: "Due Date", width: "140px" }];
 
 const EMPLOYEE_TICKET_TABLE_COLUMNS = [
-  { key: "ticketId", label: "Ticket ID", width: "120px" },
-  { key: "title", label: "Title", width: "220px" },
-  { key: "description", label: "Description", width: "260px" },
-  { key: "priority", label: "Priority", width: "120px" },
-  { key: "category", label: "Category", width: "150px" },
-  { key: "status", label: "Status", width: "140px" },
-  { key: "assignedDate", label: "Assigned Date", width: "140px" },
-  { key: "startedDate", label: "Started Date", width: "140px" },
-  { key: "completedDate", label: "Completed Date", width: "140px" },
-  { key: "estimatedHours", label: "Estimated Hours", width: "140px" },
-  { key: "spentHours", label: "Spent Hours", width: "120px" },
-];
+{ key: "ticketId", label: "Ticket ID", width: "120px" },
+{ key: "title", label: "Title", width: "220px" },
+{ key: "description", label: "Description", width: "260px" },
+{ key: "priority", label: "Priority", width: "120px" },
+{ key: "category", label: "Category", width: "150px" },
+{ key: "status", label: "Status", width: "140px" },
+{ key: "assignedDate", label: "Assigned Date", width: "140px" },
+{ key: "startedDate", label: "Started Date", width: "140px" },
+{ key: "completedDate", label: "Completed Date", width: "140px" },
+{ key: "estimatedHours", label: "Estimated Hours", width: "140px" },
+{ key: "spentHours", label: "Spent Hours", width: "120px" }];
 
 const EMPLOYEE_TICKET_STATUS_OPTIONS = [
-  "All",
-  "Open",
-  "Assigned",
-  "In Progress",
-  "Completed",
-  "Closed",
-];
+"All",
+"Open",
+"Assigned",
+"In Progress",
+"Completed",
+"Closed"];
 
 const isExcelTicketFile = (file) => {
   if (!file) {
@@ -541,8 +525,8 @@ function StatusPill({ value }) {
   return (
     <span className={`ticket-pill status-pill status-${tone}`}>
       {getTicketStatusLabel(value)}
-    </span>
-  );
+    </span>);
+
 }
 
 function PriorityPill({ value }) {
@@ -551,8 +535,8 @@ function PriorityPill({ value }) {
   return (
     <span className={`ticket-pill priority-pill priority-${tone}`}>
       {getTicketPriorityLabel(value)}
-    </span>
-  );
+    </span>);
+
 }
 
 function ModalShell({
@@ -563,7 +547,7 @@ function ModalShell({
   onClose,
   children,
   footer,
-  className = "",
+  className = ""
 }) {
   const titleId = useId();
 
@@ -579,14 +563,14 @@ function ModalShell({
         if (event.target === event.currentTarget) {
           onClose?.();
         }
-      }}
-    >
+      }}>
+      
       <div
         className={`ticket-modal ${className}`.trim()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
-      >
+        aria-labelledby={titleId}>
+        
         <div className="ticket-modal-head">
           <div className="ticket-modal-heading">
             <span className="ticket-eyebrow">Project Details</span>
@@ -602,8 +586,8 @@ function ModalShell({
               type="button"
               className="ticket-modal-close"
               onClick={onClose}
-              aria-label="Close dialog"
-            >
+              aria-label="Close dialog">
+              
               <FaTimes aria-hidden="true" />
             </button>
           </div>
@@ -613,8 +597,8 @@ function ModalShell({
 
         {footer ? <div className="ticket-modal-footer">{footer}</div> : null}
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
@@ -671,7 +655,7 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
       await downloadTicketTemplate();
       toastSuccess("Template download started.");
     } catch (error) {
-      console.error("Template download failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to download the template right now."
@@ -696,7 +680,7 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
       await onUploaded?.();
       onClose?.();
     } catch (error) {
-      console.error("Bulk upload failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to upload the ticket file right now."
@@ -713,12 +697,12 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
       title="Bulk Upload Tickets"
       subtitle="Download the template, fill it out, and upload multiple tickets at once."
       headerActions={
-        <button
-          type="button"
-          className="ticket-button secondary ticket-modal-header-button"
-          onClick={handleTemplateDownload}
-          disabled={uploading}
-        >
+      <button
+        type="button"
+        className="ticket-button secondary ticket-modal-header-button"
+        onClick={handleTemplateDownload}
+        disabled={uploading}>
+        
           <FaDownload aria-hidden="true" />
           Download Template
         </button>
@@ -730,37 +714,37 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
       }}
       className="ticket-modal-wide"
       footer={
-        <>
+      <>
           <button
-            type="button"
-            className="ticket-button secondary"
-            onClick={clearFile}
-            disabled={uploading || !selectedFile}
-          >
+          type="button"
+          className="ticket-button secondary"
+          onClick={clearFile}
+          disabled={uploading || !selectedFile}>
+          
             Reset
           </button>
 
           <button
-            type="button"
-            className="ticket-button primary"
-            onClick={handleUpload}
-            disabled={uploading || !selectedFile}
-          >
-            {uploading ? (
-              <>
+          type="button"
+          className="ticket-button primary"
+          onClick={handleUpload}
+          disabled={uploading || !selectedFile}>
+          
+            {uploading ?
+          <>
                 <FaSpinner className="ticket-button-spinner" />
                 Uploading...
-              </>
-            ) : (
-              <>
+              </> :
+
+          <>
                 <FaCloudUploadAlt aria-hidden="true" />
                 Upload Tickets
               </>
-            )}
+          }
           </button>
         </>
-      }
-    >
+      }>
+      
       <div className="ticket-upload-modal-body">
         <div
           className={`ticket-dropzone ${dragActive ? "is-active" : ""}`}
@@ -776,8 +760,8 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
             event.preventDefault();
             setDragActive(false);
           }}
-          onDrop={handleDrop}
-        >
+          onDrop={handleDrop}>
+          
           <div className="ticket-dropzone-icon">
             <FaCloudUploadAlt aria-hidden="true" />
           </div>
@@ -795,30 +779,30 @@ function BulkUploadTicketsModal({ open, onClose, onUploaded, projectId }) {
             id="project-ticket-bulk-file"
             type="file"
             accept=".xls,.xlsx"
-            onChange={handleInputChange}
-          />
+            onChange={handleInputChange} />
+          
         </div>
 
-        {selectedFile ? (
-          <div className="ticket-upload-selected">
+        {selectedFile ?
+        <div className="ticket-upload-selected">
             <div>
               <strong>{selectedFile.name}</strong>
               <span>{Math.round(selectedFile.size / 1024)} KB</span>
             </div>
 
             <button
-              type="button"
-              className="ticket-button ghost"
-              onClick={clearFile}
-              disabled={uploading}
-            >
+            type="button"
+            className="ticket-button ghost"
+            onClick={clearFile}
+            disabled={uploading}>
+            
               Remove File
             </button>
-          </div>
-        ) : null}
+          </div> :
+        null}
       </div>
-    </ModalShell>
-  );
+    </ModalShell>);
+
 }
 
 function EmployeeTicketDetailsModal({ open, employee, onClose }) {
@@ -855,7 +839,7 @@ function EmployeeTicketDetailsModal({ open, employee, onClose }) {
           setTickets(Array.isArray(data) ? data : []);
         }
       } catch (error) {
-        console.error("Unable to load employee tickets:", error);
+
         const message = await getTicketApiErrorMessage(
           error,
           "Unable to load employee tickets right now."
@@ -888,7 +872,7 @@ function EmployeeTicketDetailsModal({ open, employee, onClose }) {
       const ticketSearchText = `${getTicketSearchText(ticket)} ${ticket.description || ""}`.toLowerCase();
       const matchesSearch = !query || ticketSearchText.includes(query);
       const matchesStatus =
-        statusFilter === "All" || normalizedStatus === statusFilter;
+      statusFilter === "All" || normalizedStatus === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -905,8 +889,8 @@ function EmployeeTicketDetailsModal({ open, employee, onClose }) {
       subtitle={employeeName}
       headerActions={<span className="ticket-modal-badge">{employeeId}</span>}
       onClose={onClose}
-      className="ticket-modal-wide"
-    >
+      className="ticket-modal-wide">
+      
       <div className="ticket-toolbar">
         <label className="ticket-search-group" htmlFor={`employee-ticket-search-${employeeId}`}>
           <FaSearch aria-hidden="true" />
@@ -915,60 +899,59 @@ function EmployeeTicketDetailsModal({ open, employee, onClose }) {
             type="search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search ticket ID, title, description, or status"
-          />
+            placeholder="Search ticket ID, title, description, or status" />
+          
         </label>
 
         <div className="ticket-filter-row">
           <select
             className="ticket-status-select details"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          >
-            {EMPLOYEE_TICKET_STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
+            onChange={(event) => setStatusFilter(event.target.value)}>
+            
+            {EMPLOYEE_TICKET_STATUS_OPTIONS.map((status) =>
+            <option key={status} value={status}>
                 {status}
               </option>
-            ))}
+            )}
           </select>
         </div>
       </div>
 
-      {loading ? (
-        <div className="ticket-modal-loading">
+      {loading ?
+      <div className="ticket-modal-loading">
           <FaSpinner className="ticket-button-spinner" aria-hidden="true" />
           Loading employee tickets...
-        </div>
-      ) : filteredTickets.length === 0 ? (
-        <EmptyState
-          className="project-details-empty-inline"
-          message={
-            errorMessage || "No employee tickets match the current filters."
-          }
-        />
-      ) : (
-        <div className="ticket-table-card project-details-employee-ticket-card">
+        </div> :
+      filteredTickets.length === 0 ?
+      <EmptyState
+        className="project-details-empty-inline"
+        message={
+        errorMessage || "No employee tickets match the current filters."
+        } /> :
+
+      <div className="ticket-table-card project-details-employee-ticket-card">
           <div className="ticket-table-scroll project-details-employee-ticket-scroll">
             <table className="ticket-table project-details-employee-ticket-table">
               <thead>
                 <tr>
-                  {EMPLOYEE_TICKET_TABLE_COLUMNS.map((column) => (
-                    <th
-                      key={column.key}
-                      style={{
-                        width: column.width,
-                        minWidth: column.width,
-                        maxWidth: column.width,
-                      }}
-                    >
+                  {EMPLOYEE_TICKET_TABLE_COLUMNS.map((column) =>
+                <th
+                  key={column.key}
+                  style={{
+                    width: column.width,
+                    minWidth: column.width,
+                    maxWidth: column.width
+                  }}>
+                  
                       {column.label}
                     </th>
-                  ))}
+                )}
                 </tr>
               </thead>
               <tbody>
-                {filteredTickets.map((ticket) => (
-                  <tr key={ticket.ticketId || `${ticket.title}-${ticket.createdDate}`}>
+                {filteredTickets.map((ticket) =>
+              <tr key={ticket.ticketId || `${ticket.title}-${ticket.createdDate}`}>
                     <td>{displayValue(ticket.ticketId, "-")}</td>
                     <td title={displayValue(ticket.title, "-")}>{displayValue(ticket.title, "-")}</td>
                     <td title={displayValue(ticket.description, "-")}>
@@ -989,14 +972,14 @@ function EmployeeTicketDetailsModal({ open, employee, onClose }) {
                     <td>{displayValue(ticket.estimatedHours, "-")}</td>
                     <td>{displayValue(ticket.spentHours, "-")}</td>
                   </tr>
-                ))}
+              )}
               </tbody>
             </table>
           </div>
         </div>
-      )}
-    </ModalShell>
-  );
+      }
+    </ModalShell>);
+
 }
 
 function ProjectDetails() {
@@ -1008,7 +991,7 @@ function ProjectDetails() {
 
   const initialProject = location.state?.project || location.state?.projectSummary || null;
   const normalizedInitialProject = useMemo(
-    () => (initialProject ? normalizeProjectRecord(initialProject) : null),
+    () => initialProject ? normalizeProjectRecord(initialProject) : null,
     [initialProject]
   );
 
@@ -1029,7 +1012,7 @@ function ProjectDetails() {
   const [employeeTicketState, setEmployeeTicketState] = useState({
     open: false,
     employeeId: "",
-    employeeName: "",
+    employeeName: ""
   });
 
   const refreshProjectData = useCallback(() => {
@@ -1039,7 +1022,7 @@ function ProjectDetails() {
 
   useEffect(() => {
     if (normalizedInitialProject) {
-      console.log("Projects list/route state payload:", normalizedInitialProject);
+
     }
   }, [normalizedInitialProject]);
 
@@ -1065,9 +1048,9 @@ function ProjectDetails() {
           API_ENDPOINTS.company.projects.byId(encodeURIComponent(projectId))
         );
         const shouldFetchCollectionFallback = !normalizedInitialProject;
-        const collectionRequest = shouldFetchCollectionFallback
-          ? api.get(API_ENDPOINTS.company.projects.list)
-          : null;
+        const collectionRequest = shouldFetchCollectionFallback ?
+        api.get(API_ENDPOINTS.company.projects.list) :
+        null;
 
         const [detailResult, collectionResult] = await Promise.allSettled(
           [detailRequest, collectionRequest].filter(Boolean)
@@ -1081,24 +1064,24 @@ function ProjectDetails() {
         const collectionSucceeded = !collectionRequest || collectionResult?.status === "fulfilled";
 
         if (detailSucceeded) {
-          console.log("Raw Project Details API Response:", detailResult.value.data);
+
           setProject(normalizeProjectRecord(detailResult.value.data));
         } else {
-          console.error("Project details fetch error:", detailResult.reason);
+
         }
 
         if (collectionResult?.status === "fulfilled") {
-          console.log("Raw Projects API Response:", collectionResult.value.data);
+
           const projectList = extractProjectCollection(collectionResult.value.data);
           const matchedProject = projectList.find((entry) =>
-            matchesProjectId(entry, projectId)
+          matchesProjectId(entry, projectId)
           );
 
           if (matchedProject) {
             setCollectionFallbackProject(normalizeProjectRecord(matchedProject));
           }
         } else if (collectionResult?.status === "rejected") {
-          console.error("Projects list fallback fetch error:", collectionResult.reason);
+
         }
 
         if (!detailSucceeded && !collectionSucceeded) {
@@ -1139,7 +1122,7 @@ function ProjectDetails() {
       projectMembers: members,
       teamMembers: members,
       memberCount: members.length,
-      team: metadataProject.team || String(members.length || ""),
+      team: metadataProject.team || String(members.length || "")
     };
   }, [metadataProject, activityProject]);
 
@@ -1164,7 +1147,7 @@ function ProjectDetails() {
           setProjectTickets(Array.isArray(tickets) ? tickets : []);
         }
       } catch (error) {
-        console.error("Unable to load project tickets:", error);
+
         const message = await getTicketApiErrorMessage(
           error,
           "Unable to load project tickets right now."
@@ -1223,15 +1206,6 @@ function ProjectDetails() {
       return;
     }
 
-    console.log("Total Members:", teamMembers.length);
-    console.log(
-      "Active Members:",
-      teamMembers.filter((member) => member.activityKind === "active")
-    );
-    console.log(
-      "Inactive Members:",
-      teamMembers.filter((member) => member.activityKind === "inactive")
-    );
   }, [projectData, teamMembers]);
 
   useEffect(() => {
@@ -1248,24 +1222,16 @@ function ProjectDetails() {
       isActive: member.isActive,
       attendanceStatus: member.attendanceStatus,
       activityKind: member.activityKind,
-      activityLabel: member.activityLabel,
+      activityLabel: member.activityLabel
     });
 
-    console.log(
-      "GET /Projects snapshot:",
-      (listSourceProject.members || []).map(snapshot)
-    );
-    console.log(
-      "GET /Projects/{projectId} snapshot:",
-      (project.members || []).map(snapshot)
-    );
   }, [collectionFallbackProject, normalizedInitialProject, project]);
 
   const openEmployeeTickets = useCallback((member) => {
     setEmployeeTicketState({
       open: true,
       employeeId: member?.employeeId || "",
-      employeeName: member?.employeeName || member?.employeeId || "Employee",
+      employeeName: member?.employeeName || member?.employeeId || "Employee"
     });
   }, []);
 
@@ -1273,7 +1239,7 @@ function ProjectDetails() {
     setEmployeeTicketState({
       open: false,
       employeeId: "",
-      employeeName: "",
+      employeeName: ""
     });
   }, []);
 
@@ -1290,7 +1256,7 @@ function ProjectDetails() {
       setAutoAssignOpen(false);
       refreshProjectData();
     } catch (error) {
-      console.error("Auto assign failed:", error);
+
       const message = await getAutoAssignErrorMessage(error);
       toastError(message);
     } finally {
@@ -1303,52 +1269,51 @@ function ProjectDetails() {
 
     return teamMembers.filter((member) => {
       const matchesSearch = !query || [
-        member.employeeName,
-        member.employeeId,
-        member.technology,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
+      member.employeeName,
+      member.employeeId,
+      member.technology].
+
+      filter(Boolean).
+      some((value) => String(value).toLowerCase().includes(query));
 
       const matchesTechnology =
-        technologyFilter === "All" ||
-        String(member.technology || "").toLowerCase() === technologyFilter.toLowerCase();
+      technologyFilter === "All" ||
+      String(member.technology || "").toLowerCase() === technologyFilter.toLowerCase();
 
       const matchesActivity =
-        activityFilter === "All" ||
-        (activityFilter === "Active" && member.activityKind === "active") ||
-        (activityFilter === "Inactive" && member.activityKind === "inactive");
+      activityFilter === "All" ||
+      activityFilter === "Active" && member.activityKind === "active" ||
+      activityFilter === "Inactive" && member.activityKind === "inactive";
 
       return matchesSearch && matchesTechnology && matchesActivity;
     });
   }, [activityFilter, technologyFilter, searchQuery, teamMembers]);
 
   const summaryCards = [
-    {
-      label: "Total Employees",
-      value: totalTeamMembers,
-      icon: <FaUsers aria-hidden="true" />,
-      tone: "primary",
-    },
-    {
-      label: "Active Today",
-      value: activeCount,
-      icon: <FaCheckCircle aria-hidden="true" />,
-      tone: "success",
-    },
-    {
-      label: "Inactive Today",
-      value: inactiveCount,
-      icon: <FaTimesCircle aria-hidden="true" />,
-      tone: "danger",
-    },
-    {
-      label: "Technologies Used",
-      value: technologies.length,
-      icon: <FaCode aria-hidden="true" />,
-      tone: "info",
-    },
-  ];
+  {
+    label: "Total Employees",
+    value: totalTeamMembers,
+    icon: <FaUsers aria-hidden="true" />,
+    tone: "primary"
+  },
+  {
+    label: "Active Today",
+    value: activeCount,
+    icon: <FaCheckCircle aria-hidden="true" />,
+    tone: "success"
+  },
+  {
+    label: "Inactive Today",
+    value: inactiveCount,
+    icon: <FaTimesCircle aria-hidden="true" />,
+    tone: "danger"
+  },
+  {
+    label: "Technologies Used",
+    value: technologies.length,
+    icon: <FaCode aria-hidden="true" />,
+    tone: "info"
+  }];
 
   const clearSearch = () => setSearchQuery("");
   const resetFilters = () => {
@@ -1385,14 +1350,14 @@ function ProjectDetails() {
         <TableSkeleton
           rows={6}
           columns={[
-            { width: "1fr", type: "avatar", headerWidth: "70%" },
-            { width: "1fr", headerWidth: "58%" },
-            { width: "1fr", headerWidth: "64%" },
-            { width: "1fr", type: "status", headerWidth: "54%", align: "center" },
-          ]}
-        />
-      </div>
-    );
+          { width: "1fr", type: "avatar", headerWidth: "70%" },
+          { width: "1fr", headerWidth: "58%" },
+          { width: "1fr", headerWidth: "64%" },
+          { width: "1fr", type: "status", headerWidth: "54%", align: "center" }]
+          } />
+        
+      </div>);
+
   }
 
   if (!projectData) {
@@ -1405,10 +1370,10 @@ function ProjectDetails() {
 
         <EmptyState
           className="project-details-empty-state"
-          message={errorMessage || "Project not found."}
-        />
-      </div>
-    );
+          message={errorMessage || "Project not found."} />
+        
+      </div>);
+
   }
 
   return (
@@ -1424,9 +1389,9 @@ function ProjectDetails() {
 
           <div className="project-details-title-row">
             <h2>{projectTitle}</h2>
-            {projectData.id && (
-              <span className="project-details-id-badge">{projectData.id}</span>
-            )}
+            {projectData.id &&
+            <span className="project-details-id-badge">{projectData.id}</span>
+            }
           </div>
         </div>
 
@@ -1458,15 +1423,15 @@ function ProjectDetails() {
       </div>
 
       <div className="project-details-summary-grid">
-        {summaryCards.map((card) => (
-          <article key={card.label} className={`project-details-summary-card is-${card.tone}`}>
+        {summaryCards.map((card) =>
+        <article key={card.label} className={`project-details-summary-card is-${card.tone}`}>
             <div className="project-details-summary-topline">
               <span className="project-details-summary-icon">{card.icon}</span>
               <span className="project-details-summary-label">{card.label}</span>
             </div>
             <strong className="project-details-summary-value">{card.value}</strong>
           </article>
-        ))}
+        )}
       </div>
 
       <div className="project-details-overview-grid">
@@ -1548,20 +1513,20 @@ function ProjectDetails() {
             </div>
           </div>
 
-          {technologies.length > 0 ? (
-            <div className="project-details-tech-list">
-              {technologies.map((technology) => (
-                <span key={technology} className="project-details-tech-chip">
+          {technologies.length > 0 ?
+          <div className="project-details-tech-list">
+              {technologies.map((technology) =>
+            <span key={technology} className="project-details-tech-chip">
                   {technology}
                 </span>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              className="project-details-empty-inline"
-              message="No technology data found for this project."
-            />
-          )}
+            )}
+            </div> :
+
+          <EmptyState
+            className="project-details-empty-inline"
+            message="No technology data found for this project." />
+
+          }
         </aside>
       </div>
 
@@ -1581,8 +1546,8 @@ function ProjectDetails() {
               type="button"
               className="ticket-button secondary"
               onClick={() => setBulkUploadOpen(true)}
-              disabled={!projectId}
-            >
+              disabled={!projectId}>
+              
               <FaCloudUploadAlt aria-hidden="true" />
               Bulk Upload Tickets
             </button>
@@ -1591,53 +1556,52 @@ function ProjectDetails() {
               type="button"
               className="ticket-button primary"
               onClick={() => setAutoAssignOpen(true)}
-              disabled={!projectId}
-            >
+              disabled={!projectId}>
+              
               <FaSyncAlt aria-hidden="true" />
               Auto Assign
             </button>
           </div>
         </div>
 
-        {projectTicketsLoading ? (
-          <TableSkeleton
-            rows={5}
-            columns={PROJECT_TICKET_TABLE_COLUMNS.map((column, index) => ({
-              width: column.width,
-              type:
-                index === 0
-                  ? "avatar"
-                  : index === PROJECT_TICKET_TABLE_COLUMNS.length - 1
-                    ? "actions"
-                    : "text",
-              headerWidth: index === 0 ? "70%" : "62%",
-            }))}
-          />
-        ) : (
-          projectTickets.length > 0 ? (
-            <div className="ticket-table-card project-details-ticket-table-card">
+        {projectTicketsLoading ?
+        <TableSkeleton
+          rows={5}
+          columns={PROJECT_TICKET_TABLE_COLUMNS.map((column, index) => ({
+            width: column.width,
+            type:
+            index === 0 ?
+            "avatar" :
+            index === PROJECT_TICKET_TABLE_COLUMNS.length - 1 ?
+            "actions" :
+            "text",
+            headerWidth: index === 0 ? "70%" : "62%"
+          }))} /> :
+
+        projectTickets.length > 0 ?
+        <div className="ticket-table-card project-details-ticket-table-card">
               <div className="ticket-table-scroll project-details-ticket-scroll">
                 <table className="ticket-table project-details-ticket-table">
                   <thead>
                     <tr>
-                      {PROJECT_TICKET_TABLE_COLUMNS.map((column) => (
-                        <th
-                          key={column.key}
-                          style={{
-                            width: column.width,
-                            minWidth: column.width,
-                            maxWidth: column.width,
-                          }}
-                        >
+                      {PROJECT_TICKET_TABLE_COLUMNS.map((column) =>
+                  <th
+                    key={column.key}
+                    style={{
+                      width: column.width,
+                      minWidth: column.width,
+                      maxWidth: column.width
+                    }}>
+                    
                           {column.label}
                         </th>
-                      ))}
+                  )}
                     </tr>
                   </thead>
 
                   <tbody>
-                    {projectTickets.map((ticket) => (
-                      <tr key={ticket.ticketId || `${ticket.title}-${ticket.createdDate}`}>
+                    {projectTickets.map((ticket) =>
+                <tr key={ticket.ticketId || `${ticket.title}-${ticket.createdDate}`}>
                         <td>{displayValue(ticket.ticketId, "-")}</td>
                         <td title={displayValue(ticket.title, "-")}>
                           {displayValue(ticket.title, "-")}
@@ -1657,13 +1621,13 @@ function ProjectDetails() {
                         <td>{formatDate(ticket.assignedDate, "-")}</td>
                         <td>{formatDate(ticket.dueDate, "-")}</td>
                       </tr>
-                    ))}
+                )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          ) : null
-        )}
+            </div> :
+        null
+        }
       </section>
 
       <section className="project-details-card project-details-card--table">
@@ -1686,18 +1650,18 @@ function ProjectDetails() {
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search employee, ID or technology"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="project-details-clear-btn"
-                onClick={clearSearch}
-                aria-label="Clear search"
-              >
+              placeholder="Search employee, ID or technology" />
+            
+            {searchQuery &&
+            <button
+              type="button"
+              className="project-details-clear-btn"
+              onClick={clearSearch}
+              aria-label="Clear search">
+              
                 ×
               </button>
-            )}
+            }
           </label>
 
           <label className="project-details-select-wrap" htmlFor="project-details-technology">
@@ -1708,14 +1672,14 @@ function ProjectDetails() {
             <select
               id="project-details-technology"
               value={technologyFilter}
-              onChange={(event) => setTechnologyFilter(event.target.value)}
-            >
+              onChange={(event) => setTechnologyFilter(event.target.value)}>
+              
               <option value="All">All Technologies</option>
-              {technologies.map((technology) => (
-                <option key={technology} value={technology}>
+              {technologies.map((technology) =>
+              <option key={technology} value={technology}>
                   {technology}
                 </option>
-              ))}
+              )}
             </select>
           </label>
 
@@ -1725,16 +1689,16 @@ function ProjectDetails() {
               Today Status
             </span>
             <div className="project-details-status-filters">
-              {memberStatusOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`project-details-status-filter ${activityFilter === option.value ? "is-active" : ""}`}
-                  onClick={() => setActivityFilter(option.value)}
-                >
+              {memberStatusOptions.map((option) =>
+              <button
+                key={option.value}
+                type="button"
+                className={`project-details-status-filter ${activityFilter === option.value ? "is-active" : ""}`}
+                onClick={() => setActivityFilter(option.value)}>
+                
                   {option.label}
                 </button>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -1750,8 +1714,8 @@ function ProjectDetails() {
               </tr>
             </thead>
             <tbody>
-              {teamMembers.length === 0 ? (
-                <tr>
+              {teamMembers.length === 0 ?
+              <tr>
                   <td colSpan="4">
                     <div className="project-details-empty-state-card">
                       <div className="project-details-empty-state-icon">
@@ -1766,9 +1730,9 @@ function ProjectDetails() {
                       </div>
                     </div>
                   </td>
-                </tr>
-              ) : filteredMembers.length === 0 ? (
-                <tr>
+                </tr> :
+              filteredMembers.length === 0 ?
+              <tr>
                   <td colSpan="4">
                     <div className="project-details-empty-state-card">
                       <div className="project-details-empty-state-icon">
@@ -1782,32 +1746,32 @@ function ProjectDetails() {
                         </p>
                       </div>
                       <button
-                        type="button"
-                        className="project-details-reset-btn"
-                        onClick={resetFilters}
-                      >
+                      type="button"
+                      className="project-details-reset-btn"
+                      onClick={resetFilters}>
+                      
                         Reset filters
                       </button>
                     </div>
                   </td>
-                </tr>
-              ) : (
-                filteredMembers.map((member, index) => (
-                  <tr key={`${member.employeeId || member.employeeName || "member"}-${index}`}>
+                </tr> :
+
+              filteredMembers.map((member, index) =>
+              <tr key={`${member.employeeId || member.employeeName || "member"}-${index}`}>
                     <td>
                       <div className="project-details-member-name-wrap">
                         <span className="project-details-member-avatar">
-                          {(member.employeeName || member.employeeId || "NA")
-                            .substring(0, 2)
-                            .toUpperCase()}
+                          {(member.employeeName || member.employeeId || "NA").
+                      substring(0, 2).
+                      toUpperCase()}
                         </span>
                         <div className="project-details-member-name-block">
                           <button
-                            type="button"
-                            className="project-details-member-name-btn"
-                            onClick={() => openEmployeeTickets(member)}
-                            title={`View tickets for ${displayValue(member.employeeName)}`}
-                          >
+                        type="button"
+                        className="project-details-member-name-btn"
+                        onClick={() => openEmployeeTickets(member)}
+                        title={`View tickets for ${displayValue(member.employeeName)}`}>
+                        
                             <strong className="project-details-member-name">
                               {displayValue(member.employeeName)}
                             </strong>
@@ -1831,8 +1795,8 @@ function ProjectDetails() {
                       </span>
                     </td>
                   </tr>
-                ))
-              )}
+              )
+              }
             </tbody>
           </table>
         </div>
@@ -1842,8 +1806,8 @@ function ProjectDetails() {
         open={bulkUploadOpen}
         projectId={projectId}
         onClose={() => setBulkUploadOpen(false)}
-        onUploaded={refreshProjectData}
-      />
+        onUploaded={refreshProjectData} />
+      
 
       <AutoAssignConfirmModal
         open={autoAssignOpen}
@@ -1853,16 +1817,16 @@ function ProjectDetails() {
             setAutoAssignOpen(false);
           }
         }}
-        onConfirm={handleAutoAssignConfirm}
-      />
+        onConfirm={handleAutoAssignConfirm} />
+      
 
       <EmployeeTicketDetailsModal
         open={employeeTicketState.open}
         employee={employeeTicketState}
-        onClose={closeEmployeeTickets}
-      />
-    </div>
-  );
+        onClose={closeEmployeeTickets} />
+      
+    </div>);
+
 }
 
 export default ProjectDetails;

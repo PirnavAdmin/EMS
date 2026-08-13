@@ -4,10 +4,10 @@ import { extractCollection } from "../utils/collections";
 import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
 
 const normalizeNotificationRole = (value) => {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "");
+  const normalized = String(value ?? "").
+  trim().
+  toLowerCase().
+  replace(/[\s_-]+/g, "");
 
   if (!normalized) {
     return "";
@@ -35,7 +35,7 @@ const NOTIFICATION_CONFIGS = {
     list: API_ENDPOINTS.notifications.admin,
     read: API_ENDPOINTS.notifications.adminRead,
     readAll: API_ENDPOINTS.notifications.adminReadAll,
-    supportsNotifications: true,
+    supportsNotifications: true
   },
   user: {
     label: "User",
@@ -43,7 +43,7 @@ const NOTIFICATION_CONFIGS = {
     list: API_ENDPOINTS.notifications.user,
     read: API_ENDPOINTS.notifications.userRead,
     readAll: API_ENDPOINTS.notifications.userReadAll,
-    supportsNotifications: true,
+    supportsNotifications: true
   },
   superadmin: {
     label: "SuperAdmin",
@@ -51,8 +51,8 @@ const NOTIFICATION_CONFIGS = {
     list: "",
     read: null,
     readAll: "",
-    supportsNotifications: false,
-  },
+    supportsNotifications: false
+  }
 };
 
 const resolveNotificationConfig = (role) => {
@@ -78,17 +78,17 @@ const buildRequestConfig = (context) => {
 
   return {
     headers,
-    skipAuthFailureHandling: true,
+    skipAuthFailureHandling: true
   };
 };
 
 const getErrorMessage = (error) =>
-  error?.response?.data?.message ||
-  error?.response?.data?.error ||
-  error?.response?.data?.title ||
-  error?.response?.data ||
-  error?.message ||
-  "Notification request failed";
+error?.response?.data?.message ||
+error?.response?.data?.error ||
+error?.response?.data?.title ||
+error?.response?.data ||
+error?.message ||
+"Notification request failed";
 
 const logNotificationEvent = ({
   action,
@@ -96,24 +96,11 @@ const logNotificationEvent = ({
   endpoint,
   phase,
   responseStatus,
-  error,
+  error
 }) => {
-  console.log(`Notification ${phase}`, {
-    action,
-    currentUser: context?.currentUser || null,
-    currentRole: context?.currentRole || "",
-    selectedNotificationEndpoint: endpoint || "none",
-    authorizationHeader: context?.authorizationHeader || "none",
-    responseStatus: responseStatus ?? error?.response?.status ?? "skipped",
-  });
 
   if (error) {
-    console.warn(`Notification ${phase} warning`, {
-      action,
-      status: error?.response?.status,
-      message: getErrorMessage(error),
-      endpoint: endpoint || "none",
-    });
+
   }
 };
 
@@ -132,12 +119,12 @@ export const getNotificationContext = (role, snapshot = getAuthenticatedUserSnap
     route: config.route,
     label: config.label,
     supportsNotifications: Boolean(config.supportsNotifications && config.list),
-    isReady: Boolean(snapshot.isReady),
+    isReady: Boolean(snapshot.isReady)
   };
 };
 
 export const getNotificationEndpoint = (role, snapshot) =>
-  getNotificationContext(role, snapshot).endpoint;
+getNotificationContext(role, snapshot).endpoint;
 
 export const getNotificationReadEndpoint = (role, notificationId, snapshot) => {
   const context = getNotificationContext(role, snapshot);
@@ -150,10 +137,10 @@ export const getNotificationReadEndpoint = (role, notificationId, snapshot) => {
 };
 
 export const getNotificationReadAllEndpoint = (role, snapshot) =>
-  getNotificationContext(role, snapshot).config.readAll || "";
+getNotificationContext(role, snapshot).config.readAll || "";
 
 export const getNotificationRoute = (role, snapshot) =>
-  getNotificationContext(role, snapshot).route;
+getNotificationContext(role, snapshot).route;
 
 export const loadNotifications = async (role, snapshot) => {
   const context = getNotificationContext(role, snapshot);
@@ -164,7 +151,7 @@ export const loadNotifications = async (role, snapshot) => {
       context,
       endpoint: context.endpoint,
       phase: "skipped",
-      responseStatus: "skipped",
+      responseStatus: "skipped"
     });
     return [];
   }
@@ -173,7 +160,7 @@ export const loadNotifications = async (role, snapshot) => {
     action: "fetch",
     context,
     endpoint: context.endpoint,
-    phase: "request",
+    phase: "request"
   });
 
   try {
@@ -184,7 +171,7 @@ export const loadNotifications = async (role, snapshot) => {
       context,
       endpoint: context.endpoint,
       phase: "response",
-      responseStatus: response.status,
+      responseStatus: response.status
     });
 
     return extractCollection(response.data);
@@ -194,7 +181,7 @@ export const loadNotifications = async (role, snapshot) => {
       context,
       endpoint: context.endpoint,
       phase: "warning",
-      error,
+      error
     });
 
     return [];
@@ -211,7 +198,7 @@ export const markNotificationAsRead = async (role, notificationId, snapshot) => 
       context,
       endpoint,
       phase: "skipped",
-      responseStatus: "skipped",
+      responseStatus: "skipped"
     });
     return false;
   }
@@ -220,7 +207,7 @@ export const markNotificationAsRead = async (role, notificationId, snapshot) => 
     action: "mark-read",
     context,
     endpoint,
-    phase: "request",
+    phase: "request"
   });
 
   try {
@@ -231,7 +218,7 @@ export const markNotificationAsRead = async (role, notificationId, snapshot) => 
       context,
       endpoint,
       phase: "response",
-      responseStatus: response.status,
+      responseStatus: response.status
     });
 
     return true;
@@ -241,7 +228,7 @@ export const markNotificationAsRead = async (role, notificationId, snapshot) => 
       context,
       endpoint,
       phase: "warning",
-      error,
+      error
     });
 
     return false;
@@ -258,7 +245,7 @@ export const markAllNotificationsAsRead = async (role, snapshot) => {
       context,
       endpoint,
       phase: "skipped",
-      responseStatus: "skipped",
+      responseStatus: "skipped"
     });
     return false;
   }
@@ -267,7 +254,7 @@ export const markAllNotificationsAsRead = async (role, snapshot) => {
     action: "mark-all",
     context,
     endpoint,
-    phase: "request",
+    phase: "request"
   });
 
   try {
@@ -278,7 +265,7 @@ export const markAllNotificationsAsRead = async (role, snapshot) => {
       context,
       endpoint,
       phase: "response",
-      responseStatus: response.status,
+      responseStatus: response.status
     });
 
     return true;
@@ -288,7 +275,7 @@ export const markAllNotificationsAsRead = async (role, snapshot) => {
       context,
       endpoint,
       phase: "warning",
-      error,
+      error
     });
 
     return false;

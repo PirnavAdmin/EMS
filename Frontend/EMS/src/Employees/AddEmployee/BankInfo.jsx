@@ -76,7 +76,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
   useImperativeHandle(ref, () => ({
     validate() {
       return true;
-    },
+    }
   }));
 
   const handleSalaryInput = (field, value, setter) => {
@@ -89,13 +89,13 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     // Count only digits
     const digits = value.replace(/,/g, "");
     if (digits.length > 10) {
-      setSalaryErrors(prev => ({
+      setSalaryErrors((prev) => ({
         ...prev,
         [field]: "Maximum 10 digits allowed"
       }));
       return;
     }
-    setSalaryErrors(prev => ({
+    setSalaryErrors((prev) => ({
       ...prev,
       [field]: ""
     }));
@@ -123,8 +123,8 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
         API_ENDPOINTS.employeeSalaryStructure.update(employeeId),
         payload
       );
-    }
-    else {
+    } else
+    {
       await api.post(
         API_ENDPOINTS.employeeSalaryStructure.list,
         payload
@@ -138,9 +138,25 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     }
 
     setSalarySaving(true);
+    setApiError("");
+    setSuccessMsg("");
 
     try {
       await saveSalary();
+
+      setSuccessMsg(
+        salaryExists ?
+        "Salary updated successfully!" :
+        "Salary saved successfully!"
+      );
+
+      setTimeout(() => {
+        setSuccessMsg("");
+      }, 3000);
+    } catch (error) {
+      setApiError(
+        error.response?.data?.message || "Failed to save salary details."
+      );
     } finally {
       setSalarySaving(false);
     }
@@ -162,43 +178,43 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
         ifsC_Code: ifsc,
         branch_Name: branch,
         uaN_Number: uan,
-        pF_Account_Number: pf,
+        pF_Account_Number: pf
       };
 
-      const response = data
-        ? await api.put(
-          API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId),
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
+      const response = data ?
+      await api.put(
+        API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId),
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json"
           }
-        )
-        : await api.post(
-          API_ENDPOINTS.employeeBankDetails.list,
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
+        }
+      ) :
+      await api.post(
+        API_ENDPOINTS.employeeBankDetails.list,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json"
           }
-        );
+        }
+      );
 
       // Save Salary Structure
       await saveSalary();
 
       setSuccessMsg(
-        data
-          ? "Bank details and salary structure updated!"
-          : "Bank details and salary structure saved!"
+        data ?
+        "Bank details and salary structure updated!" :
+        "Bank details and salary structure saved!"
       );
 
       setTimeout(() => {
         onNext(response?.data?.employeeId || employeeId);
       }, 800);
     } catch (error) {
-      console.error("Bank API Error:", error.response?.data || error.message);
+
       setApiError("Failed to save bank details.");
     } finally {
       setSaving(false);
@@ -206,129 +222,129 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
   };
 
   return (
-    <div className="form-section bank-info-section">
-      <h3>Bank Information</h3>
-
-      <div className="form-card bank-info-card">
-        <div className="form-grid bank-info-grid">
-          <div className="form-group">
-            <label>Customer ID</label>
+    <div className="form-section bank-info-section">
+      <h3>Bank Information</h3>
+
+      <div className="form-card bank-info-card">
+        <div className="form-grid bank-info-grid">
+          <div className="form-group">
+            <label>Customer ID</label>
             <input
               value={customerId || ""}
               onChange={(e) => setCustomerId(e.target.value)}
-              disabled={viewMode}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Bank Name</label>
+              disabled={viewMode} />
+            
+          </div>
+
+          <div className="form-group">
+            <label>Bank Name</label>
             <select
               value={bankName || ""}
               onChange={(e) => setBankName(e.target.value)}
-              disabled={viewMode}
-            >
-              <option value="">Select Bank</option>
-              <option>State Bank of India</option>
-              <option>HDFC Bank</option>
-              <option>ICICI Bank</option>
-              <option>Axis Bank</option>
-              <option>Kotak Mahindra Bank</option>
-              <option>IDFC First Bank</option>
-              <option>Canara Bank</option>
-              <option>Federal Bank</option>
-              <option>Union Bank</option>
-              <option value="Other">Others</option>
-            </select>
-          </div>
-
-          {bankName === "Other" && (
-            <div className="form-group full">
-              <label>Enter Bank Name</label>
+              disabled={viewMode}>
+              
+              <option value="">Select Bank</option>
+              <option>State Bank of India</option>
+              <option>HDFC Bank</option>
+              <option>ICICI Bank</option>
+              <option>Axis Bank</option>
+              <option>Kotak Mahindra Bank</option>
+              <option>IDFC First Bank</option>
+              <option>Canara Bank</option>
+              <option>Federal Bank</option>
+              <option>Union Bank</option>
+              <option value="Other">Others</option>
+            </select>
+          </div>
+
+          {bankName === "Other" &&
+          <div className="form-group full">
+              <label>Enter Bank Name</label>
               <input
-                value={manualBank || ""}
-                onChange={(e) => setManualBank(e.target.value)}
-                disabled={viewMode}
-              />
+              value={manualBank || ""}
+              onChange={(e) => setManualBank(e.target.value)}
+              disabled={viewMode} />
+            
             </div>
-          )}
-
-          <div className="form-group">
-            <label>Account Holder Name</label>
+          }
+
+          <div className="form-group">
+            <label>Account Holder Name</label>
             <input
               value={accountHolder || ""}
               onChange={(e) => setAccountHolder(e.target.value)}
-              disabled={viewMode}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Account Number</label>
+              disabled={viewMode} />
+            
+          </div>
+
+          <div className="form-group">
+            <label>Account Number</label>
             <input
               value={accountNumber || ""}
               onChange={(e) => setAccountNumber(e.target.value)}
-              disabled={viewMode}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>IFSC Code</label>
+              disabled={viewMode} />
+            
+          </div>
+
+          <div className="form-group">
+            <label>IFSC Code</label>
             <input
               value={ifsc || ""}
               onChange={(e) => setIfsc(e.target.value)}
-              disabled={viewMode}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Branch Name</label>
+              disabled={viewMode} />
+            
+          </div>
+
+          <div className="form-group">
+            <label>Branch Name</label>
             <input
               value={branch || ""}
               onChange={(e) => setBranch(e.target.value)}
-              disabled={viewMode}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>UAN Number</label>
+              disabled={viewMode} />
+            
+          </div>
+
+          <div className="form-group">
+            <label>UAN Number</label>
             <input
               value={uan || ""}
               onChange={(e) => setUan(e.target.value)}
-              disabled={viewMode}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>PF Account Number</label>
+              disabled={viewMode} />
+            
+          </div>
+
+          <div className="form-group">
+            <label>PF Account Number</label>
             <input
               value={pf || ""}
               onChange={(e) => setPf(e.target.value)}
-              disabled={viewMode}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="form-card salary-info-card">
-        <h3>Salary Structure</h3>
-        <p className="salary-subtitle">
-          Fill these fields according to your offer letter salary structure.
-        </p>
-
-        <div className="form-grid bank-info-grid">
-
-          {/* Employee ID */}
-          <div className="form-group">
-            <label>Employee ID</label>
+              disabled={viewMode} />
+            
+          </div>
+        </div>
+      </div>
+
+      <div className="form-card salary-info-card">
+        <h3>Salary Structure</h3>
+        <p className="salary-subtitle">
+          Fill these fields according to your offer letter salary structure.
+        </p>
+
+        <div className="form-grid bank-info-grid">
+
+          {/* Employee ID */}
+          <div className="form-group">
+            <label>Employee ID</label>
             <input
               type="text"
               value={employeeId || ""}
-              disabled
-            />
-          </div>
-
-          {/* Annual CTC */}
-          <div className="form-group">
-            <label>Annual CTC</label>
+              disabled />
+            
+          </div>
+
+          {/* Annual CTC */}
+          <div className="form-group">
+            <label>Annual CTC</label>
             <input
               type="text"
               inputMode="numeric"
@@ -336,23 +352,23 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               value={annualCTC}
               placeholder="Enter annual CTC (e.g. 600000)"
               onChange={(e) =>
-                handleSalaryInput(
-                  "annualCTC",
-                  e.target.value,
-                  setAnnualCTC
-                )
+              handleSalaryInput(
+                "annualCTC",
+                e.target.value,
+                setAnnualCTC
+              )
               }
-              disabled={viewMode}
-            />
-            {salaryErrors.annualCTC && (
-              <small className="field-error">
-                {salaryErrors.annualCTC}
-              </small>)}
-          </div>
-
-          {/* Basic Salary */}
-          <div className="form-group">
-            <label>Basic Salary(Monthly)</label>
+              disabled={viewMode} />
+            
+            {salaryErrors.annualCTC &&
+            <small className="field-error">
+                {salaryErrors.annualCTC}
+              </small>}
+          </div>
+
+          {/* Basic Salary */}
+          <div className="form-group">
+            <label>Basic Salary(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -360,23 +376,23 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               placeholder="Enter basic salary (e.g. 300000)"
               value={basicSalary}
               onChange={(e) =>
-                handleSalaryInput(
-                  "basicSalary",
-                  e.target.value,
-                  setBasicSalary
-                )}
-              disabled={viewMode}
-            />
-            {salaryErrors.basicSalary && (
-              <small className="field-error">
-                {salaryErrors.basicSalary}
+              handleSalaryInput(
+                "basicSalary",
+                e.target.value,
+                setBasicSalary
+              )}
+              disabled={viewMode} />
+            
+            {salaryErrors.basicSalary &&
+            <small className="field-error">
+                {salaryErrors.basicSalary}
               </small>
-            )}
-          </div>
-
-          {/* HRA */}
-          <div className="form-group">
-            <label>HRA(Monthly)</label>
+            }
+          </div>
+
+          {/* HRA */}
+          <div className="form-group">
+            <label>HRA(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -384,23 +400,23 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               value={hra}
               placeholder="Enter HRA amount (e.g. 120000)"
               onChange={(e) =>
-                handleSalaryInput(
-                  "hra",
-                  e.target.value,
-                  setHra
-                )}
-              disabled={viewMode}
-            />
-            {salaryErrors.hra && (
-              <small className="field-error">
-                {salaryErrors.hra}
+              handleSalaryInput(
+                "hra",
+                e.target.value,
+                setHra
+              )}
+              disabled={viewMode} />
+            
+            {salaryErrors.hra &&
+            <small className="field-error">
+                {salaryErrors.hra}
               </small>
-            )}
-          </div>
-
-          {/* Conveyance Allowance */}
-          <div className="form-group">
-            <label>Conveyance Allowance(Monthly)</label>
+            }
+          </div>
+
+          {/* Conveyance Allowance */}
+          <div className="form-group">
+            <label>Conveyance Allowance(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -408,24 +424,24 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               value={conveyanceAllowance}
               placeholder="Enter conveyance allowance (e.g. 24000)"
               onChange={(e) =>
-                handleSalaryInput(
-                  "conveyanceAllowance",
-                  e.target.value,
-                  setConveyanceAllowance
-                )
+              handleSalaryInput(
+                "conveyanceAllowance",
+                e.target.value,
+                setConveyanceAllowance
+              )
               }
-              disabled={viewMode}
-            />
-            {salaryErrors.conveyanceAllowance && (
-              <small className="field-error">
-                {salaryErrors.conveyanceAllowance}
+              disabled={viewMode} />
+            
+            {salaryErrors.conveyanceAllowance &&
+            <small className="field-error">
+                {salaryErrors.conveyanceAllowance}
               </small>
-            )}
-          </div>
-
-          {/* Medical Allowance */}
-          <div className="form-group">
-            <label>Medical Allowance(Monthly)</label>
+            }
+          </div>
+
+          {/* Medical Allowance */}
+          <div className="form-group">
+            <label>Medical Allowance(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -437,18 +453,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
                 e.target.value,
                 setMedicalAllowance
               )}
-              disabled={viewMode}
-            />
-            {salaryErrors.medicalAllowance && (
-              <small className="field-error">
-                {salaryErrors.medicalAllowance}
+              disabled={viewMode} />
+            
+            {salaryErrors.medicalAllowance &&
+            <small className="field-error">
+                {salaryErrors.medicalAllowance}
               </small>
-            )}
-          </div>
-
-          {/* Special Allowance */}
-          <div className="form-group">
-            <label>Special Allowance(Monthly)</label>
+            }
+          </div>
+
+          {/* Special Allowance */}
+          <div className="form-group">
+            <label>Special Allowance(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -460,18 +476,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
                 e.target.value,
                 setSpecialAllowance
               )}
-              disabled={viewMode}
-            />
-            {salaryErrors.specialAllowance && (
-              <small className="field-error">
-                {salaryErrors.specialAllowance}
+              disabled={viewMode} />
+            
+            {salaryErrors.specialAllowance &&
+            <small className="field-error">
+                {salaryErrors.specialAllowance}
               </small>
-            )}
-          </div>
-
-          {/* Employee PF */}
-          <div className="form-group">
-            <label>Employee PF(Monthly)</label>
+            }
+          </div>
+
+          {/* Employee PF */}
+          <div className="form-group">
+            <label>Employee PF(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -483,18 +499,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
                 e.target.value,
                 setEmployeePF
               )}
-              disabled={viewMode}
-            />
-            {salaryErrors.employeePF && (
-              <small className="field-error">
-                {salaryErrors.employeePF}
+              disabled={viewMode} />
+            
+            {salaryErrors.employeePF &&
+            <small className="field-error">
+                {salaryErrors.employeePF}
               </small>
-            )}
-          </div>
-
-          {/* Employer PF */}
-          <div className="form-group">
-            <label>Employer PF(Monthly)</label>
+            }
+          </div>
+
+          {/* Employer PF */}
+          <div className="form-group">
+            <label>Employer PF(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -506,18 +522,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
                 e.target.value,
                 setEmployerPF
               )}
-              disabled={viewMode}
-            />
-            {salaryErrors.employerPF && (
-              <small className="field-error">
-                {salaryErrors.employerPF}
+              disabled={viewMode} />
+            
+            {salaryErrors.employerPF &&
+            <small className="field-error">
+                {salaryErrors.employerPF}
               </small>
-            )}
-          </div>
-
-          {/* Professional Tax */}
-          <div className="form-group">
-            <label>Professional Tax(Monthly)</label>
+            }
+          </div>
+
+          {/* Professional Tax */}
+          <div className="form-group">
+            <label>Professional Tax(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -529,18 +545,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
                 e.target.value,
                 setProfessionalTax
               )}
-              disabled={viewMode}
-            />
-            {salaryErrors.professionalTax && (
-              <small className="field-error">
-                {salaryErrors.professionalTax}
+              disabled={viewMode} />
+            
+            {salaryErrors.professionalTax &&
+            <small className="field-error">
+                {salaryErrors.professionalTax}
               </small>
-            )}
-          </div>
-
-          {/* TDS */}
-          <div className="form-group">
-            <label>TDS(Monthly)</label>
+            }
+          </div>
+
+          {/* TDS */}
+          <div className="form-group">
+            <label>TDS(Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -552,18 +568,18 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
                 e.target.value,
                 setTds
               )}
-              disabled={viewMode}
-            />
-            {salaryErrors.tds && (
-              <small className="field-error">
-                {salaryErrors.tds}
+              disabled={viewMode} />
+            
+            {salaryErrors.tds &&
+            <small className="field-error">
+                {salaryErrors.tds}
               </small>
-            )}
-          </div>
-
-          {/* Other Deduction */}
-          <div className="form-group">
-            <label>Other Deduction</label>
+            }
+          </div>
+
+          {/* Other Deduction */}
+          <div className="form-group">
+            <label>Other Deduction</label>
             <input
               type="text"
               inputMode="numeric"
@@ -575,86 +591,86 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
                 e.target.value,
                 setOtherDeduction
               )}
-              disabled={viewMode}
-            />
-            {salaryErrors.otherDeduction && (
-              <small className="field-error">
-                {salaryErrors.otherDeduction}
+              disabled={viewMode} />
+            
+            {salaryErrors.otherDeduction &&
+            <small className="field-error">
+                {salaryErrors.otherDeduction}
               </small>
-            )}
-          </div>
-
-        </div>
-
-        {!viewMode && (
-          <div className="salary-save">
+            }
+          </div>
+
+        </div>
+
+        {!viewMode &&
+        <div className="salary-save">
             <button
-              type="button"
-              className="btn primary"
-              onClick={handleSalarySave}
-              disabled={salarySaving}
-            >
-              {salarySaving
-                ? salaryExists
-                  ? "Updating..."
-                  : "Saving..."
-                : salaryExists
-                  ? "Update Salary"
-                  : "Save Salary"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="step-actions bank-step-actions">
-        {successMsg && <p className="workflow-feedback success">{successMsg}</p>}
-        {apiError && <p className="workflow-feedback error">{apiError}</p>}
-
-        {!viewMode && (
-          <button type="button" className="btn secondary" onClick={onBack} disabled={saving}>
-            Back
-          </button>
-        )}
-
-        {!viewMode && (
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => {
-              setApiError("");
-              setSuccessMsg("Skipped");
-
-              setTimeout(() => {
-                if (onNext) {
-                  onNext();
-                }
-              }, 500);
-            }}
-            disabled={saving}
-          >
-            Skip
-          </button>
-        )}
-
-        {!viewMode && (
-          <button
             type="button"
             className="btn primary"
-            onClick={handleSaveNext}
-            disabled={saving}
-          >
-            {saving
-              ? data
-                ? "Updating..."
-                : "Saving..."
-              : data
-                ? "Update & Next"
-                : "Save & Next"}
+            onClick={handleSalarySave}
+            disabled={salarySaving}>
+            
+              {salarySaving ?
+            salaryExists ?
+            "Updating..." :
+            "Saving..." :
+            salaryExists ?
+            "Update Salary" :
+            "Save Salary"}
+            </button>
+          </div>
+        }
+      </div>
+
+      <div className="step-actions bank-step-actions">
+        {successMsg && <p className="workflow-feedback success">{successMsg}</p>}
+        {apiError && <p className="workflow-feedback error">{apiError}</p>}
+
+        {!viewMode &&
+        <button type="button" className="btn secondary" onClick={onBack} disabled={saving}>
+            Back
           </button>
-        )}
-      </div>
-    </div>
-  );
+        }
+
+        {!viewMode &&
+        <button
+          type="button"
+          className="btn secondary"
+          onClick={() => {
+            setApiError("");
+            setSuccessMsg("Skipped");
+
+            setTimeout(() => {
+              if (onNext) {
+                onNext();
+              }
+            }, 500);
+          }}
+          disabled={saving}>
+          
+            Skip
+          </button>
+        }
+
+        {!viewMode &&
+        <button
+          type="button"
+          className="btn primary"
+          onClick={handleSaveNext}
+          disabled={saving}>
+          
+            {saving ?
+          data ?
+          "Updating..." :
+          "Saving..." :
+          data ?
+          "Update & Next" :
+          "Save & Next"}
+          </button>
+        }
+      </div>
+    </div>);
+
 });
 
 export default BankInfo;

@@ -4,8 +4,8 @@ import {
   FaEyeSlash,
   FaKey,
   FaLock,
-  FaTimes,
-} from "react-icons/fa";
+  FaTimes } from
+"react-icons/fa";
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import "./ChangePasswordModal.css";
@@ -13,34 +13,33 @@ import "./ChangePasswordModal.css";
 const INITIAL_FORM = {
   currentPassword: "",
   newPassword: "",
-  confirmPassword: "",
+  confirmPassword: ""
 };
 
 const PASSWORD_RULES = [
-  {
-    test: (value) => value.length >= 8,
-    message: "Use at least 8 characters.",
-  },
-  {
-    test: (value) => /[A-Z]/.test(value),
-    message: "Include at least one uppercase letter.",
-  },
-  {
-    test: (value) => /[0-9]/.test(value),
-    message: "Include at least one number.",
-  },
-  {
-    test: (value) => /[^A-Za-z0-9]/.test(value),
-    message: "Include at least one special character.",
-  },
-];
+{
+  test: (value) => value.length >= 8,
+  message: "Use at least 8 characters."
+},
+{
+  test: (value) => /[A-Z]/.test(value),
+  message: "Include at least one uppercase letter."
+},
+{
+  test: (value) => /[0-9]/.test(value),
+  message: "Include at least one number."
+},
+{
+  test: (value) => /[^A-Za-z0-9]/.test(value),
+  message: "Include at least one special character."
+}];
 
 const getPasswordStrength = (password) => {
   if (!password) {
     return {
       filled: 0,
       label: "Start typing to check strength",
-      tone: "idle",
+      tone: "idle"
     };
   }
 
@@ -53,7 +52,7 @@ const getPasswordStrength = (password) => {
     return {
       filled: 1,
       label: "Weak password",
-      tone: "weak",
+      tone: "weak"
     };
   }
 
@@ -61,14 +60,14 @@ const getPasswordStrength = (password) => {
     return {
       filled: 3,
       label: "Medium password",
-      tone: "medium",
+      tone: "medium"
     };
   }
 
   return {
     filled: 4,
     label: "Strong password",
-    tone: "strong",
+    tone: "strong"
   };
 };
 
@@ -90,7 +89,7 @@ const validateForm = (form) => {
       nextErrors.newPassword = failedRule.message;
     } else if (form.newPassword === form.currentPassword) {
       nextErrors.newPassword =
-        "New password must be different from the current password.";
+      "New password must be different from the current password.";
     }
   }
 
@@ -111,9 +110,9 @@ const getErrorMessage = (error) => {
   }
 
   if (data?.errors && typeof data.errors === "object") {
-    const firstError = Object.values(data.errors)
-      .flat()
-      .find(Boolean);
+    const firstError = Object.values(data.errors).
+    flat().
+    find(Boolean);
 
     if (firstError) {
       return firstError;
@@ -123,8 +122,8 @@ const getErrorMessage = (error) => {
   return (
     data?.message ||
     data?.title ||
-    "Unable to update the password right now. Please try again."
-  );
+    "Unable to update the password right now. Please try again.");
+
 };
 
 function ChangePasswordModal({ open, onClose, role, email }) {
@@ -134,12 +133,12 @@ function ChangePasswordModal({ open, onClose, role, email }) {
   const [showPassword, setShowPassword] = useState({
     currentPassword: false,
     newPassword: false,
-    confirmPassword: false,
+    confirmPassword: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState({
     tone: "",
-    message: "",
+    message: ""
   });
 
   const errors = useMemo(() => validateForm(form), [form]);
@@ -183,12 +182,12 @@ function ChangePasswordModal({ open, onClose, role, email }) {
     setShowPassword({
       currentPassword: false,
       newPassword: false,
-      confirmPassword: false,
+      confirmPassword: false
     });
     setIsSubmitting(false);
     setStatus({
       tone: "",
-      message: "",
+      message: ""
     });
   }, [open]);
 
@@ -199,7 +198,7 @@ function ChangePasswordModal({ open, onClose, role, email }) {
   const updateField = (field, value) => {
     setForm((prev) => ({
       ...prev,
-      [field]: value,
+      [field]: value
     }));
   };
 
@@ -208,11 +207,11 @@ function ChangePasswordModal({ open, onClose, role, email }) {
     setTouched({
       currentPassword: true,
       newPassword: true,
-      confirmPassword: true,
+      confirmPassword: true
     });
     setStatus({
       tone: "",
-      message: "",
+      message: ""
     });
 
     if (Object.keys(errors).length > 0) {
@@ -223,29 +222,29 @@ function ChangePasswordModal({ open, onClose, role, email }) {
 
     try {
       const endpoint =
-        role?.toLowerCase() === "admin"
-          ? "/Admin/change-password"
-          : "/Employees/change-password";
+      role?.toLowerCase() === "admin" ?
+      "/Admin/change-password" :
+      "/Employees/change-password";
 
       await api.post(endpoint,
-        {
-          email: email,
-          oldPassword: form.currentPassword,
-          newPassword: form.newPassword,
-          confirmPassword: form.confirmPassword,
-        }
+      {
+        email: email,
+        oldPassword: form.currentPassword,
+        newPassword: form.newPassword,
+        confirmPassword: form.confirmPassword
+      }
       );
 
       setStatus({
         tone: "success",
-        message: "Password updated successfully.",
+        message: "Password updated successfully."
       });
 
       // REMOVE SUCCESS MESSAGE AFTER 3 SECONDS
       window.setTimeout(() => {
         setStatus({
           tone: "",
-          message: "",
+          message: ""
         });
       }, 3000);
 
@@ -254,14 +253,13 @@ function ChangePasswordModal({ open, onClose, role, email }) {
         onClose();
       }, 3000);
     } catch (error) {
-      console.log("API ERROR =>", error.response?.data);
 
       setStatus({
         tone: "error",
         message:
-          error.response?.data?.message ||
-          JSON.stringify(error.response?.data) ||
-          "Password update failed",
+        error.response?.data?.message ||
+        JSON.stringify(error.response?.data) ||
+        "Password update failed"
       });
     } finally {
       setIsSubmitting(false);
@@ -275,245 +273,245 @@ function ChangePasswordModal({ open, onClose, role, email }) {
         if (event.target === event.currentTarget && !isSubmitting) {
           onClose();
         }
-      }}
-    >
+      }}>
+      
       <div
         className="change-password-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="change-password-title"
-      >
+        aria-labelledby="change-password-title">
+        
         <button
           type="button"
           className="change-password-close"
           onClick={onClose}
           aria-label="Close change password modal"
-          disabled={isSubmitting}
-        >
-          <FaTimes />
-        </button>
-
-        <div className="change-password-intro">
-          <span className="change-password-symbol">
-            <FaKey />
-          </span>
-
-          <div>
-            <p className="change-password-kicker">Security Settings</p>
-            <h2 id="change-password-title">Change Password</h2>
-            {/* <p className="change-password-copy">
-              Update your credentials with a stronger password that matches the
-              PIRNAV security theme.
-            </p> */}
-          </div>
-        </div>
-
-        <form className="change-password-form" onSubmit={handleSubmit}>
-          <label className="change-password-field">
-            <span className="change-password-label">Current Password</span>
-
-            <span className="change-password-input-shell">
-              <span className="change-password-leading">
-                <FaLock />
-              </span>
-
+          disabled={isSubmitting}>
+          
+          <FaTimes />
+        </button>
+
+        <div className="change-password-intro">
+          <span className="change-password-symbol">
+            <FaKey />
+          </span>
+
+          <div>
+            <p className="change-password-kicker">Security Settings</p>
+            <h2 id="change-password-title">Change Password</h2>
+            {/* <p className="change-password-copy">
+               Update your credentials with a stronger password that matches the
+               PIRNAV security theme.
+              </p> */}
+          </div>
+        </div>
+
+        <form className="change-password-form" onSubmit={handleSubmit}>
+          <label className="change-password-field">
+            <span className="change-password-label">Current Password</span>
+
+            <span className="change-password-input-shell">
+              <span className="change-password-leading">
+                <FaLock />
+              </span>
+
               <input
                 type={showPassword.currentPassword ? "text" : "password"}
                 value={form.currentPassword}
                 onChange={(event) =>
-                  updateField("currentPassword", event.target.value)
+                updateField("currentPassword", event.target.value)
                 }
                 onBlur={() =>
-                  setTouched((prev) => ({
-                    ...prev,
-                    currentPassword: true,
-                  }))
+                setTouched((prev) => ({
+                  ...prev,
+                  currentPassword: true
+                }))
                 }
                 className="change-password-input"
                 placeholder="Enter current password"
-                autoComplete="current-password"
-              />
-
+                autoComplete="current-password" />
+              
+
               <button
                 type="button"
                 className="change-password-toggle"
                 onClick={() =>
-                  setShowPassword((prev) => ({
-                    ...prev,
-                    currentPassword: !prev.currentPassword,
-                  }))
+                setShowPassword((prev) => ({
+                  ...prev,
+                  currentPassword: !prev.currentPassword
+                }))
                 }
                 aria-label={
-                  showPassword.currentPassword
-                    ? "Hide current password"
-                    : "Show current password"
-                }
-              >
-                {showPassword.currentPassword ? <FaEye /> : <FaEyeSlash />}
-              </button>
-            </span>
-
-            {touched.currentPassword && errors.currentPassword ? (
-              <span className="change-password-field-error">
-                {errors.currentPassword}
-              </span>
-            ) : null}
-          </label>
-
-          <label className="change-password-field">
-            <span className="change-password-label">New Password</span>
-
-            <span className="change-password-input-shell">
-              <span className="change-password-leading">
-                <FaKey />
-              </span>
-
+                showPassword.currentPassword ?
+                "Hide current password" :
+                "Show current password"
+                }>
+                
+                {showPassword.currentPassword ? <FaEye /> : <FaEyeSlash />}
+              </button>
+            </span>
+
+            {touched.currentPassword && errors.currentPassword ?
+            <span className="change-password-field-error">
+                {errors.currentPassword}
+              </span> :
+            null}
+          </label>
+
+          <label className="change-password-field">
+            <span className="change-password-label">New Password</span>
+
+            <span className="change-password-input-shell">
+              <span className="change-password-leading">
+                <FaKey />
+              </span>
+
               <input
                 type={showPassword.newPassword ? "text" : "password"}
                 value={form.newPassword}
                 onChange={(event) =>
-                  updateField("newPassword", event.target.value)
+                updateField("newPassword", event.target.value)
                 }
                 onBlur={() =>
-                  setTouched((prev) => ({
-                    ...prev,
-                    newPassword: true,
-                  }))
+                setTouched((prev) => ({
+                  ...prev,
+                  newPassword: true
+                }))
                 }
                 className="change-password-input"
                 placeholder="Create a new password"
-                autoComplete="new-password"
-              />
-
+                autoComplete="new-password" />
+              
+
               <button
                 type="button"
                 className="change-password-toggle"
                 onClick={() =>
-                  setShowPassword((prev) => ({
-                    ...prev,
-                    newPassword: !prev.newPassword,
-                  }))
+                setShowPassword((prev) => ({
+                  ...prev,
+                  newPassword: !prev.newPassword
+                }))
                 }
                 aria-label={
-                  showPassword.newPassword
-                    ? "Hide new password"
-                    : "Show new password"
-                }
-              >
-                {showPassword.newPassword ? <FaEye /> : <FaEyeSlash />}
-              </button>
-            </span>
+                showPassword.newPassword ?
+                "Hide new password" :
+                "Show new password"
+                }>
+                
+                {showPassword.newPassword ? <FaEye /> : <FaEyeSlash />}
+              </button>
+            </span>
+
+            <div className="change-password-strength">
+              <div className="change-password-strength-meta">
+                <span>Password Strength</span>
+                <span className={`strength-pill ${strength.tone}`}>
+                  {strength.label}
+                </span>
+              </div>
+
+              <div className="change-password-strength-bars" aria-hidden="true">
+                {Array.from({ length: 4 }).map((_, index) =>
+                <span
+                  key={index}
+                  className={`change-password-strength-bar ${index < strength.filled ? `is-${strength.tone}` : ""}`
+                  } />
 
-            <div className="change-password-strength">
-              <div className="change-password-strength-meta">
-                <span>Password Strength</span>
-                <span className={`strength-pill ${strength.tone}`}>
-                  {strength.label}
-                </span>
-              </div>
+                )}
+              </div>
+            </div>
+
+            {touched.newPassword && errors.newPassword ?
+            <span className="change-password-field-error">
+                {errors.newPassword}
+              </span> :
 
-              <div className="change-password-strength-bars" aria-hidden="true">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <span
-                    key={index}
-                    className={`change-password-strength-bar ${index < strength.filled ? `is-${strength.tone}` : ""
-                      }`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {touched.newPassword && errors.newPassword ? (
-              <span className="change-password-field-error">
-                {errors.newPassword}
+            <span className="change-password-helper">
+                Use 8+ characters, 1 uppercase letter, 1 number, and 1 special
+                character.
               </span>
-            ) : (
-              <span className="change-password-helper">
-                Use 8+ characters, 1 uppercase letter, 1 number, and 1 special
-                character.
-              </span>
-            )}
-          </label>
-
-          <label className="change-password-field">
-            <span className="change-password-label">Confirm New Password</span>
-
-            <span className="change-password-input-shell">
-              <span className="change-password-leading">
-                <FaLock />
-              </span>
-
+            }
+          </label>
+
+          <label className="change-password-field">
+            <span className="change-password-label">Confirm New Password</span>
+
+            <span className="change-password-input-shell">
+              <span className="change-password-leading">
+                <FaLock />
+              </span>
+
               <input
                 type={showPassword.confirmPassword ? "text" : "password"}
                 value={form.confirmPassword}
                 onChange={(event) =>
-                  updateField("confirmPassword", event.target.value)
+                updateField("confirmPassword", event.target.value)
                 }
                 onBlur={() =>
-                  setTouched((prev) => ({
-                    ...prev,
-                    confirmPassword: true,
-                  }))
+                setTouched((prev) => ({
+                  ...prev,
+                  confirmPassword: true
+                }))
                 }
                 className="change-password-input"
                 placeholder="Confirm the new password"
-                autoComplete="new-password"
-              />
-
+                autoComplete="new-password" />
+              
+
               <button
                 type="button"
                 className="change-password-toggle"
                 onClick={() =>
-                  setShowPassword((prev) => ({
-                    ...prev,
-                    confirmPassword: !prev.confirmPassword,
-                  }))
+                setShowPassword((prev) => ({
+                  ...prev,
+                  confirmPassword: !prev.confirmPassword
+                }))
                 }
                 aria-label={
-                  showPassword.confirmPassword
-                    ? "Hide confirm password"
-                    : "Show confirm password"
-                }
-              >
-                {showPassword.confirmPassword ? <FaEye /> : <FaEyeSlash />}
-              </button>
-            </span>
-
-            {touched.confirmPassword && errors.confirmPassword ? (
-              <span className="change-password-field-error">
-                {errors.confirmPassword}
-              </span>
-            ) : null}
-          </label>
-
-          {status.message ? (
-            <div className={`change-password-status ${status.tone}`}>
-              {status.message}
-            </div>
-          ) : null}
-
-          <div className="change-password-actions">
+                showPassword.confirmPassword ?
+                "Hide confirm password" :
+                "Show confirm password"
+                }>
+                
+                {showPassword.confirmPassword ? <FaEye /> : <FaEyeSlash />}
+              </button>
+            </span>
+
+            {touched.confirmPassword && errors.confirmPassword ?
+            <span className="change-password-field-error">
+                {errors.confirmPassword}
+              </span> :
+            null}
+          </label>
+
+          {status.message ?
+          <div className={`change-password-status ${status.tone}`}>
+              {status.message}
+            </div> :
+          null}
+
+          <div className="change-password-actions">
             <button
               type="button"
               className="app-button-secondary"
               onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-
+              disabled={isSubmitting}>
+              
+              Cancel
+            </button>
+
             <button
               type="submit"
               className="app-button-primary"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Updating..." : "Update Password"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+              disabled={isSubmitting}>
+              
+              {isSubmitting ? "Updating..." : "Update Password"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>);
+
 }
 
 export default ChangePasswordModal;

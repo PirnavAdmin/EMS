@@ -2,6 +2,7 @@ import {
   isStoredOnboardingUser,
   getStoredRole,
   getStoredRoleName,
+  getStoredLoginType,
   getStoredPermissions,
   getStoredAuthValue,
 } from "./authStorage";
@@ -161,6 +162,16 @@ export const isAdmin = (value) => {
     return normalizeRoleValue(value) === "admin";
   }
 
+  const loginType = normalizeRoleValue(getStoredLoginType());
+
+  if (loginType === "admin") {
+    return true;
+  }
+
+  if (loginType === "superadmin" || loginType === "user" || loginType === "onboarding") {
+    return false;
+  }
+
   return (
     getUserRole() === "admin" ||
     getUserRoleName() === "admin"
@@ -172,6 +183,16 @@ export const isSuperAdmin = (value) => {
 
   if (value !== undefined) {
     return superAdminRoles.has(normalizeRoleValue(value));
+  }
+
+  const loginType = normalizeRoleValue(getStoredLoginType());
+
+  if (superAdminRoles.has(loginType)) {
+    return true;
+  }
+
+  if (loginType === "admin" || loginType === "user" || loginType === "onboarding") {
+    return false;
   }
 
   const explicitFlag = String(getStoredAuthValue("isSuperAdmin") || "")
@@ -227,6 +248,29 @@ export const isEmployeeUser = () => isEmployee();
 export const isOnboardingUser = () =>
   isStoredOnboardingUser() || hasRole("onboarding", "candidate");
 
+export const isRolePermissionRole = (value) => {
+  const normalizedRole =
+    value !== undefined
+      ? normalizeRoleValue(value)
+      : normalizeRoleValue(getUserRole() || getUserRoleName() || "");
+
+  if (!normalizedRole) {
+    return false;
+  }
+
+  return ![
+    "admin",
+    "administrator",
+    "superadmin",
+    "superadministrator",
+    "employee",
+    "user",
+    "manager",
+    "onboarding",
+    "candidate",
+  ].includes(normalizedRole);
+};
+
 const normalizeModuleName = (value) =>
   String(value ?? "")
     .trim()
@@ -266,125 +310,21 @@ export const modulePermissionMatches = (permissionModule, requestedModule) => {
 
 export const hasModulePermission = (moduleName, action = "canAccess") => {
   const activeRole = getUserRole() || getUserRoleName();
+  const loginType = getStoredLoginType();
   const superAdminRole = isSuperAdmin();
   const onboardingRole = isOnboardingUser();
-
-  console.log("[authorization] hasModulePermission", {
-    moduleName,
-    action,
-    activeRole: activeRole || "unknown",
-    isSuperAdmin: superAdminRole,
-    isOnboardingUser: onboardingRole,
-  });
+  const adminPermissionRole =
+    loginType === "admin" || (!loginType && isAdmin(activeRole));
 
   if (superAdminRole) {
-    console.log("[authorization] Module permission bypassed for Super Admin", {
-      moduleName,
-      action,
-      activeRole: activeRole || "unknown",
-    });
     return true;
   }
 
   if (onboardingRole) {
-    console.log("[authorization] Module permission denied for onboarding user", {
-      moduleName,
-      action,
-      activeRole: activeRole || "unknown",
-    });
     return false;
   }
 
-  if (activeRole === "admin") {
-    const permissions = getCurrentAdminAllowedModules();
-    const permissionCount = Array.isArray(permissions) ? permissions.length : 0;
-
-    console.log("[authorization] Module permission using admin cache", {
-      moduleName,
-      action,
-      activeRole,
-      permissionCount,
-    });
-
-    if (!Array.isArray(permissions) || permissions.length === 0) {
-      console.log("[authorization] Module permission result", {
-        moduleName,
-        action,
-        activeRole,
-        permissionPath: "admin-cache",
-        permissionCount,
-        result: false,
-      });
-      return false;
-    }
-
-    const isAllowed = permissions.some((permission) => {
-      const permissionModule = permission.moduleName ?? permission.ModuleName;
-
-      if (
-        !modulePermissionMatches(permissionModule, moduleName) &&
-        !ticketPermissionMatches(permissionModule, moduleName)
-      ) {
-        return false;
-      }
-
-      const canAccess =
-        permission.canAccess ??
-        permission.CanAccess ??
-        permission.canView ??
-        permission.CanView ??
-        true;
-
-      if (canAccess !== true) {
-        return false;
-      }
-
-      if (!action || action === "canAccess") {
-        return true;
-      }
-
-      return (
-        permission[action] ??
-        permission[action[0].toUpperCase() + action.slice(1)] ??
-        canAccess
-      ) === true;
-    });
-
-    console.log("[authorization] Module permission result", {
-      moduleName,
-      action,
-      activeRole,
-      permissionPath: "admin-cache",
-      permissionCount,
-      result: isAllowed,
-    });
-
-    return isAllowed;
-  }
-
-  const permissions = getStoredPermissions();
-  const permissionCount = Array.isArray(permissions) ? permissions.length : 0;
-
-  console.log("[authorization] Module permission using stored permissions", {
-    moduleName,
-    action,
-    activeRole: activeRole || "unknown",
-    permissionCount,
-  });
-
-  if (!Array.isArray(permissions) || permissions.length === 0) {
-    console.log("[authorization] Module permission result", {
-      moduleName,
-      action,
-      activeRole: activeRole || "unknown",
-      permissionPath: "stored-permissions",
-      permissionCount,
-      result: false,
-    });
-    return false;
-  }
-
-  const isAllowed = permissions.some((permission) => {
+  const matchesPermission = (permission) => {
     const permissionModule = permission.moduleName ?? permission.ModuleName;
 
     if (
@@ -409,19 +349,30 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
       return true;
     }
 
-    return (permission[action] ?? permission[action[0].toUpperCase() + action.slice(1)] ?? canAccess) === true;
-  });
+    return (
+      permission[action] ??
+      permission[action[0].toUpperCase() + action.slice(1)] ??
+      canAccess
+    ) === true;
+  };
 
-  console.log("[authorization] Module permission result", {
-    moduleName,
-    action,
-    activeRole: activeRole || "unknown",
-    permissionPath: "stored-permissions",
-    permissionCount,
-    result: isAllowed,
-  });
+  if (adminPermissionRole) {
+    const permissions = getCurrentAdminAllowedModules();
 
-  return isAllowed;
+    if (!Array.isArray(permissions) || permissions.length === 0) {
+      return false;
+    }
+
+    return permissions.some(matchesPermission);
+  }
+
+  const permissions = getStoredPermissions(activeRole);
+
+  if (!Array.isArray(permissions) || permissions.length === 0) {
+    return false;
+  }
+
+  return permissions.some(matchesPermission);
 };
 
 export const hasPermission = (moduleName, action = "canAccess") =>
@@ -474,7 +425,7 @@ export const resolveAuthRole = (roleValue, fallback = "") => {
   return normalizeRoleValue(fallback);
 };
 
-export const normalizeLoginRole = (roleValue = "", fallback = "admin") => {
+export const normalizeLoginRole = (roleValue = "", fallback = "") => {
   const normalizedRole = normalizeRoleValue(roleValue);
 
   if (["employee", "user", "manager"].includes(normalizedRole)) {
@@ -489,7 +440,7 @@ export const normalizeLoginRole = (roleValue = "", fallback = "admin") => {
     return "admin";
   }
 
-  return normalizeRoleValue(fallback) || "admin";
+  return normalizedRole || normalizeRoleValue(fallback);
 };
 
 export const getDashboardPathForRole = (roleValue = "") => {

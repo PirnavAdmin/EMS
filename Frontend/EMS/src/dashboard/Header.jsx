@@ -48,7 +48,7 @@ const getGreetingMeta = () => {
   };
 };
 
-function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
+function Header({ collapsed = false, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const profileMenuRef = useRef(null);
@@ -175,9 +175,9 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
         style={{
           position: "fixed",
           top: 0,
-          left: isMobileViewport ? "0" : headerOffset,
+          left: headerOffset,
           right: 0,
-          width: isMobileViewport ? "100%" : `calc(100% - ${headerOffset})`,
+          width: `calc(100% - ${headerOffset})`,
           zIndex: 1000,
         }}
       >
@@ -188,6 +188,7 @@ function Header({ collapsed = false, isMobileViewport = false, onToggle }) {
               className="sidebar-toggle"
               onClick={onToggle}
               aria-label="Toggle sidebar"
+              aria-expanded={!collapsed}
             >
               <FaBars />
             </button>

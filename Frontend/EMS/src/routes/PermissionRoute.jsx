@@ -4,10 +4,15 @@ import { usePermissionScope } from "../context/usePermissionScope";
 import { isSuperAdmin, modulePermissionMatches } from "../utils/authorization";
 
 const PermissionRoute = ({ children, module }) => {
-  const { loadingPermissions, allowedModules = [], permissionScope } = usePermissionScope();
+  const {
+    loadingPermissions,
+    allowedModules = [],
+    permissionScope,
+    authenticatedRole,
+  } = usePermissionScope();
   const location = useLocation();
   const currentPath = location.pathname;
-  const currentRole = String(permissionScope || "").trim().toLowerCase();
+  const currentRole = String(authenticatedRole || permissionScope || "").trim().toLowerCase();
 
   if (isSuperAdmin()) {
     return children;
@@ -15,14 +20,6 @@ const PermissionRoute = ({ children, module }) => {
 
   if (loadingPermissions) {
     return null;
-  }
-
-  if (currentRole === "admin") {
-    console.log("[Admin Permission] Checking route permission:", {
-      currentRole,
-      currentPath,
-      allowedModules,
-    });
   }
 
   const hasAccess = allowedModules.some((permission) => {
@@ -47,15 +44,7 @@ const PermissionRoute = ({ children, module }) => {
   });
 
   if (hasAccess) {
-    if (currentRole === "admin") {
-      console.log("[Admin Permission] Access granted:", currentPath);
-    }
-
     return children;
-  }
-
-  if (currentRole === "admin") {
-    console.log("[Admin Permission] Access denied:", currentPath);
   }
 
   return <Navigate to="/unauthorized" replace />;

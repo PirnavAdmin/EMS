@@ -11,13 +11,13 @@ import { formatDate } from "../utils/date";
 import {
   endPerformanceTimer,
   logPerformanceError,
-  startPerformanceTimer,
-} from "../utils/performance";
+  startPerformanceTimer } from
+"../utils/performance";
 import { handleAutoLogout } from "../utils/sessionManager";
 import {
   getAttendanceDashboardErrorMessage,
-  getAdminAttendanceOverview,
-} from "../services/attendanceService";
+  getAdminAttendanceOverview } from
+"../services/attendanceService";
 
 import TopCharts from "./TopCharts";
 import RecentActivity from "./RecentActivity";
@@ -31,29 +31,29 @@ const normalizeDashboardData = (payload = {}) => ({
   activeProjects: payload?.activeProjects ?? 0,
   attendancePercentage: payload?.attendancePercentage ?? 0,
   recentActivities: payload?.recentActivities ?? payload?.activities ?? [],
-  upcomingHolidays: payload?.upcomingHolidays ?? [],
+  upcomingHolidays: payload?.upcomingHolidays ?? []
 });
 
 const getInitials = (value = "") =>
-  String(value || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("") || "E";
+String(value || "").
+trim().
+split(/\s+/).
+filter(Boolean).
+slice(0, 2).
+map((part) => part[0]?.toUpperCase() || "").
+join("") || "E";
 
 const resolveBirthdayImage = (record = {}) => {
   const rawSource =
-    record?.employeePhoto ||
-    record?.photo ||
-    record?.photoUrl ||
-    record?.imageUrl ||
-    record?.avatarUrl ||
-    record?.profileImage ||
-    record?.picture ||
-    record?.image ||
-    "";
+  record?.employeePhoto ||
+  record?.photo ||
+  record?.photoUrl ||
+  record?.imageUrl ||
+  record?.avatarUrl ||
+  record?.profileImage ||
+  record?.picture ||
+  record?.image ||
+  "";
 
   if (!rawSource) {
     return "";
@@ -64,25 +64,25 @@ const resolveBirthdayImage = (record = {}) => {
 
 const normalizeBirthday = (record = {}) => {
   const employeeName =
-    record?.employeeName ||
-    record?.name ||
-    `${record?.firstName ?? ""} ${record?.lastName ?? ""}`.trim() ||
-    "Employee";
+  record?.employeeName ||
+  record?.name ||
+  `${record?.firstName ?? ""} ${record?.lastName ?? ""}`.trim() ||
+  "Employee";
 
   const designation =
-    record?.designation ||
-    record?.designationName ||
-    record?.roleName ||
-    record?.role ||
-    record?.position ||
-    "-";
+  record?.designation ||
+  record?.designationName ||
+  record?.roleName ||
+  record?.role ||
+  record?.position ||
+  "-";
 
   const birthday =
-    record?.birthday ||
-    record?.dob ||
-    record?.birthDate ||
-    record?.dateOfBirth ||
-    "";
+  record?.birthday ||
+  record?.dob ||
+  record?.birthDate ||
+  record?.dateOfBirth ||
+  "";
 
   const parsedDaysRemaining = Number(
     record?.daysRemaining ??
@@ -91,23 +91,23 @@ const normalizeBirthday = (record = {}) => {
     0
   );
 
-  const daysRemaining = Number.isFinite(parsedDaysRemaining)
-    ? Math.max(0, parsedDaysRemaining)
-    : 0;
+  const daysRemaining = Number.isFinite(parsedDaysRemaining) ?
+  Math.max(0, parsedDaysRemaining) :
+  0;
 
   return {
     employeeId:
-      record?.employeeId ||
-      record?.employeeID ||
-      record?.employee_id ||
-      record?.id ||
-      "",
+    record?.employeeId ||
+    record?.employeeID ||
+    record?.employee_id ||
+    record?.id ||
+    "",
     employeeName,
     designation,
     birthday,
     daysRemaining,
     imageUrl: resolveBirthdayImage(record),
-    initials: getInitials(employeeName),
+    initials: getInitials(employeeName)
   };
 };
 
@@ -140,10 +140,10 @@ function AdminBirthdaysCard({ birthdays = [], loading = false, error = "", onRet
         </Link>
       </div>
 
-      {loading ? (
-        <div className="birthdays-skeleton" aria-busy="true">
-          {Array.from({ length: 5 }, (_, index) => (
-            <div className="birthday-skeleton-row" key={index}>
+      {loading ?
+      <div className="birthdays-skeleton" aria-busy="true">
+          {Array.from({ length: 5 }, (_, index) =>
+        <div className="birthday-skeleton-row" key={index}>
               <div className="birthday-skeleton-avatar" />
               <div className="birthday-skeleton-copy">
                 <div className="birthday-skeleton-line short" />
@@ -151,10 +151,10 @@ function AdminBirthdaysCard({ birthdays = [], loading = false, error = "", onRet
               </div>
               <div className="birthday-skeleton-badge" />
             </div>
-          ))}
-        </div>
-      ) : error ? (
-        <div className="birthdays-empty birthdays-error">
+        )}
+        </div> :
+      error ?
+      <div className="birthdays-empty birthdays-error">
           <div className="birthdays-empty-icon">
             <FaRedo aria-hidden="true" />
           </div>
@@ -166,26 +166,26 @@ function AdminBirthdaysCard({ birthdays = [], loading = false, error = "", onRet
             <FaRedo aria-hidden="true" />
             Retry
           </button>
-        </div>
-      ) : visibleBirthdays.length === 0 ? (
-        <div className="birthdays-empty">
+        </div> :
+      visibleBirthdays.length === 0 ?
+      <div className="birthdays-empty">
           <div className="birthdays-empty-icon">
             <FaBirthdayCake aria-hidden="true" />
           </div>
 
           <strong>No upcoming birthdays</strong>
           <p>New birthdays will appear here automatically when the API returns them.</p>
-        </div>
-      ) : (
-        <div className="birthdays-list">
-          {visibleBirthdays.map((birthday) => (
-            <div className="birthday-item" key={`${birthday.employeeId}-${birthday.employeeName}`}>
+        </div> :
+
+      <div className="birthdays-list">
+          {visibleBirthdays.map((birthday) =>
+        <div className="birthday-item" key={`${birthday.employeeId}-${birthday.employeeName}`}>
               <div className="birthday-avatar">
-                {birthday.imageUrl ? (
-                  <img src={birthday.imageUrl} alt={birthday.employeeName} />
-                ) : (
-                  <span>{birthday.initials}</span>
-                )}
+                {birthday.imageUrl ?
+            <img src={birthday.imageUrl} alt={birthday.employeeName} /> :
+
+            <span>{birthday.initials}</span>
+            }
               </div>
 
               <div className="birthday-copy">
@@ -202,11 +202,11 @@ function AdminBirthdaysCard({ birthdays = [], loading = false, error = "", onRet
                 {formatDaysRemaining(birthday.daysRemaining)}
               </span>
             </div>
-          ))}
+        )}
         </div>
-      )}
-    </section>
-  );
+      }
+    </section>);
+
 }
 
 function AdminDashboard() {
@@ -233,13 +233,13 @@ function AdminDashboard() {
         startPerformanceTimer(timerLabel);
 
         const [dashboardResult, birthdaysResult] = await Promise.allSettled([
-          api.get(API_ENDPOINTS.dashboard, {
-            signal: controller.signal,
-          }),
-          api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
-            signal: controller.signal,
-          }),
-        ]);
+        api.get(API_ENDPOINTS.dashboard, {
+          signal: controller.signal
+        }),
+        api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
+          signal: controller.signal
+        })]
+        );
 
         if (dashboardResult.status === "fulfilled") {
           setDashboardData(
@@ -257,15 +257,15 @@ function AdminDashboard() {
         }
 
         if (birthdaysResult.status === "fulfilled") {
-          const birthdayRecords = extractCollection(birthdaysResult.value?.data)
-            .map(normalizeBirthday)
-            .sort((left, right) => {
-              if (left.daysRemaining !== right.daysRemaining) {
-                return left.daysRemaining - right.daysRemaining;
-              }
+          const birthdayRecords = extractCollection(birthdaysResult.value?.data).
+          map(normalizeBirthday).
+          sort((left, right) => {
+            if (left.daysRemaining !== right.daysRemaining) {
+              return left.daysRemaining - right.daysRemaining;
+            }
 
-              return left.employeeName.localeCompare(right.employeeName);
-            });
+            return left.employeeName.localeCompare(right.employeeName);
+          });
           setBirthdays(birthdayRecords);
         } else {
           setBirthdays([]);
@@ -302,7 +302,7 @@ function AdminDashboard() {
         setAttendanceError("");
 
         const response = await getAdminAttendanceOverview({
-          signal: controller.signal,
+          signal: controller.signal
         });
 
         if (controller.signal.aborted) {
@@ -320,14 +320,6 @@ function AdminDashboard() {
           error.response?.data || error.message
         );
 
-        console.error("Attendance Dashboard Error", {
-          status: error?.response?.status,
-          message: error?.response?.data || error?.message,
-          url: error?.config?.url,
-          params: error?.config?.params,
-          headers: error?.config?.headers,
-        });
-
         const status = error?.response?.status;
         const message = getAttendanceDashboardErrorMessage(
           error,
@@ -339,7 +331,7 @@ function AdminDashboard() {
         if (status === 401) {
           setAttendanceError("Session expired. Please sign in again.");
           handleAutoLogout({
-            reason: "Attendance overview session expired",
+            reason: "Attendance overview session expired"
           });
           return;
         }
@@ -379,10 +371,10 @@ function AdminDashboard() {
 
   const recentActivities = useMemo(() => {
     const activityData =
-      dashboardData?.recentActivities ||
-      dashboardData?.activities ||
-      dashboardData?.data?.recentActivities ||
-      [];
+    dashboardData?.recentActivities ||
+    dashboardData?.activities ||
+    dashboardData?.data?.recentActivities ||
+    [];
 
     return sortByRecency(Array.isArray(activityData) ? activityData : []).slice(0, 13);
   }, [dashboardData]);
@@ -396,8 +388,8 @@ function AdminDashboard() {
     return (
       <div className="dashboard">
         <PageSkeleton variant="dashboard" />
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -409,11 +401,11 @@ function AdminDashboard() {
         </p>
       </div>
 
-      {dashboardError && (
-        <div className="dashboard-alert" role="alert">
+      {dashboardError &&
+      <div className="dashboard-alert" role="alert">
           {dashboardError}
         </div>
-      )}
+      }
 
       <TopCharts data={dashboardData} loading={false} />
 
@@ -421,8 +413,8 @@ function AdminDashboard() {
         data={attendanceData}
         loading={attendanceLoading}
         error={attendanceError}
-        onRetry={() => setReloadTick((tick) => tick + 1)}
-      />
+        onRetry={() => setReloadTick((tick) => tick + 1)} />
+      
 
       <div className="bottom">
         <RecentActivity activities={recentActivities} />
@@ -431,14 +423,14 @@ function AdminDashboard() {
           <AdminBirthdaysCard
             birthdays={topBirthdays}
             error={birthdaysError}
-            onRetry={() => setReloadTick((tick) => tick + 1)}
-          />
+            onRetry={() => setReloadTick((tick) => tick + 1)} />
+          
           <Holidays holidays={dashboardData?.upcomingHolidays || []} />
           <QuickActions />
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default AdminDashboard;

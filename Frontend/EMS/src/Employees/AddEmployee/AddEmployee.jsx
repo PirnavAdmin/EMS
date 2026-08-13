@@ -5,12 +5,12 @@ import api from "../../api/axiosInstance";
 import { API_ENDPOINTS, buildApiUrl } from "../../api/endpoints";
 import {
   getStoredEmployeeId,
-  getStoredToken,
-} from "../../utils/authStorage";
+  getStoredToken } from
+"../../utils/authStorage";
 import {
   downloadBinaryFile,
-  getDownloadErrorMessage,
-} from "../../utils/downloadUtils";
+  getDownloadErrorMessage } from
+"../../utils/downloadUtils";
 import Stepper from "./Stepper";
 import PersonalInfo from "./PersonalInfo";
 import BankInfo from "./BankInfo";
@@ -39,7 +39,7 @@ function AddEmployee() {
   const [reviewError, setReviewError] = useState("");
   const [profileDownloadStatus, setProfileDownloadStatus] = useState({
     type: "",
-    message: "",
+    message: ""
   });
   const [profilePdfLoading, setProfilePdfLoading] = useState(false);
 
@@ -57,28 +57,28 @@ function AddEmployee() {
           headers: {
             "ngrok-skip-browser-warning": "true",
             ...(token && {
-              Authorization: `Bearer ${token}`,
-            }),
-          },
+              Authorization: `Bearer ${token}`
+            })
+          }
         };
 
-        const response = id
-          ? await api.get(API_ENDPOINTS.employeeFullDetail.byId(id), config)
-          : await api.get(API_ENDPOINTS.employeeFullDetail.myDetails, config);
+        const response = id ?
+        await api.get(API_ENDPOINTS.employeeFullDetail.byId(id), config) :
+        await api.get(API_ENDPOINTS.employeeFullDetail.myDetails, config);
 
         const employee = response.data || {};
 
         setEmployeeData(employee);
 
         const resolvedEmployeeId =
-          employee?.employeeId ||
-          employee?.employee_Id ||
-          employee?.personalInfo?.employee_Id ||
-          employee?.personalInfo?.employeeId ||
-          employee?.personalInfo?.id ||
-          employee?.id ||
-          id ||
-          getStoredEmployeeId();
+        employee?.employeeId ||
+        employee?.employee_Id ||
+        employee?.personalInfo?.employee_Id ||
+        employee?.personalInfo?.employeeId ||
+        employee?.personalInfo?.id ||
+        employee?.id ||
+        id ||
+        getStoredEmployeeId();
 
         if (resolvedEmployeeId) {
           setEmployeeId(String(resolvedEmployeeId));
@@ -97,7 +97,6 @@ function AddEmployee() {
 
         return employee;
       } catch (error) {
-        console.error("Employee fetch error:", error);
 
         const role = localStorage.getItem("role");
 
@@ -214,13 +213,13 @@ function AddEmployee() {
   };
 
   const profileEmployeeId =
-    employeeId ||
-    employeeData?.personalInfo?.employee_Id ||
-    employeeData?.personalInfo?.employeeId ||
-    employeeData?.employeeId ||
-    employeeData?.id ||
-    id ||
-    getStoredEmployeeId();
+  employeeId ||
+  employeeData?.personalInfo?.employee_Id ||
+  employeeData?.personalInfo?.employeeId ||
+  employeeData?.employeeId ||
+  employeeData?.id ||
+  id ||
+  getStoredEmployeeId();
 
   const handleDownloadProfilePdf = async () => {
     if (profilePdfLoading) {
@@ -231,13 +230,13 @@ function AddEmployee() {
       const message = "Employee ID not found for PDF download.";
       setProfileDownloadStatus({
         type: "success",
-        message,
+        message
       });
 
       setTimeout(() => {
         setProfileDownloadStatus({
           type: "",
-          message: "",
+          message: ""
         });
       }, 3000);
       toastError(message);
@@ -250,7 +249,7 @@ function AddEmployee() {
       const message = "Session expired. Please login again.";
       setProfileDownloadStatus({
         type: "error",
-        message,
+        message
       });
       toastError(message);
       return;
@@ -259,7 +258,7 @@ function AddEmployee() {
     setProfilePdfLoading(true);
     setProfileDownloadStatus({
       type: "loading",
-      message: "Preparing profile PDF download...",
+      message: "Preparing profile PDF download..."
     });
 
     try {
@@ -270,34 +269,34 @@ function AddEmployee() {
         token,
         fallbackFileName: `EmployeeProfile_${profileEmployeeId}.pdf`,
         accept:
-          "application/pdf, application/octet-stream;q=0.9, */*;q=0.1",
+        "application/pdf, application/octet-stream;q=0.9, */*;q=0.1"
       });
       const message = "Profile PDF downloaded successfully.";
 
       setProfileDownloadStatus({
         type: "success",
-        message,
+        message
       });
 
       setTimeout(() => {
         setProfileDownloadStatus({
           type: "",
-          message: "",
+          message: ""
         });
       }, 3000);
 
       toastSuccess(message);
     } catch (error) {
-      const message = error?.response
-        ? await getDownloadErrorMessage(
-          error,
-          "Failed to download employee profile PDF."
-        )
-        : error?.message || "Failed to download employee profile PDF.";
+      const message = error?.response ?
+      await getDownloadErrorMessage(
+        error,
+        "Failed to download employee profile PDF."
+      ) :
+      error?.message || "Failed to download employee profile PDF.";
 
       setProfileDownloadStatus({
         type: "error",
-        message,
+        message
       });
       toastError(message);
     } finally {
@@ -307,139 +306,139 @@ function AddEmployee() {
 
   if (loading) {
     return (
-      <div className="employee-loader-container">
-        <div className="employee-loader"></div>
-        <p>Loading employee details...</p>
-      </div>
-    );
+      <div className="employee-loader-container">
+        <div className="employee-loader"></div>
+        <p>Loading employee details...</p>
+      </div>);
+
   }
 
   return (
     <div className="add-employee">
-<div className="page-header-row profile-card">
-        <div className="profile-header-copy">
-          <h2 className="page-title profile-title">{viewMode ? "Employee Details" : "My Profile"}</h2>
-
-          <p className="page-subtitle">
-            {viewMode
-              ? "Admin can navigate all steps directly"
-              : isEditing
-                ? "You can now edit your profile details"
-                : "Complete your profile step by step"}
-          </p>
-
-          {noDataMessage && <div className="employee-empty-message">{noDataMessage}</div>}
-        </div>
-
-        <div className="profile-header-actions">
-          <div className="profile-header-buttons">
-
+<div className="page-header-row profile-card">
+        <div className="profile-header-copy">
+          <h2 className="page-title profile-title">{viewMode ? "Employee Details" : "My Profile"}</h2>
+
+          <p className="page-subtitle">
+            {viewMode ?
+            "Admin can navigate all steps directly" :
+            isEditing ?
+            "You can now edit your profile details" :
+            "Complete your profile step by step"}
+          </p>
+
+          {noDataMessage && <div className="employee-empty-message">{noDataMessage}</div>}
+        </div>
+
+        <div className="profile-header-actions">
+          <div className="profile-header-buttons">
+
             <button
               type="button"
               className="profile-download-btn"
               onClick={handleDownloadProfilePdf}
-              disabled={profilePdfLoading || !profileEmployeeId}
-            >
-              {profilePdfLoading ? "Downloading..." : "Download PDF"}
-            </button>
-
+              disabled={profilePdfLoading || !profileEmployeeId}>
+              
+              {profilePdfLoading ? "Downloading..." : "Download PDF"}
+            </button>
+
             <button
               type="button"
               className="edit-profile-btn"
-              onClick={handleEditToggle}
-            >
-              {isEditing ? "Cancel Edit" : "Edit"}
-            </button>
-
-            {profileDownloadStatus.message && (
-              <div
-                className={`profile-download-status ${profileDownloadStatus.type}`}
-              >
-                {profileDownloadStatus.message}
-
+              onClick={handleEditToggle}>
+              
+              {isEditing ? "Cancel Edit" : "Edit"}
+            </button>
+
+            {profileDownloadStatus.message &&
+            <div
+              className={`profile-download-status ${profileDownloadStatus.type}`}>
+              
+                {profileDownloadStatus.message}
+
               </div>
-            )}
+            }
+
+          </div>
+        </div>
+      </div>
+
+      <Stepper step={step} setStep={setStep} maxStep={viewMode ? 6 : maxStep} />
+
+      <div className="step-content">
+        {step === 1 &&
+        <PersonalInfo
+          onNext={nextFromPersonal}
+          employeeId={employeeId}
+          viewMode={!isEditing}
+          data={employeeData?.personalInfo || null}
+          selfProfile={!id}
+          updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)} />
 
-          </div>
-        </div>
-      </div>
+        }
+
+        {step === 2 &&
+        <BankInfo
+          ref={bankRef}
+          onBack={() => setStep(1)}
+          onNext={nextFromBank}
+          employeeId={employeeId}
+          viewMode={!isEditing}
+          data={employeeData?.bankDetails || null}
+          selfProfile={!id}
+          updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)} />
 
-      <Stepper step={step} setStep={setStep} maxStep={viewMode ? 6 : maxStep} />
+        }
+
+        {step === 3 &&
+        <Education
+          onBack={() => setStep(2)}
+          onNext={nextFromEducation}
+          employeeId={employeeId}
+          viewMode={!isEditing}
+          data={employeeData?.education || []}
+          selfProfile={!id}
+          updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)} />
 
-      <div className="step-content">
-        {step === 1 && (
-          <PersonalInfo
-            onNext={nextFromPersonal}
-            employeeId={employeeId}
-            viewMode={!isEditing}
-            data={employeeData?.personalInfo || null}
-            selfProfile={!id}
-            updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)}
-          />
-        )}
+        }
+
+        {step === 4 &&
+        <Experience
+          onBack={() => setStep(3)}
+          onNext={nextFromExperience}
+          employeeId={employeeId}
+          viewMode={!isEditing}
+          data={employeeData?.experience || []}
+          selfProfile={!id}
+          updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)} />
 
-        {step === 2 && (
-          <BankInfo
-            ref={bankRef}
-            onBack={() => setStep(1)}
-            onNext={nextFromBank}
-            employeeId={employeeId}
-            viewMode={!isEditing}
-            data={employeeData?.bankDetails || null}
-            selfProfile={!id}
-            updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)}
-          />
-        )}
+        }
+
+        {step === 5 &&
+        <Documents
+          onBack={() => setStep(4)}
+          onNext={nextFromDocuments}
+          employeeId={employeeId}
+          viewMode={!isEditing} />
 
-        {step === 3 && (
-          <Education
-            onBack={() => setStep(2)}
-            onNext={nextFromEducation}
-            employeeId={employeeId}
-            viewMode={!isEditing}
-            data={employeeData?.education || []}
-            selfProfile={!id}
-            updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)}
-          />
-        )}
+        }
+
+        {step === 6 &&
+        <ReviewSubmit
+          data={employeeData}
+          employeeId={employeeId}
+          viewMode={!isEditing}
+          submitting={reviewSubmitting}
+          successMsg={reviewSuccess}
+          errorMsg={reviewError}
+          onBack={handleReviewBack}
+          onEditSection={handleReviewEdit}
+          onFinalSubmit={handleFinalSubmit} />
 
-        {step === 4 && (
-          <Experience
-            onBack={() => setStep(3)}
-            onNext={nextFromExperience}
-            employeeId={employeeId}
-            viewMode={!isEditing}
-            data={employeeData?.experience || []}
-            selfProfile={!id}
-            updateUrl={buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails)}
-          />
-        )}
+        }
+      </div>
+    </div>);
 
-        {step === 5 && (
-          <Documents
-            onBack={() => setStep(4)}
-            onNext={nextFromDocuments}
-            employeeId={employeeId}
-            viewMode={!isEditing}
-          />
-        )}
-
-        {step === 6 && (
-          <ReviewSubmit
-            data={employeeData}
-            employeeId={employeeId}
-            viewMode={!isEditing}
-            submitting={reviewSubmitting}
-            successMsg={reviewSuccess}
-            errorMsg={reviewError}
-            onBack={handleReviewBack}
-            onEditSection={handleReviewEdit}
-            onFinalSubmit={handleFinalSubmit}
-          />
-        )}
-      </div>
-    </div>
-  );
 }
 
 export default AddEmployee;

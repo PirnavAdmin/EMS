@@ -35,8 +35,8 @@ function TeamDetails() {
 
   const getToken = useCallback(
     () =>
-      localStorage.getItem("token") ||
-      sessionStorage.getItem("token"),
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token"),
     []
   );
 
@@ -53,12 +53,9 @@ function TeamDetails() {
         }
       );
 
-      console.log("ProjectId:", res.data.projectId);
-      console.log("ReportingManagerId:", res.data.reportingManagerId);
-      console.log("Full Response:", res.data);
       setTeam({
         ...res.data,
-        id: res.data.teamId,
+        id: res.data.teamId
       });
 
       setDraftReportingDays(
@@ -81,16 +78,16 @@ function TeamDetails() {
 
     return {
       totalMembers: team.members?.length || 0,
-      reportingDays: team.reportingDays || TEAM_DAY_OPTIONS,
+      reportingDays: team.reportingDays || TEAM_DAY_OPTIONS
     };
   }, [team]);
 
   const handleToggleReportingDay = (day) => {
     setDraftReportingDays((current) => {
       const isSelected = current.includes(day);
-      return isSelected
-        ? current.filter((item) => item !== day)
-        : [...current, day];
+      return isSelected ?
+      current.filter((item) => item !== day) :
+      [...current, day];
     });
   };
 
@@ -103,15 +100,11 @@ function TeamDetails() {
 
     try {
 
-      console.log("Team Object:", team);
-      console.log("team.id:", team?.id);
-      console.log("Route teamId:", teamId);
-
       await api.put(
         API_ENDPOINTS.team.updateReportingDays,
         {
           teamId: team.id,
-          reportingDays: draftReportingDays,
+          reportingDays: draftReportingDays
         },
         {
           headers: {
@@ -127,11 +120,6 @@ function TeamDetails() {
 
     } catch (err) {
 
-      console.log(err);
-      console.log("Status:", err.response?.status);
-      console.log("URL:", err.config?.baseURL + err.config?.url);
-      console.log("Request:", JSON.parse(err.config?.data || "{}"));
-      console.log("Response:", err.response?.data);
       toastError("Unable to update reporting days");
 
     }
@@ -178,15 +166,12 @@ function TeamDetails() {
       projectName,
 
       customReportingDays,
-      reportingDays: customReportingDays
-        ? reportingDays
-        : []
+      reportingDays: customReportingDays ?
+      reportingDays :
+      []
     };
 
-    console.log(payload);
-
     try {
-      console.log("Override Payload:", payload);
 
       const res = await api.put(
         API_ENDPOINTS.team.memberOverride,
@@ -198,21 +183,14 @@ function TeamDetails() {
         }
       );
 
-      console.log("Response:", res.data);
-
       fetchTeam();
 
     } catch (err) {
 
-      console.log("Status:", err.response?.status);
-      console.log("Response:", err.response?.data);
-      console.log("Errors:", err.response?.data?.errors);
-      console.log("Payload:", payload);
     }
 
     fetchTeam();
   };
-
 
   if (isLoading) {
     return (
@@ -230,16 +208,16 @@ function TeamDetails() {
         <TableSkeleton
           rows={4}
           columns={[
-            { width: "minmax(220px, 1.5fr)", headerWidth: "72%" },
-            { width: "120px", headerWidth: "64%" },
-            { width: "minmax(220px, 1.35fr)", headerWidth: "72%" },
-            { width: "160px", type: "stacked", headerWidth: "64%" },
-            { width: "160px", type: "stacked", headerWidth: "64%" },
-            { width: "140px", type: "actions", headerWidth: "54%" },
-          ]}
-        />
-      </div>
-    );
+          { width: "minmax(220px, 1.5fr)", headerWidth: "72%" },
+          { width: "120px", headerWidth: "64%" },
+          { width: "minmax(220px, 1.35fr)", headerWidth: "72%" },
+          { width: "160px", type: "stacked", headerWidth: "64%" },
+          { width: "160px", type: "stacked", headerWidth: "64%" },
+          { width: "140px", type: "actions", headerWidth: "54%" }]
+          } />
+        
+      </div>);
+
   }
 
   if (!team) {
@@ -248,18 +226,18 @@ function TeamDetails() {
 <button
           type="button"
           className="teams-back-btn"
-          onClick={() => navigate("/teams")}
-        >
+          onClick={() => navigate("/teams")}>
+          
           <FaArrowLeft />
           Back to Teams
         </button>
 
         <EmptyState
           className="teams-empty-state teams-detail-empty"
-          message="Team not found."
-        />
-      </div>
-    );
+          message="Team not found." />
+        
+      </div>);
+
   }
 
   return (
@@ -267,8 +245,8 @@ function TeamDetails() {
 <button
         type="button"
         className="teams-back-btn"
-        onClick={() => navigate("/teams")}
-      >
+        onClick={() => navigate("/teams")}>
+        
         <FaArrowLeft />
         Back to Teams
       </button>
@@ -289,25 +267,25 @@ function TeamDetails() {
               </p>
             </div>
 
-            {canManageTeams && (
-              <div className="team-summary-actions">
+            {canManageTeams &&
+            <div className="team-summary-actions">
 
                 <button
-                  className="team-action-btn secondary"
-                  onClick={handleEditTeam}
-                >
+                className="team-action-btn secondary"
+                onClick={handleEditTeam}>
+                
                   Edit Team
                 </button>
 
                 <button
-                  className="team-action-btn danger"
-                  onClick={handleDeleteTeam}
-                >
+                className="team-action-btn danger"
+                onClick={handleDeleteTeam}>
+                
                   Delete Team
                 </button>
 
               </div>
-            )}
+            }
 
           </div>
 
@@ -355,21 +333,21 @@ function TeamDetails() {
         </aside>
       </div>
 
-      {canManageTeams && (
-        <TeamReportingDays
-          teamName={team.teamName}
-          days={team.reportingDays}
-          draftDays={draftReportingDays}
-          isEditing={isEditingReportingDays}
-          onEdit={() => setIsEditingReportingDays(true)}
-          onCancel={() => {
-            setDraftReportingDays(team.reportingDays || [...TEAM_DAY_OPTIONS]);
-            setIsEditingReportingDays(false);
-          }}
-          onSave={handleSaveReportingDays}
-          onToggleDay={handleToggleReportingDay}
-        />
-      )}
+      {canManageTeams &&
+      <TeamReportingDays
+        teamName={team.teamName}
+        days={team.reportingDays}
+        draftDays={draftReportingDays}
+        isEditing={isEditingReportingDays}
+        onEdit={() => setIsEditingReportingDays(true)}
+        onCancel={() => {
+          setDraftReportingDays(team.reportingDays || [...TEAM_DAY_OPTIONS]);
+          setIsEditingReportingDays(false);
+        }}
+        onSave={handleSaveReportingDays}
+        onToggleDay={handleToggleReportingDay} />
+
+      }
 
       <TeamMembersTable
         members={team.members || []}
@@ -379,8 +357,8 @@ function TeamDetails() {
         canManage={canManageTeams}
         onOverrideMember={handleOpenOverride}
         onAddMember={handleAddMembers}
-        onRemoveMember={handleRemoveMember}
-      />
+        onRemoveMember={handleRemoveMember} />
+      
 
       <OverrideMemberModal
         open={isOverrideOpen}
@@ -390,8 +368,8 @@ function TeamDetails() {
           setIsOverrideOpen(false);
           setOverrideMember(null);
         }}
-        onSave={handleSaveOverride}
-      />
+        onSave={handleSaveOverride} />
+      
 
       <EditTeamModal
         open={isEditTeamOpen}
@@ -405,10 +383,8 @@ function TeamDetails() {
               teamName: form.teamName,
               projectId: form.projectId,
               reportingManagerId: form.reportingManagerId,
-              engagementType: form.engagementType,
+              engagementType: form.engagementType
             };
-
-            console.log("Update Team Payload:", payload);
 
             await api.put(
               API_ENDPOINTS.team.update,
@@ -428,15 +404,10 @@ function TeamDetails() {
 
           } catch (err) {
 
-            console.log(err);
-            console.log("Status:", err.response?.status);
-            console.log("Response:", err.response?.data);
-            console.log("Request:", JSON.parse(err.config?.data || "{}"));
-
             toastError(err.response?.data || "Unable to update team");
           }
-        }}
-      />
+        }} />
+      
 
       <AddMembersModal
         open={isAddMemberOpen}
@@ -450,7 +421,7 @@ function TeamDetails() {
               API_ENDPOINTS.team.addMembers,
               {
                 teamId: team.id,
-                employeeIds,
+                employeeIds
               },
               {
                 headers: {
@@ -467,14 +438,12 @@ function TeamDetails() {
 
           } catch (err) {
 
-            console.log(err);
-
             toastError("Unable to add members");
 
           }
 
-        }}
-      />
+        }} />
+      
 
       <DeleteTeamModal
         open={isDeleteTeamOpen}
@@ -499,14 +468,12 @@ function TeamDetails() {
 
           } catch (err) {
 
-            console.log(err);
-
             toastError("Unable to delete team");
 
           }
 
-        }}
-      />
+        }} />
+      
 
       <RemoveMemberModal
         open={!!removeMember}
@@ -536,17 +503,15 @@ function TeamDetails() {
 
           } catch (err) {
 
-            console.log(err);
-
             toastError("Unable to remove member");
 
           }
 
-        }}
-      />
+        }} />
+      
 
-    </div>
-  );
+    </div>);
+
 }
 
 export default TeamDetails;

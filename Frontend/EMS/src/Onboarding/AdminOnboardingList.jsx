@@ -13,17 +13,17 @@ import { formatDate } from "../utils/date";
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const getFirstValue = (...values) =>
-  values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
+values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
 
 const getCandidateName = (candidate) =>
-  String(
-    getFirstValue(
-      candidate.candidateName,
-      candidate.fullName,
-      candidate.name,
-      [candidate.firstName, candidate.middleName, candidate.lastName].filter(Boolean).join(" ")
-    ) || "-"
-  ).trim();
+String(
+  getFirstValue(
+    candidate.candidateName,
+    candidate.fullName,
+    candidate.name,
+    [candidate.firstName, candidate.middleName, candidate.lastName].filter(Boolean).join(" ")
+  ) || "-"
+).trim();
 
 const normalizeCandidate = (candidate = {}) => {
   const onboardingId = String(
@@ -47,7 +47,7 @@ const normalizeCandidate = (candidate = {}) => {
     location: getFirstValue(candidate.location, candidate.workLocation, "-"),
     joiningDateValue: joiningDate ? String(joiningDate).split("T")[0] : "",
     joiningDate: formatDate(joiningDate) || "-",
-    status: getFirstValue(candidate.status, candidate.onboardingStatus, "Pending"),
+    status: getFirstValue(candidate.status, candidate.onboardingStatus, "Pending")
   };
 };
 
@@ -71,7 +71,7 @@ function AdminOnboardingList() {
       const response = await api.get(API_ENDPOINTS.onboardingPersonalInfo.list);
       setCandidates(extractCollection(response.data).map(normalizeCandidate));
     } catch (error) {
-      console.error("Onboarding candidates load error:", error);
+
       toastError("Unable to load onboarding candidates.");
       setCandidates([]);
     } finally {
@@ -107,20 +107,20 @@ function AdminOnboardingList() {
 
     const results = candidates.filter((candidate) => {
       const matchesSearch =
-        !searchText ||
-        [
-          candidate.onboardingId,
-          candidate.candidateName,
-          candidate.email,
-          candidate.phoneNumber,
-        ].some((value) => String(value || "").toLowerCase().includes(searchText));
+      !searchText ||
+      [
+      candidate.onboardingId,
+      candidate.candidateName,
+      candidate.email,
+      candidate.phoneNumber].
+      some((value) => String(value || "").toLowerCase().includes(searchText));
 
       const matchesDepartment =
-        departmentFilter === "All" || candidate.department === departmentFilter;
+      departmentFilter === "All" || candidate.department === departmentFilter;
       const matchesDesignation =
-        !designationFilter || candidate.designation === designationFilter;
+      !designationFilter || candidate.designation === designationFilter;
       const matchesStatus =
-        statusFilter === "All" || candidate.status === statusFilter;
+      statusFilter === "All" || candidate.status === statusFilter;
 
       return matchesSearch && matchesDepartment && matchesDesignation && matchesStatus;
     });
@@ -162,14 +162,14 @@ function AdminOnboardingList() {
       setCandidateToDelete(null);
       await fetchCandidates();
     } catch (error) {
-      console.error("Onboarding candidate delete error:", error);
+
       toastError(error?.response?.data?.message || "Delete failed.");
     }
   };
 
-  const emptyStateMessage = search.trim()
-    ? "No onboarding candidates match your search."
-    : "No onboarding candidates found.";
+  const emptyStateMessage = search.trim() ?
+  "No onboarding candidates match your search." :
+  "No onboarding candidates found.";
 
   return (
     <div className="emp-page-unique">
@@ -188,49 +188,49 @@ function AdminOnboardingList() {
           type="text"
           placeholder="Search by onboarding ID, name, email, or phone..."
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+          onChange={(event) => setSearch(event.target.value)} />
+        
 
         <div className="emp-filter-group">
           <select
             className="emp-filter-select"
             value={departmentFilter}
-            onChange={(event) => setDepartmentFilter(event.target.value)}
-          >
+            onChange={(event) => setDepartmentFilter(event.target.value)}>
+            
             <option value="All">All Departments</option>
-            {departmentOptions.map((department) => (
-              <option key={department} value={department}>{department}</option>
-            ))}
+            {departmentOptions.map((department) =>
+            <option key={department} value={department}>{department}</option>
+            )}
           </select>
 
           <select
             className="emp-filter-select"
             value={designationFilter}
             onChange={(event) => setDesignationFilter(event.target.value)}
-            disabled={designationOptions.length === 0}
-          >
+            disabled={designationOptions.length === 0}>
+            
             <option value="">All Designations</option>
-            {designationOptions.map((designation) => (
-              <option key={designation} value={designation}>{designation}</option>
-            ))}
+            {designationOptions.map((designation) =>
+            <option key={designation} value={designation}>{designation}</option>
+            )}
           </select>
 
           <select
             className="emp-filter-select"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          >
+            onChange={(event) => setStatusFilter(event.target.value)}>
+            
             <option value="All">All Statuses</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
+            {statusOptions.map((status) =>
+            <option key={status} value={status}>{status}</option>
+            )}
           </select>
 
           <select
             className="emp-filter-select"
             value={sortBy}
-            onChange={(event) => setSortBy(event.target.value)}
-          >
+            onChange={(event) => setSortBy(event.target.value)}>
+            
             <option value="latest-desc">Sort: New Joining Date</option>
             <option value="oldest-asc">Sort: Old Joining Date</option>
             <option value="name-asc">Sort: Name</option>
@@ -244,10 +244,10 @@ function AdminOnboardingList() {
         </div>
 
         <div className="emp-table-container">
-          {loading ? (
-            <TableSkeleton rows={8} columns={10} />
-          ) : (
-            <table className="emp-table">
+          {loading ?
+          <TableSkeleton rows={8} columns={10} /> :
+
+          <table className="emp-table">
               <colgroup>
                 <col style={{ width: "150px" }} />
                 <col style={{ width: "240px" }} />
@@ -275,19 +275,19 @@ function AdminOnboardingList() {
                 </tr>
               </thead>
               <tbody>
-                {currentCandidates.length === 0 ? (
-                  <tr>
+                {currentCandidates.length === 0 ?
+              <tr>
                     <td colSpan="10" className="emp-empty-state app-table-empty-cell">
                       {emptyStateMessage}
                     </td>
-                  </tr>
-                ) : (
-                  currentCandidates.map((candidate) => (
-                    <tr
-                      key={candidate.onboardingId}
-                      className="emp-row-click"
-                      onClick={() => navigate(`/admin/onboarding/${candidate.onboardingId}`)}
-                    >
+                  </tr> :
+
+              currentCandidates.map((candidate) =>
+              <tr
+                key={candidate.onboardingId}
+                className="emp-row-click"
+                onClick={() => navigate(`/admin/onboarding/${candidate.onboardingId}`)}>
+                
                       <td className="emp-cell emp-cell--center emp-cell--truncate">
                         <TruncatedText as="div" className="emp-id-code" value={candidate.onboardingId} />
                       </td>
@@ -308,33 +308,33 @@ function AdminOnboardingList() {
                       <td className="emp-action-col">
                         <div className="emp-action-buttons">
                           <button
-                            className="app-action-button emp-action-btn emp-action-btn--edit"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              navigate(`/admin/onboarding/${candidate.onboardingId}`, {
-                                state: { edit: true },
-                              });
-                            }}
-                          >
+                      className="app-action-button emp-action-btn emp-action-btn--edit"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/admin/onboarding/${candidate.onboardingId}`, {
+                          state: { edit: true }
+                        });
+                      }}>
+                      
                             Edit
                           </button>
                           <button
-                            className="app-action-button emp-action-btn emp-action-btn--delete"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setCandidateToDelete(candidate.onboardingId);
-                            }}
-                          >
+                      className="app-action-button emp-action-btn emp-action-btn--delete"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setCandidateToDelete(candidate.onboardingId);
+                      }}>
+                      
                             Delete
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+              )
+              }
               </tbody>
             </table>
-          )}
+          }
         </div>
 
         <AppPagination
@@ -347,12 +347,12 @@ function AdminOnboardingList() {
             setCurrentPage(1);
           }}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
-          itemLabel="candidates"
-        />
+          itemLabel="candidates" />
+        
       </div>
 
-      {candidateToDelete && (
-        <div className="emp-delete-overlay">
+      {candidateToDelete &&
+      <div className="emp-delete-overlay">
           <div className="emp-delete-modal">
             <h3>Delete Candidate</h3>
             <p style={{ marginBottom: "35px" }}>
@@ -360,9 +360,9 @@ function AdminOnboardingList() {
             </p>
             <div className="emp-delete-actions">
               <button
-                className="emp-delete-cancel-btn"
-                onClick={() => setCandidateToDelete(null)}
-              >
+              className="emp-delete-cancel-btn"
+              onClick={() => setCandidateToDelete(null)}>
+              
                 Cancel
               </button>
               <button className="emp-delete-btn" onClick={confirmDeleteCandidate}>
@@ -371,9 +371,9 @@ function AdminOnboardingList() {
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 }
 
 export default AdminOnboardingList;

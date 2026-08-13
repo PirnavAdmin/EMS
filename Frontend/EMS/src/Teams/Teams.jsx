@@ -41,8 +41,8 @@ function Teams() {
 
   const getToken = useCallback(
     () =>
-      localStorage.getItem("token") ||
-      sessionStorage.getItem("token"),
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token"),
     []
   );
 
@@ -58,12 +58,11 @@ function Teams() {
           }
         }
       );
-      console.log("Teams API:", res.data);
 
       setTeams(res.data || []);
 
     } catch (err) {
-      console.log(err);
+
     } finally {
       setIsLoading(false);
     }
@@ -86,20 +85,20 @@ function Teams() {
 
     return teams.filter((team) => {
       const memberNames = (team.members || []).map((member) =>
-        String(member.employeeName || "").toLowerCase()
+      String(member.employeeName || "").toLowerCase()
       );
 
       return [
-        team.teamNumber,
-        team.teamName,
-        team.reportingManager,
-        team.projectName,
-        team.engagementType,
-        ...(team.reportingDays || []),
-        ...memberNames,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
+      team.teamNumber,
+      team.teamName,
+      team.reportingManager,
+      team.projectName,
+      team.engagementType,
+      ...(team.reportingDays || []),
+      ...memberNames].
+
+      filter(Boolean).
+      some((value) => String(value).toLowerCase().includes(query));
     });
   }, [searchTerm, teams]);
 
@@ -137,7 +136,7 @@ function Teams() {
 
       return response.data;
     } catch (err) {
-      console.log(err);
+
       toastError("Unable to create team");
     }
   };
@@ -163,8 +162,8 @@ function Teams() {
         </div>
 
         <CardSkeleton count={3} variant="panel" />
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -183,15 +182,15 @@ function Teams() {
             {teams.length} {teams.length === 1 ? "Team" : "Teams"}
           </span>
 
-          {canManageTeams && (
-            <button
-              className="teams-add-btn"
-              onClick={() => setIsAddTeamOpen(true)}
-            >
+          {canManageTeams &&
+          <button
+            className="teams-add-btn"
+            onClick={() => setIsAddTeamOpen(true)}>
+            
               <FaPlus />
               Add Team
             </button>
-          )}
+          }
         </div>
       </div>
 
@@ -205,8 +204,8 @@ function Teams() {
             type="search"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search teams, manager, project or members"
-          />
+            placeholder="Search teams, manager, project or members" />
+          
         </label>
 
         <div className="teams-toolbar-note">
@@ -214,49 +213,48 @@ function Teams() {
         </div>
       </div>
 
-      {filteredTeams.length === 0 ? (
-        <EmptyState
-          className="teams-empty-state"
-          message={
-            searchTerm.trim()
-              ? "No teams match your search."
-              : "No teams available."
-          }
-        />
-      ) : (
-        <>
+      {filteredTeams.length === 0 ?
+      <EmptyState
+        className="teams-empty-state"
+        message={
+        searchTerm.trim() ?
+        "No teams match your search." :
+        "No teams available."
+        } /> :
+
+      <>
           <div className="teams-grid">
-            {paginatedTeams.map((team) => (
-              <TeamCard
-                key={team.id || team.teamId}
-                team={team}
-                onClick={() =>
-                  navigate(`/teams/${team.teamId}`, {
-                    state: { team },
-                  })
-                }
-              />
-            ))}
+            {paginatedTeams.map((team) =>
+          <TeamCard
+            key={team.id || team.teamId}
+            team={team}
+            onClick={() =>
+            navigate(`/teams/${team.teamId}`, {
+              state: { team }
+            })
+            } />
+
+          )}
           </div>
 
           <AppPagination
-            totalItems={filteredTeams.length}
-            currentPage={safeCurrentPage}
-            pageSize={PAGE_SIZE}
-            onPageChange={setCurrentPage}
-            itemLabel="teams"
-          />
+          totalItems={filteredTeams.length}
+          currentPage={safeCurrentPage}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemLabel="teams" />
+        
         </>
-      )}
+      }
 
       <AddTeamModal
         open={isAddTeamOpen}
         defaultTeamNumber={nextTeamNumber}
         onClose={() => setIsAddTeamOpen(false)}
-        onCreate={handleCreateTeam}
-      />
-    </div>
-  );
+        onCreate={handleCreateTeam} />
+      
+    </div>);
+
 }
 
 export default Teams;

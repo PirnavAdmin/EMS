@@ -39,44 +39,32 @@ export const isSessionExpired = () => {
   const token = getStoredToken();
 
   if (!token) {
-    console.log("[sessionManager] Session expiry check skipped: no token");
+
     return false;
   }
 
   const expiryTime = getExpiryTime();
 
   if (!expiryTime) {
-    console.log("[sessionManager] Session expiry check skipped: no expiry time");
+
     return false;
   }
 
   const now = Date.now();
   const expired = now >= expiryTime;
 
-  console.log("[sessionManager] Session expiry check", {
-    hasToken: true,
-    expiryTime,
-    now,
-    expired,
-  });
-
   return expired;
 };
 
 export const handleAutoLogout = ({
   redirect = true,
-  reason = "",
+  reason = ""
 } = {}) => {
   if (autoLogoutInProgress) {
     return;
   }
 
   autoLogoutInProgress = true;
-
-  console.log("[sessionManager] Auto logout requested", {
-    reason: reason || "unspecified",
-    redirect,
-  });
 
   clearSessionTimer();
   clearAuthData();
@@ -102,7 +90,7 @@ export const startSessionTimer = () => {
   const token = getStoredToken();
 
   if (!token) {
-    console.log("[sessionManager] startSessionTimer skipped: no token");
+
     clearSessionTimer();
     return;
   }
@@ -110,7 +98,7 @@ export const startSessionTimer = () => {
   const expiryTime = getExpiryTime();
 
   if (!expiryTime) {
-    console.log("[sessionManager] startSessionTimer skipped: no expiry time");
+
     clearSessionTimer();
     return;
   }
@@ -118,20 +106,15 @@ export const startSessionTimer = () => {
   const now = Date.now();
 
   if (now >= expiryTime) {
-    console.log("[sessionManager] startSessionTimer detected expired session", {
-      expiryTime,
-      now,
-    });
+
     handleAutoLogout({
-      reason: "Session timer expired",
+      reason: "Session timer expired"
     });
     return;
   }
 
   if (sessionTimerId && activeExpiryTime === expiryTime) {
-    console.log("[sessionManager] startSessionTimer reused existing timer", {
-      expiryTime,
-    });
+
     return;
   }
 
@@ -142,12 +125,8 @@ export const startSessionTimer = () => {
   activeExpiryTime = expiryTime;
   sessionTimerId = window.setTimeout(() => {
     handleAutoLogout({
-      reason: "Session timer expired",
+      reason: "Session timer expired"
     });
   }, remainingTime);
 
-  console.log("[sessionManager] startSessionTimer armed", {
-    expiryTime,
-    remainingTime,
-  });
 };

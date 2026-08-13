@@ -2154,8 +2154,7 @@ body.app-modal-open {
 }
 
 body.app-modal-open .app-header,
-body.app-modal-open .sidebar,
-body.app-modal-open .sidebar-backdrop {
+body.app-modal-open .sidebar {
   pointer-events: none !important;
 }
 

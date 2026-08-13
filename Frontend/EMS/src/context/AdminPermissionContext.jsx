@@ -6,8 +6,8 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState,
-} from "react";
+  useState } from
+"react";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import {
   clearAdminPermissionCache,
@@ -15,40 +15,41 @@ import {
   fetchAllowedModulesForRole,
   getAdminPermissionErrorMessage,
   isAdminPermissionAuthFailure,
-  SUPER_ADMIN_FULL_ACCESS_MODULES,
-} from "../services/adminPermissionService";
+  SUPER_ADMIN_FULL_ACCESS_MODULES } from
+"../services/adminPermissionService";
 import {
   clearAuthData,
   getAuthenticatedUserSnapshot,
   getStoredAdminEmail,
   getStoredAdminId,
   getStoredRefreshToken,
+  getStoredLoginType,
   getStoredRole,
   getStoredRoleName,
   getStoredToken,
   getStoredUserRecord,
-  persistAdminPermissions,
-} from "../utils/authStorage";
+  persistAdminPermissions } from
+"../utils/authStorage";
 import {
   clearCurrentAdminAllowedModules,
   getCurrentAdminAllowedModules,
-  setCurrentAdminAllowedModules,
-} from "../utils/adminPermissionState";
+  setCurrentAdminAllowedModules } from
+"../utils/adminPermissionState";
 import {
   isAdmin,
   modulePermissionMatches,
-  normalizeLoginRole,
+  resolveAuthRole,
   normalizePermissionList,
-  isSuperAdmin,
-} from "../utils/authorization";
+  isSuperAdmin } from
+"../utils/authorization";
 
 const AdminPermissionContext = createContext(null);
 
 const normalizeModuleName = (value) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+String(value ?? "").
+trim().
+toLowerCase().
+replace(/[^a-z0-9]/g, "");
 
 const matchesModule = (permission, moduleName) => {
   const permissionName = String(
@@ -65,8 +66,8 @@ const matchesModule = (permission, moduleName) => {
     modulePermissionMatches(
       normalizeModuleName(permissionName),
       normalizeModuleName(moduleName)
-    )
-  );
+    ));
+
 };
 
 const normalizeSnapshot = (snapshot = {}) => {
@@ -74,7 +75,7 @@ const normalizeSnapshot = (snapshot = {}) => {
     return {
       adminId: "",
       adminEmail: "",
-      modules: normalizePermissionList(snapshot),
+      modules: normalizePermissionList(snapshot)
     };
   }
 
@@ -83,27 +84,27 @@ const normalizeSnapshot = (snapshot = {}) => {
   return {
     adminId: String(
       payload.adminId ??
-        payload.AdminId ??
-        payload.adminID ??
-        snapshot.adminId ??
-        snapshot.AdminId ??
-        snapshot.adminID ??
-        getStoredAdminId() ??
-        ""
+      payload.AdminId ??
+      payload.adminID ??
+      snapshot.adminId ??
+      snapshot.AdminId ??
+      snapshot.adminID ??
+      getStoredAdminId() ??
+      ""
     ).trim(),
     adminEmail: String(
       payload.adminEmail ??
-        payload.AdminEmail ??
-        payload.email ??
-        payload.Email ??
-        snapshot.adminEmail ??
-        snapshot.AdminEmail ??
-        snapshot.email ??
-        snapshot.Email ??
-        getStoredAdminEmail() ??
-        ""
+      payload.AdminEmail ??
+      payload.email ??
+      payload.Email ??
+      snapshot.adminEmail ??
+      snapshot.AdminEmail ??
+      snapshot.email ??
+      snapshot.Email ??
+      getStoredAdminEmail() ??
+      ""
     ).trim(),
-    modules: normalizePermissionList(payload),
+    modules: normalizePermissionList(payload)
   };
 };
 
@@ -114,7 +115,7 @@ const readCachedSnapshot = () => {
     return {
       adminId: getStoredAdminId() || "",
       adminEmail: getStoredAdminEmail() || "",
-      modules,
+      modules
     };
   }
 
@@ -122,10 +123,23 @@ const readCachedSnapshot = () => {
 };
 
 const resolvePermission = (permissions, moduleName) =>
-  permissions.find((permission) => matchesModule(permission, moduleName)) || null;
+permissions.find((permission) => matchesModule(permission, moduleName)) || null;
 
 const resolvePermissionRole = () => {
   const storedRole = getStoredRole() || getStoredRoleName() || "";
+  const loginType = getStoredLoginType();
+
+  if (loginType === "super-admin") {
+    return "superadmin";
+  }
+
+  if (loginType === "admin") {
+    return "admin";
+  }
+
+  if (loginType === "user") {
+    return "";
+  }
 
   if (isSuperAdmin(storedRole)) {
     return "superadmin";
@@ -147,12 +161,12 @@ export const AdminPermissionProvider = ({ children }) => {
   const hasSyncedPermissionsRef = useRef(false);
   const [status, setStatus] = useState(
     () =>
-      initialAuthSnapshot.token &&
-      initialResolvedRole &&
-      !hasCachedPermissions &&
-      !isInitialSuperAdmin
-        ? "loading"
-        : "ready"
+    initialAuthSnapshot.token &&
+    initialResolvedRole &&
+    !hasCachedPermissions &&
+    !isInitialSuperAdmin ?
+    "loading" :
+    "ready"
   );
   const [error, setError] = useState("");
   const [errorStatus, setErrorStatus] = useState(0);
@@ -160,14 +174,14 @@ export const AdminPermissionProvider = ({ children }) => {
     () => initialAuthSnapshot.token || getStoredToken() || ""
   );
   const [role, setRole] = useState(() =>
-    normalizeLoginRole(
-      initialAuthSnapshot.role ||
-        initialAuthSnapshot.roleName ||
-        getStoredRole() ||
-        getStoredRoleName() ||
-        "admin",
-      "admin"
-    )
+  resolveAuthRole(
+    initialAuthSnapshot.role ||
+    initialAuthSnapshot.roleName ||
+    getStoredRole() ||
+    getStoredRoleName() ||
+    "admin",
+    "admin"
+  )
   );
   const [user, setUser] = useState(
     () => initialAuthSnapshot.user || getStoredUserRecord() || null
@@ -180,10 +194,10 @@ export const AdminPermissionProvider = ({ children }) => {
   );
   const [allowedModules, setAllowedModules] = useState(
     () =>
-      initialSnapshot?.modules ||
-      (isInitialSuperAdmin
-        ? SUPER_ADMIN_FULL_ACCESS_MODULES.map((module) => ({ ...module }))
-        : [])
+    initialSnapshot?.modules || (
+    isInitialSuperAdmin ?
+    SUPER_ADMIN_FULL_ACCESS_MODULES.map((module) => ({ ...module })) :
+    [])
   );
   const [adminId, setAdminId] = useState(
     () => initialSnapshot?.adminId || getStoredAdminId() || ""
@@ -197,18 +211,18 @@ export const AdminPermissionProvider = ({ children }) => {
 
   const syncAuthState = useCallback(() => {
     const authSnapshot = getAuthenticatedUserSnapshot();
-    const normalizedRole = normalizeLoginRole(
+    const normalizedRole = resolveAuthRole(
       authSnapshot.role ||
-        authSnapshot.roleName ||
-        getStoredRole() ||
-        getStoredRoleName() ||
-        "admin",
+      authSnapshot.roleName ||
+      getStoredRole() ||
+      getStoredRoleName() ||
+      "admin",
       "admin"
     );
     const normalizedUser =
-      authSnapshot.user || getStoredUserRecord() || null;
+    authSnapshot.user || getStoredUserRecord() || null;
     const normalizedRefreshToken =
-      authSnapshot.refreshToken || getStoredRefreshToken() || "";
+    authSnapshot.refreshToken || getStoredRefreshToken() || "";
 
     setToken(authSnapshot.token || "");
     setRole(normalizedRole);
@@ -221,7 +235,7 @@ export const AdminPermissionProvider = ({ children }) => {
       role: normalizedRole,
       user: normalizedUser,
       refreshToken: normalizedRefreshToken,
-      isAuthenticated: Boolean(authSnapshot.token),
+      isAuthenticated: Boolean(authSnapshot.token)
     };
   }, []);
 
@@ -259,22 +273,22 @@ export const AdminPermissionProvider = ({ children }) => {
 
   const canAccessModule = useCallback(
     (moduleName) =>
-      isSuperAdmin(role) ||
-      resolvePermission(allowedModules, moduleName)?.canAccess === true,
+    isSuperAdmin(role) ||
+    resolvePermission(allowedModules, moduleName)?.canAccess === true,
     [allowedModules, role]
   );
 
   const getPermissionForModule = useCallback(
     (moduleName) =>
-      isSuperAdmin(role)
-        ? {
-            canAccess: true,
-            canView: true,
-            canAdd: true,
-            canEdit: true,
-            canDelete: true,
-          }
-        : resolvePermission(allowedModules, moduleName),
+    isSuperAdmin(role) ?
+    {
+      canAccess: true,
+      canView: true,
+      canAdd: true,
+      canEdit: true,
+      canDelete: true
+    } :
+    resolvePermission(allowedModules, moduleName),
     [allowedModules, role]
   );
 
@@ -336,40 +350,44 @@ export const AdminPermissionProvider = ({ children }) => {
         return [];
       }
 
-      const currentRole = normalizeLoginRole(
+      const currentRole = resolveAuthRole(
         authSnapshot.role || resolvePermissionRole() || "admin",
         "admin"
       );
-      const isSuperAdminRole = isSuperAdmin(currentRole);
-      const permissionFlow = isSuperAdminRole
-        ? "superadmin-bypass"
-        : isAdmin(currentRole)
-          ? "admin-permission"
-          : "no-permission-api";
-
-      console.log("Authenticated Role:", currentRole);
-      console.log("Selected Permission Flow:", permissionFlow);
+      const currentLoginType = authSnapshot.loginType || getStoredLoginType() || "";
+      const isSuperAdminRole =
+      currentLoginType === "super-admin" ?
+      true :
+      currentLoginType ?
+      false :
+      isSuperAdmin(currentRole);
+      const isAdminRole =
+      currentLoginType === "admin" ?
+      true :
+      currentLoginType ?
+      false :
+      isAdmin(currentRole);
+      const permissionFlow = isSuperAdminRole ?
+      "superadmin-bypass" :
+      isAdminRole ?
+      "admin-permission" :
+      "no-permission-api";
 
       if (isSuperAdminRole) {
-        console.log("Skipping permission API for Super Admin");
 
         const snapshot = persistAdminPermissions(
           createSuperAdminPermissionSnapshot({
             adminId: authSnapshot.adminId || getStoredAdminId() || "",
-            adminEmail: authSnapshot.adminEmail || getStoredAdminEmail() || "",
+            adminEmail: authSnapshot.adminEmail || getStoredAdminEmail() || ""
           })
         );
 
         applySnapshot(snapshot);
 
-        console.log("Selected Permission API:", "none");
-        console.log("Permission Response:", snapshot.modules);
-        console.log("Allowed Modules:", snapshot.modules);
-
         return snapshot.modules;
       }
 
-      if (!isAdmin(currentRole) && !isSuperAdmin(currentRole)) {
+      if (!isAdminRole && !isSuperAdminRole) {
         clearCurrentAdminAllowedModules();
         setAllowedModules([]);
         setStatus("ready");
@@ -397,30 +415,24 @@ export const AdminPermissionProvider = ({ children }) => {
       setErrorStatus(0);
 
       const currentAdminId =
-        authSnapshot.adminId || getStoredAdminId() || "";
+      authSnapshot.adminId || getStoredAdminId() || "";
       const currentAdminEmail =
-        authSnapshot.adminEmail || getStoredAdminEmail() || "";
-
-      console.log("JWT Token:", authSnapshot.token || getStoredToken() || "");
+      authSnapshot.adminEmail || getStoredAdminEmail() || "";
 
       try {
         const modules = await fetchAllowedModulesForRole(currentRole, {
           force,
           adminId: currentAdminId,
-          adminEmail: currentAdminEmail,
+          adminEmail: currentAdminEmail
         });
-
-        console.log("Permission Response:", modules);
 
         const snapshot = {
           adminId: currentAdminId,
           adminEmail: currentAdminEmail,
-          modules,
+          modules
         };
 
         applySnapshot(snapshot);
-
-        console.log("Allowed Modules:", modules);
 
         return modules;
       } catch (fetchError) {
@@ -437,9 +449,9 @@ export const AdminPermissionProvider = ({ children }) => {
         setError(
           getAdminPermissionErrorMessage(
             fetchError,
-            errorStatusCode === 403
-              ? "You do not have permission to access this resource."
-              : "Unable to load your assigned modules."
+            errorStatusCode === 403 ?
+            "You do not have permission to access this resource." :
+            "Unable to load your assigned modules."
           )
         );
 
@@ -451,11 +463,11 @@ export const AdminPermissionProvider = ({ children }) => {
 
   useEffect(() => {
     if (
-      !token ||
-      (!isAdmin(role) && !isSuperAdmin(role)) ||
-      hasSyncedPermissionsRef.current ||
-      allowedModules.length > 0
-    ) {
+    !token ||
+    !isAdmin(role) && !isSuperAdmin(role) ||
+    hasSyncedPermissionsRef.current ||
+    allowedModules.length > 0)
+    {
       return;
     }
 
@@ -489,38 +501,38 @@ export const AdminPermissionProvider = ({ children }) => {
       canDeleteModule,
       getPermissionForModule,
       refreshPermissions,
-      clearPermissionState,
+      clearPermissionState
     }),
     [
-      adminEmail,
-      adminId,
-      allowedModules,
-      isAuthenticated,
-      canAccessModule,
-      canAddModule,
-      canDeleteModule,
-      canEditModule,
-      canViewModule,
-      clearPermissionState,
-      error,
-      errorStatus,
-      getPermissionForModule,
-      isLoading,
-      isReady,
-      refreshPermissions,
-      refreshToken,
-      role,
-      status,
-      token,
-      user,
-    ]
+    adminEmail,
+    adminId,
+    allowedModules,
+    isAuthenticated,
+    canAccessModule,
+    canAddModule,
+    canDeleteModule,
+    canEditModule,
+    canViewModule,
+    clearPermissionState,
+    error,
+    errorStatus,
+    getPermissionForModule,
+    isLoading,
+    isReady,
+    refreshPermissions,
+    refreshToken,
+    role,
+    status,
+    token,
+    user]
+
   );
 
   return (
     <AdminPermissionContext.Provider value={value}>
       {children}
-    </AdminPermissionContext.Provider>
-  );
+    </AdminPermissionContext.Provider>);
+
 };
 
 export const useAdminPermissions = () => {

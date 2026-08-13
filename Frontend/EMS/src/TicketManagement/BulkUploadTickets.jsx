@@ -4,8 +4,8 @@ import {
   FaCloudUploadAlt,
   FaDownload,
   FaFileExcel,
-  FaSpinner,
-} from "react-icons/fa";
+  FaSpinner } from
+"react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
@@ -14,8 +14,8 @@ import EmptyState from "../components/EmptyState";
 import {
   downloadTicketTemplate,
   getTicketApiErrorMessage,
-  uploadTicketBulkFile,
-} from "../services/ticketService";
+  uploadTicketBulkFile } from
+"../services/ticketService";
 
 const ACCEPTED_EXTENSIONS = [".xls", ".xlsx"];
 
@@ -50,7 +50,7 @@ const normalizeSummary = (payload = {}) => ({
     payload.rejectedCount ??
     0
   ),
-  skipped: Number(payload.skippedCount ?? payload.ignoredCount ?? 0),
+  skipped: Number(payload.skippedCount ?? payload.ignoredCount ?? 0)
 });
 
 function BulkUploadTickets() {
@@ -65,11 +65,11 @@ function BulkUploadTickets() {
 
   const summaryCards = useMemo(
     () => [
-      { label: "Total Rows", value: summary?.total ?? 0, tone: "total" },
-      { label: "Successful", value: summary?.success ?? 0, tone: "resolved" },
-      { label: "Failed", value: summary?.failed ?? 0, tone: "open" },
-      { label: "Skipped", value: summary?.skipped ?? 0, tone: "progress" },
-    ],
+    { label: "Total Rows", value: summary?.total ?? 0, tone: "total" },
+    { label: "Successful", value: summary?.success ?? 0, tone: "resolved" },
+    { label: "Failed", value: summary?.failed ?? 0, tone: "open" },
+    { label: "Skipped", value: summary?.skipped ?? 0, tone: "progress" }],
+
     [summary]
   );
 
@@ -112,7 +112,7 @@ function BulkUploadTickets() {
       await downloadTicketTemplate();
       toast.success("Template download started.");
     } catch (error) {
-      console.error("Template download failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to download the template right now."
@@ -130,7 +130,6 @@ function BulkUploadTickets() {
     const formData = new FormData();
     formData.append("file", selectedFile);
 
-
     try {
       setUploading(true);
       setSummary(null);
@@ -138,21 +137,15 @@ function BulkUploadTickets() {
 
       const response = await uploadTicketBulkFile(formData);
       const data = response?.data?.data || response?.data || {};
-      console.log("Parsed Data:", data);
-
-      console.log("Total:", data.totalRecords);
-      console.log("Success:", data.successCount);
-      console.log("Failed:", data.failedCount);
-      console.log("Errors:", data.errors);
 
       setSummary(normalizeSummary(data.summary || data.result || data));
 
       const downloadUrl =
-        data.errorFileUrl ||
-        data.failedFileUrl ||
-        data.errorFilePath ||
-        data.errorFile ||
-        "";
+      data.errorFileUrl ||
+      data.failedFileUrl ||
+      data.errorFilePath ||
+      data.errorFile ||
+      "";
 
       if (downloadUrl) {
         setErrorFileUrl(buildServerUrl(downloadUrl));
@@ -160,7 +153,7 @@ function BulkUploadTickets() {
 
       toast.success("Ticket file processed successfully.");
     } catch (error) {
-      console.error("Bulk upload failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to upload the ticket file right now."
@@ -188,8 +181,8 @@ function BulkUploadTickets() {
             type="button"
             className="ticket-button secondary"
             onClick={() => navigate("/admin/tickets")}
-            disabled={uploading}
-          >
+            disabled={uploading}>
+            
             Back to Tickets
           </button>
 
@@ -197,8 +190,8 @@ function BulkUploadTickets() {
             type="button"
             className="ticket-button secondary"
             onClick={handleTemplateDownload}
-            disabled={uploading}
-          >
+            disabled={uploading}>
+            
             <FaDownload aria-hidden="true" />
             Download Template
           </button>
@@ -220,8 +213,8 @@ function BulkUploadTickets() {
             event.preventDefault();
             setDragActive(false);
           }}
-          onDrop={handleDrop}
-        >
+          onDrop={handleDrop}>
+          
           <div className="ticket-dropzone-icon">
             <FaCloudUploadAlt aria-hidden="true" />
           </div>
@@ -239,35 +232,35 @@ function BulkUploadTickets() {
             id="ticket-bulk-file"
             type="file"
             accept=".xls,.xlsx"
-            onChange={handleInputChange}
-          />
+            onChange={handleInputChange} />
+          
         </div>
 
-        {selectedFile ? (
-          <div className="ticket-upload-selected">
+        {selectedFile ?
+        <div className="ticket-upload-selected">
             <div>
               <strong>{selectedFile.name}</strong>
               <span>{Math.round(selectedFile.size / 1024)} KB</span>
             </div>
 
             <button
-              type="button"
-              className="ticket-button ghost"
-              onClick={clearFile}
-              disabled={uploading}
-            >
+            type="button"
+            className="ticket-button ghost"
+            onClick={clearFile}
+            disabled={uploading}>
+            
               Remove File
             </button>
-          </div>
-        ) : null}
+          </div> :
+        null}
 
         <div className="ticket-form-footer">
           <button
             type="button"
             className="ticket-button secondary"
             onClick={clearFile}
-            disabled={uploading}
-          >
+            disabled={uploading}>
+            
             Reset
           </button>
 
@@ -275,52 +268,52 @@ function BulkUploadTickets() {
             type="button"
             className="ticket-button primary"
             onClick={handleUpload}
-            disabled={uploading || !selectedFile}
-          >
-            {uploading ? (
-              <>
+            disabled={uploading || !selectedFile}>
+            
+            {uploading ?
+            <>
                 <FaSpinner className="ticket-button-spinner" />
                 Uploading...
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <FaCloudUploadAlt aria-hidden="true" />
                 Upload Tickets
               </>
-            )}
+            }
           </button>
         </div>
 
-        {summary ? (
-          <div className="ticket-upload-summary">
-            {summaryCards.map((card) => (
-              <div className={`ticket-metric-card tone-${card.tone}`} key={card.label}>
+        {summary ?
+        <div className="ticket-upload-summary">
+            {summaryCards.map((card) =>
+          <div className={`ticket-metric-card tone-${card.tone}`} key={card.label}>
                 <div>
                   <span className="ticket-metric-label">{card.label}</span>
                   <strong className="ticket-metric-value">{card.value}</strong>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            className="ticket-empty-state compact"
-            message="Upload a completed template to see the summary here."
-          />
-        )}
+          )}
+          </div> :
 
-        {errorFileUrl ? (
-          <div className="ticket-error-download">
+        <EmptyState
+          className="ticket-empty-state compact"
+          message="Upload a completed template to see the summary here." />
+
+        }
+
+        {errorFileUrl ?
+        <div className="ticket-error-download">
             <strong>Failed rows file available</strong>
             <a href={errorFileUrl} target="_blank" rel="noreferrer" className="ticket-button secondary">
               <FaDownload aria-hidden="true" />
               Download Error File
             </a>
-          </div>
-        ) : null}
+          </div> :
+        null}
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default BulkUploadTickets;

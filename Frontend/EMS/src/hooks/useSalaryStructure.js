@@ -9,23 +9,23 @@ import {
   extractSalaryBreakup,
   extractManualOverrideFields,
   parseCurrencyInput,
-  validateSalaryBreakup,
-} from "../utils/salaryStructure";
+  validateSalaryBreakup } from
+"../utils/salaryStructure";
 
 function useSalaryStructure({
   initialCtc = SALARY_MIN,
   initialSource = null,
   calculateEndpoint = "",
   requestHeaders = null,
-  allowServerCalculation = false,
+  allowServerCalculation = false
 }) {
-  const initialManualFields = initialSource
-    ? extractManualOverrideFields(initialSource)
-    : createManualSalaryFieldMap();
+  const initialManualFields = initialSource ?
+  extractManualOverrideFields(initialSource) :
+  createManualSalaryFieldMap();
   const normalizedInitialCtc = clampAnnualCtc(initialCtc);
-  const initialBreakup = initialSource
-    ? extractSalaryBreakup(initialSource, normalizedInitialCtc, initialManualFields)
-    : calculateSalaryBreakup(normalizedInitialCtc);
+  const initialBreakup = initialSource ?
+  extractSalaryBreakup(initialSource, normalizedInitialCtc, initialManualFields) :
+  calculateSalaryBreakup(normalizedInitialCtc);
 
   const [ctcValue, setCtcValue] = useState(normalizedInitialCtc);
   const [salaryBreakup, setSalaryBreakup] = useState(initialBreakup);
@@ -65,10 +65,10 @@ function useSalaryStructure({
   };
 
   const applySalaryState = (
-    nextCtcValue,
-    nextBreakup,
-    nextManualSalaryFields
-  ) => {
+  nextCtcValue,
+  nextBreakup,
+  nextManualSalaryFields) =>
+  {
     const normalizedCtcValue = clampAnnualCtc(nextCtcValue);
     const normalizedBreakup = calculateSalaryBreakup(
       normalizedCtcValue,
@@ -89,9 +89,9 @@ function useSalaryStructure({
   const handleCtcChange = (value) => {
     const currentCtcValue = ctcValueRef.current;
     const resolvedValue =
-      typeof value === "function"
-        ? value(currentCtcValue)
-        : value;
+    typeof value === "function" ?
+    value(currentCtcValue) :
+    value;
     const nextCtcValue = clampAnnualCtc(resolvedValue);
 
     applySalaryState(
@@ -107,11 +107,11 @@ function useSalaryStructure({
     const currentManualSalaryFields = manualSalaryFieldsRef.current;
     const nextManualSalaryFields = {
       ...currentManualSalaryFields,
-      [fieldName]: true,
+      [fieldName]: true
     };
     const nextBreakup = {
       ...currentBreakup,
-      [fieldName]: nextValue,
+      [fieldName]: nextValue
     };
 
     applySalaryState(ctcValueRef.current, nextBreakup, nextManualSalaryFields);
@@ -120,15 +120,15 @@ function useSalaryStructure({
   const resetSalaryStructure = ({
     ctcAnnual = ctcValueRef.current,
     source = null,
-    manualFields = null,
+    manualFields = null
   } = {}) => {
     const nextManualFields =
-      manualFields ||
-      (source ? extractManualOverrideFields(source) : createManualSalaryFieldMap());
+    manualFields || (
+    source ? extractManualOverrideFields(source) : createManualSalaryFieldMap());
     const normalizedCtcValue = clampAnnualCtc(ctcAnnual);
-    const nextBreakup = source
-      ? extractSalaryBreakup(source, normalizedCtcValue, nextManualFields)
-      : calculateSalaryBreakup(normalizedCtcValue, {}, nextManualFields);
+    const nextBreakup = source ?
+    extractSalaryBreakup(source, normalizedCtcValue, nextManualFields) :
+    calculateSalaryBreakup(normalizedCtcValue, {}, nextManualFields);
 
     allowRemoteCalculationRef.current = true;
     applySalaryState(normalizedCtcValue, nextBreakup, nextManualFields);
@@ -143,18 +143,18 @@ function useSalaryStructure({
   };
 
   const manualSignature = SALARY_BREAKUP_FIELDS.map(({ name }) =>
-    manualSalaryFields[name] ? `${name}:${salaryBreakup[name]}` : `${name}:auto`
+  manualSalaryFields[name] ? `${name}:${salaryBreakup[name]}` : `${name}:auto`
   ).join("|");
 
   const hasManualOverrides = Object.values(manualSalaryFields).some(Boolean);
 
   useEffect(() => {
     if (
-      !allowServerCalculation ||
-      !calculateEndpoint ||
-      !allowRemoteCalculationRef.current ||
-      hasManualOverrides
-    ) {
+    !allowServerCalculation ||
+    !calculateEndpoint ||
+    !allowRemoteCalculationRef.current ||
+    hasManualOverrides)
+    {
       return undefined;
     }
 
@@ -165,21 +165,21 @@ function useSalaryStructure({
 
       try {
         const headerValue =
-          typeof requestHeadersRef.current === "function"
-            ? requestHeadersRef.current()
-            : requestHeadersRef.current;
+        typeof requestHeadersRef.current === "function" ?
+        requestHeadersRef.current() :
+        requestHeadersRef.current;
 
         const requestUrl =
-          typeof calculateEndpoint === "function"
-            ? calculateEndpoint(ctcValue)
-            : String(calculateEndpoint)
-                .replace(/\{ctc\}/gi, encodeURIComponent(String(ctcValue)));
+        typeof calculateEndpoint === "function" ?
+        calculateEndpoint(ctcValue) :
+        String(calculateEndpoint).
+        replace(/\{ctc\}/gi, encodeURIComponent(String(ctcValue)));
 
         const response = await api.get(
           requestUrl,
           {
             ...(headerValue ? { headers: headerValue } : {}),
-            dedupe: false,
+            dedupe: false
           }
         );
 
@@ -201,7 +201,7 @@ function useSalaryStructure({
         if (status === 404 || status === 405 || status === 501) {
           allowRemoteCalculationRef.current = false;
         } else if (status && status !== 401) {
-          console.error("Salary structure calculation error:", error);
+
         }
       } finally {
         if (requestId === requestIdRef.current) {
@@ -212,12 +212,12 @@ function useSalaryStructure({
 
     return () => clearTimeout(timer);
   }, [
-    allowServerCalculation,
-    calculateEndpoint,
-    ctcValue,
-    manualSignature,
-    hasManualOverrides,
-  ]);
+  allowServerCalculation,
+  calculateEndpoint,
+  ctcValue,
+  manualSignature,
+  hasManualOverrides]
+  );
 
   const isSalaryValid = Object.keys(salaryErrors).length === 0;
 
@@ -232,9 +232,8 @@ function useSalaryStructure({
     handleBreakupFieldChange,
     resetSalaryStructure,
     clearManualOverrides,
-    setManualSalaryFields,
+    setManualSalaryFields
   };
 }
 
 export default useSalaryStructure;
-

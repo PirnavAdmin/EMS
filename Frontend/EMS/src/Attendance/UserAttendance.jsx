@@ -6,13 +6,13 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import {
   formatDate,
   getDayName,
-  getInputDateValue,
-} from "../utils/date";
+  getInputDateValue } from
+"../utils/date";
 import { getStoredIdentityParams } from "../utils/authStorage";
 import {
   acquireReliableLocation,
-  getGeolocationErrorMessage,
-} from "./gpsLocation";
+  getGeolocationErrorMessage } from
+"./gpsLocation";
 import {
   FaSignInAlt,
   FaSignOutAlt,
@@ -21,14 +21,14 @@ import {
   FaArrowRight,
   FaArrowLeft,
   FaTimes,
-  FaSpinner
-} from "react-icons/fa";
+  FaSpinner } from
+"react-icons/fa";
 
 /* eslint-disable react-hooks/exhaustive-deps */
 
 function UserAttendance() {
   const getToken = () =>
-    localStorage.getItem("token") || sessionStorage.getItem("token");
+  localStorage.getItem("token") || sessionStorage.getItem("token");
 
   const today = new Date();
   const attendanceIdentityParams = useMemo(
@@ -71,9 +71,9 @@ function UserAttendance() {
 
       // Already formatted AM/PM
       if (
-        stringValue.toUpperCase().includes("AM") ||
-        stringValue.toUpperCase().includes("PM")
-      ) {
+      stringValue.toUpperCase().includes("AM") ||
+      stringValue.toUpperCase().includes("PM"))
+      {
         return stringValue;
       }
 
@@ -86,7 +86,7 @@ function UserAttendance() {
       const period = hours >= 12 ? "PM" : "AM";
 
       const formattedHour =
-        hours % 12 === 0 ? 12 : hours % 12;
+      hours % 12 === 0 ? 12 : hours % 12;
 
       return `${String(formattedHour).padStart(
         2,
@@ -189,14 +189,14 @@ function UserAttendance() {
     });
 
     if (todayRow) {
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
         checkIn: todayRow.checkIn || "--",
         checkOut: todayRow.checkOut || "--",
         workedHours: todayRow.hours || "--"
       }));
     } else {
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
         checkIn: "--",
         checkOut: "--",
@@ -208,48 +208,47 @@ function UserAttendance() {
   const updateTodayAttendanceState = (rows) => {
 
     const todayStr =
-      getInputDateValue(new Date());
+    getInputDateValue(new Date());
 
     const todayRow =
-      rows.find((row) => {
+    rows.find((row) => {
 
-        if (!row.rawDate) {
-          return false;
-        }
+      if (!row.rawDate) {
+        return false;
+      }
 
-        return (
-          getInputDateValue(row.rawDate) ===
-          todayStr
-        );
+      return (
+        getInputDateValue(row.rawDate) ===
+        todayStr);
 
-      });
+    });
 
     if (todayRow) {
 
       const hasCheckIn =
-        todayRow.checkIn &&
-        todayRow.checkIn !== "--";
+      todayRow.checkIn &&
+      todayRow.checkIn !== "--";
 
       const hasCheckOut =
-        todayRow.checkOut &&
-        todayRow.checkOut !== "--";
+      todayRow.checkOut &&
+      todayRow.checkOut !== "--";
 
       setCheckedIn(!!hasCheckIn);
       setCheckedOut(!!hasCheckOut);
 
       // LIVE HOURS BEFORE CHECKOUT
       if (
-        hasCheckIn &&
-        !hasCheckOut
-      ) {
+      hasCheckIn &&
+      !hasCheckOut)
+      {
 
         const checkInTime =
-          todayRow.checkIn;
+        todayRow.checkIn;
 
         setStats((prev) => ({
           ...prev,
           checkIn: checkInTime,
-          checkOut: "--",
+          checkOut: "--"
         }));
       }
 
@@ -266,19 +265,11 @@ function UserAttendance() {
       const res = await api.get(API_ENDPOINTS.attendance.weekly, {
         params: attendanceIdentityParams,
         headers: {
-          Authorization: `Bearer ${getToken()}`,
+          Authorization: `Bearer ${getToken()}`
         }
       });
 
       const data = res.data;
-
-      console.log("Weekly API Response:", data);
-      console.log(
-        "Today's Record:",
-        data.find(
-          x => getInputDateValue(x.date) === getInputDateValue(new Date())
-        )
-      );
 
       const mapped = mapApiData(data);
 
@@ -286,7 +277,7 @@ function UserAttendance() {
       updateTodayAttendanceState(mapped);
 
     } catch (err) {
-      console.error(err);
+
     }
   };
 
@@ -307,7 +298,7 @@ function UserAttendance() {
       const res = await api.get(apiUrl, {
         params: attendanceIdentityParams,
         headers: {
-          Authorization: `Bearer ${getToken()}`,
+          Authorization: `Bearer ${getToken()}`
         }
       });
 
@@ -320,7 +311,7 @@ function UserAttendance() {
         updateTodayAttendanceState(mapped);
       }
     } catch (err) {
-      console.error("History fetch failed:", err?.response?.data || err.message);
+
       setAttendanceData([]);
     } finally {
       setHistoryLoading(false);
@@ -364,13 +355,13 @@ function UserAttendance() {
       const { latitude, longitude, accuracy } = result;
 
       if (
-        latitude === null ||
-        latitude === undefined ||
-        longitude === null ||
-        longitude === undefined ||
-        Number.isNaN(latitude) ||
-        Number.isNaN(longitude)
-      ) {
+      latitude === null ||
+      latitude === undefined ||
+      longitude === null ||
+      longitude === undefined ||
+      Number.isNaN(latitude) ||
+      Number.isNaN(longitude))
+      {
         toastError("Latitude and Longitude are required for this action.");
         return null;
       }
@@ -378,7 +369,7 @@ function UserAttendance() {
       // Payload kept identical to the existing API contract.
       return { latitude, longitude, accuracy };
     } catch (error) {
-      console.error("Geolocation Error:", error);
+
       toastError(getGeolocationErrorMessage(error));
       return null;
     }
@@ -400,8 +391,6 @@ function UserAttendance() {
       setCheckInLoading(false);
       return;
     }
-
-    console.log("CheckIn GPS:", payload);
 
     try {
       await api.post(
@@ -425,11 +414,6 @@ function UserAttendance() {
 
     } catch (err) {
 
-      console.error(
-        err?.response?.data ||
-        err.message
-      );
-
       toastError(
         err?.response?.data?.message ||
         err?.response?.data ||
@@ -451,8 +435,6 @@ function UserAttendance() {
       return;
     }
 
-    console.log("CheckOut GPS:", payload);
-
     try {
       await api.post(
         API_ENDPOINTS.attendance.checkOut,
@@ -471,12 +453,12 @@ function UserAttendance() {
     }
     catch (err) {
       const responseData =
-        err?.response?.data?.data ||
-        err?.response?.data ||
-        {};
+      err?.response?.data?.data ||
+      err?.response?.data ||
+      {};
 
       const needsReason =
-        responseData?.requiresReason === true;
+      responseData?.requiresReason === true;
 
       if (needsReason) {
         setPendingCheckoutData(payload);
@@ -484,9 +466,9 @@ function UserAttendance() {
         return;
       }
 
-      const errorMsg = responseData?.errors
-        ? Object.values(responseData.errors).flat().join(", ")
-        : responseData?.message || "Server error during check-out";
+      const errorMsg = responseData?.errors ?
+      Object.values(responseData.errors).flat().join(", ") :
+      responseData?.message || "Server error during check-out";
 
       toastError(errorMsg);
     } finally {
@@ -540,13 +522,13 @@ function UserAttendance() {
     }
     catch (err) {
       const responseData =
-        err?.response?.data?.data ||
-        err?.response?.data ||
-        {};
+      err?.response?.data?.data ||
+      err?.response?.data ||
+      {};
 
-      const errorMsg = responseData?.errors
-        ? Object.values(responseData.errors).flat().join(", ")
-        : responseData?.message || "Failed to submit checkout reason";
+      const errorMsg = responseData?.errors ?
+      Object.values(responseData.errors).flat().join(", ") :
+      responseData?.message || "Failed to submit checkout reason";
       toastError(errorMsg);
     } finally {
       setReasonSubmitting(false);
@@ -556,11 +538,11 @@ function UserAttendance() {
 
   const currentTime = new Date();
   const isBefore855 =
-    currentTime.getHours() < 8 ||
-    (
-      currentTime.getHours() === 8 &&
-      currentTime.getMinutes() < 55
-    );
+  currentTime.getHours() < 8 ||
+
+  currentTime.getHours() === 8 &&
+  currentTime.getMinutes() < 55;
+
   // const isAfter615 =
   //   currentTime.getHours() > 18 ||
   //   (
@@ -586,92 +568,92 @@ function UserAttendance() {
   };
 
   return (
-    <>
-      <div className="attendance-page">
-        {/* --- REASON POPUP OVERLAY --- */}
-        {showReasonPopup && (
-          <div className="reason-popup-overlay">
-            <div className="reason-popup">
-              <div className="reason-popup-header">
-                <h3>Location Change Detected</h3>
+    <>
+      <div className="attendance-page">
+        {/* --- REASON POPUP OVERLAY --- */}
+        {showReasonPopup &&
+        <div className="reason-popup-overlay">
+            <div className="reason-popup">
+              <div className="reason-popup-header">
+                <h3>Location Change Detected</h3>
                 <button
-                  className="close-popup-btn"
-                  onClick={() => {
-                    if (reasonSubmitting) {
-                      return;
-                    }
-                    setShowReasonPopup(false);
-                    setReason("");
-                    setPendingCheckoutData(null);
-                  }}
-                  disabled={reasonSubmitting}
-                >
-                  <FaTimes />
-                </button>
-              </div>
-
-              <p className="reason-popup-message">
-                Your checkout location is more than 500 meters away from your check-in location.
-                Please provide a reason for this change.
-              </p>
-
+                className="close-popup-btn"
+                onClick={() => {
+                  if (reasonSubmitting) {
+                    return;
+                  }
+                  setShowReasonPopup(false);
+                  setReason("");
+                  setPendingCheckoutData(null);
+                }}
+                disabled={reasonSubmitting}>
+                
+                  <FaTimes />
+                </button>
+              </div>
+
+              <p className="reason-popup-message">
+                Your checkout location is more than 500 meters away from your check-in location.
+                Please provide a reason for this change.
+              </p>
+
               <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={4}
-                minLength={10}
-                maxLength={500}
-                placeholder="Enter reason for location change..."
-                autoFocus
-              />
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={4}
+              minLength={10}
+              maxLength={500}
+              placeholder="Enter reason for location change..."
+              autoFocus />
+            
+
+              <div className="reason-popup-actions">
+                <button
+                className="btn-cancel"
+                onClick={() => {
+                  if (reasonSubmitting) {
+                    return;
+                  }
+                  setShowReasonPopup(false);
+                  setReason("");
+                  setPendingCheckoutData(null);
+                }}
+                disabled={reasonSubmitting}>
+                
+                  Cancel
+                </button>
+                <button
+                className="btn-submit"
+                onClick={submitCheckoutReason}
+                disabled={reasonSubmitting || reason.trim().length < 10}>
+                
+                  {reasonSubmitting ?
+                <>
+                      <FaSpinner className="attendance-button-spinner" aria-hidden="true" />
+                      Submitting...
+                    </> :
 
-              <div className="reason-popup-actions">
-                <button
-                  className="btn-cancel"
-                  onClick={() => {
-                    if (reasonSubmitting) {
-                      return;
-                    }
-                    setShowReasonPopup(false);
-                    setReason("");
-                    setPendingCheckoutData(null);
-                  }}
-                  disabled={reasonSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn-submit"
-                  onClick={submitCheckoutReason}
-                  disabled={reasonSubmitting || reason.trim().length < 10}
-                >
-                  {reasonSubmitting ? (
-                    <>
-                      <FaSpinner className="attendance-button-spinner" aria-hidden="true" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit Reason"
-                  )}
-                </button>
-              </div>
-            </div>
+                "Submit Reason"
+                }
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-        {/* ----------------------------- */}
-
-        <h1 className="attendance-page-title">My Attendance</h1>
-
-        <div className="attendance-card">
-          {(initialLoading || historyLoading) && (
-            <div className="card-loader">
-              <div className="loader-spinner"></div>
+        }
+        {/* ----------------------------- */}
+
+        <h1 className="attendance-page-title">My Attendance</h1>
+
+        <div className="attendance-card">
+          {(initialLoading || historyLoading) &&
+          <div className="card-loader">
+              <div className="loader-spinner"></div>
             </div>
-          )}
-          <h3>Mark Attendance</h3>
-          <h1>{formattedDate}</h1>
-
-          <div className="attendance-actions-custom">
+          }
+          <h3>Mark Attendance</h3>
+          <h1>{formattedDate}</h1>
+
+          <div className="attendance-actions-custom">
             <button
               className="checkin-btn"
               onClick={handleCheckIn}
@@ -682,26 +664,26 @@ function UserAttendance() {
                 textDecoration: "none"
               }}
               disabled={
-                checkedIn ||
-                checkInLoading ||
-                checkOutLoading ||
-                isBefore855
+              checkedIn ||
+              checkInLoading ||
+              checkOutLoading ||
+              isBefore855
               }
               title={
-                isBefore855
-                  ? "Check-in opens at 8:55 AM"
-                  : ""
-              }
-            >
-              <FaSignInAlt />
-
-              {/* {isBefore855
-                ? "Check In Opens 8:55 AM" :*/}
-              {checkInLoading
-                ? "Processing..."
-                : "Check In"}
-            </button>
-
+              isBefore855 ?
+              "Check-in opens at 8:55 AM" :
+              ""
+              }>
+              
+              <FaSignInAlt />
+
+              {/* {isBefore855
+                 ? "Check In Opens 8:55 AM" :*/}
+              {checkInLoading ?
+              "Processing..." :
+              "Check In"}
+            </button>
+
             <button
               className="checkout-btn"
               onClick={handleCheckOut}
@@ -712,136 +694,136 @@ function UserAttendance() {
                 textDecoration: "none"
               }}
               disabled={
-                !checkedIn ||
-                checkedOut ||
-                checkInLoading ||
-                checkOutLoading
+              !checkedIn ||
+              checkedOut ||
+              checkInLoading ||
+              checkOutLoading
               }
-              title=""
-            >
-              <FaSignOutAlt />
-
-              {checkOutLoading
-                ? "Processing..."
-                : "Check Out"}
-            </button>
-
-          </div>
-
-          <div className="attendance-stats-row">
-            <div className="attendance-stat-box">
-              <div className="stat-icon checkin-icon">
-                <FaArrowRight />
-              </div>
-              <div className="stat-label">Check In</div>
-              <div className="stat-value">{stats.checkIn}</div>
-            </div>
-
-            <div className="attendance-stat-box">
-              <div className="stat-icon checkout-icon">
-                <FaArrowLeft />
-              </div>
-              <div className="stat-label">Check Out</div>
-              <div className="stat-value">{stats.checkOut}</div>
-            </div>
-
-            <div className="attendance-stat-box">
-              <div className="stat-icon hours-icon">
-                <FaClock />
-              </div>
-              <div className="stat-label">Hours</div>
-              <div className="stat-value">{stats.workedHours}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="week-card">
-          <div className="week-header">
-            <h3>
-              <FaRegCalendarAlt className="week-title-icon" />
-              {viewType === "week"
-                ? "This Week"
-                : viewType === "lastWeek"
-                  ? "Last Week"
-                  : viewType === "month"
-                    ? "This Month"
-                    : "Last Month"}
-            </h3>
-
-            <div className="week-toggle">
+              title="">
+              
+              <FaSignOutAlt />
+
+              {checkOutLoading ?
+              "Processing..." :
+              "Check Out"}
+            </button>
+
+          </div>
+
+          <div className="attendance-stats-row">
+            <div className="attendance-stat-box">
+              <div className="stat-icon checkin-icon">
+                <FaArrowRight />
+              </div>
+              <div className="stat-label">Check In</div>
+              <div className="stat-value">{stats.checkIn}</div>
+            </div>
+
+            <div className="attendance-stat-box">
+              <div className="stat-icon checkout-icon">
+                <FaArrowLeft />
+              </div>
+              <div className="stat-label">Check Out</div>
+              <div className="stat-value">{stats.checkOut}</div>
+            </div>
+
+            <div className="attendance-stat-box">
+              <div className="stat-icon hours-icon">
+                <FaClock />
+              </div>
+              <div className="stat-label">Hours</div>
+              <div className="stat-value">{stats.workedHours}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="week-card">
+          <div className="week-header">
+            <h3>
+              <FaRegCalendarAlt className="week-title-icon" />
+              {viewType === "week" ?
+              "This Week" :
+              viewType === "lastWeek" ?
+              "Last Week" :
+              viewType === "month" ?
+              "This Month" :
+              "Last Month"}
+            </h3>
+
+            <div className="week-toggle">
               <button
                 className={viewType === "week" ? "active" : ""}
-                onClick={() => setViewType("week")}
-              >
-                Week
-              </button>
-
+                onClick={() => setViewType("week")}>
+                
+                Week
+              </button>
+
               <button
                 className={viewType === "lastWeek" ? "active" : ""}
-                onClick={() => setViewType("lastWeek")}
-              >
-                Last Week
-              </button>
-
+                onClick={() => setViewType("lastWeek")}>
+                
+                Last Week
+              </button>
+
               <button
                 className={viewType === "month" ? "active" : ""}
-                onClick={() => setViewType("month")}
-              >
-                Month
-              </button>
-
+                onClick={() => setViewType("month")}>
+                
+                Month
+              </button>
+
               <button
                 className={viewType === "lastMonth" ? "active" : ""}
-                onClick={() => setViewType("lastMonth")}
-              >
-                Last Month
-              </button>
-            </div>
-          </div>
-
+                onClick={() => setViewType("lastMonth")}>
+                
+                Last Month
+              </button>
+            </div>
+          </div>
+
           <div
-            className="week-table-header"
-          >
-            <span>DAY</span>
-            <span>CHECK IN</span>
-            <span>CHECK OUT</span>
-            <span>HOURS</span>
-            <span>STATUS</span>
-          </div>
+            className="week-table-header">
+            
+            <span>DAY</span>
+            <span>CHECK IN</span>
+            <span>CHECK OUT</span>
+            <span>HOURS</span>
+            <span>STATUS</span>
+          </div>
+
+          {historyLoading || loading ?
+          <div className="attendance-empty">
+              Loading attendance...
+            </div> :
+          !attendanceData || attendanceData.length === 0 ?
+          <div className="attendance-empty">
+              No attendance records found.
+            </div> :
 
-          {historyLoading || loading ? (
-            <div className="attendance-empty">
-              Loading attendance...
-            </div>
-          ) : !attendanceData || attendanceData.length === 0 ? (
-            <div className="attendance-empty">
-              No attendance records found.
-            </div>
-          ) : (
-            attendanceData.map((item) => (
-              <div
-                key={item.id}
-                className="week-row"
-              >
-                <div className="week-day-cell">
-                  <div>{item.day}</div>
-                  <small>{item.dateLabel}</small>
-                </div>
-
-                <span>{item.checkIn}</span>
-                <span>{item.checkOut}</span>
-                <span>{item.hours}</span>
-
-                <span className={`status ${getStatusClass(item.status)}`}>
-                  {item.status}
-                </span>
+          attendanceData.map((item) =>
+          <div
+            key={item.id}
+            className="week-row">
+            
+                <div className="week-day-cell">
+                  <div>{item.day}</div>
+                  <small>{item.dateLabel}</small>
+                </div>
+
+                <span>{item.checkIn}</span>
+                <span>{item.checkOut}</span>
+                <span>{item.hours}</span>
+
+                <span className={`status ${getStatusClass(item.status)}`}>
+                  {item.status}
+                </span>
               </div>
-            ))
-          )}
-        </div>
-      </div>
-    </>
-  );
+          )
+          }
+        </div>
+      </div>
+    </>);
+
 }
 
 export default UserAttendance;

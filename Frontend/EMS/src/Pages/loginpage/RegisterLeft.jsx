@@ -4,8 +4,8 @@ import {
   FaEye,
   FaEyeSlash,
   FaLock,
-  FaUser
-} from "react-icons/fa";
+  FaUser } from
+"react-icons/fa";
 
 import { Link, useNavigate } from "react-router-dom";
 
@@ -18,36 +18,36 @@ import AuthField from "./AuthField";
 import {
   getPasswordRuleState,
   getPasswordStrength,
-  splitFullName
-} from "./authUtils";
+  splitFullName } from
+"./authUtils";
 
 export default function RegisterLeft() {
 
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] =
-    useState(false);
+  useState(false);
 
   const [
-    showConfirmPassword,
-    setShowConfirmPassword
-  ] = useState(false);
+  showConfirmPassword,
+  setShowConfirmPassword] =
+  useState(false);
 
   const [loading, setLoading] =
-    useState(false);
+  useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     password: "",
-    confirmPassword: "",
+    confirmPassword: ""
   });
 
   const [errors, setErrors] = useState({
     fullName: "",
     email: "",
     password: "",
-    confirmPassword: "",
+    confirmPassword: ""
   });
 
   //----------------------------------------
@@ -80,25 +80,25 @@ export default function RegisterLeft() {
 
     if (name === "fullName") {
 
-      nextValue = value
-        .replace(/[^A-Za-z ]/g, "")
-        .replace(/\s{2,}/g, " ")
-        .slice(0, 50);
+      nextValue = value.
+      replace(/[^A-Za-z ]/g, "").
+      replace(/\s{2,}/g, " ").
+      slice(0, 50);
 
     }
 
     //----------------------------------------
     // EMAIL
     //----------------------------------------
-
-    else if (name === "email") {
+    else
+    if (name === "email") {
 
       // convert uppercase to lowercase
       nextValue = value.toLowerCase();
 
       // remove spaces
       nextValue =
-        nextValue.replace(/\s/g, "");
+      nextValue.replace(/\s/g, "");
 
       // allow only letters, numbers, @, ., _, -
       nextValue = nextValue.replace(
@@ -113,15 +113,15 @@ export default function RegisterLeft() {
     //----------------------------------------
     // PASSWORD
     //----------------------------------------
+    else
+    if (
+    name === "password" ||
+    name === "confirmPassword")
+    {
 
-    else if (
-      name === "password" ||
-      name === "confirmPassword"
-    ) {
-
-      nextValue = value
-        .replace(/\s/g, "")
-        .slice(0, 16);
+      nextValue = value.
+      replace(/\s/g, "").
+      slice(0, 16);
 
     }
 
@@ -131,15 +131,15 @@ export default function RegisterLeft() {
 
     setFormData((prev) => ({
       ...prev,
-      [name]: nextValue,
+      [name]: nextValue
     }));
 
     setErrors((prev) => ({
       ...prev,
       [name]: "",
-      ...(name === "password"
-        ? { confirmPassword: "" }
-        : {}),
+      ...(name === "password" ?
+      { confirmPassword: "" } :
+      {})
     }));
 
   };
@@ -152,86 +152,85 @@ export default function RegisterLeft() {
 
     event.preventDefault();
 
-    const fullName = formData.fullName
-      .trim()
-      .replace(/\s+/g, " ");
+    const fullName = formData.fullName.
+    trim().
+    replace(/\s+/g, " ");
 
-    const email = formData.email
-      .trim()
-      .toLowerCase();
+    const email = formData.email.
+    trim().
+    toLowerCase();
 
     const password =
-      formData.password.trim();
+    formData.password.trim();
 
     const confirmPassword =
-      formData.confirmPassword.trim();
+    formData.confirmPassword.trim();
 
     const validationErrors = {};
 
-//----------------------------------------
+    //----------------------------------------
 
-// FULL NAME VALIDATION
+    // FULL NAME VALIDATION
 
-//----------------------------------------
- 
-if (!fullName) {
- 
-  validationErrors.fullName =
+    //----------------------------------------
 
-    "Full Name is required";
- 
-}
- 
-else if (
+    if (!fullName) {
 
-  !/^[A-Za-z ]+$/.test(fullName)
+      validationErrors.fullName =
 
-) {
- 
-  validationErrors.fullName =
+      "Full Name is required";
 
-    "Full Name should contain only alphabets";
- 
-}
- 
-else if (
+    } else
 
-  fullName.length < 2
+    if (
 
-) {
- 
-  validationErrors.fullName =
+    !/^[A-Za-z ]+$/.test(fullName))
 
-    "Full Name must contain minimum 2 characters";
- 
-}
- 
-else if (
+    {
 
-  fullName.length > 50
+      validationErrors.fullName =
 
-) {
- 
-  validationErrors.fullName =
+      "Full Name should contain only alphabets";
 
-    "Full Name cannot exceed 50 characters";
- 
-}
- 
-// NEW VALIDATION
+    } else
 
-else if (
+    if (
 
-  fullName.trim().split(/\s+/).length < 2
+    fullName.length < 2)
 
-) {
- 
-  validationErrors.fullName =
+    {
 
-    "Please enter First Name and Last Name";
- 
-}
- 
+      validationErrors.fullName =
+
+      "Full Name must contain minimum 2 characters";
+
+    } else
+
+    if (
+
+    fullName.length > 50)
+
+    {
+
+      validationErrors.fullName =
+
+      "Full Name cannot exceed 50 characters";
+
+    }
+
+    // NEW VALIDATION
+    else
+    if (
+
+    fullName.trim().split(/\s+/).length < 2)
+
+    {
+
+      validationErrors.fullName =
+
+      "Please enter First Name and Last Name";
+
+    }
 
     //----------------------------------------
     // EMAIL VALIDATION
@@ -240,7 +239,7 @@ else if (
     if (!email) {
 
       validationErrors.email =
-        "Email Address is required";
+      "Email Address is required";
 
     }
 
@@ -251,61 +250,61 @@ else if (
     if (!password) {
 
       validationErrors.password =
-        "Password is required";
+      "Password is required";
 
-    }
+    } else
 
-    else if (
-      password.length < 8
-    ) {
-
-      validationErrors.password =
-        "Password must contain minimum 8 characters";
-
-    }
-
-    else if (
-      password.length > 16
-    ) {
+    if (
+    password.length < 8)
+    {
 
       validationErrors.password =
-        "Password cannot exceed 16 characters";
+      "Password must contain minimum 8 characters";
 
-    }
+    } else
 
-    else if (
-      /\s/.test(password)
-    ) {
-
-      validationErrors.password =
-        "Spaces are not allowed in password";
-
-    }
-
-    else if (
-      !/[A-Z]/.test(password)
-    ) {
+    if (
+    password.length > 16)
+    {
 
       validationErrors.password =
-        "Password must contain at least one uppercase letter";
+      "Password cannot exceed 16 characters";
 
-    }
+    } else
 
-    else if (
-      !/[0-9]/.test(password)
-    ) {
-
-      validationErrors.password =
-        "Password must contain at least one number";
-
-    }
-
-    else if (
-      !/[!@#$%^&*(),.?":{}|<>_]/.test(password)
-    ) {
+    if (
+    /\s/.test(password))
+    {
 
       validationErrors.password =
-        "Password must contain at least one special character";
+      "Spaces are not allowed in password";
+
+    } else
+
+    if (
+    !/[A-Z]/.test(password))
+    {
+
+      validationErrors.password =
+      "Password must contain at least one uppercase letter";
+
+    } else
+
+    if (
+    !/[0-9]/.test(password))
+    {
+
+      validationErrors.password =
+      "Password must contain at least one number";
+
+    } else
+
+    if (
+    !/[!@#$%^&*(),.?":{}|<>_]/.test(password))
+    {
+
+      validationErrors.password =
+      "Password must contain at least one special character";
 
     }
 
@@ -316,70 +315,70 @@ else if (
     if (!confirmPassword) {
 
       validationErrors.confirmPassword =
-        "Confirm Password is required";
+      "Confirm Password is required";
 
-    }
+    } else
 
-    else if (
-      confirmPassword.length < 8
-    ) {
-
-      validationErrors.confirmPassword =
-        "Confirm Password must contain minimum 8 characters";
-
-    }
-
-    else if (
-      confirmPassword.length > 16
-    ) {
+    if (
+    confirmPassword.length < 8)
+    {
 
       validationErrors.confirmPassword =
-        "Confirm Password cannot exceed 16 characters";
+      "Confirm Password must contain minimum 8 characters";
 
-    }
+    } else
 
-    else if (
-      /\s/.test(confirmPassword)
-    ) {
-
-      validationErrors.confirmPassword =
-        "Spaces are not allowed in confirm password";
-
-    }
-
-    else if (
-      !/[A-Z]/.test(confirmPassword)
-    ) {
+    if (
+    confirmPassword.length > 16)
+    {
 
       validationErrors.confirmPassword =
-        "Confirm Password must contain at least one uppercase letter";
+      "Confirm Password cannot exceed 16 characters";
 
-    }
+    } else
 
-    else if (
-      !/[0-9]/.test(confirmPassword)
-    ) {
-
-      validationErrors.confirmPassword =
-        "Confirm Password must contain at least one number";
-
-    }
-
-    else if (
-      !/[!@#$%^&*(),.?":{}|<>_]/.test(confirmPassword)
-    ) {
+    if (
+    /\s/.test(confirmPassword))
+    {
 
       validationErrors.confirmPassword =
-        "Confirm Password must contain at least one special character";
+      "Spaces are not allowed in confirm password";
 
-    }
+    } else
 
-    else if (
-      password !== confirmPassword
-    ) {
+    if (
+    !/[A-Z]/.test(confirmPassword))
+    {
 
       validationErrors.confirmPassword =
-        "Passwords do not match";
+      "Confirm Password must contain at least one uppercase letter";
+
+    } else
+
+    if (
+    !/[0-9]/.test(confirmPassword))
+    {
+
+      validationErrors.confirmPassword =
+      "Confirm Password must contain at least one number";
+
+    } else
+
+    if (
+    !/[!@#$%^&*(),.?":{}|<>_]/.test(confirmPassword))
+    {
+
+      validationErrors.confirmPassword =
+      "Confirm Password must contain at least one special character";
+
+    } else
+
+    if (
+    password !== confirmPassword)
+    {
+
+      validationErrors.confirmPassword =
+      "Passwords do not match";
 
     }
 
@@ -388,9 +387,9 @@ else if (
     //----------------------------------------
 
     if (
-      Object.keys(validationErrors)
-        .length > 0
-    ) {
+    Object.keys(validationErrors).
+    length > 0)
+    {
 
       setErrors(validationErrors);
 
@@ -411,14 +410,6 @@ else if (
 
     try {
 
-      console.log("Register Data:", {
-        firstName,
-        lastName,
-        email,
-        password,
-        confirmPassword,
-      });
-
       await api.post(
         API_ENDPOINTS.auth.userRegister,
         {
@@ -426,14 +417,14 @@ else if (
           lastName,
           email,
           password,
-          confirmPassword,
+          confirmPassword
         },
         {
           skipAuth: true,
           headers: {
             "Content-Type":
-              "application/json",
-          },
+            "application/json"
+          }
         }
       );
 
@@ -449,23 +440,16 @@ else if (
 
     catch (requestError) {
 
-      console.log("Register Error:", requestError);
-
-      console.log(
-        "Backend Message:",
-        requestError.response?.data
-      );
-
       setErrors((prev) => ({
         ...prev,
         email:
-          requestError.response?.data?.message ||
-          "Registration failed.",
+        requestError.response?.data?.message ||
+        "Registration failed."
       }));
 
-    }
+    } finally
 
-    finally {
+    {
 
       setLoading(false);
 
@@ -478,43 +462,43 @@ else if (
   //----------------------------------------
 
   return (
-    <>
-      <div className="auth-card-top">
-        {/* <button
-          type="button"
-          className="auth-back-home-button"
-          onClick={() => navigate("/")}
-        >
-          <span className="auth-back-home-icon" aria-hidden="true">
-            <FaChevronLeft />
-          </span>
-          <span>Back to Home</span>
-        </button> */}
-
-        <div className="auth-card-head">
-
-          <p className="auth-eyebrow">
-            Employee Onboarding
-          </p>
-
-          <h2 className="auth-card-title">
-            Create Your Pirnav EMS Account
-          </h2>
-
-          {/* <p className="auth-card-subtitle">
-            Start with your name, work email,
-            and a strong password.
-          </p> */}
-
-        </div>
-      </div>
-
+    <>
+      <div className="auth-card-top">
+        {/* <button
+           type="button"
+           className="auth-back-home-button"
+           onClick={() => navigate("/")}
+          >
+           <span className="auth-back-home-icon" aria-hidden="true">
+             <FaChevronLeft />
+           </span>
+           <span>Back to Home</span>
+          </button> */}
+
+        <div className="auth-card-head">
+
+          <p className="auth-eyebrow">
+            Employee Onboarding
+          </p>
+
+          <h2 className="auth-card-title">
+            Create Your Pirnav EMS Account
+          </h2>
+
+          {/* <p className="auth-card-subtitle">
+             Start with your name, work email,
+             and a strong password.
+            </p> */}
+
+        </div>
+      </div>
+
       <form
         className="auth-form"
         onSubmit={handleSubmit}
-        noValidate
-      >
-
+        noValidate>
+        
+
         <AuthField
           label="Full Name"
           name="fullName"
@@ -526,9 +510,9 @@ else if (
           icon={FaUser}
           error={errors.fullName}
           maxLength={50}
-          required
-        />
-
+          required />
+        
+
         <AuthField
           label="Email Address"
           name="email"
@@ -540,16 +524,16 @@ else if (
           icon={FaEnvelope}
           error={errors.email}
           maxLength={40}
-          required
-        />
-
+          required />
+        
+
         <AuthField
           label="Password"
           name="password"
           type={
-            showPassword
-              ? "text"
-              : "password"
+          showPassword ?
+          "text" :
+          "password"
           }
           value={formData.password}
           onChange={handleChange}
@@ -559,82 +543,81 @@ else if (
           error={errors.password}
           required
           action={{
-            label: showPassword
-              ? "Hide password"
-              : "Show password",
+            label: showPassword ?
+            "Hide password" :
+            "Show password",
 
-            icon: showPassword
-              ? <FaEye />
-              : <FaEyeSlash />,
+            icon: showPassword ?
+            <FaEye /> :
+            <FaEyeSlash />,
 
             onClick: () =>
-              setShowPassword(
-                (prev) => !prev
-              ),
-          }}
-        />
-
-        <div className="auth-strength-card">
-
-          <div className="auth-strength-head">
-
-            <span>
-              Password Strength
-            </span>
-
+            setShowPassword(
+              (prev) => !prev
+            )
+          }} />
+        
+
+        <div className="auth-strength-card">
+
+          <div className="auth-strength-head">
+
+            <span>
+              Password Strength
+            </span>
+
             <span
-              className={`auth-strength-pill ${passwordStrength.tone}`}
-            >
-              {passwordStrength.label}
-            </span>
-
-          </div>
-
+              className={`auth-strength-pill ${passwordStrength.tone}`}>
+              
+              {passwordStrength.label}
+            </span>
+
+          </div>
+
           <div
             className="auth-strength-bars"
-            aria-hidden="true"
-          >
-
+            aria-hidden="true">
+            
+
             {Array.from({ length: 4 }).map(
-              (_, index) => (
-                <span
-                  key={index}
-                  className={`auth-strength-bar ${index <
-                    passwordStrength.score
-                    ? `auth-strength-bar-${passwordStrength.tone}`
-                    : ""
-                    }`}
-                />
-              )
-            )}
-
-          </div>
-
-          <div className="auth-rule-list">
-
-            {passwordRules.map((rule) => (
+              (_, index) =>
               <span
-                key={rule.id}
-                className={`auth-rule-item ${rule.passed
-                  ? "passed"
-                  : ""
-                  }`}
-              >
-                {rule.label}
+                key={index}
+                className={`auth-strength-bar ${index <
+                passwordStrength.score ?
+                `auth-strength-bar-${passwordStrength.tone}` :
+                ""}`
+                } />
+
+            )}
+
+          </div>
+
+          <div className="auth-rule-list">
+
+            {passwordRules.map((rule) =>
+            <span
+              key={rule.id}
+              className={`auth-rule-item ${rule.passed ?
+              "passed" :
+              ""}`
+              }>
+              
+                {rule.label}
               </span>
-            ))}
-
-          </div>
-
-        </div>
-
+            )}
+
+          </div>
+
+        </div>
+
         <AuthField
           label="Confirm Password"
           name="confirmPassword"
           type={
-            showConfirmPassword
-              ? "text"
-              : "password"
+          showConfirmPassword ?
+          "text" :
+          "password"
           }
           value={formData.confirmPassword}
           onChange={handleChange}
@@ -644,46 +627,45 @@ else if (
           error={errors.confirmPassword}
           required
           action={{
-            label: showConfirmPassword
-              ? "Hide confirm password"
-              : "Show confirm password",
+            label: showConfirmPassword ?
+            "Hide confirm password" :
+            "Show confirm password",
 
-            icon: showConfirmPassword
-              ? <FaEye />
-              : <FaEyeSlash />,
+            icon: showConfirmPassword ?
+            <FaEye /> :
+            <FaEyeSlash />,
 
             onClick: () =>
-              setShowConfirmPassword(
-                (prev) => !prev
-              ),
-          }}
-        />
-
+            setShowConfirmPassword(
+              (prev) => !prev
+            )
+          }} />
+        
+
         <button
           type="submit"
           className="auth-primary-button"
-          disabled={loading}
-        >
-          {loading
-            ? "Creating account..."
-            : "Create Account"}
-        </button>
-
-      </form>
-
-      <p className="auth-footer">
-
-        Already have an account?
-
+          disabled={loading}>
+          
+          {loading ?
+          "Creating account..." :
+          "Create Account"}
+        </button>
+
+      </form>
+
+      <p className="auth-footer">
+
+        Already have an account?
+
         <Link
           to="/login"
-          className="auth-link"
-        >
-          Sign in
-        </Link>
-
-      </p>
-    </>
-  );
+          className="auth-link">
+          
+          Sign in
+        </Link>
+
+      </p>
+    </>);
 
 }

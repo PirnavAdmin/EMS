@@ -3,61 +3,58 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import {
   isAdmin,
   isSuperAdmin,
-  normalizePermissionList,
-} from "../utils/authorization";
+  normalizePermissionList } from
+"../utils/authorization";
 import { normalizePermissionList as normalizeEditablePermissionList } from "./permissionService";
 import {
   getStoredAdminEmail,
   getStoredAdminId,
-  getStoredToken,
-  persistAdminPermissions,
-} from "../utils/authStorage";
+  persistAdminPermissions } from
+"../utils/authStorage";
 import {
   clearCurrentAdminAllowedModules,
   getCurrentAdminAllowedModules,
-  setCurrentAdminAllowedModules,
-} from "../utils/adminPermissionState";
+  setCurrentAdminAllowedModules } from
+"../utils/adminPermissionState";
 
 const ADMIN_PERMISSION_STORAGE_KEYS = [
-  "adminPermissions",
-  "allowedModules",
-  "modules",
-  "permissions",
-];
+"adminPermissions",
+"allowedModules",
+"modules",
+"permissions"];
 
 export const SUPER_ADMIN_FULL_ACCESS_MODULES = [
-  {
-    moduleId: "all",
-    moduleName: "all",
-    canAccess: true,
-    canView: true,
-    canAdd: true,
-    canEdit: true,
-    canDelete: true,
-  },
-];
+{
+  moduleId: "all",
+  moduleName: "all",
+  canAccess: true,
+  canView: true,
+  canAdd: true,
+  canEdit: true,
+  canDelete: true
+}];
 
 export const createSuperAdminPermissionSnapshot = ({
   adminId = getStoredAdminId() || "",
-  adminEmail = getStoredAdminEmail() || "",
+  adminEmail = getStoredAdminEmail() || ""
 } = {}) => ({
   adminId: String(adminId ?? "").trim(),
   adminEmail: String(adminEmail ?? "").trim(),
-  modules: SUPER_ADMIN_FULL_ACCESS_MODULES.map((module) => ({ ...module })),
+  modules: SUPER_ADMIN_FULL_ACCESS_MODULES.map((module) => ({ ...module }))
 });
 
 const normalizeId = (value) => String(value ?? "").trim();
 const firstDefined = (...values) =>
-  values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
+values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
 
 const resolvePermissionRole = (role) =>
-  isSuperAdmin(role) ? "superadmin" : isAdmin(role) ? "admin" : "";
+isSuperAdmin(role) ? "superadmin" : isAdmin(role) ? "admin" : "";
 
 const getPermissionEndpointForRole = (role) => {
   const normalizedRole = resolvePermissionRole(role);
   const adminPermissionEndpoint =
-    API_ENDPOINTS.adminPermission.allowedModules ||
-    "/AdminPermission/allowed-modules";
+  API_ENDPOINTS.adminPermission.allowedModules ||
+  "/AdminPermission/allowed-modules";
 
   if (normalizedRole !== "admin") {
     return "";
@@ -92,29 +89,29 @@ const normalizePermissionSnapshot = (value = {}, fallback = {}) => {
   return {
     adminId: normalizeId(
       response.adminId ??
-        response.AdminId ??
-        response.adminID ??
-        response.data?.adminId ??
-        response.data?.AdminId ??
-        response.data?.adminID ??
-        fallback.adminId ??
-        getStoredAdminId() ??
-        ""
+      response.AdminId ??
+      response.adminID ??
+      response.data?.adminId ??
+      response.data?.AdminId ??
+      response.data?.adminID ??
+      fallback.adminId ??
+      getStoredAdminId() ??
+      ""
     ),
     adminEmail: String(
       response.adminEmail ??
-        response.AdminEmail ??
-        response.email ??
-        response.Email ??
-        response.data?.adminEmail ??
-        response.data?.AdminEmail ??
-        response.data?.email ??
-        response.data?.Email ??
-        fallback.adminEmail ??
-        getStoredAdminEmail() ??
-        ""
+      response.AdminEmail ??
+      response.email ??
+      response.Email ??
+      response.data?.adminEmail ??
+      response.data?.AdminEmail ??
+      response.data?.email ??
+      response.data?.Email ??
+      fallback.adminEmail ??
+      getStoredAdminEmail() ??
+      ""
     ).trim(),
-    modules: normalizePermissionList(response),
+    modules: normalizePermissionList(response)
   };
 };
 
@@ -125,9 +122,9 @@ const hasAuthFailure = (error) => {
 };
 
 const getFriendlyErrorMessage = (
-  error,
-  fallback = "We could not load the admin modules right now."
-) => {
+error,
+fallback = "We could not load the admin modules right now.") =>
+{
   const status = error?.response?.status;
   const validationErrors = error?.response?.data?.errors;
 
@@ -140,11 +137,11 @@ const getFriendlyErrorMessage = (
   }
 
   if (validationErrors && typeof validationErrors === "object") {
-    const messages = Object.values(validationErrors)
-      .flat()
-      .filter(Boolean)
-      .map((message) => String(message).trim())
-      .filter(Boolean);
+    const messages = Object.values(validationErrors).
+    flat().
+    filter(Boolean).
+    map((message) => String(message).trim()).
+    filter(Boolean);
 
     if (messages.length > 0) {
       return messages.join(" ");
@@ -156,8 +153,8 @@ const getFriendlyErrorMessage = (
     error?.response?.data?.error ||
     error?.response?.data?.title ||
     error?.message ||
-    fallback
-  );
+    fallback);
+
 };
 
 const getCachedPermissionSnapshot = () => {
@@ -167,7 +164,7 @@ const getCachedPermissionSnapshot = () => {
     return {
       adminId: getStoredAdminId() || "",
       adminEmail: getStoredAdminEmail() || "",
-      modules,
+      modules
     };
   }
 
@@ -175,10 +172,10 @@ const getCachedPermissionSnapshot = () => {
 };
 
 export const getCachedAllowedModules = () =>
-  getCachedPermissionSnapshot()?.modules || [];
+getCachedPermissionSnapshot()?.modules || [];
 
 export const hasCachedAllowedModules = () =>
-  getCachedAllowedModules().length > 0;
+getCachedAllowedModules().length > 0;
 
 export const clearAdminPermissionCache = () => {
   clearCurrentAdminAllowedModules();
@@ -204,43 +201,29 @@ const requestAllowedModules = async ({
   force = false,
   adminId = "",
   adminEmail = "",
-  params = {},
+  params = {}
 } = {}) => {
   const normalizedRole = resolvePermissionRole(role);
   const permissionFlow =
-    normalizedRole === "superadmin"
-      ? "superadmin-bypass"
-      : normalizedRole === "admin"
-        ? "admin-permission"
-        : "no-permission-api";
+  normalizedRole === "superadmin" ?
+  "superadmin-bypass" :
+  normalizedRole === "admin" ?
+  "admin-permission" :
+  "no-permission-api";
   const requestParams = buildPermissionRequestParams({
     adminId,
     adminEmail,
-    params,
+    params
   });
 
-  console.log(
-    "[Admin Permission] Authenticated Role:",
-    normalizedRole || "unknown"
-  );
-  console.log(
-    "[Admin Permission] Selected Permission Flow:",
-    permissionFlow
-  );
-
   if (normalizedRole === "superadmin") {
-    console.log("Skipping permission API for Super Admin");
 
     const snapshot = persistAdminPermissions(
       createSuperAdminPermissionSnapshot({
         adminId: requestParams.adminId || getStoredAdminId() || "",
-        adminEmail: requestParams.adminEmail || getStoredAdminEmail() || "",
+        adminEmail: requestParams.adminEmail || getStoredAdminEmail() || ""
       })
     );
-
-    console.log("[Admin Permission] Selected Permission API:", "none");
-    console.log("[Admin Permission] Permission API Response:", snapshot.modules);
-    console.log("[Admin Permission] Allowed Modules:", snapshot.modules);
 
     return snapshot;
   }
@@ -248,14 +231,10 @@ const requestAllowedModules = async ({
   if (normalizedRole !== "admin") {
     clearCurrentAdminAllowedModules();
 
-    console.log("[Admin Permission] Selected Permission API:", "none");
-    console.log("[Admin Permission] Permission API Response:", []);
-    console.log("[Admin Permission] Allowed Modules:", []);
-
     return {
       adminId: getStoredAdminId() || "",
       adminEmail: getStoredAdminEmail() || "",
-      modules: [],
+      modules: []
     };
   }
 
@@ -281,77 +260,39 @@ const requestAllowedModules = async ({
         const emptySnapshot = persistAdminPermissions({
           adminId: getStoredAdminId() || "",
           adminEmail: getStoredAdminEmail() || "",
-          modules: [],
+          modules: []
         });
-
-        console.log(
-          "[Admin Permission] Authenticated Role:",
-          normalizedRole
-        );
-        console.log(
-          "[Admin Permission] Selected Permission Flow:",
-          permissionFlow
-        );
-        console.log("[Admin Permission] Selected Permission API:", "none");
-        console.log("[Admin Permission] Permission API Response:", []);
-        console.log("[Admin Permission] Allowed Modules:", []);
 
         return emptySnapshot;
       }
 
       const permissionApi = `/api${endpoint}`;
 
-      console.log(
-        "[Admin Permission] Authenticated Role:",
-        normalizedRole
-      );
-      console.log(
-        "[Admin Permission] Selected Permission Flow:",
-        permissionFlow
-      );
-      console.log("[Admin Permission] Selected Permission API:", permissionApi);
-      console.log(
-        "[Admin Permission] Admin ID:",
-        requestParams.adminId || getStoredAdminId() || ""
-      );
-      console.log("[Admin Permission] Token:", getStoredToken() || "");
-      console.log("[Admin Permission] Calling:", permissionApi);
-      console.log(
-        "[Admin Permission] Fetching allowed modules:",
-        "/api/AdminPermission/allowed-modules"
-      );
-
       const response = await api.get(endpoint, {
         headers: {
-          Accept: "application/json",
+          Accept: "application/json"
         },
-        skipAuthFailureHandling: true,
+        skipAuthFailureHandling: true
       });
-
-      console.log("[Admin Permission] Permission API Response:", response.data);
-      console.log("[Admin Permission] Allowed modules response:", response.data);
 
       const normalizedSnapshot = normalizePermissionSnapshot(response.data, {
         adminId: requestParams.adminId || getStoredAdminId() || "",
-        adminEmail: requestParams.adminEmail || getStoredAdminEmail() || "",
+        adminEmail: requestParams.adminEmail || getStoredAdminEmail() || ""
       });
 
       const snapshot = {
         adminId: normalizedSnapshot.adminId || getStoredAdminId() || "",
         adminEmail: normalizedSnapshot.adminEmail || getStoredAdminEmail() || "",
-        modules: normalizedSnapshot.modules,
+        modules: normalizedSnapshot.modules
       };
 
       const allowedModules = snapshot.modules;
 
       setCurrentAdminAllowedModules(allowedModules);
-      console.log("[Admin Permission] Stored allowed modules:", allowedModules);
 
       return snapshot;
     } catch (error) {
       lastError = error;
-
-      console.error("Allowed Modules API Error:", error);
 
       if (hasAuthFailure(error)) {
         throw error;
@@ -370,7 +311,7 @@ export const fetchAllowedAdminModules = async ({
   force = false,
   adminId = "",
   adminEmail = "",
-  params = {},
+  params = {}
 } = {}) => {
   const normalizedAdminEmail = String(
     adminEmail || getStoredAdminEmail() || ""
@@ -381,60 +322,42 @@ export const fetchAllowedAdminModules = async ({
     force,
     adminId: adminId || getStoredAdminId() || "",
     adminEmail: normalizedAdminEmail,
-    params,
+    params
   });
   return snapshot.modules || [];
 };
 
 export const fetchAllowedUserModules = async () => {
-  console.log("[Admin Permission] Authenticated Role:", "user");
-  console.log("[Admin Permission] Selected Permission Flow:", "no-permission-api");
-  console.log("[Admin Permission] Selected Permission API:", "none");
-  console.log("[Admin Permission] Permission API Response:", []);
-  console.log("[Admin Permission] Allowed Modules:", []);
 
   return [];
 };
 
 export const fetchAllowedModulesForRole = async (
-  role,
-  { force = false, adminId = "", adminEmail = "", params = {} } = {}
-) => {
+role,
+{ force = false, adminId = "", adminEmail = "", params = {} } = {}) =>
+{
   const normalizedRole = resolvePermissionRole(role);
   const permissionFlow =
-    normalizedRole === "superadmin"
-      ? "superadmin-bypass"
-      : normalizedRole === "admin"
-        ? "admin-permission"
-        : "no-permission-api";
-
-  console.log(
-    "[Admin Permission] Authenticated Role:",
-    normalizedRole || "unknown"
-  );
-  console.log(
-    "[Admin Permission] Selected Permission Flow:",
-    permissionFlow
-  );
+  normalizedRole === "superadmin" ?
+  "superadmin-bypass" :
+  normalizedRole === "admin" ?
+  "admin-permission" :
+  "no-permission-api";
 
   if (normalizedRole === "superadmin") {
-    console.log("Skipping permission API for Super Admin");
+
     const snapshot = persistAdminPermissions(
       createSuperAdminPermissionSnapshot({
         adminId: adminId || getStoredAdminId() || "",
-        adminEmail: adminEmail || getStoredAdminEmail() || "",
+        adminEmail: adminEmail || getStoredAdminEmail() || ""
       })
     );
-    console.log("[Admin Permission] Selected Permission API:", "none");
-    console.log("[Admin Permission] Permission API Response:", snapshot.modules);
-    console.log("[Admin Permission] Allowed Modules:", snapshot.modules);
+
     return snapshot.modules || [];
   }
 
   if (normalizedRole !== "admin") {
-    console.log("[Admin Permission] Selected Permission API:", "none");
-    console.log("[Admin Permission] Permission API Response:", []);
-    console.log("[Admin Permission] Allowed Modules:", []);
+
     return [];
   }
 
@@ -443,7 +366,7 @@ export const fetchAllowedModulesForRole = async (
     force,
     adminId,
     adminEmail,
-    params,
+    params
   });
 
   return snapshot.modules || [];
@@ -453,16 +376,9 @@ export const fetchAllowedSuperAdminModules = async (options = {}) => {
   const snapshot = persistAdminPermissions(
     createSuperAdminPermissionSnapshot({
       adminId: options?.adminId || getStoredAdminId() || "",
-      adminEmail: options?.adminEmail || getStoredAdminEmail() || "",
+      adminEmail: options?.adminEmail || getStoredAdminEmail() || ""
     })
   );
-
-  console.log("[Admin Permission] Authenticated Role:", "superadmin");
-  console.log("[Admin Permission] Selected Permission Flow:", "superadmin-bypass");
-  console.log("[Admin Permission] Skipping permission API for Super Admin");
-  console.log("[Admin Permission] Selected Permission API:", "none");
-  console.log("[Admin Permission] Permission API Response:", snapshot.modules);
-  console.log("[Admin Permission] Allowed Modules:", snapshot.modules);
 
   return snapshot.modules || [];
 };
@@ -516,7 +432,7 @@ const normalizeAdminPermissionSnapshot = (payload = {}, fallback = {}) => {
         ""
       )
     ).trim(),
-    permissions,
+    permissions
   };
 };
 
@@ -529,17 +445,13 @@ export const fetchAdminPermissionsByAdminId = async (adminId) => {
 
   const response = await api.get(API_ENDPOINTS.adminPermission.get(normalizedAdminId), {
     headers: {
-      Accept: "application/json",
-    },
+      Accept: "application/json"
+    }
   });
-
-  console.log("GET Permissions Response:", response.data);
 
   const snapshot = normalizeAdminPermissionSnapshot(response.data, {
-    adminId: normalizedAdminId,
+    adminId: normalizedAdminId
   });
-
-  console.log("Mapped Permissions:", snapshot.permissions);
 
   return snapshot;
 };
@@ -578,13 +490,13 @@ const normalizePermissionForSave = (permission = {}, fallbackAdminId = "") => {
     canAdd: Boolean(permission.canAdd ?? permission.CanAdd ?? false),
     canEdit: Boolean(permission.canEdit ?? permission.CanEdit ?? false),
     canDelete: Boolean(permission.canDelete ?? permission.CanDelete ?? false),
-    canAccess: Boolean(permission.canAccess ?? permission.CanAccess ?? false),
+    canAccess: Boolean(permission.canAccess ?? permission.CanAccess ?? false)
   };
 };
 
 export const buildAdminPermissionSavePayload = ({
   adminId = "",
-  permissions = [],
+  permissions = []
 } = {}) => {
   const normalizedAdminId = normalizeId(adminId);
 
@@ -592,15 +504,15 @@ export const buildAdminPermissionSavePayload = ({
     throw new Error("Admin ID is required.");
   }
 
-  const normalizedPermissions = Array.isArray(permissions)
-    ? permissions.map((permission) =>
-        normalizePermissionForSave(permission, normalizedAdminId)
-      )
-    : [];
+  const normalizedPermissions = Array.isArray(permissions) ?
+  permissions.map((permission) =>
+  normalizePermissionForSave(permission, normalizedAdminId)
+  ) :
+  [];
 
-  const adminIdValue = Number.isFinite(Number(normalizedAdminId))
-    ? Number(normalizedAdminId)
-    : normalizedAdminId;
+  const adminIdValue = Number.isFinite(Number(normalizedAdminId)) ?
+  Number(normalizedAdminId) :
+  normalizedAdminId;
 
   return {
     adminId: adminIdValue,
@@ -608,29 +520,25 @@ export const buildAdminPermissionSavePayload = ({
     permissions: normalizedPermissions,
     Permissions: normalizedPermissions,
     modules: normalizedPermissions,
-    Modules: normalizedPermissions,
+    Modules: normalizedPermissions
   };
 };
 
 export const saveAdminPermissions = async ({
   adminId = "",
-  permissions = [],
+  permissions = []
 } = {}) => {
   const payload = buildAdminPermissionSavePayload({
     adminId,
-    permissions,
+    permissions
   });
-
-  console.log("Save Payload:", payload);
 
   const response = await api.post(API_ENDPOINTS.adminPermission.save, payload, {
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
-    },
+      Accept: "application/json"
+    }
   });
-
-  console.log("Save Response:", response.data);
 
   return response.data;
 };
@@ -653,6 +561,6 @@ export const isAdminPermissionAuthFailure = (error) => {
     error?.code === "ERR_CANCELED" ||
     /session\s+expired|sign\s*in|token\s+expired|expired\s+token/i.test(
       String(error?.message || "")
-    )
-  );
+    ));
+
 };

@@ -7,8 +7,8 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis,
-} from "recharts";
+  YAxis } from
+"recharts";
 import {
   FaAdjust,
   FaBirthdayCake,
@@ -23,8 +23,8 @@ import {
   FaRedo,
   FaTicketAlt,
   FaTimesCircle,
-  FaUsers,
-} from "react-icons/fa";
+  FaUsers } from
+"react-icons/fa";
 import "./UserDashboard.css";
 
 import api from "../api/axiosInstance";
@@ -35,12 +35,12 @@ import { formatDate, parseDate, timeAgo } from "../utils/date";
 import {
   endPerformanceTimer,
   logPerformanceError,
-  startPerformanceTimer,
-} from "../utils/performance";
+  startPerformanceTimer } from
+"../utils/performance";
 import {
   getAttendanceDashboardErrorMessage,
-  getUserAttendanceDashboard,
-} from "../services/attendanceService";
+  getUserAttendanceDashboard } from
+"../services/attendanceService";
 import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
 import { getNotificationRoute } from "../services/notificationService";
 
@@ -48,13 +48,13 @@ const DEFAULT_WEEK_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const unwrapPayload = (payload = {}) => {
   if (
-    payload &&
-    typeof payload === "object" &&
-    !Array.isArray(payload) &&
-    payload.data &&
-    typeof payload.data === "object" &&
-    !Array.isArray(payload.data)
-  ) {
+  payload &&
+  typeof payload === "object" &&
+  !Array.isArray(payload) &&
+  payload.data &&
+  typeof payload.data === "object" &&
+  !Array.isArray(payload.data))
+  {
     return payload.data;
   }
 
@@ -84,9 +84,9 @@ const formatWorkingHours = (value, fallback = "-") => {
     }
 
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
-      const [hoursPart, minutesPart = "0", secondsPart = "0"] = trimmed
-        .split(":")
-        .map((part) => Number(part));
+      const [hoursPart, minutesPart = "0", secondsPart = "0"] = trimmed.
+      split(":").
+      map((part) => Number(part));
       const totalMinutes = Math.max(
         0,
         Math.round(hoursPart * 60 + minutesPart + secondsPart / 60)
@@ -133,50 +133,50 @@ const formatWorkingHours = (value, fallback = "-") => {
 };
 
 const getInitials = (value = "") =>
-  String(value || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("") || "E";
+String(value || "").
+trim().
+split(/\s+/).
+filter(Boolean).
+slice(0, 2).
+map((part) => part[0]?.toUpperCase() || "").
+join("") || "E";
 
 const resolveBirthdayImage = (record = {}) => {
   const rawSource =
-    record?.employeePhoto ||
-    record?.photo ||
-    record?.photoUrl ||
-    record?.imageUrl ||
-    record?.avatarUrl ||
-    record?.profileImage ||
-    record?.picture ||
-    record?.image ||
-    "";
+  record?.employeePhoto ||
+  record?.photo ||
+  record?.photoUrl ||
+  record?.imageUrl ||
+  record?.avatarUrl ||
+  record?.profileImage ||
+  record?.picture ||
+  record?.image ||
+  "";
 
   return rawSource ? buildServerUrl(rawSource) : "";
 };
 
 const normalizeBirthday = (record = {}) => {
   const employeeName =
-    record?.employeeName ||
-    record?.name ||
-    `${record?.firstName ?? ""} ${record?.lastName ?? ""}`.trim() ||
-    "Employee";
+  record?.employeeName ||
+  record?.name ||
+  `${record?.firstName ?? ""} ${record?.lastName ?? ""}`.trim() ||
+  "Employee";
 
   const designation =
-    record?.designation ||
-    record?.designationName ||
-    record?.roleName ||
-    record?.role ||
-    record?.position ||
-    "-";
+  record?.designation ||
+  record?.designationName ||
+  record?.roleName ||
+  record?.role ||
+  record?.position ||
+  "-";
 
   const birthday =
-    record?.birthday ||
-    record?.dob ||
-    record?.birthDate ||
-    record?.dateOfBirth ||
-    "";
+  record?.birthday ||
+  record?.dob ||
+  record?.birthDate ||
+  record?.dateOfBirth ||
+  "";
 
   const parsedDaysRemaining = Number(
     record?.daysRemaining ??
@@ -185,23 +185,23 @@ const normalizeBirthday = (record = {}) => {
     0
   );
 
-  const daysRemaining = Number.isFinite(parsedDaysRemaining)
-    ? Math.max(0, parsedDaysRemaining)
-    : 0;
+  const daysRemaining = Number.isFinite(parsedDaysRemaining) ?
+  Math.max(0, parsedDaysRemaining) :
+  0;
 
   return {
     employeeId:
-      record?.employeeId ||
-      record?.employeeID ||
-      record?.employee_id ||
-      record?.id ||
-      "",
+    record?.employeeId ||
+    record?.employeeID ||
+    record?.employee_id ||
+    record?.id ||
+    "",
     employeeName,
     designation,
     birthday,
     daysRemaining,
     imageUrl: resolveBirthdayImage(record),
-    initials: getInitials(employeeName),
+    initials: getInitials(employeeName)
   };
 };
 
@@ -211,13 +211,13 @@ const getWeekLabel = (item, index) => {
   }
 
   const directLabel =
-    item?.day ||
-    item?.dayName ||
-    item?.label ||
-    item?.weekDay ||
-    item?.weekday ||
-    item?.name ||
-    "";
+  item?.day ||
+  item?.dayName ||
+  item?.label ||
+  item?.weekDay ||
+  item?.weekday ||
+  item?.name ||
+  "";
 
   if (directLabel) {
     const raw = String(directLabel).trim();
@@ -233,16 +233,16 @@ const getWeekLabel = (item, index) => {
   }
 
   const dateValue =
-    item?.date ||
-    item?.attendanceDate ||
-    item?.dayDate ||
-    item?.weekDate ||
-    "";
+  item?.date ||
+  item?.attendanceDate ||
+  item?.dayDate ||
+  item?.weekDate ||
+  "";
 
   const parsedDate = parseDate(dateValue);
   if (parsedDate) {
     return parsedDate.toLocaleDateString("en-US", {
-      weekday: "short",
+      weekday: "short"
     });
   }
 
@@ -275,7 +275,7 @@ const parseHoursValue = (value) => {
     // Supports: "09:04" or "09:04:00"
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
       const [hoursPart = 0, minutesPart = 0, secondsPart = 0] =
-        trimmed.split(":").map(Number);
+      trimmed.split(":").map(Number);
 
       return hoursPart + minutesPart / 60 + secondsPart / 3600;
     }
@@ -289,23 +289,23 @@ const parseHoursValue = (value) => {
 };
 
 const getWeekHours = (item) =>
-  parseHoursValue(
-    item && typeof item === "object"
-      ? item?.hours ??
-      item?.value ??
-      item?.workingHours ??
-      item?.duration ??
-      item?.totalHours ??
-      item?.weekHours ??
-      0
-      : item
-  );
+parseHoursValue(
+  item && typeof item === "object" ?
+  item?.hours ??
+  item?.value ??
+  item?.workingHours ??
+  item?.duration ??
+  item?.totalHours ??
+  item?.weekHours ??
+  0 :
+  item
+);
 
 const normalizeWeeklyHours = (value) => {
   if (Array.isArray(value)) {
     return value.map((item, index) => ({
       day: getWeekLabel(item, index),
-      hours: getWeekHours(item),
+      hours: getWeekHours(item)
     }));
   }
 
@@ -314,13 +314,13 @@ const normalizeWeeklyHours = (value) => {
       if (entry && typeof entry === "object" && !Array.isArray(entry)) {
         return {
           day: getWeekLabel({ ...entry, day: key }, index),
-          hours: getWeekHours(entry),
+          hours: getWeekHours(entry)
         };
       }
 
       return {
         day: key,
-        hours: normalizeNumber(entry, 0),
+        hours: normalizeNumber(entry, 0)
       };
     });
   }
@@ -351,10 +351,10 @@ const normalizeAttendance = (payload = {}) => {
       source?.leaveDays ?? source?.leave ?? source?.leaveCount ?? 0
     ),
     todayWorkingHours:
-      source?.todayWorkingHours ??
-      source?.workingHoursToday ??
-      source?.workingHours ??
-      "",
+    source?.todayWorkingHours ??
+    source?.workingHoursToday ??
+    source?.workingHours ??
+    "",
     weeklyHours: normalizeWeeklyHours(
       source?.weeklyHours ??
       source?.weeklyAttendance ??
@@ -362,14 +362,12 @@ const normalizeAttendance = (payload = {}) => {
       source?.weeklyData ??
       source?.graph ??
       []
-    ),
+    )
   };
 };
 
 const normalizeDashboardData = (payload = {}) => {
   const source = unwrapPayload(payload);
-
-  console.log("Dashboard API Response:", source);
 
   return {
     myTickets: normalizeNumber(
@@ -402,55 +400,54 @@ const normalizeDashboardData = (payload = {}) => {
     ),
 
     recentActivities:
-      source?.recentActivities ||
-      source?.activities ||
-      source?.recentActivity ||
-      [],
+    source?.recentActivities ||
+    source?.activities ||
+    source?.recentActivity ||
+    [],
 
     upcomingHolidays:
-      source?.upcomingHolidays ||
-      source?.holidays ||
-      source?.upcomingHoliday ||
-      [],
+    source?.upcomingHolidays ||
+    source?.holidays ||
+    source?.upcomingHoliday ||
+    []
   };
 };
 
 const attendanceMiniCards = [
-  {
-    key: "presentDays",
-    label: "Present",
-    icon: FaCheckCircle,
-    tone: "present",
-    helper: "Working days",
-  },
-  {
-    key: "absentDays",
-    label: "Absent",
-    icon: FaTimesCircle,
-    tone: "absent",
-    helper: "Missed days",
-  },
-  {
-    key: "halfDays",
-    label: "Half Days",
-    icon: FaAdjust,
-    tone: "half-day",
-    helper: "Partial days",
-  },
-  {
-    key: "leaveDays",
-    label: "Leave",
-    icon: FaCalendarTimes,
-    tone: "leave",
-    helper: "Approved leave",
-  },
-];
+{
+  key: "presentDays",
+  label: "Present",
+  icon: FaCheckCircle,
+  tone: "present",
+  helper: "Working days"
+},
+{
+  key: "absentDays",
+  label: "Absent",
+  icon: FaTimesCircle,
+  tone: "absent",
+  helper: "Missed days"
+},
+{
+  key: "halfDays",
+  label: "Half Days",
+  icon: FaAdjust,
+  tone: "half-day",
+  helper: "Partial days"
+},
+{
+  key: "leaveDays",
+  label: "Leave",
+  icon: FaCalendarTimes,
+  tone: "leave",
+  helper: "Approved leave"
+}];
 
 function AttendanceOverviewCard({
   data,
   hasData,
   error,
-  onRetry,
+  onRetry
 }) {
   const attendancePercentage = clampPercentage(data?.attendancePercentage ?? 0);
   const chartData = Array.isArray(data?.weeklyHours) ? data.weeklyHours : [];
@@ -459,7 +456,7 @@ function AttendanceOverviewCard({
   const ringStroke = 12;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const ringOffset =
-    ringCircumference - (attendancePercentage / 100) * ringCircumference;
+  ringCircumference - attendancePercentage / 100 * ringCircumference;
 
   return (
     <section className="udb-section udb-attendance-card">
@@ -477,8 +474,8 @@ function AttendanceOverviewCard({
         </div>
       </div>
 
-      {error ? (
-        <div className="udb-empty-state udb-card-empty-state">
+      {error ?
+      <div className="udb-empty-state udb-card-empty-state">
           <div className="udb-empty-icon error">
             <FaRedo aria-hidden="true" />
           </div>
@@ -490,9 +487,9 @@ function AttendanceOverviewCard({
             <FaRedo aria-hidden="true" />
             Retry
           </button>
-        </div>
-      ) : !hasData ? (
-        <div className="udb-empty-state udb-card-empty-state">
+        </div> :
+      !hasData ?
+      <div className="udb-empty-state udb-card-empty-state">
           <div className="udb-empty-icon">
             <FaCalendarAlt aria-hidden="true" />
           </div>
@@ -504,32 +501,32 @@ function AttendanceOverviewCard({
             <FaRedo aria-hidden="true" />
             Refresh
           </button>
-        </div>
-      ) : (
-        <>
+        </div> :
+
+      <>
           <div className="udb-attendance-top">
             <div className="udb-progress-card">
               <svg
-                className="udb-progress-ring"
-                viewBox="0 0 120 120"
-                aria-hidden="true"
-              >
+              className="udb-progress-ring"
+              viewBox="0 0 120 120"
+              aria-hidden="true">
+              
                 <circle
-                  className="udb-progress-track"
-                  cx="60"
-                  cy="60"
-                  r={ringRadius}
-                  strokeWidth={ringStroke}
-                />
+                className="udb-progress-track"
+                cx="60"
+                cy="60"
+                r={ringRadius}
+                strokeWidth={ringStroke} />
+              
                 <circle
-                  className="udb-progress-value"
-                  cx="60"
-                  cy="60"
-                  r={ringRadius}
-                  strokeWidth={ringStroke}
-                  strokeDasharray={ringCircumference}
-                  strokeDashoffset={ringOffset}
-                />
+                className="udb-progress-value"
+                cx="60"
+                cy="60"
+                r={ringRadius}
+                strokeWidth={ringStroke}
+                strokeDasharray={ringCircumference}
+                strokeDashoffset={ringOffset} />
+              
               </svg>
 
               <div className="udb-progress-copy">
@@ -540,10 +537,10 @@ function AttendanceOverviewCard({
 
             <div className="udb-mini-grid">
               {attendanceMiniCards.map((card) => {
-                const Icon = card.icon;
+              const Icon = card.icon;
 
-                return (
-                  <div className={`udb-mini-card ${card.tone}`} key={card.key}>
+              return (
+                <div className={`udb-mini-card ${card.tone}`} key={card.key}>
                     <div className="udb-mini-copy">
                       <span>{card.label}</span>
                       <strong>{normalizeNumber(data?.[card.key], 0)}</strong>
@@ -553,9 +550,9 @@ function AttendanceOverviewCard({
                     <div className="udb-mini-icon">
                       <Icon aria-hidden="true" />
                     </div>
-                  </div>
-                );
-              })}
+                  </div>);
+
+            })}
             </div>
           </div>
 
@@ -579,8 +576,8 @@ function AttendanceOverviewCard({
               </div>
             </div>
 
-            {chartHasData ? (
-              <div className="udb-chart-wrap">
+            {chartHasData ?
+          <div className="udb-chart-wrap">
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={chartData}>
                     <defs>
@@ -592,51 +589,51 @@ function AttendanceOverviewCard({
 
                     <CartesianGrid strokeDasharray="4 10" vertical={false} />
                     <XAxis
-                      dataKey="day"
-                      axisLine={false}
-                      tickLine={false}
-                      tickMargin={10}
-                    />
+                  dataKey="day"
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={10} />
+                
                     <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      width={34}
-                      tickFormatter={(value) => `${value}`}
-                    />
+                  axisLine={false}
+                  tickLine={false}
+                  width={34}
+                  tickFormatter={(value) => `${value}`} />
+                
                     <Tooltip
-                      cursor={{ stroke: "var(--theme-primary)", strokeWidth: 1 }}
-                      formatter={(value) => [`${formatWorkingHours(value, "0h")}`, "Hours"]}
-                      labelFormatter={(label) => `${label}`}
-                    />
+                  cursor={{ stroke: "var(--theme-primary)", strokeWidth: 1 }}
+                  formatter={(value) => [`${formatWorkingHours(value, "0h")}`, "Hours"]}
+                  labelFormatter={(label) => `${label}`} />
+                
                     <Area
-                      type="monotone"
-                      dataKey="hours"
-                      stroke="var(--theme-primary)"
-                      fill="url(#attendanceGradient)"
-                      strokeWidth={3}
-                      dot={{
-                        r: 4,
-                        strokeWidth: 2,
-                        fill: "var(--bg-page)",
-                      }}
-                      activeDot={{
-                        r: 6,
-                      }}
-                    />
+                  type="monotone"
+                  dataKey="hours"
+                  stroke="var(--theme-primary)"
+                  fill="url(#attendanceGradient)"
+                  strokeWidth={3}
+                  dot={{
+                    r: 4,
+                    strokeWidth: 2,
+                    fill: "var(--bg-page)"
+                  }}
+                  activeDot={{
+                    r: 6
+                  }} />
+                
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="udb-chart-empty">
+              </div> :
+
+          <div className="udb-chart-empty">
                 <FaCalendarAlt aria-hidden="true" />
                 <p>No weekly graph data available yet.</p>
               </div>
-            )}
+          }
           </div>
         </>
-      )}
-    </section>
-  );
+      }
+    </section>);
+
 }
 
 function BirthdaysListItem({ birthday, compact = false }) {
@@ -645,11 +642,11 @@ function BirthdaysListItem({ birthday, compact = false }) {
   return (
     <div className={`udb-birthday-item ${compact ? "compact" : ""}`}>
       <div className="udb-birthday-avatar">
-        {birthday.imageUrl ? (
-          <img src={birthday.imageUrl} alt={birthday.employeeName} />
-        ) : (
-          <span>{birthday.initials}</span>
-        )}
+        {birthday.imageUrl ?
+        <img src={birthday.imageUrl} alt={birthday.employeeName} /> :
+
+        <span>{birthday.initials}</span>
+        }
       </div>
 
       <div className="udb-birthday-copy">
@@ -665,8 +662,8 @@ function BirthdaysListItem({ birthday, compact = false }) {
       <span className={`udb-birthday-badge ${isToday ? "is-today" : ""}`}>
         {isToday ? "Today" : `${birthday.daysRemaining} days left`}
       </span>
-    </div>
-  );
+    </div>);
+
 }
 
 function UpcomingBirthdaysCard({
@@ -674,7 +671,7 @@ function UpcomingBirthdaysCard({
   loading = false,
   error = "",
   onRetry,
-  onViewAll,
+  onViewAll
 }) {
   const visibleBirthdays = birthdays.slice(0, 6);
 
@@ -692,17 +689,17 @@ function UpcomingBirthdaysCard({
           type="button"
           className="udb-view-all-btn"
           onClick={onViewAll}
-          disabled={loading}
-        >
+          disabled={loading}>
+          
           View All Birthdays
           <FaChevronRight aria-hidden="true" />
         </button>
       </div>
 
-      {loading ? (
-        <div className="udb-birthday-skeleton" aria-busy="true">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div className="udb-birthday-skeleton-row" key={index}>
+      {loading ?
+      <div className="udb-birthday-skeleton" aria-busy="true">
+          {Array.from({ length: 4 }, (_, index) =>
+        <div className="udb-birthday-skeleton-row" key={index}>
               <div className="udb-birthday-skeleton-avatar" />
               <div className="udb-birthday-skeleton-copy">
                 <div className="udb-birthday-skeleton-line short" />
@@ -711,10 +708,10 @@ function UpcomingBirthdaysCard({
               </div>
               <div className="udb-birthday-skeleton-badge" />
             </div>
-          ))}
-        </div>
-      ) : error ? (
-        <div className="udb-empty-state udb-card-empty-state">
+        )}
+        </div> :
+      error ?
+      <div className="udb-empty-state udb-card-empty-state">
           <div className="udb-empty-icon error">
             <FaRedo aria-hidden="true" />
           </div>
@@ -726,25 +723,25 @@ function UpcomingBirthdaysCard({
             <FaRedo aria-hidden="true" />
             Retry
           </button>
-        </div>
-      ) : visibleBirthdays.length === 0 ? (
-        <div className="udb-empty-state udb-card-empty-state">
+        </div> :
+      visibleBirthdays.length === 0 ?
+      <div className="udb-empty-state udb-card-empty-state">
           <div className="udb-empty-icon">
             <FaBirthdayCake aria-hidden="true" />
           </div>
 
           <strong>No upcoming birthdays</strong>
           <p>The birthdays API returned no employees for the upcoming window.</p>
+        </div> :
+
+      <div className="udb-birthday-list">
+          {visibleBirthdays.map((birthday) =>
+        <BirthdaysListItem key={`${birthday.employeeId}-${birthday.employeeName}`} birthday={birthday} />
+        )}
         </div>
-      ) : (
-        <div className="udb-birthday-list">
-          {visibleBirthdays.map((birthday) => (
-            <BirthdaysListItem key={`${birthday.employeeId}-${birthday.employeeName}`} birthday={birthday} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
+      }
+    </section>);
+
 }
 
 function BirthdayModal({ open, birthdays, onClose }) {
@@ -757,8 +754,8 @@ function BirthdayModal({ open, birthdays, onClose }) {
       className="udb-modal-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label="Upcoming birthdays"
-    >
+      aria-label="Upcoming birthdays">
+      
       <div className="udb-modal">
         <div className="udb-modal-header">
           <div>
@@ -771,26 +768,26 @@ function BirthdayModal({ open, birthdays, onClose }) {
           </button>
         </div>
 
-        {birthdays.length === 0 ? (
-          <div className="udb-modal-empty">
+        {birthdays.length === 0 ?
+        <div className="udb-modal-empty">
             <FaBirthdayCake aria-hidden="true" />
             <strong>No birthdays to display</strong>
             <p>The selected API response did not include any birthdays.</p>
+          </div> :
+
+        <div className="udb-modal-list">
+            {birthdays.map((birthday) =>
+          <BirthdaysListItem
+            key={`${birthday.employeeId}-${birthday.employeeName}-modal`}
+            birthday={birthday}
+            compact />
+
+          )}
           </div>
-        ) : (
-          <div className="udb-modal-list">
-            {birthdays.map((birthday) => (
-              <BirthdaysListItem
-                key={`${birthday.employeeId}-${birthday.employeeName}-modal`}
-                birthday={birthday}
-                compact
-              />
-            ))}
-          </div>
-        )}
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 function UserDashboard() {
@@ -803,7 +800,7 @@ function UserDashboard() {
 
   const [dashboardData, setDashboardData] = useState({
     recentActivities: [],
-    upcomingHolidays: [],
+    upcomingHolidays: []
   });
   const [attendanceData, setAttendanceData] = useState({
     attendancePercentage: 0,
@@ -812,7 +809,7 @@ function UserDashboard() {
     halfDays: 0,
     leaveDays: 0,
     todayWorkingHours: "",
-    weeklyHours: [],
+    weeklyHours: []
   });
   const [attendanceHasData, setAttendanceHasData] = useState(false);
   const [birthdays, setBirthdays] = useState([]);
@@ -837,24 +834,24 @@ function UserDashboard() {
         startPerformanceTimer(timerLabel);
 
         const [dashboardResult, attendanceResult, birthdaysResult] =
-          await Promise.allSettled([
-            api.get(API_ENDPOINTS.userDashboard, {
-              signal: controller.signal,
-            }),
-            getUserAttendanceDashboard({
-              signal: controller.signal,
-            }),
-            api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
-              signal: controller.signal,
-            }),
-          ]);
+        await Promise.allSettled([
+        api.get(API_ENDPOINTS.userDashboard, {
+          signal: controller.signal
+        }),
+        getUserAttendanceDashboard({
+          signal: controller.signal
+        }),
+        api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
+          signal: controller.signal
+        })]
+        );
 
         if (dashboardResult.status === "fulfilled") {
           setDashboardData(normalizeDashboardData(dashboardResult.value?.data || {}));
         } else {
           setDashboardData({
             recentActivities: [],
-            upcomingHolidays: [],
+            upcomingHolidays: []
           });
 
           setDashboardError("Unable to load your dashboard activity right now.");
@@ -875,16 +872,6 @@ function UserDashboard() {
             return;
           }
 
-          console.error("Attendance Dashboard Error", {
-            status: attendanceResult.reason?.response?.status,
-            message:
-              attendanceResult.reason?.response?.data ||
-              attendanceResult.reason?.message,
-            url: attendanceResult.reason?.config?.url,
-            params: attendanceResult.reason?.config?.params,
-            headers: attendanceResult.reason?.config?.headers,
-          });
-
           setAttendanceData({
             attendancePercentage: 0,
             presentDays: 0,
@@ -892,7 +879,7 @@ function UserDashboard() {
             halfDays: 0,
             leaveDays: 0,
             todayWorkingHours: "",
-            weeklyHours: [],
+            weeklyHours: []
           });
           setAttendanceHasData(false);
           setAttendanceError(
@@ -910,15 +897,15 @@ function UserDashboard() {
         }
 
         if (birthdaysResult.status === "fulfilled") {
-          const birthdayRecords = extractCollection(birthdaysResult.value?.data)
-            .map(normalizeBirthday)
-            .sort((left, right) => {
-              if (left.daysRemaining !== right.daysRemaining) {
-                return left.daysRemaining - right.daysRemaining;
-              }
+          const birthdayRecords = extractCollection(birthdaysResult.value?.data).
+          map(normalizeBirthday).
+          sort((left, right) => {
+            if (left.daysRemaining !== right.daysRemaining) {
+              return left.daysRemaining - right.daysRemaining;
+            }
 
-              return left.employeeName.localeCompare(right.employeeName);
-            });
+            return left.employeeName.localeCompare(right.employeeName);
+          });
           setBirthdays(birthdayRecords);
         } else {
           setBirthdays([]);
@@ -942,7 +929,7 @@ function UserDashboard() {
 
         setDashboardData({
           recentActivities: [],
-          upcomingHolidays: [],
+          upcomingHolidays: []
         });
         setAttendanceData({
           attendancePercentage: 0,
@@ -951,7 +938,7 @@ function UserDashboard() {
           halfDays: 0,
           leaveDays: 0,
           todayWorkingHours: "",
-          weeklyHours: [],
+          weeklyHours: []
         });
         setBirthdays([]);
         setAttendanceHasData(false);
@@ -986,8 +973,8 @@ function UserDashboard() {
     return (
       <div className="udb-wrapper">
         <PageSkeleton variant="dashboard" />
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -1001,7 +988,6 @@ function UserDashboard() {
             Track attendance, celebrate birthdays, and keep an eye on today&apos;s work rhythm.
           </p>
         </div>
-
 
         <div className="udb-header-chip">
           <FaUsers aria-hidden="true" />
@@ -1060,8 +1046,8 @@ function UserDashboard() {
           </div>
         </div>
       </div>
-      {dashboardError && (
-        <div className="udb-alert" role="alert">
+      {dashboardError &&
+      <div className="udb-alert" role="alert">
           <div>
             <strong>Dashboard data could not be refreshed.</strong>
             <span>{dashboardError}</span>
@@ -1072,9 +1058,7 @@ function UserDashboard() {
             Retry All
           </button>
         </div>
-      )}
-
-
+      }
 
       <div className="udb-feature-grid">
 
@@ -1082,94 +1066,92 @@ function UserDashboard() {
           data={attendanceData}
           hasData={attendanceHasData}
           error={attendanceError}
-          onRetry={() => setReloadTick((tick) => tick + 1)}
-        />
+          onRetry={() => setReloadTick((tick) => tick + 1)} />
+        
 
         <UpcomingBirthdaysCard
           birthdays={birthdayPreview}
           error={birthdaysError}
           onRetry={() => setReloadTick((tick) => tick + 1)}
-          onViewAll={() => setShowBirthdaysModal(true)}
-        />
+          onViewAll={() => setShowBirthdaysModal(true)} />
+        
       </div>
-
 
       <div className="udb-main">
         <div className="udb-section">
           <h3 className="udb-section-title">My Recent Activities</h3>
 
-          {recentActivities.length === 0 ? (
-            dashboardError ? (
-              <div className="udb-empty-state">
+          {recentActivities.length === 0 ?
+          dashboardError ?
+          <div className="udb-empty-state">
                 <div className="udb-empty-icon error">
                   <FaRedo aria-hidden="true" />
                 </div>
                 <strong>Activity feed unavailable</strong>
                 <p>{dashboardError}</p>
-              </div>
-            ) : (
-              <div className="udb-empty-state">
+              </div> :
+
+          <div className="udb-empty-state">
               <div className="udb-empty-icon">
                   <FaTicketAlt aria-hidden="true" />
                 </div>
                 <strong>No recent activities</strong>
                 <p>Your recent actions will appear here once they are logged.</p>
-              </div>
-            )
-          ) : (
-            recentActivities.map((item, index) => {
-              const message =
-                item?.message ||
-                item?.activity ||
-                item?.title ||
-                "Activity updated";
+              </div> :
 
-              const rawTime =
-                item?.time ||
-                item?.createdAt ||
-                item?.updatedAt ||
-                item?.date ||
-                "";
-              const rawTimeText = String(rawTime || "");
+          recentActivities.map((item, index) => {
+            const message =
+            item?.message ||
+            item?.activity ||
+            item?.title ||
+            "Activity updated";
 
-              return (
-                <div className="udb-task-row" key={`${message}-${index}`}>
+            const rawTime =
+            item?.time ||
+            item?.createdAt ||
+            item?.updatedAt ||
+            item?.date ||
+            "";
+            const rawTimeText = String(rawTime || "");
+
+            return (
+              <div className="udb-task-row" key={`${message}-${index}`}>
                   <span className="udb-activity-message">{message}</span>
                   <span className="udb-activity-time">
-                    {rawTimeText
-                      ? rawTimeText.toLowerCase().includes("ago")
-                        ? rawTimeText
-                        : timeAgo(rawTimeText)
-                      : ""}
+                    {rawTimeText ?
+                  rawTimeText.toLowerCase().includes("ago") ?
+                  rawTimeText :
+                  timeAgo(rawTimeText) :
+                  ""}
                   </span>
-                </div>
-              );
-            })
-          )}
+                </div>);
+
+          })
+          }
         </div>
 
         <div className="udb-section">
           <h3 className="udb-section-title">Upcoming Holidays</h3>
 
-          {upcomingHolidays.length === 0 ? (
-            <div className="udb-empty-state">
+          {upcomingHolidays.length === 0 ?
+          <div className="udb-empty-state">
               <div className="udb-empty-icon">
                 <FaCalendarAlt aria-hidden="true" />
               </div>
               <strong>No upcoming holidays</strong>
               <p>Holiday information will show here when the dashboard API returns it.</p>
-            </div>
-          ) : (
-            upcomingHolidays.map((holiday, index) => (
-              <div className="udb-holiday-row" key={`${holiday?.holidayName || holiday?.holiday_Name || "holiday"}-${index}`}>
+            </div> :
+
+          upcomingHolidays.map((holiday, index) =>
+          <div className="udb-holiday-row" key={`${holiday?.holidayName || holiday?.holiday_Name || "holiday"}-${index}`}>
                 <span>
                   {holiday?.holidayName || holiday?.holiday_Name || holiday?.name || "Holiday"}
                 </span>
 
                 <span>{formatDate(holiday?.date || holiday?.holiday_Date)}</span>
               </div>
-            ))
-          )}
+          )
+          }
         </div>
       </div>
 
@@ -1198,10 +1180,10 @@ function UserDashboard() {
       <BirthdayModal
         open={showBirthdaysModal}
         birthdays={birthdays}
-        onClose={() => setShowBirthdaysModal(false)}
-      />
-    </div>
-  );
+        onClose={() => setShowBirthdaysModal(false)} />
+      
+    </div>);
+
 }
 
 export default UserDashboard;

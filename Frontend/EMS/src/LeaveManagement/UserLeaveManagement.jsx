@@ -6,8 +6,8 @@ import {
   FaUserInjured,
   FaBookOpen,
   FaRegCalendarAlt,
-  FaTrash
-} from "react-icons/fa";
+  FaTrash } from
+"react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import { formatDate, isDateRangeValid } from "../utils/date";
@@ -15,27 +15,27 @@ import { extractCollection, sortByRecency } from "../utils/collections";
 import {
   CardSkeleton,
   FormSkeleton,
-  TableSkeleton,
-} from "../components/Skeletons";
+  TableSkeleton } from
+"../components/Skeletons";
 
 const getLeaveRecordId = (leave) => {
   const value =
-    leave?.id ??
-    leave?.leaveId ??
-    leave?.leave_Id ??
-    leave?.leaveID ??
-    leave?.leaveRequestId ??
-    leave?.leave_Request_Id ??
-    null;
+  leave?.id ??
+  leave?.leaveId ??
+  leave?.leave_Id ??
+  leave?.leaveID ??
+  leave?.leaveRequestId ??
+  leave?.leave_Request_Id ??
+  null;
 
   if (value === null || value === undefined) {
     return null;
   }
 
   if (
-    typeof value === "string" &&
-    !value.trim()
-  ) {
+  typeof value === "string" &&
+  !value.trim())
+  {
     return null;
   }
 
@@ -43,15 +43,15 @@ const getLeaveRecordId = (leave) => {
 };
 
 const buildLeaveIdentifierFields = (
-  value
-) => {
+value) =>
+{
   const resolvedLeaveId =
-    getLeaveRecordId(
-      typeof value === "object" &&
-        value !== null
-        ? value
-        : { id: value }
-    );
+  getLeaveRecordId(
+    typeof value === "object" &&
+    value !== null ?
+    value :
+    { id: value }
+  );
 
   if (resolvedLeaveId === null) {
     return {};
@@ -60,47 +60,43 @@ const buildLeaveIdentifierFields = (
   return {
     id: resolvedLeaveId,
     leaveId: resolvedLeaveId,
-    leave_Id: resolvedLeaveId,
+    leave_Id: resolvedLeaveId
   };
 };
 
 const firstDefined = (...values) =>
-  values.find((value) => value !== undefined && value !== null && value !== "");
+values.find((value) => value !== undefined && value !== null && value !== "");
 
 const normalizeLeaveBalanceCards = (payload) => {
   const data = payload?.data || payload || {};
   const types = [
-    ["Annual Leave", ["annualLeave", "AnnualLeave", "annual"]],
-    ["Casual Leave", ["casualLeave", "CasualLeave", "casual"]],
-    ["Medical Leave", ["medicalLeave", "MedicalLeave", "medical"]],
-    ["Sick Leave", ["sickLeave", "SickLeave", "sick"]],
-    ["Comp Off", ["compOff", "CompOff", "compensatoryOff"]],
-    ["LOP", ["lop", "LOP", "lossOfPay"]],
-    ["Remaining Leave", ["remainingLeave", "RemainingLeave", "remaining"]],
-    ["Total Leave", ["totalLeave", "TotalLeave", "total"]],
-    ["Consumed Leave", ["consumedLeave", "ConsumedLeave", "used"]],
-  ];
+  ["Annual Leave", ["annualLeave", "AnnualLeave", "annual"]],
+  ["Casual Leave", ["casualLeave", "CasualLeave", "casual"]],
+  ["Medical Leave", ["medicalLeave", "MedicalLeave", "medical"]],
+  ["Sick Leave", ["sickLeave", "SickLeave", "sick"]],
+  ["Comp Off", ["compOff", "CompOff", "compensatoryOff"]],
+  ["LOP", ["lop", "LOP", "lossOfPay"]],
+  ["Remaining Leave", ["remainingLeave", "RemainingLeave", "remaining"]],
+  ["Total Leave", ["totalLeave", "TotalLeave", "total"]],
+  ["Consumed Leave", ["consumedLeave", "ConsumedLeave", "used"]]];
 
   return types.map(([label, keys]) => {
     const value = firstDefined(...keys.map((key) => data[key]), 0);
-    const displayValue = typeof value === "object"
-      ? firstDefined(value.remaining, value.Remaining, value.balance, value.Balance, value.total, value.Total, 0)
-      : value;
+    const displayValue = typeof value === "object" ?
+    firstDefined(value.remaining, value.Remaining, value.balance, value.Balance, value.total, value.Total, 0) :
+    value;
 
     return { label, value: displayValue };
   });
 };
 
 const resolveEndpoint = (endpoint, label) => {
-  const resolved = typeof endpoint === "string"
-    ? endpoint.trim()
-    : "";
+  const resolved = typeof endpoint === "string" ?
+  endpoint.trim() :
+  "";
 
   if (!resolved) {
-    console.error(
-      `[UserLeaveManagement] Missing or invalid ${label} endpoint`,
-      { endpoint }
-    );
+
     return null;
   }
 
@@ -111,13 +107,9 @@ const getRequestUrl = (endpoint) => {
   try {
     return api.getUri({
       url: endpoint,
-      method: "get",
+      method: "get"
     });
   } catch (error) {
-    console.error(
-      "[UserLeaveManagement] Failed to build request URL",
-      { endpoint, error }
-    );
 
     return `${api.defaults.baseURL || ""}${endpoint || ""}`;
   }
@@ -125,7 +117,7 @@ const getRequestUrl = (endpoint) => {
 
 function UserLeaveManagement() {
   const getToken = () =>
-    localStorage.getItem("token") || sessionStorage.getItem("token");
+  localStorage.getItem("token") || sessionStorage.getItem("token");
 
   // ✅ use backend values here
   const [form, setForm] = useState({
@@ -153,13 +145,10 @@ function UserLeaveManagement() {
   // const fetchBalance = async () => {
   //   const token = getToken();
   //   if (!token) {
-  //     console.log("❌ No token found for leave balance");
   //     return;
   //   }
 
   //   try {
-  //     console.log("📡 Fetching leave balance...");
-  //     console.log("🔗 Balance API:", API_ENDPOINTS.leave.balance);
 
   //     const res = await api.get(API_ENDPOINTS.leave.balance, {
   //       headers: {
@@ -168,10 +157,7 @@ function UserLeaveManagement() {
   //       }
   //     });
 
-  //     console.log("📄 Raw Balance Response:", res.data);
-
   //     const data = res.data || {};
-  //     console.log("✅ Parsed Balance Data:", data);
 
   //     const formattedBalance = {
   //       sick: data?.sick ?? { used: 0, total: 0, remaining: 0 },
@@ -179,11 +165,8 @@ function UserLeaveManagement() {
   //       casual: data?.casual ?? { used: 0, total: 0, remaining: 0 }
   //     };
 
-  //     console.log("🎯 Final Balance Set to State:", formattedBalance);
-
   //     setBalance(formattedBalance);
   //   } catch (error) {
-  //     console.error("❌ Error fetching leave balance:", error);
   //     toast.error("Failed to fetch balance");
   //   }
   // };
@@ -195,29 +178,28 @@ function UserLeaveManagement() {
     try {
       const res = await api.get(API_ENDPOINTS.leave.list, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`
         }
       });
 
       const data = extractCollection(res.data);
-      console.log("📥 Leave List:", data);
+
       setLeaveData(
         sortByRecency(data).map(
           (leave) => ({
             ...leave,
             ...buildLeaveIdentifierFields(
               leave
-            ),
+            )
           })
         )
       );
     } catch (err) {
-      console.error("Apply leave error:", err.response?.data || err);
 
       const message =
-        err.response?.data?.message ||
-        err.response?.data ||
-        "Error applying leave";
+      err.response?.data?.message ||
+      err.response?.data ||
+      "Error applying leave";
 
       toast.error(message);
     }
@@ -227,9 +209,7 @@ function UserLeaveManagement() {
     const token = getToken();
 
     if (!token) {
-      console.log(
-        "[UserLeaveManagement] Skipping WFH fetch because no auth token is available."
-      );
+
       setWfhData([]);
       return [];
     }
@@ -247,14 +227,6 @@ function UserLeaveManagement() {
 
     const requestUrl = getRequestUrl(endpoint);
 
-    console.log(
-      "[UserLeaveManagement] Fetching WFH requests",
-      {
-        endpoint,
-        requestUrl
-      }
-    );
-
     try {
 
       const res = await api.get(
@@ -268,34 +240,11 @@ function UserLeaveManagement() {
 
       const data = extractCollection(res.data);
 
-      console.log(
-        "[UserLeaveManagement] WFH response received",
-        {
-          requestUrl,
-          count: Array.isArray(data) ? data.length : 0
-        }
-      );
-
       setWfhData(sortByRecency(data));
 
       return data;
 
     } catch (err) {
-
-      console.error(
-        "[UserLeaveManagement] WFH fetch failed",
-        {
-          endpoint,
-          requestUrl,
-          status: err?.response?.status,
-          message:
-            err?.response?.data?.message ||
-            err?.response?.data?.error ||
-            err?.response?.data ||
-            err?.message ||
-            "Unable to load WFH requests."
-        }
-      );
 
       setWfhData([]);
 
@@ -313,12 +262,12 @@ function UserLeaveManagement() {
       setBalanceError("");
       const res = await api.get(API_ENDPOINTS.leaveBalance.myLeaveBalance, {
         headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
+          Authorization: `Bearer ${getToken()}`
+        }
       });
       setLeaveBalance(normalizeLeaveBalanceCards(res.data));
     } catch (error) {
-      console.error("Failed to fetch leave balance", error);
+
       setBalanceError("Unable to load leave balance.");
       setLeaveBalance([]);
     }
@@ -330,15 +279,11 @@ function UserLeaveManagement() {
 
       try {
         const results = await Promise.allSettled([
-          fetchLeaves(),
-          fetchMyWFH(),
-          fetchBalance()
-        ]);
-
-        console.log(
-          "[UserLeaveManagement] Initial data load settled",
-          results
+        fetchLeaves(),
+        fetchMyWFH(),
+        fetchBalance()]
         );
+
       } finally {
         setInitialLoading(false);
       }
@@ -391,15 +336,13 @@ function UserLeaveManagement() {
       reason: form.reason.trim()
     };
 
-    console.log("📤 Sending Leave Payload:", payload);
-
     try {
       setLoading(true);
 
       const endpoint =
-        form.leaveType === "Work From Home"
-          ? API_ENDPOINTS.wfh.apply
-          : API_ENDPOINTS.leave.list;
+      form.leaveType === "Work From Home" ?
+      API_ENDPOINTS.wfh.apply :
+      API_ENDPOINTS.leave.list;
 
       const res = await api.post(
         endpoint,
@@ -407,12 +350,10 @@ function UserLeaveManagement() {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
           }
         }
       );
-
-      console.log("📄 Apply Leave Response:", res.data);
 
       toast.success("Leave applied successfully ✅");
 
@@ -427,12 +368,11 @@ function UserLeaveManagement() {
         reason: ""
       });
     } catch (err) {
-      console.error("Apply leave error:", err.response?.data || err);
 
       const message =
-        err.response?.data?.message ||
-        err.response?.data ||
-        "Error applying leave";
+      err.response?.data?.message ||
+      err.response?.data ||
+      "Error applying leave";
 
       toast.error(message);
     } finally {
@@ -441,8 +381,8 @@ function UserLeaveManagement() {
   };
 
   const deleteLeave = async (
-    leaveRecord
-  ) => {
+  leaveRecord) =>
+  {
     const confirmDelete = window.confirm("Delete this leave request?");
     if (!confirmDelete) return;
 
@@ -453,12 +393,12 @@ function UserLeaveManagement() {
     }
 
     const leaveIdentifierFields =
-      buildLeaveIdentifierFields(
-        leaveRecord
-      );
+    buildLeaveIdentifierFields(
+      leaveRecord
+    );
 
     const resolvedLeaveId =
-      leaveIdentifierFields.id;
+    leaveIdentifierFields.id;
 
     if (!resolvedLeaveId) {
       toast.error("Unable to delete leave");
@@ -469,10 +409,10 @@ function UserLeaveManagement() {
       await api.delete(API_ENDPOINTS.leave.byId(resolvedLeaveId), {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         },
         params: leaveIdentifierFields,
-        data: leaveIdentifierFields,
+        data: leaveIdentifierFields
       });
 
       toast.success("Leave deleted successfully 🗑️");
@@ -480,7 +420,7 @@ function UserLeaveManagement() {
       await fetchLeaves();
       await fetchBalance();
     } catch (err) {
-      console.error(err);
+
       toast.error(
         err?.response?.data?.message ||
         "Error deleting leave"
@@ -507,8 +447,6 @@ function UserLeaveManagement() {
 
     } catch (err) {
 
-      console.error(err);
-
       toast.error("Unable to cancel WFH");
 
     }
@@ -524,17 +462,15 @@ function UserLeaveManagement() {
 
   const combinedHistory = [
 
-    ...(leaveData || []).map(item => ({
-      ...item,
-      requestType: "Leave"
-    })),
+  ...(leaveData || []).map((item) => ({
+    ...item,
+    requestType: "Leave"
+  })),
 
-    ...(wfhData || []).map(item => ({
-      ...item,
-      requestType: "WFH"
-    }))
-
-  ];
+  ...(wfhData || []).map((item) => ({
+    ...item,
+    requestType: "WFH"
+  }))];
 
   // const leaveCards = balance ? [
   //   {
@@ -564,267 +500,266 @@ function UserLeaveManagement() {
   // ] : [];
 
   return (
-    initialLoading ? (
-      <div
-        className="leave-page"
-        style={{
-          paddingTop: "0px",
-          marginTop: "-20px",
-        }}
-      >
+    initialLoading ?
+    <div
+      className="leave-page"
+      style={{
+        paddingTop: "0px",
+        marginTop: "-20px"
+      }}>
+      
         <h2
-          className="leave-main-title"
-          style={{
-            marginTop: "0px",
-            marginBottom: "18px",
-          }}
-        >
-          Leave Management
-        </h2>
-
-        <CardSkeleton count={3} />
-
-        <div className="apply-card" style={{ marginTop: "18px" }}>
-          <FormSkeleton fields={5} columns={2} />
-        </div>
-
-        <div className="leave-history" style={{ marginTop: "18px" }}>
+        className="leave-main-title"
+        style={{
+          marginTop: "0px",
+          marginBottom: "18px"
+        }}>
+        
+          Leave Management
+        </h2>
+
+        <CardSkeleton count={3} />
+
+        <div className="apply-card" style={{ marginTop: "18px" }}>
+          <FormSkeleton fields={5} columns={2} />
+        </div>
+
+        <div className="leave-history" style={{ marginTop: "18px" }}>
           <TableSkeleton
-            rows={6}
-            columns={[
-              { width: "90px", headerWidth: "60%" },
-              { width: "150px", headerWidth: "58%" },
-              { width: "110px", headerWidth: "58%" },
-              { width: "110px", headerWidth: "58%" },
-              { width: "minmax(220px, 1fr)", headerWidth: "62%" },
-              { width: "140px", type: "status", headerWidth: "54%" },
-              { width: "90px", type: "actions", headerWidth: "54%" },
-            ]}
-          />
-        </div>
-      </div>
-    ) : (
-      <div
-        className="leave-page"
-        style={{
-          paddingTop: "0px",
-          marginTop: "-20px",
-        }}
-      >
+          rows={6}
+          columns={[
+          { width: "90px", headerWidth: "60%" },
+          { width: "150px", headerWidth: "58%" },
+          { width: "110px", headerWidth: "58%" },
+          { width: "110px", headerWidth: "58%" },
+          { width: "minmax(220px, 1fr)", headerWidth: "62%" },
+          { width: "140px", type: "status", headerWidth: "54%" },
+          { width: "90px", type: "actions", headerWidth: "54%" }]
+          } />
+        
+        </div>
+      </div> :
+
+    <div
+      className="leave-page"
+      style={{
+        paddingTop: "0px",
+        marginTop: "-20px"
+      }}>
+      
         <h2
-          className="leave-main-title"
-          style={{
-            marginTop: "0px",
-            marginBottom: "18px",
-          }}
-        >
-          Leave Management
-        </h2>
-
-        {/* <div className="leave-top-cards">
-          {!balance ? (
-            <p>Loading leave balance...</p>
-          ) : (
-            leaveCards.map((card, index) => {
-              const progress =
-                card.total > 0
-                  ? Math.min(
-                    (card.used / card.total) * 100,
-                    100
-                  )
-                  : 0;
-              return (
-                <div
-                  className="leave-summary-card"
-                  key={index}
-                >
-                  <div className="leave-card-header">
-                    <div
-                      className={`leave-icon-box ${card.className}`}
-                    >
-                      {card.icon}
-                    </div>
-                    <h4>{card.title}</h4>
-                  </div>
-                  <div className="leave-card-info">
-                    <span>
-                      Used {card.used} / {card.total}
-                    </span>
-                    <span>
-                      {card.remaining} left
-                    </span>
-                  </div>
-                  <div className="leave-progress">
-                    <div
-                      className={`leave-progress-fill ${card.className}`}
-                      style={{
-                        width: progress > 0 ? `${progress}%` : "8px"
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div> */}
-
-        <div className="apply-card">
-          <h2>Apply Leave</h2>
-
-          <label>Leave Type</label>
+        className="leave-main-title"
+        style={{
+          marginTop: "0px",
+          marginBottom: "18px"
+        }}>
+        
+          Leave Management
+        </h2>
+
+        {/* <div className="leave-top-cards">
+         {!balance ? (
+           <p>Loading leave balance...</p>
+         ) : (
+           leaveCards.map((card, index) => {
+             const progress =
+               card.total > 0
+                 ? Math.min(
+                   (card.used / card.total) * 100,
+                   100
+                 )
+                 : 0;
+             return (
+               <div
+                 className="leave-summary-card"
+                 key={index}
+               >
+                 <div className="leave-card-header">
+                   <div
+                     className={`leave-icon-box ${card.className}`}
+                   >
+                     {card.icon}
+                   </div>
+                   <h4>{card.title}</h4>
+                 </div>
+                 <div className="leave-card-info">
+                   <span>
+                     Used {card.used} / {card.total}
+                   </span>
+                   <span>
+                     {card.remaining} left
+                   </span>
+                 </div>
+                 <div className="leave-progress">
+                   <div
+                     className={`leave-progress-fill ${card.className}`}
+                     style={{
+                       width: progress > 0 ? `${progress}%` : "8px"
+                     }}
+                   ></div>
+                 </div>
+               </div>
+             );
+           })
+         )}
+        </div> */}
+
+        <div className="apply-card">
+          <h2>Apply Leave</h2>
+
+          <label>Leave Type</label>
           <select
-            name="leaveType"
-            value={form.leaveType}
-            onChange={handleChange}
-          >
-            {/* ✅ backend values */}
-            <option value="Select">Select Leave</option>
-            <option value="Casual">Casual Leave</option>
-            <option value="Sick">Sick Leave</option>
-            <option value="Earned">Earned Leave</option>
-            <option value="Work From Home">Work From Home</option>
-          </select>
-
+          name="leaveType"
+          value={form.leaveType}
+          onChange={handleChange}>
+          
+            {/* ✅ backend values */}
+            <option value="Select">Select Leave</option>
+            <option value="Casual">Casual Leave</option>
+            <option value="Sick">Sick Leave</option>
+            <option value="Earned">Earned Leave</option>
+            <option value="Work From Home">Work From Home</option>
+          </select>
+
           <div
-            className="date-row"
+          className="date-row"
+          style={{
+            overflow: "visible",
+            position: "relative",
+            zIndex: 1
+          }}>
+          
+            <div
             style={{
               overflow: "visible",
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            <div
-              style={{
-                overflow: "visible",
-                position: "relative",
-              }}
-            >
-              <label>From</label>
-
+              position: "relative"
+            }}>
+            
+              <label>From</label>
+
               <AppDatePicker
-                name="fromDate"
-                value={form.fromDate}
-                onChange={handleChange}
-              />
-            </div>
-
+              name="fromDate"
+              value={form.fromDate}
+              onChange={handleChange} />
+            
+            </div>
+
             <div
-              style={{
-                overflow: "visible",
-                position: "relative",
-              }}
-            >
-              <label>To</label>
-
+            style={{
+              overflow: "visible",
+              position: "relative"
+            }}>
+            
+              <label>To</label>
+
               <AppDatePicker
-                name="toDate"
-                value={form.toDate}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          <label>Reason</label>
+              name="toDate"
+              value={form.toDate}
+              onChange={handleChange} />
+            
+            </div>
+          </div>
+
+          <label>Reason</label>
           <textarea
-            name="reason"
-            value={form.reason}
-            onChange={handleChange}
-            placeholder="Enter reason for leave..."
-          />
-
+          name="reason"
+          value={form.reason}
+          onChange={handleChange}
+          placeholder="Enter reason for leave..." />
+        
+
           <button
-            className="submit-btn"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? "Submitting..." : "Submit Application"}
-          </button>
-        </div>
+          className="submit-btn"
+          onClick={handleSubmit}
+          disabled={loading}>
+          
+            {loading ? "Submitting..." : "Submit Application"}
+          </button>
+        </div>
+
+        <div className="leave-history leave-history--my-requests">
+          <h3>My Leave Requests</h3>
+
+          <div className="leave-history-table-scroll">
+            <table className="my-leave-requests-table">
+              <colgroup>
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "23%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "10%" }} />
+              </colgroup>
+
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Leave Type</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {combinedHistory.length === 0 ?
+              <tr>
+                    <td colSpan="7" style={{ textAlign: "center" }}>
+                      No Leave Requests
+                    </td>
+                  </tr> :
 
-        <div className="leave-history leave-history--my-requests">
-          <h3>My Leave Requests</h3>
-
-          <div className="leave-history-table-scroll">
-            <table className="my-leave-requests-table">
-              <colgroup>
-                <col style={{ width: "9%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "23%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "10%" }} />
-              </colgroup>
-
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Leave Type</th>
-                  <th>From</th>
-                  <th>To</th>
-                  <th>Reason</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {combinedHistory.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: "center" }}>
-                      No Leave Requests
-                    </td>
-                  </tr>
-                ) : (
-                  combinedHistory.map((leave) => (
-                    <tr key={`${leave.requestType}-${leave.id}`}>
-                      <td>{leave.requestType}</td>
-                      <td>{formatLeaveType(leave.leaveType)}</td>
-                      <td>{formatDate(leave.fromDate)}</td>
-                      <td>{formatDate(leave.toDate)}</td>
+              combinedHistory.map((leave) =>
+              <tr key={`${leave.requestType}-${leave.id}`}>
+                      <td>{leave.requestType}</td>
+                      <td>{formatLeaveType(leave.leaveType)}</td>
+                      <td>{formatDate(leave.fromDate)}</td>
+                      <td>{formatDate(leave.toDate)}</td>
                       <td
-                        className="leave-reason-cell"
-                        title={leave.reason || "No reason provided"}
-                      >
-                        {leave.reason
-                          ? leave.reason.length > 20
-                            ? `${leave.reason.substring(0, 20)}...`
-                            : leave.reason
-                          : "-"}
-                      </td>
-
-                      <td>
+                  className="leave-reason-cell"
+                  title={leave.reason || "No reason provided"}>
+                  
+                        {leave.reason ?
+                  leave.reason.length > 20 ?
+                  `${leave.reason.substring(0, 20)}...` :
+                  leave.reason :
+                  "-"}
+                      </td>
+
+                      <td>
                         <span
-                          className={`status ${leave.status?.toLowerCase()} leave-status-badge`}
-                        >
-                          {leave.status}
-                        </span>
-                      </td>
-
-                      <td>
-                        {leave.status === "Pending" && (
-                          <button
-                            className="icon-delete-btn leave-action-btn"
-                            onClick={() =>
-                              leave.requestType === "WFH"
-                                ? cancelWFH(leave.id)
-                                : deleteLeave(leave)
-                            }
-                          >
-                            <FaTrash />
+                    className={`status ${leave.status?.toLowerCase()} leave-status-badge`}>
+                    
+                          {leave.status}
+                        </span>
+                      </td>
+
+                      <td>
+                        {leave.status === "Pending" &&
+                  <button
+                    className="icon-delete-btn leave-action-btn"
+                    onClick={() =>
+                    leave.requestType === "WFH" ?
+                    cancelWFH(leave.id) :
+                    deleteLeave(leave)
+                    }>
+                    
+                            <FaTrash />
                           </button>
-                        )}
-                      </td>
+                  }
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    )
-  );
+              )
+              }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>);
+
 }
 
 export default UserLeaveManagement;

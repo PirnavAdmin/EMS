@@ -4,8 +4,8 @@ import React, {
   useId,
   useMemo,
   useRef,
-  useState,
-} from "react";
+  useState } from
+"react";
 import {
   FaDownload,
   FaEye,
@@ -26,8 +26,8 @@ import {
   FaTicketAlt,
   FaTimes,
   FaTrash,
-  FaUpload,
-} from "react-icons/fa";
+  FaUpload } from
+"react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
@@ -47,8 +47,8 @@ import {
   formatDateTime,
   getInputDateValue,
   getTodayInputValue,
-  parseDate,
-} from "../utils/date";
+  parseDate } from
+"../utils/date";
 import {
   buildTicketPayload,
   createEmptyTicketForm,
@@ -67,8 +67,8 @@ import {
   normalizeTicketStatus,
   TICKET_FORM_LIMITS,
   TICKET_PRIORITY_OPTIONS,
-  truncateTicketText,
-} from "./ticketConfig";
+  truncateTicketText } from
+"./ticketConfig";
 import AutoAssignConfirmModal from "./AutoAssignConfirmModal";
 import {
   AUTO_ASSIGN_SUCCESS_MESSAGE,
@@ -87,28 +87,27 @@ import {
   stopTicketWork,
   updateTicket,
   updateTicketStatus,
-  uploadTicketBulkFile,
-} from "../services/ticketService";
+  uploadTicketBulkFile } from
+"../services/ticketService";
 
 const PAGE_SIZE = 10;
 
 const TABLE_COLUMNS = [
-  { key: "ticketId", label: "Ticket ID", width: "130px" },
-  { key: "title", label: "Title", width: "240px" },
-  { key: "description", label: "Description", width: "280px" },
-  { key: "category", label: "Category", width: "150px" },
-  { key: "priority", label: "Priority", width: "120px" },
-  { key: "status", label: "Status", width: "140px" },
-  { key: "createdBy", label: "Created By", width: "180px" },
-  { key: "assignedTo", label: "Assigned To", width: "180px" },
-  { key: "createdDate", label: "Created Date", width: "130px" },
-  { key: "updatedDate", label: "Updated Date", width: "130px" },
-  { key: "actions", label: "Actions", width: "380px" },
-];
+{ key: "ticketId", label: "Ticket ID", width: "130px" },
+{ key: "title", label: "Title", width: "240px" },
+{ key: "description", label: "Description", width: "280px" },
+{ key: "category", label: "Category", width: "150px" },
+{ key: "priority", label: "Priority", width: "120px" },
+{ key: "status", label: "Status", width: "140px" },
+{ key: "createdBy", label: "Created By", width: "180px" },
+{ key: "assignedTo", label: "Assigned To", width: "180px" },
+{ key: "createdDate", label: "Created Date", width: "130px" },
+{ key: "updatedDate", label: "Updated Date", width: "130px" },
+{ key: "actions", label: "Actions", width: "380px" }];
 
 const DEFAULT_SORT = {
   key: "updatedDate",
-  direction: "desc",
+  direction: "desc"
 };
 
 const STATUS_OPTIONS = ["All", ...getTicketStatusOptions("admin")];
@@ -130,16 +129,16 @@ const isExcelFile = (file) => {
 };
 
 const isTicketCompleted = (ticket) =>
-  normalizeTicketStatus(ticket?.status) === "Completed";
+normalizeTicketStatus(ticket?.status) === "Completed";
 
 const isTicketAssigned = (ticket) =>
-  normalizeTicketStatus(ticket?.status) === "Assigned";
+normalizeTicketStatus(ticket?.status) === "Assigned";
 
 const hasTicketWorkStarted = (ticket) =>
-  Boolean(ticket?.workStarted || ticket?.startedDate);
+Boolean(ticket?.workStarted || ticket?.startedDate);
 
 const hasTicketWorkStopped = (ticket) =>
-  Boolean(ticket?.stoppedDate || ticket?.completedDate);
+Boolean(ticket?.stoppedDate || ticket?.completedDate);
 
 const isTicketWorkActive = (ticket) => {
   if (!ticket || isTicketCompleted(ticket) || hasTicketWorkStopped(ticket)) {
@@ -148,8 +147,8 @@ const isTicketWorkActive = (ticket) => {
 
   return Boolean(
     ticket.workActive ||
-      hasTicketWorkStarted(ticket) ||
-      ACTIVE_WORK_STATUSES.has(normalizeTicketStatus(ticket.status))
+    hasTicketWorkStarted(ticket) ||
+    ACTIVE_WORK_STATUSES.has(normalizeTicketStatus(ticket.status))
   );
 };
 
@@ -186,11 +185,11 @@ const normalizeSummary = (payload = {}) => ({
     payload.rejectedCount ??
     0
   ),
-  skipped: Number(payload.skippedCount ?? payload.ignoredCount ?? 0),
+  skipped: Number(payload.skippedCount ?? payload.ignoredCount ?? 0)
 });
 
 const getDefaultSortDirection = (key) =>
-  ["createdDate", "updatedDate", "ticketId"].includes(key) ? "desc" : "asc";
+["createdDate", "updatedDate", "ticketId"].includes(key) ? "desc" : "asc";
 
 const isDateInRange = (value, fromDate, toDate) => {
   if (!fromDate && !toDate) {
@@ -226,9 +225,9 @@ const compareValues = (left, right, key, direction) => {
   const rightValue = getTicketSortValue(right, key);
 
   if (key === "createdDate" || key === "updatedDate") {
-    return direction === "asc"
-      ? compareDatesAsc(leftValue, rightValue)
-      : compareDatesDesc(leftValue, rightValue);
+    return direction === "asc" ?
+    compareDatesAsc(leftValue, rightValue) :
+    compareDatesDesc(leftValue, rightValue);
   }
 
   if (key === "status" || key === "priority") {
@@ -238,7 +237,7 @@ const compareValues = (left, right, key, direction) => {
 
   const collator = new Intl.Collator(undefined, {
     numeric: true,
-    sensitivity: "base",
+    sensitivity: "base"
   });
 
   const comparison = collator.compare(
@@ -255,8 +254,8 @@ function StatusPill({ value }) {
   return (
     <span className={`ticket-pill status-pill status-${tone}`}>
       {getTicketStatusLabel(normalized)}
-    </span>
-  );
+    </span>);
+
 }
 
 function PriorityPill({ value }) {
@@ -265,8 +264,8 @@ function PriorityPill({ value }) {
   return (
     <span className={`ticket-pill priority-pill priority-${tone}`}>
       {getTicketPriorityLabel(value)}
-    </span>
-  );
+    </span>);
+
 }
 
 function ModalShell({
@@ -277,7 +276,7 @@ function ModalShell({
   onClose,
   children,
   footer,
-  className = "",
+  className = ""
 }) {
   const titleId = useId();
 
@@ -293,14 +292,14 @@ function ModalShell({
         if (event.target === event.currentTarget) {
           onClose?.();
         }
-      }}
-    >
+      }}>
+      
       <div
         className={`ticket-modal ${className}`.trim()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
-      >
+        aria-labelledby={titleId}>
+        
         <div className="ticket-modal-head">
           <div className="ticket-modal-heading">
             <span className="ticket-eyebrow">Tickets</span>
@@ -317,8 +316,8 @@ function ModalShell({
               type="button"
               className="ticket-modal-close"
               onClick={onClose}
-              aria-label="Close dialog"
-            >
+              aria-label="Close dialog">
+              
               <FaTimes aria-hidden="true" />
             </button>
           </div>
@@ -328,8 +327,8 @@ function ModalShell({
 
         {footer ? <div className="ticket-modal-footer">{footer}</div> : null}
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 function TicketEditorModal({
@@ -339,7 +338,7 @@ function TicketEditorModal({
   employees,
   loadingEmployees,
   onClose,
-  onSaved,
+  onSaved
 }) {
   const isEditMode = mode === "edit" && Boolean(ticketId);
   const firstInputRef = useRef(null);
@@ -396,9 +395,9 @@ function TicketEditorModal({
         setFormData({
           projectId: normalized.projectId || 0,
           technology: normalized.technology || "",
-          startDate: normalized.startDate
-            ? getInputDateValue(normalized.startDate)
-            : "",
+          startDate: normalized.startDate ?
+          getInputDateValue(normalized.startDate) :
+          "",
           estimatedHours: normalized.estimatedHours || "",
 
           title: normalized.title || "",
@@ -407,29 +406,29 @@ function TicketEditorModal({
           priority: normalized.priority || "Medium",
 
           assignedToEmployee:
-            normalized.assignedTo || normalized.createdBy || "",
+          normalized.assignedTo || normalized.createdBy || "",
 
           assignedToEmployeeId:
-            normalized.assignedToId || normalized.createdById || "",
+          normalized.assignedToId || normalized.createdById || "",
 
-          dueDate: normalized.dueDate
-            ? getInputDateValue(normalized.dueDate)
-            : "",
+          dueDate: normalized.dueDate ?
+          getInputDateValue(normalized.dueDate) :
+          "",
 
           attachmentFile: null,
           notes: "",
-          status: normalized.status || "Open",
+          status: normalized.status || "Open"
         });
 
         const existingAttachment =
-          normalized.attachments?.[0]?.fileName ||
-          normalized.attachments?.[0]?.name ||
-          normalized.attachments?.[0]?.FileName ||
-          "";
+        normalized.attachments?.[0]?.fileName ||
+        normalized.attachments?.[0]?.name ||
+        normalized.attachments?.[0]?.FileName ||
+        "";
 
         setAttachmentLabel(existingAttachment);
       } catch (error) {
-        console.error("Unable to load ticket:", error);
+
         const message = await getTicketApiErrorMessage(
           error,
           "Unable to load the ticket details."
@@ -460,38 +459,38 @@ function TicketEditorModal({
 
   const validateField = (fieldName, fieldValue) => {
     switch (fieldName) {
-      case "title": {
-        const value = normalizeTicketFieldText(fieldValue);
-        if (!value) return "Title is required.";
-        if (value.length < 3) return "Title must be at least 3 characters.";
-        if (value.length > TICKET_FORM_LIMITS.title) {
-          return `Title must be ${TICKET_FORM_LIMITS.title} characters or less.`;
+      case "title":{
+          const value = normalizeTicketFieldText(fieldValue);
+          if (!value) return "Title is required.";
+          if (value.length < 3) return "Title must be at least 3 characters.";
+          if (value.length > TICKET_FORM_LIMITS.title) {
+            return `Title must be ${TICKET_FORM_LIMITS.title} characters or less.`;
+          }
+          return "";
         }
-        return "";
-      }
-      case "description": {
-        const value = normalizeTicketFieldText(fieldValue);
-        if (!value) return "Description is required.";
-        if (value.length < 10) {
-          return "Description must be at least 10 characters.";
+      case "description":{
+          const value = normalizeTicketFieldText(fieldValue);
+          if (!value) return "Description is required.";
+          if (value.length < 10) {
+            return "Description must be at least 10 characters.";
+          }
+          if (value.length > TICKET_FORM_LIMITS.description) {
+            return `Description must be ${TICKET_FORM_LIMITS.description} characters or less.`;
+          }
+          return "";
         }
-        if (value.length > TICKET_FORM_LIMITS.description) {
-          return `Description must be ${TICKET_FORM_LIMITS.description} characters or less.`;
-        }
-        return "";
-      }
       case "category":
         if (!normalizeTicketFieldText(fieldValue)) {
           return "Category is required.";
         }
         return "";
-      case "priority": {
-        const normalized = normalizeTicketPriority(fieldValue);
-        if (!TICKET_PRIORITY_OPTIONS.includes(normalized)) {
-          return "Select a valid priority.";
+      case "priority":{
+          const normalized = normalizeTicketPriority(fieldValue);
+          if (!TICKET_PRIORITY_OPTIONS.includes(normalized)) {
+            return "Select a valid priority.";
+          }
+          return "";
         }
-        return "";
-      }
       case "assignedToEmployee":
         if (!normalizeTicketFieldText(fieldValue)) {
           return "Assign the ticket to an employee.";
@@ -511,9 +510,9 @@ function TicketEditorModal({
     setFormData((current) => ({
       ...current,
       [fieldName]:
-        fieldName === "title" || fieldName === "description"
-          ? value.replace(/\s+/g, " ")
-          : value,
+      fieldName === "title" || fieldName === "description" ?
+      value.replace(/\s+/g, " ") :
+      value
     }));
 
     const nextError = validateField(fieldName, value);
@@ -529,7 +528,7 @@ function TicketEditorModal({
 
       return {
         ...current,
-        [fieldName]: nextError,
+        [fieldName]: nextError
       };
     });
   };
@@ -537,15 +536,15 @@ function TicketEditorModal({
   const handleEmployeeSelect = (value) => {
     const matchedEmployee = employees.find(
       (employee) =>
-        employee.id === value ||
-        employee.name === value ||
-        employee.label === value
+      employee.id === value ||
+      employee.name === value ||
+      employee.label === value
     );
 
     setFormData((current) => ({
       ...current,
       assignedToEmployee: matchedEmployee?.name || value,
-      assignedToEmployeeId: matchedEmployee?.id || value,
+      assignedToEmployeeId: matchedEmployee?.id || value
     }));
 
     setErrors((current) => {
@@ -562,7 +561,7 @@ function TicketEditorModal({
     const file = event.target.files?.[0] || null;
     setFormData((current) => ({
       ...current,
-      attachmentFile: file,
+      attachmentFile: file
     }));
     setAttachmentLabel(file?.name || ticketRecord?.attachments?.[0]?.name || "");
   };
@@ -595,21 +594,13 @@ function TicketEditorModal({
 
     try {
       const payload = buildTicketPayload(formData, {
-        status: ticketRecord?.status || "Open",
+        status: ticketRecord?.status || "Open"
       });
-
-      console.log("========== UPDATE PAYLOAD ==========");
-      console.log("Ticket Id:", ticketId);
-      console.log(payload);
-      console.log(JSON.stringify(payload, null, 2));
-      console.log("===================================");
 
       if (isEditMode) {
         await updateTicket(ticketId, payload);
         toast.success("Ticket updated successfully.");
       } else {
-        console.log("Payload Sent:", payload);
-        console.log(JSON.stringify(payload, null, 2));
 
         await createTicket(payload);
         toast.success("Ticket created successfully.");
@@ -618,12 +609,9 @@ function TicketEditorModal({
       await onSaved?.();
       onClose?.();
     } catch (error) {
-      console.error("Ticket save failed:", error);
 
       if (error.response) {
-        console.log("Status:", error.response.status);
-        console.log("Response Data:", error.response.data);
-        console.log("Validation Errors:", error.response.data?.errors);
+
       }
 
       const errorMessage = await getTicketApiErrorMessage(
@@ -637,11 +625,10 @@ function TicketEditorModal({
     }
   };
 
-  const headerActions = isEditMode ? (
-    <span className="ticket-modal-badge">Edit mode</span>
-  ) : (
-    <span className="ticket-modal-badge">New ticket</span>
-  );
+  const headerActions = isEditMode ?
+  <span className="ticket-modal-badge">Edit mode</span> :
+
+  <span className="ticket-modal-badge">New ticket</span>;
 
   if (!open) {
     return null;
@@ -652,215 +639,215 @@ function TicketEditorModal({
       open={open}
       title={isEditMode ? "Edit Ticket" : "Create Ticket"}
       subtitle={
-        isEditMode
-          ? "Update the ticket details and assignee."
-          : "Capture the request and assign it to an employee."
+      isEditMode ?
+      "Update the ticket details and assignee." :
+      "Capture the request and assign it to an employee."
       }
       headerActions={headerActions}
       onClose={onClose}
       className="ticket-modal-wide"
       footer={
-        <>
+      <>
           <button
-            type="button"
-            className="ticket-button secondary"
-            onClick={onClose}
-            disabled={saving}
-          >
+          type="button"
+          className="ticket-button secondary"
+          onClick={onClose}
+          disabled={saving}>
+          
             Cancel
           </button>
 
           <button
-            type="submit"
-            form="ticket-editor-form"
-            className="ticket-button primary"
-            disabled={saving || loadingEmployees}
-          >
-            {saving ? (
-              <>
+          type="submit"
+          form="ticket-editor-form"
+          className="ticket-button primary"
+          disabled={saving || loadingEmployees}>
+          
+            {saving ?
+          <>
                 <FaSpinner className="ticket-button-spinner" />
                 Saving...
-              </>
-            ) : isEditMode ? (
-              "Update Ticket"
-            ) : (
-              "Create Ticket"
-            )}
+              </> :
+          isEditMode ?
+          "Update Ticket" :
+
+          "Create Ticket"
+          }
           </button>
         </>
-      }
-    >
-      {loadingTicket ? (
-        <div className="ticket-modal-loading">
+      }>
+      
+      {loadingTicket ?
+      <div className="ticket-modal-loading">
           <FaSpinner className="ticket-button-spinner" />
           Loading ticket details...
-        </div>
-      ) : (
-        <form
-          id="ticket-editor-form"
-          className="ticket-form-grid ticket-modal-form"
-          onSubmit={handleSubmit}
-          noValidate
-        >
+        </div> :
+
+      <form
+        id="ticket-editor-form"
+        className="ticket-form-grid ticket-modal-form"
+        onSubmit={handleSubmit}
+        noValidate>
+        
           <div className="ticket-field">
             <label htmlFor="ticket-title">Title</label>
             <input
-              ref={firstInputRef}
-              id="ticket-title"
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={(event) => updateField("title", event.target.value)}
-              className={errors.title ? "has-error" : ""}
-              aria-invalid={Boolean(errors.title)}
-              aria-describedby={errors.title ? "ticket-title-error" : undefined}
-              maxLength={TICKET_FORM_LIMITS.title}
-              autoComplete="off"
-            />
-            {errors.title ? (
-              <p id="ticket-title-error" className="ticket-error">
+            ref={firstInputRef}
+            id="ticket-title"
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={(event) => updateField("title", event.target.value)}
+            className={errors.title ? "has-error" : ""}
+            aria-invalid={Boolean(errors.title)}
+            aria-describedby={errors.title ? "ticket-title-error" : undefined}
+            maxLength={TICKET_FORM_LIMITS.title}
+            autoComplete="off" />
+          
+            {errors.title ?
+          <p id="ticket-title-error" className="ticket-error">
                 {errors.title}
-              </p>
-            ) : (
-              <p className="ticket-help">
+              </p> :
+
+          <p className="ticket-help">
                 Keep the title short, specific, and action focused.
               </p>
-            )}
+          }
           </div>
 
           <div className="ticket-field">
             <label htmlFor="ticket-category">Category</label>
             <select
-              id="ticket-category"
-              name="category"
-              value={formData.category}
-              onChange={(event) => updateField("category", event.target.value)}
-              className={errors.category ? "has-error" : ""}
-              aria-invalid={Boolean(errors.category)}
-              aria-describedby={errors.category ? "ticket-category-error" : undefined}
-            >
+            id="ticket-category"
+            name="category"
+            value={formData.category}
+            onChange={(event) => updateField("category", event.target.value)}
+            className={errors.category ? "has-error" : ""}
+            aria-invalid={Boolean(errors.category)}
+            aria-describedby={errors.category ? "ticket-category-error" : undefined}>
+            
               <option value="">Select category</option>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>
+              {categoryOptions.map((category) =>
+            <option key={category} value={category}>
                   {category}
                 </option>
-              ))}
+            )}
             </select>
-            {errors.category ? (
-              <p id="ticket-category-error" className="ticket-error">
+            {errors.category ?
+          <p id="ticket-category-error" className="ticket-error">
                 {errors.category}
-              </p>
-            ) : (
-              <p className="ticket-help">
+              </p> :
+
+          <p className="ticket-help">
                 Route the request to the right queue from the start.
               </p>
-            )}
+          }
           </div>
 
           <div className="ticket-field ticket-field-full">
             <label htmlFor="ticket-description">Description</label>
             <textarea
-              id="ticket-description"
-              name="description"
-              value={formData.description}
-              onChange={(event) =>
-                updateField("description", event.target.value)
-              }
-              className={errors.description ? "has-error" : ""}
-              aria-invalid={Boolean(errors.description)}
-              aria-describedby={
-                errors.description ? "ticket-description-error" : undefined
-              }
-              maxLength={TICKET_FORM_LIMITS.description}
-            />
-            {errors.description ? (
-              <p id="ticket-description-error" className="ticket-error">
+            id="ticket-description"
+            name="description"
+            value={formData.description}
+            onChange={(event) =>
+            updateField("description", event.target.value)
+            }
+            className={errors.description ? "has-error" : ""}
+            aria-invalid={Boolean(errors.description)}
+            aria-describedby={
+            errors.description ? "ticket-description-error" : undefined
+            }
+            maxLength={TICKET_FORM_LIMITS.description} />
+          
+            {errors.description ?
+          <p id="ticket-description-error" className="ticket-error">
                 {errors.description}
-              </p>
-            ) : (
-              <p className="ticket-help">
+              </p> :
+
+          <p className="ticket-help">
                 Explain the issue, request, or outcome you need.
               </p>
-            )}
+          }
           </div>
 
           <div className="ticket-field">
             <label htmlFor="ticket-priority">Priority</label>
             <select
-              id="ticket-priority"
-              name="priority"
-              value={formData.priority}
-              onChange={(event) => updateField("priority", event.target.value)}
-              className={errors.priority ? "has-error" : ""}
-              aria-invalid={Boolean(errors.priority)}
-              aria-describedby={errors.priority ? "ticket-priority-error" : undefined}
-            >
-              {TICKET_PRIORITY_OPTIONS.map((priority) => (
-                <option key={priority} value={priority}>
+            id="ticket-priority"
+            name="priority"
+            value={formData.priority}
+            onChange={(event) => updateField("priority", event.target.value)}
+            className={errors.priority ? "has-error" : ""}
+            aria-invalid={Boolean(errors.priority)}
+            aria-describedby={errors.priority ? "ticket-priority-error" : undefined}>
+            
+              {TICKET_PRIORITY_OPTIONS.map((priority) =>
+            <option key={priority} value={priority}>
                   {priority}
                 </option>
-              ))}
+            )}
             </select>
-            {errors.priority ? (
-              <p id="ticket-priority-error" className="ticket-error">
+            {errors.priority ?
+          <p id="ticket-priority-error" className="ticket-error">
                 {errors.priority}
-              </p>
-            ) : (
-              <p className="ticket-help">
+              </p> :
+
+          <p className="ticket-help">
                 Pick the urgency level that matches the request.
               </p>
-            )}
+          }
           </div>
 
           <div className="ticket-field">
             <label htmlFor="ticket-due-date">Due Date</label>
             <AppDatePicker
-              id="ticket-due-date"
-              name="dueDate"
-              value={formData.dueDate}
-              onChange={(event) => updateField("dueDate", event.target.value)}
-              minDate={today}
-              className={errors.dueDate ? "has-error" : ""}
-              aria-invalid={Boolean(errors.dueDate)}
-              aria-describedby={errors.dueDate ? "ticket-due-date-error" : undefined}
-              placeholder="Select due date"
-            />
-            {errors.dueDate ? (
-              <p id="ticket-due-date-error" className="ticket-error">
+            id="ticket-due-date"
+            name="dueDate"
+            value={formData.dueDate}
+            onChange={(event) => updateField("dueDate", event.target.value)}
+            minDate={today}
+            className={errors.dueDate ? "has-error" : ""}
+            aria-invalid={Boolean(errors.dueDate)}
+            aria-describedby={errors.dueDate ? "ticket-due-date-error" : undefined}
+            placeholder="Select due date" />
+          
+            {errors.dueDate ?
+          <p id="ticket-due-date-error" className="ticket-error">
                 {errors.dueDate}
-              </p>
-            ) : (
-              <p className="ticket-help">
+              </p> :
+
+          <p className="ticket-help">
                 Optional, but useful when the ticket needs follow-up.
               </p>
-            )}
+          }
           </div>
 
           <div className="ticket-field ticket-field-full">
             <label htmlFor="ticket-assignee">Assign To Employee</label>
             <CompactSearchableDropdown
-              id="ticket-assignee"
-              value={
-                formData.assignedToEmployeeId || formData.assignedToEmployee
-              }
-              onChange={handleEmployeeSelect}
-              groups={[
-                {
-                  label: "Employees",
-                  options: employees.map((employee) => ({
-                    value: employee.id || employee.name,
-                    label: employee.label,
-                  })),
-                },
-              ]}
-              placeholder={
-                loadingEmployees ? "Loading employees..." : "Select employee"
-              }
-              searchPlaceholder="Search employee name or ID"
-              disabled={loadingEmployees}
-              helperText="Choose the employee who will receive the ticket."
-              error={errors.assignedToEmployee}
-            />
+            id="ticket-assignee"
+            value={
+            formData.assignedToEmployeeId || formData.assignedToEmployee
+            }
+            onChange={handleEmployeeSelect}
+            groups={[
+            {
+              label: "Employees",
+              options: employees.map((employee) => ({
+                value: employee.id || employee.name,
+                label: employee.label
+              }))
+            }]
+            }
+            placeholder={
+            loadingEmployees ? "Loading employees..." : "Select employee"
+            }
+            searchPlaceholder="Search employee name or ID"
+            disabled={loadingEmployees}
+            helperText="Choose the employee who will receive the ticket."
+            error={errors.assignedToEmployee} />
+          
           </div>
 
           <div className="ticket-field ticket-field-full">
@@ -872,11 +859,11 @@ function TicketEditorModal({
               </label>
 
               <input
-                id="ticket-attachment"
-                type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
-                onChange={handleAttachmentChange}
-              />
+              id="ticket-attachment"
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
+              onChange={handleAttachmentChange} />
+            
 
               <div className="ticket-upload-meta">
                 <strong>
@@ -889,31 +876,31 @@ function TicketEditorModal({
             </div>
           </div>
 
-          {isEditMode && ticketRecord?.attachments?.length ? (
-            <div className="ticket-field ticket-field-full">
+          {isEditMode && ticketRecord?.attachments?.length ?
+        <div className="ticket-field ticket-field-full">
               <label>Existing Attachment</label>
               <div className="ticket-attachment-list">
-                {ticketRecord.attachments.map((attachment, index) => (
-                  <div
-                    className="ticket-attachment-item"
-                    key={`${attachment?.name || attachment?.fileName || index}`}
-                  >
+                {ticketRecord.attachments.map((attachment, index) =>
+            <div
+              className="ticket-attachment-item"
+              key={`${attachment?.name || attachment?.fileName || index}`}>
+              
                     <span>
                       {attachment?.name ||
-                        attachment?.fileName ||
-                        attachment?.FileName ||
-                        `Attachment ${index + 1}`}
+                attachment?.fileName ||
+                attachment?.FileName ||
+                `Attachment ${index + 1}`}
                     </span>
                     <small>{attachment?.size || attachment?.length || ""}</small>
                   </div>
-                ))}
+            )}
               </div>
-            </div>
-          ) : null}
+            </div> :
+        null}
         </form>
-      )}
-    </ModalShell>
-  );
+      }
+    </ModalShell>);
+
 }
 
 function BulkUploadModal({ open, onClose, onUploaded }) {
@@ -926,11 +913,11 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
 
   const summaryCards = useMemo(
     () => [
-      { label: "Total Rows", value: summary?.total ?? 0, tone: "total" },
-      { label: "Successful", value: summary?.success ?? 0, tone: "resolved" },
-      { label: "Failed", value: summary?.failed ?? 0, tone: "open" },
-      { label: "Skipped", value: summary?.skipped ?? 0, tone: "progress" },
-    ],
+    { label: "Total Rows", value: summary?.total ?? 0, tone: "total" },
+    { label: "Successful", value: summary?.success ?? 0, tone: "resolved" },
+    { label: "Failed", value: summary?.failed ?? 0, tone: "open" },
+    { label: "Skipped", value: summary?.skipped ?? 0, tone: "progress" }],
+
     [summary]
   );
 
@@ -988,7 +975,7 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
       await downloadTicketTemplate();
       toast.success("Template download started.");
     } catch (error) {
-      console.error("Template download failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to download the template right now."
@@ -1018,11 +1005,11 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
       setSummary(normalizeSummary(data.summary || data.result || data));
 
       const downloadUrl =
-        data.errorFileUrl ||
-        data.failedFileUrl ||
-        data.errorFilePath ||
-        data.errorFile ||
-        "";
+      data.errorFileUrl ||
+      data.failedFileUrl ||
+      data.errorFilePath ||
+      data.errorFile ||
+      "";
 
       if (downloadUrl) {
         setErrorFileUrl(buildServerUrl(downloadUrl));
@@ -1031,7 +1018,7 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
       toast.success("Ticket file processed successfully.");
       await onUploaded?.();
     } catch (error) {
-      console.error("Bulk upload failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to upload the ticket file right now."
@@ -1048,12 +1035,12 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
       title="Bulk Upload Tickets"
       subtitle="Download the template, fill it out, and upload multiple tickets at once."
       headerActions={
-        <button
-          type="button"
-          className="ticket-button secondary ticket-modal-header-button"
-          onClick={handleTemplateDownload}
-          disabled={uploading}
-        >
+      <button
+        type="button"
+        className="ticket-button secondary ticket-modal-header-button"
+        onClick={handleTemplateDownload}
+        disabled={uploading}>
+        
           <FaDownload aria-hidden="true" />
           Download Template
         </button>
@@ -1061,37 +1048,37 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
       onClose={onClose}
       className="ticket-modal-wide ticket-upload-modal"
       footer={
-        <>
+      <>
           <button
-            type="button"
-            className="ticket-button secondary"
-            onClick={clearFile}
-            disabled={uploading}
-          >
+          type="button"
+          className="ticket-button secondary"
+          onClick={clearFile}
+          disabled={uploading}>
+          
             Reset
           </button>
 
           <button
-            type="button"
-            className="ticket-button primary"
-            onClick={handleUpload}
-            disabled={uploading || !selectedFile}
-          >
-            {uploading ? (
-              <>
+          type="button"
+          className="ticket-button primary"
+          onClick={handleUpload}
+          disabled={uploading || !selectedFile}>
+          
+            {uploading ?
+          <>
                 <FaSpinner className="ticket-button-spinner" />
                 Uploading...
-              </>
-            ) : (
-              <>
+              </> :
+
+          <>
                 <FaUpload aria-hidden="true" />
                 Upload Tickets
               </>
-            )}
+          }
           </button>
         </>
-      }
-    >
+      }>
+      
       <div className="ticket-upload-modal-body">
         <div
           className={`ticket-dropzone ${dragActive ? "is-active" : ""}`}
@@ -1107,8 +1094,8 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
             event.preventDefault();
             setDragActive(false);
           }}
-          onDrop={handleDrop}
-        >
+          onDrop={handleDrop}>
+          
           <div className="ticket-dropzone-icon">
             <FaUpload aria-hidden="true" />
           </div>
@@ -1126,66 +1113,66 @@ function BulkUploadModal({ open, onClose, onUploaded }) {
             id="ticket-bulk-file"
             type="file"
             accept=".xls,.xlsx"
-            onChange={handleInputChange}
-          />
+            onChange={handleInputChange} />
+          
         </div>
 
-        {selectedFile ? (
-          <div className="ticket-upload-selected">
+        {selectedFile ?
+        <div className="ticket-upload-selected">
             <div>
               <strong>{selectedFile.name}</strong>
               <span>{Math.round(selectedFile.size / 1024)} KB</span>
             </div>
 
             <button
-              type="button"
-              className="ticket-button ghost"
-              onClick={clearFile}
-              disabled={uploading}
-            >
+            type="button"
+            className="ticket-button ghost"
+            onClick={clearFile}
+            disabled={uploading}>
+            
               Remove File
             </button>
-          </div>
-        ) : null}
+          </div> :
+        null}
 
-        {summary ? (
-          <div className="ticket-upload-summary">
-            {summaryCards.map((card) => (
-              <div
-                className={`ticket-metric-card tone-${card.tone}`}
-                key={card.label}
-              >
+        {summary ?
+        <div className="ticket-upload-summary">
+            {summaryCards.map((card) =>
+          <div
+            className={`ticket-metric-card tone-${card.tone}`}
+            key={card.label}>
+            
                 <div>
                   <span className="ticket-metric-label">{card.label}</span>
                   <strong className="ticket-metric-value">{card.value}</strong>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            className="ticket-empty-state compact"
-            message="Upload a completed template to see the summary here."
-          />
-        )}
+          )}
+          </div> :
 
-        {errorFileUrl ? (
-          <div className="ticket-error-download">
+        <EmptyState
+          className="ticket-empty-state compact"
+          message="Upload a completed template to see the summary here." />
+
+        }
+
+        {errorFileUrl ?
+        <div className="ticket-error-download">
             <strong>Failed rows file available</strong>
             <a
-              href={errorFileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="ticket-button secondary"
-            >
+            href={errorFileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="ticket-button secondary">
+            
               <FaDownload aria-hidden="true" />
               Download Error File
             </a>
-          </div>
-        ) : null}
+          </div> :
+        null}
       </div>
-    </ModalShell>
-  );
+    </ModalShell>);
+
 }
 
 function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
@@ -1211,7 +1198,7 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
           setTicket(normalized);
         }
       } catch (error) {
-        console.error("Unable to load ticket details:", error);
+
         const errorMessage = await getTicketApiErrorMessage(
           error,
           "Unable to load ticket details right now."
@@ -1242,22 +1229,22 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
     return (ticket.comments || []).map((comment, index) => ({
       key: comment?.id || comment?.commentId || `${index}`,
       author:
-        comment?.author ||
-        comment?.createdBy ||
-        comment?.userName ||
-        comment?.name ||
-        "Comment",
+      comment?.author ||
+      comment?.createdBy ||
+      comment?.userName ||
+      comment?.name ||
+      "Comment",
       message:
-        comment?.message ||
-        comment?.comment ||
-        comment?.text ||
-        comment?.description ||
-        "",
+      comment?.message ||
+      comment?.comment ||
+      comment?.text ||
+      comment?.description ||
+      "",
       date:
-        comment?.createdAt ||
-        comment?.date ||
-        comment?.timestamp ||
-        "",
+      comment?.createdAt ||
+      comment?.date ||
+      comment?.timestamp ||
+      ""
     }));
   }, [ticket]);
 
@@ -1268,28 +1255,28 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
 
     return (ticket.attachments || []).map((attachment, index) => {
       const rawPath =
-        attachment?.url ||
-        attachment?.fileUrl ||
-        attachment?.path ||
-        attachment?.filePath ||
-        attachment?.downloadUrl ||
-        attachment?.FileUrl ||
-        attachment?.FilePath ||
-        "";
+      attachment?.url ||
+      attachment?.fileUrl ||
+      attachment?.path ||
+      attachment?.filePath ||
+      attachment?.downloadUrl ||
+      attachment?.FileUrl ||
+      attachment?.FilePath ||
+      "";
 
       return {
         key: attachment?.id || attachment?.attachmentId || `${index}`,
         label:
-          attachment?.name ||
-          attachment?.fileName ||
-          attachment?.FileName ||
-          `Attachment ${index + 1}`,
+        attachment?.name ||
+        attachment?.fileName ||
+        attachment?.FileName ||
+        `Attachment ${index + 1}`,
         url: rawPath ? buildServerUrl(rawPath) : "",
         size:
-          attachment?.size ||
-          attachment?.fileSize ||
-          attachment?.FileSize ||
-          "",
+        attachment?.size ||
+        attachment?.fileSize ||
+        attachment?.FileSize ||
+        ""
       };
     });
   }, [ticket]);
@@ -1299,60 +1286,60 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
       return [];
     }
 
-    const rawTimeline = Array.isArray(ticket.raw?.timeline)
-      ? ticket.raw.timeline
-      : Array.isArray(ticket.raw?.Timeline)
-        ? ticket.raw.Timeline
-        : [];
+    const rawTimeline = Array.isArray(ticket.raw?.timeline) ?
+    ticket.raw.timeline :
+    Array.isArray(ticket.raw?.Timeline) ?
+    ticket.raw.Timeline :
+    [];
 
     if (rawTimeline.length > 0) {
       return rawTimeline.map((item, index) => ({
         label:
-          item?.label ||
-          item?.stage ||
-          item?.status ||
-          `Step ${index + 1}`,
+        item?.label ||
+        item?.stage ||
+        item?.status ||
+        `Step ${index + 1}`,
         detail:
-          item?.detail ||
-          item?.message ||
-          item?.description ||
-          item?.note ||
-          "",
+        item?.detail ||
+        item?.message ||
+        item?.description ||
+        item?.note ||
+        "",
         date:
-          item?.date ||
-          item?.createdAt ||
-          item?.updatedAt ||
-          item?.timestamp ||
-          "",
+        item?.date ||
+        item?.createdAt ||
+        item?.updatedAt ||
+        item?.timestamp ||
+        ""
       }));
     }
 
     return [
-      {
-        label: "Created",
-        detail: ticket.createdBy || "Ticket submitted",
-        date: ticket.createdDate,
-      },
-      {
-        label: "Updated",
-        detail: ticket.status || "Latest status change",
-        date: ticket.updatedDate,
-      },
-      {
-        label: getTicketStatusLabel(ticket.status),
-        detail: "Current ticket state",
-        date: ticket.updatedDate || ticket.createdDate,
-      },
-    ];
+    {
+      label: "Created",
+      detail: ticket.createdBy || "Ticket submitted",
+      date: ticket.createdDate
+    },
+    {
+      label: "Updated",
+      detail: ticket.status || "Latest status change",
+      date: ticket.updatedDate
+    },
+    {
+      label: getTicketStatusLabel(ticket.status),
+      detail: "Current ticket state",
+      date: ticket.updatedDate || ticket.createdDate
+    }];
+
   }, [ticket]);
 
-  const body = loading ? (
-    <div className="ticket-modal-loading">
+  const body = loading ?
+  <div className="ticket-modal-loading">
       <FaSpinner className="ticket-button-spinner" />
       Loading ticket details...
-    </div>
-  ) : ticket ? (
-    <div className="ticket-details-grid ticket-modal-details-grid">
+    </div> :
+  ticket ?
+  <div className="ticket-details-grid ticket-modal-details-grid">
       <div className="ticket-surface ticket-details-main">
         <div className="ticket-details-section">
           <div className="ticket-section-heading">
@@ -1382,28 +1369,27 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
             <h3>Attachments</h3>
           </div>
 
-          {attachmentItems.length === 0 ? (
-            <EmptyState
-              className="ticket-empty-state compact"
-              message="No attachments were included with this ticket."
-            />
-          ) : (
-            <div className="ticket-attachment-list">
-              {attachmentItems.map((attachment) => (
-                <a
-                  className="ticket-attachment-item ticket-attachment-link"
-                  href={attachment.url || "#"}
-                  target={attachment.url ? "_blank" : undefined}
-                  rel="noreferrer"
-                  key={attachment.key}
-                >
+          {attachmentItems.length === 0 ?
+        <EmptyState
+          className="ticket-empty-state compact"
+          message="No attachments were included with this ticket." /> :
+
+        <div className="ticket-attachment-list">
+              {attachmentItems.map((attachment) =>
+          <a
+            className="ticket-attachment-item ticket-attachment-link"
+            href={attachment.url || "#"}
+            target={attachment.url ? "_blank" : undefined}
+            rel="noreferrer"
+            key={attachment.key}>
+            
                   <span>{attachment.label}</span>
                   <small>{attachment.size || "File"}</small>
                   {attachment.url ? <FaDownload aria-hidden="true" /> : null}
                 </a>
-              ))}
-            </div>
           )}
+            </div>
+        }
         </div>
 
         <div className="ticket-details-section">
@@ -1411,22 +1397,21 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
             <h3>Comments</h3>
           </div>
 
-          {commentItems.length === 0 ? (
-            <EmptyState
-              className="ticket-empty-state compact"
-              message="No comments are available for this ticket."
-            />
-          ) : (
-            <div className="ticket-comment-list">
-              {commentItems.map((comment) => (
-                <div className="ticket-comment-card" key={comment.key}>
+          {commentItems.length === 0 ?
+        <EmptyState
+          className="ticket-empty-state compact"
+          message="No comments are available for this ticket." /> :
+
+        <div className="ticket-comment-list">
+              {commentItems.map((comment) =>
+          <div className="ticket-comment-card" key={comment.key}>
                   <strong>{comment.author}</strong>
                   <span>{formatDateTime(comment.date)}</span>
                   <p>{comment.message || "No comment text provided."}</p>
                 </div>
-              ))}
-            </div>
           )}
+            </div>
+        }
         </div>
       </div>
 
@@ -1466,8 +1451,8 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
         <div className="ticket-surface ticket-details-panel">
           <h3>Status Timeline</h3>
           <div className="ticket-timeline">
-            {timelineItems.map((item, index) => (
-              <div className="ticket-timeline-item" key={`${item.label}-${index}`}>
+            {timelineItems.map((item, index) =>
+          <div className="ticket-timeline-item" key={`${item.label}-${index}`}>
                 <div className="ticket-timeline-dot" />
                 <div>
                   <strong>{item.label}</strong>
@@ -1475,7 +1460,7 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
                   <small>{formatDateTime(item.date)}</small>
                 </div>
               </div>
-            ))}
+          )}
           </div>
         </div>
 
@@ -1493,13 +1478,11 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
           </div>
         </div>
       </div>
-    </div>
-  ) : (
-    <EmptyState
-      className="ticket-empty-state compact"
-      message="Ticket details are unavailable."
-    />
-  );
+    </div> :
+
+  <EmptyState
+    className="ticket-empty-state compact"
+    message="Ticket details are unavailable." />;
 
   return (
     <ModalShell
@@ -1509,23 +1492,23 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
       onClose={onClose}
       className="ticket-modal-wide ticket-details-modal"
       footer={
-        <button type="button" className="ticket-button secondary" onClick={onClose}>
+      <button type="button" className="ticket-button secondary" onClick={onClose}>
           Close
         </button>
-      }
-    >
+      }>
+      
       {body}
-    </ModalShell>
-  );
+    </ModalShell>);
+
 }
 
 function AllTicketsPage({ scope = "admin" }) {
   const isEmployeeScope = scope === "employee";
   const portalLabel = isEmployeeScope ? "Employee portal" : "Admin portal";
   const pageTitle = isEmployeeScope ? "My Tickets" : "All Tickets";
-  const pageDescription = isEmployeeScope
-    ? "Review your assigned tickets, track status updates, and open details when needed."
-    : "Manage tickets, assign work, upload spreadsheets, and review status updates from one place.";
+  const pageDescription = isEmployeeScope ?
+  "Review your assigned tickets, track status updates, and open details when needed." :
+  "Manage tickets, assign work, upload spreadsheets, and review status updates from one place.";
 
   const [tickets, setTickets] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -1545,11 +1528,11 @@ function AllTicketsPage({ scope = "admin" }) {
   const [editorState, setEditorState] = useState({
     open: false,
     mode: "create",
-    ticketId: "",
+    ticketId: ""
   });
   const [detailsState, setDetailsState] = useState({
     open: false,
-    ticketId: "",
+    ticketId: ""
   });
   const [detailsRefreshKey, setDetailsRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -1566,7 +1549,7 @@ function AllTicketsPage({ scope = "admin" }) {
       const data = isEmployeeScope ? await fetchMyTickets() : await fetchTickets();
       setTickets(data);
     } catch (error) {
-      console.error("Failed to load tickets:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to load tickets right now."
@@ -1588,11 +1571,11 @@ function AllTicketsPage({ scope = "admin" }) {
         setEmployeesLoading(true);
         const response = await api.get(API_ENDPOINTS.employees.list);
         const records = extractCollection(response.data).map((employee) =>
-          normalizeEmployeeOption(employee)
+        normalizeEmployeeOption(employee)
         );
         setEmployees(records);
       } catch (error) {
-        console.error("Unable to load employees:", error);
+
         const errorMessage = await getTicketApiErrorMessage(
           error,
           "Unable to load employee list."
@@ -1610,28 +1593,28 @@ function AllTicketsPage({ scope = "admin" }) {
   useEffect(() => {
     setCurrentPage(1);
   }, [
-    search,
-    statusFilter,
-    priorityFilter,
-    categoryFilter,
-    createdFrom,
-    createdTo,
-    sortConfig.key,
-    sortConfig.direction,
-  ]);
+  search,
+  statusFilter,
+  priorityFilter,
+  categoryFilter,
+  createdFrom,
+  createdTo,
+  sortConfig.key,
+  sortConfig.direction]
+  );
 
   const filteredTickets = useMemo(() => {
     const normalizedSearch = deferredSearch.trim().toLowerCase();
 
     return tickets.filter((ticket) => {
       const matchesSearch =
-        !normalizedSearch || getTicketSearchText(ticket).includes(normalizedSearch);
+      !normalizedSearch || getTicketSearchText(ticket).includes(normalizedSearch);
       const matchesStatus =
-        statusFilter === "All" || normalizeTicketStatus(ticket.status) === statusFilter;
+      statusFilter === "All" || normalizeTicketStatus(ticket.status) === statusFilter;
       const matchesPriority =
-        priorityFilter === "All" || ticket.priority === priorityFilter;
+      priorityFilter === "All" || ticket.priority === priorityFilter;
       const matchesCategory =
-        categoryFilter === "All" || ticket.category === categoryFilter;
+      categoryFilter === "All" || ticket.category === categoryFilter;
       const matchesDateRange = isDateInRange(
         ticket.createdDate,
         createdFrom,
@@ -1643,18 +1626,18 @@ function AllTicketsPage({ scope = "admin" }) {
         matchesStatus &&
         matchesPriority &&
         matchesCategory &&
-        matchesDateRange
-      );
+        matchesDateRange);
+
     });
   }, [
-    tickets,
-    deferredSearch,
-    statusFilter,
-    priorityFilter,
-    categoryFilter,
-    createdFrom,
-    createdTo,
-  ]);
+  tickets,
+  deferredSearch,
+  statusFilter,
+  priorityFilter,
+  categoryFilter,
+  createdFrom,
+  createdTo]
+  );
 
   const sortedTickets = useMemo(() => {
     const items = [...filteredTickets];
@@ -1679,22 +1662,22 @@ function AllTicketsPage({ scope = "admin" }) {
     ).length;
 
     return [
-      { label: "Total Tickets", value: total, tone: "total" },
-      { label: "Open", value: open, tone: "open" },
-      { label: "In Progress", value: inProgress, tone: "progress" },
-      { label: "Completed", value: completed, tone: "resolved" },
-    ];
+    { label: "Total Tickets", value: total, tone: "total" },
+    { label: "Open", value: open, tone: "open" },
+    { label: "In Progress", value: inProgress, tone: "progress" },
+    { label: "Completed", value: completed, tone: "resolved" }];
+
   }, [filteredTickets]);
 
   const handleSort = (key) => {
     setSortConfig((current) => ({
       key,
       direction:
-        current.key === key
-          ? current.direction === "asc"
-            ? "desc"
-            : "asc"
-          : getDefaultSortDirection(key),
+      current.key === key ?
+      current.direction === "asc" ?
+      "desc" :
+      "asc" :
+      getDefaultSortDirection(key)
     }));
   };
 
@@ -1715,7 +1698,7 @@ function AllTicketsPage({ scope = "admin" }) {
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
     sortBy: sortConfig.key,
-    sortDirection: sortConfig.direction,
+    sortDirection: sortConfig.direction
   });
 
   const handleExportTickets = async () => {
@@ -1729,7 +1712,7 @@ function AllTicketsPage({ scope = "admin" }) {
       await exportTickets(buildExportParams());
       toast.success("Tickets export is downloading.");
     } catch (error) {
-      console.error("Ticket export failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to export tickets right now."
@@ -1752,7 +1735,7 @@ function AllTicketsPage({ scope = "admin" }) {
       setDeleteCandidate(null);
       await loadTickets();
     } catch (error) {
-      console.error("Ticket delete failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to delete the ticket right now."
@@ -1767,9 +1750,9 @@ function AllTicketsPage({ scope = "admin" }) {
     await loadTickets();
 
     if (
-      detailsState.open &&
-      String(detailsState.ticketId) === String(ticketId)
-    ) {
+    detailsState.open &&
+    String(detailsState.ticketId) === String(ticketId))
+    {
       setDetailsRefreshKey((current) => current + 1);
     }
   };
@@ -1778,7 +1761,7 @@ function AllTicketsPage({ scope = "admin" }) {
     try {
       await autoAssignTickets(buildAutoAssignPayload(ticket?.projectId));
     } catch (error) {
-      console.error("Auto assign after completion failed:", error);
+
       const message = await getAutoAssignErrorMessage(error);
       toast.error(message);
     }
@@ -1801,7 +1784,7 @@ function AllTicketsPage({ scope = "admin" }) {
         await loadTickets();
       }
     } catch (error) {
-      console.error("Status update failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to update the ticket status right now."
@@ -1824,7 +1807,7 @@ function AllTicketsPage({ scope = "admin" }) {
       toast.success("Work started.");
       await refreshTicketsAndDetails(ticket.ticketId);
     } catch (error) {
-      console.error("Start work failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to start work on this ticket right now."
@@ -1851,7 +1834,7 @@ function AllTicketsPage({ scope = "admin" }) {
         await loadTickets();
       }
     } catch (error) {
-      console.error("Stop work failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to stop work on this ticket right now."
@@ -1879,7 +1862,7 @@ function AllTicketsPage({ scope = "admin" }) {
       await loadTickets();
       setDetailsRefreshKey((current) => current + 1);
     } catch (error) {
-      console.error("Auto assign failed:", error);
+
       const message = await getAutoAssignErrorMessage(error);
       toast.error(message);
     } finally {
@@ -1892,7 +1875,7 @@ function AllTicketsPage({ scope = "admin" }) {
       await downloadTicketTemplate();
       toast.success("Template download started.");
     } catch (error) {
-      console.error("Template download failed:", error);
+
       const errorMessage = await getTicketApiErrorMessage(
         error,
         "Unable to download the template right now."
@@ -1901,11 +1884,11 @@ function AllTicketsPage({ scope = "admin" }) {
     }
   };
 
-  const loadingView = loading ? (
-    <div className="ticket-page">
+  const loadingView = loading ?
+  <div className="ticket-page">
       <TableSkeleton rows={8} columns={TABLE_COLUMNS.length} />
-    </div>
-  ) : null;
+    </div> :
+  null;
 
   if (loadingView) {
     return loadingView;
@@ -1921,95 +1904,95 @@ function AllTicketsPage({ scope = "admin" }) {
         </div>
 
         <div className="ticket-hero-actions">
-          {!isEmployeeScope ? (
-            <>
+          {!isEmployeeScope ?
+          <>
               <button
-                type="button"
-                className="ticket-button secondary"
-                onClick={() =>
-                  setEditorState({
-                    open: true,
-                    mode: "create",
-                    ticketId: "",
-                  })
-                }
-              >
+              type="button"
+              className="ticket-button secondary"
+              onClick={() =>
+              setEditorState({
+                open: true,
+                mode: "create",
+                ticketId: ""
+              })
+              }>
+              
                 <FaPlus aria-hidden="true" />
                 Create Ticket
               </button>
 
               <button
-                type="button"
-                className="ticket-button secondary"
-                onClick={() => setBulkOpen(true)}
-              >
+              type="button"
+              className="ticket-button secondary"
+              onClick={() => setBulkOpen(true)}>
+              
                 <FaUpload aria-hidden="true" />
                 Bulk Upload
               </button>
 
               <button
-                type="button"
-                className="ticket-button secondary"
-                onClick={handleTemplateDownload}
-              >
+              type="button"
+              className="ticket-button secondary"
+              onClick={handleTemplateDownload}>
+              
                 <FaDownload aria-hidden="true" />
                 Download Template
               </button>
 
-              {canAutoAssignTickets ? (
-                <button
-                  type="button"
-                  className="ticket-button primary"
-                  onClick={() => setAutoAssignOpen(true)}
-                  disabled={autoAssignSaving}
-                >
-                  {autoAssignSaving ? (
-                    <>
+              {canAutoAssignTickets ?
+            <button
+              type="button"
+              className="ticket-button primary"
+              onClick={() => setAutoAssignOpen(true)}
+              disabled={autoAssignSaving}>
+              
+                  {autoAssignSaving ?
+              <>
                       <FaSpinner className="ticket-button-spinner" />
                       Auto Assigning...
-                    </>
-                  ) : (
-                    <>
+                    </> :
+
+              <>
                       <FaSyncAlt aria-hidden="true" />
                       Auto Assign
                     </>
-                  )}
-                </button>
-              ) : null}
+              }
+                </button> :
+            null}
 
               <button
-                type="button"
-                className="ticket-button primary"
-                onClick={handleExportTickets}
-                disabled={exporting}
-              >
-                {exporting ? (
-                  <>
+              type="button"
+              className="ticket-button primary"
+              onClick={handleExportTickets}
+              disabled={exporting}>
+              
+                {exporting ?
+              <>
                     <FaSpinner className="ticket-button-spinner" />
                     Exporting...
-                  </>
-                ) : (
-                  <>
+                  </> :
+
+              <>
                     <FaDownload aria-hidden="true" />
                     Export Tickets
                   </>
-                )}
+              }
               </button>
-            </>
-          ) : null}
+            </> :
+          null}
         </div>
       </div>
 
       <div className="ticket-metric-grid">
-        {summaryCards.map((card) => (
-          <div className={`ticket-metric-card tone-${card.tone}`} key={card.label}>
+        {summaryCards.map((card) =>
+        <div className={`ticket-metric-card tone-${card.tone}`} key={card.label}>
             <div>
               <span className="ticket-metric-label">{card.label}</span>
               <strong className="ticket-metric-value">{card.value}</strong>
             </div>
             <FaTicketAlt aria-hidden="true" />
           </div>
-        ))}
+        )}
       </div>
 
       <div className="ticket-toolbar-new">
@@ -2022,32 +2005,32 @@ function AllTicketsPage({ scope = "admin" }) {
             type="text"
             placeholder="Search by title, employee, or ticket ID"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+            onChange={(e) => setSearch(e.target.value)} />
+          
 
         </div>
 
         <button
           className="ticket-filter-toggle"
-          onClick={() => setFiltersOpen(!filtersOpen)}
-        >
+          onClick={() => setFiltersOpen(!filtersOpen)}>
+          
           <FaFilter />
 
           <span>Filters</span>
 
-          {filtersOpen ? (
-            <FaChevronUp className="ticket-filter-arrow" />
-          ) : (
-            <FaChevronDown className="ticket-filter-arrow" />
-          )}
+          {filtersOpen ?
+          <FaChevronUp className="ticket-filter-arrow" /> :
+
+          <FaChevronDown className="ticket-filter-arrow" />
+          }
         </button>
 
       </div>
 
       {
-        filtersOpen && (
+      filtersOpen &&
 
-          <div className="ticket-filter-panel">
+      <div className="ticket-filter-panel">
 
             <div className="ticket-filter-grid">
 
@@ -2056,25 +2039,25 @@ function AllTicketsPage({ scope = "admin" }) {
                 <label>Status</label>
 
                 <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}>
+              
 
                   {
-                    STATUS_OPTIONS.map(item =>
+              STATUS_OPTIONS.map((item) =>
 
-                      <option
-                        key={item}
-                        value={item}
-                      >
+              <option
+                key={item}
+                value={item}>
+                
 
                         {item}
 
                       </option>
 
-                    )
+              )
 
-                  }
+              }
 
                 </select>
 
@@ -2085,25 +2068,25 @@ function AllTicketsPage({ scope = "admin" }) {
                 <label>Category</label>
 
                 <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                >
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}>
+              
 
                   {
-                    CATEGORY_OPTIONS.map(item =>
+              CATEGORY_OPTIONS.map((item) =>
 
-                      <option
-                        key={item}
-                        value={item}
-                      >
+              <option
+                key={item}
+                value={item}>
+                
 
                         {item}
 
                       </option>
 
-                    )
+              )
 
-                  }
+              }
 
                 </select>
 
@@ -2114,25 +2097,25 @@ function AllTicketsPage({ scope = "admin" }) {
                 <label>Priority</label>
 
                 <select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                >
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}>
+              
 
                   {
-                    PRIORITY_OPTIONS.map(item =>
+              PRIORITY_OPTIONS.map((item) =>
 
-                      <option
-                        key={item}
-                        value={item}
-                      >
+              <option
+                key={item}
+                value={item}>
+                
 
                         {item}
 
                       </option>
 
-                    )
+              )
 
-                  }
+              }
 
                 </select>
 
@@ -2144,13 +2127,13 @@ function AllTicketsPage({ scope = "admin" }) {
 
                 <AppDatePicker
 
-                  value={createdFrom}
+              value={createdFrom}
 
-                  onChange={(e) => setCreatedFrom(e.target.value)}
+              onChange={(e) => setCreatedFrom(e.target.value)}
 
-                  placeholder="From date"
+              placeholder="From date" />
 
-                />
+            
 
               </div>
 
@@ -2160,13 +2143,13 @@ function AllTicketsPage({ scope = "admin" }) {
 
                 <AppDatePicker
 
-                  value={createdTo}
+              value={createdTo}
 
-                  onChange={(e) => setCreatedTo(e.target.value)}
+              onChange={(e) => setCreatedTo(e.target.value)}
 
-                  placeholder="To date"
+              placeholder="To date" />
 
-                />
+            
 
               </div>
 
@@ -2175,14 +2158,14 @@ function AllTicketsPage({ scope = "admin" }) {
             <div className="ticket-filter-footer">
 
               <button
-                className="ticket-button secondary"
-                onClick={handleResetFilters}
-              >
+            className="ticket-button secondary"
+            onClick={handleResetFilters}>
+            
                 Reset
               </button>
             </div>
           </div>
-        )
+
       }
 
       <div className={`ticket-table-card ${isEmployeeScope ? "ticket-user-table-card" : ""}`.trim()}>
@@ -2200,14 +2183,14 @@ function AllTicketsPage({ scope = "admin" }) {
                         style={{
                           width: column.width,
                           minWidth: column.width,
-                          maxWidth: column.width,
-                        }}
-                      >
+                          maxWidth: column.width
+                        }}>
+                        
                         <div className="ticket-table-head-actions">
                           <span>{column.label}</span>
                         </div>
-                      </th>
-                    );
+                      </th>);
+
                   }
 
                   return (
@@ -2216,55 +2199,55 @@ function AllTicketsPage({ scope = "admin" }) {
                       style={{
                         width: column.width,
                         minWidth: column.width,
-                        maxWidth: column.width,
-                      }}
-                    >
+                        maxWidth: column.width
+                      }}>
+                      
                       {column.label}
-                    </th>
-                  );
+                    </th>);
+
                 })}
               </tr>
             </thead>
 
             <tbody>
-              {filteredTickets.length === 0 ? (
-                <tr>
+              {filteredTickets.length === 0 ?
+              <tr>
                   <td colSpan={TABLE_COLUMNS.length} className="ticket-empty-cell">
                     <EmptyState
-                      className="ticket-empty-state"
-                      message="No tickets match the current filters."
-                    />
+                    className="ticket-empty-state"
+                    message="No tickets match the current filters." />
+                  
                   </td>
-                </tr>
-              ) : (
-                paginatedTickets.map((ticket) => {
-                  const isUpdating = actionTicketId === ticket.ticketId;
-                  const rowStatusOptions = isEmployeeScope
-                    ? getEmployeeRowStatusOptions(ticket)
-                    : getTicketStatusOptions("admin");
-                  const showStartWork =
-                    isEmployeeScope &&
-                    isTicketAssigned(ticket) &&
-                    !isTicketCompleted(ticket);
-                  const showStopWork =
-                    isEmployeeScope &&
-                    isTicketWorkActive(ticket);
+                </tr> :
 
-                  return (
-                    <tr key={ticket.ticketId}>
+              paginatedTickets.map((ticket) => {
+                const isUpdating = actionTicketId === ticket.ticketId;
+                const rowStatusOptions = isEmployeeScope ?
+                getEmployeeRowStatusOptions(ticket) :
+                getTicketStatusOptions("admin");
+                const showStartWork =
+                isEmployeeScope &&
+                isTicketAssigned(ticket) &&
+                !isTicketCompleted(ticket);
+                const showStopWork =
+                isEmployeeScope &&
+                isTicketWorkActive(ticket);
+
+                return (
+                  <tr key={ticket.ticketId}>
                       <td>{ticket.ticketId || "-"}</td>
                       <td>
                         <button
-                          type="button"
-                          className="ticket-inline-link"
-                          title={ticket.title || ""}
-                          onClick={() =>
-                            setDetailsState({
-                              open: true,
-                              ticketId: ticket.ticketId,
-                            })
-                          }
-                        >
+                        type="button"
+                        className="ticket-inline-link"
+                        title={ticket.title || ""}
+                        onClick={() =>
+                        setDetailsState({
+                          open: true,
+                          ticketId: ticket.ticketId
+                        })
+                        }>
+                        
                           <span className="ticket-table-text-truncate">
                             {truncateTicketText(ticket.title, 20)}
                           </span>
@@ -2289,94 +2272,94 @@ function AllTicketsPage({ scope = "admin" }) {
                       <td className="ticket-table-actions-cell">
                         <div className="ticket-row-actions">
                           <button
-                            type="button"
-                            className="ticket-action-button view"
-                            onClick={() =>
-                              setDetailsState({
-                                open: true,
-                                ticketId: ticket.ticketId,
-                              })
-                            }
-                            title="View ticket"
-                          >
+                          type="button"
+                          className="ticket-action-button view"
+                          onClick={() =>
+                          setDetailsState({
+                            open: true,
+                            ticketId: ticket.ticketId
+                          })
+                          }
+                          title="View ticket">
+                          
                             <FaEye aria-hidden="true" />
                           </button>
 
                           <button
-                            type="button"
-                            className="ticket-action-button edit"
-                            onClick={() =>
-                              setEditorState({
-                                open: true,
-                                mode: "edit",
-                                ticketId: ticket.ticketId,
-                              })
-                            }
-                            title="Edit ticket"
-                          >
+                          type="button"
+                          className="ticket-action-button edit"
+                          onClick={() =>
+                          setEditorState({
+                            open: true,
+                            mode: "edit",
+                            ticketId: ticket.ticketId
+                          })
+                          }
+                          title="Edit ticket">
+                          
                             <FaPen aria-hidden="true" />
                           </button>
 
                           <button
-                            type="button"
-                            className="ticket-action-button delete"
-                            onClick={() => setDeleteCandidate(ticket)}
-                            title="Delete ticket"
-                          >
+                          type="button"
+                          className="ticket-action-button delete"
+                          onClick={() => setDeleteCandidate(ticket)}
+                          title="Delete ticket">
+                          
                             <FaTrash aria-hidden="true" />
                           </button>
 
-                          {showStartWork ? (
-                            <button
-                              type="button"
-                              className="ticket-action-button start"
-                              onClick={() => handleStartWork(ticket)}
-                              title="Start Work"
-                              disabled={isUpdating}
-                            >
+                          {showStartWork ?
+                        <button
+                          type="button"
+                          className="ticket-action-button start"
+                          onClick={() => handleStartWork(ticket)}
+                          title="Start Work"
+                          disabled={isUpdating}>
+                          
                               <FaPlay aria-hidden="true" />
-                            </button>
-                          ) : null}
+                            </button> :
+                        null}
 
-                          {showStopWork ? (
-                            <button
-                              type="button"
-                              className="ticket-action-button stop"
-                              onClick={() => handleStopWork(ticket)}
-                              title="Stop Work"
-                              disabled={isUpdating}
-                            >
+                          {showStopWork ?
+                        <button
+                          type="button"
+                          className="ticket-action-button stop"
+                          onClick={() => handleStopWork(ticket)}
+                          title="Stop Work"
+                          disabled={isUpdating}>
+                          
                               <FaStop aria-hidden="true" />
-                            </button>
-                          ) : null}
+                            </button> :
+                        null}
 
                           <select
-                            className="ticket-status-select"
-                            value={ticket.status}
-                            disabled={isUpdating}
-                            onChange={(event) =>
-                              handleStatusUpdate(ticket, event.target.value)
-                            }
-                          >
-                            {rowStatusOptions.map((status) => (
-                              <option key={status} value={status}>
+                          className="ticket-status-select"
+                          value={ticket.status}
+                          disabled={isUpdating}
+                          onChange={(event) =>
+                          handleStatusUpdate(ticket, event.target.value)
+                          }>
+                          
+                            {rowStatusOptions.map((status) =>
+                          <option key={status} value={status}>
                                 {status}
                               </option>
-                            ))}
+                          )}
                           </select>
 
-                          {isUpdating ? (
-                            <FaSpinner
-                              className="ticket-row-spinner"
-                              aria-hidden="true"
-                            />
-                          ) : null}
+                          {isUpdating ?
+                        <FaSpinner
+                          className="ticket-row-spinner"
+                          aria-hidden="true" /> :
+
+                        null}
                         </div>
                       </td>
-                    </tr>
-                  );
-                })
-              )}
+                    </tr>);
+
+              })
+              }
             </tbody>
           </table>
         </div>
@@ -2388,8 +2371,8 @@ function AllTicketsPage({ scope = "admin" }) {
         pageSize={PAGE_SIZE}
         onPageChange={setCurrentPage}
         itemLabel="tickets"
-        className="ticket-pagination"
-      />
+        className="ticket-pagination" />
+      
 
       <TicketEditorModal
         open={editorState.open}
@@ -2398,32 +2381,32 @@ function AllTicketsPage({ scope = "admin" }) {
         employees={employees}
         loadingEmployees={employeesLoading}
         onClose={() =>
-          setEditorState({
-            open: false,
-            mode: "create",
-            ticketId: "",
-          })
+        setEditorState({
+          open: false,
+          mode: "create",
+          ticketId: ""
+        })
         }
-        onSaved={loadTickets}
-      />
+        onSaved={loadTickets} />
+      
 
       <TicketDetailsModal
         open={detailsState.open}
         ticketId={detailsState.ticketId}
         refreshKey={detailsRefreshKey}
         onClose={() =>
-          setDetailsState({
-            open: false,
-            ticketId: "",
-          })
-        }
-      />
+        setDetailsState({
+          open: false,
+          ticketId: ""
+        })
+        } />
+      
 
       <BulkUploadModal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
-        onUploaded={handleUploadComplete}
-      />
+        onUploaded={handleUploadComplete} />
+      
 
       <AutoAssignConfirmModal
         open={autoAssignOpen}
@@ -2434,55 +2417,55 @@ function AllTicketsPage({ scope = "admin" }) {
             setAutoAssignOpen(false);
           }
         }}
-        onConfirm={handleAutoAssignConfirm}
-      />
+        onConfirm={handleAutoAssignConfirm} />
+      
 
-      {deleteCandidate ? (
-        <ModalShell
-          open
-          title="Delete Ticket"
-          subtitle={`Are you sure you want to delete ticket ${deleteCandidate.ticketId || "-"}?`}
-          onClose={() => setDeleteCandidate(null)}
-          className="ticket-modal-narrow"
-          footer={
-            <>
+      {deleteCandidate ?
+      <ModalShell
+        open
+        title="Delete Ticket"
+        subtitle={`Are you sure you want to delete ticket ${deleteCandidate.ticketId || "-"}?`}
+        onClose={() => setDeleteCandidate(null)}
+        className="ticket-modal-narrow"
+        footer={
+        <>
               <button
-                type="button"
-                className="ticket-button secondary"
-                onClick={() => setDeleteCandidate(null)}
-                disabled={Boolean(actionTicketId)}
-              >
+            type="button"
+            className="ticket-button secondary"
+            onClick={() => setDeleteCandidate(null)}
+            disabled={Boolean(actionTicketId)}>
+            
                 Cancel
               </button>
 
               <button
-                type="button"
-                className="ticket-button danger"
-                onClick={handleDeleteTicket}
-                disabled={Boolean(actionTicketId)}
-              >
-                {actionTicketId === deleteCandidate.ticketId ? (
-                  <>
+            type="button"
+            className="ticket-button danger"
+            onClick={handleDeleteTicket}
+            disabled={Boolean(actionTicketId)}>
+            
+                {actionTicketId === deleteCandidate.ticketId ?
+            <>
                     <FaSpinner className="ticket-button-spinner" />
                     Deleting...
-                  </>
-                ) : (
-                  "Delete Ticket"
-                )}
+                  </> :
+
+            "Delete Ticket"
+            }
               </button>
             </>
-          }
-        >
+        }>
+        
           <div className="ticket-delete-icon">
             <FaTrash aria-hidden="true" />
           </div>
           <p className="ticket-delete-message">
             This action cannot be undone.
           </p>
-        </ModalShell>
-      ) : null}
-    </div>
-  );
+        </ModalShell> :
+      null}
+    </div>);
+
 }
 
 export default AllTicketsPage;

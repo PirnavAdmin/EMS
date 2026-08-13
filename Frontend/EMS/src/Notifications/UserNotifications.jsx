@@ -5,14 +5,14 @@ import {
   FaCheckCircle,
   FaExclamationTriangle,
   FaInfoCircle,
-  FaUserPlus,
-} from "react-icons/fa";
+  FaUserPlus } from
+"react-icons/fa";
 import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
 import {
   loadNotifications,
   markAllNotificationsAsRead,
-  markNotificationAsRead,
-} from "../services/notificationService";
+  markNotificationAsRead } from
+"../services/notificationService";
 
 function UserNotifications() {
   const [notifications, setNotifications] = useState([]);
@@ -27,26 +27,21 @@ function UserNotifications() {
   const normalizeNotifications = (data) => {
     if (!Array.isArray(data)) return [];
 
-    console.log("🟡 Raw notifications before normalize:", data);
+    const normalized = data.
+    map((item, index) => {
+      const normalizedItem = {
+        ...item,
+        id: item.id ?? item.notificationId ?? index,
+        isRead: item.isRead ?? item.read ?? item.isread ?? false,
+        title: item.title || "Notification",
+        description: item.description || item.message || "No message",
+        type: item.type || "info",
+        timeAgo: item.timeAgo || item.createdAt || item.createdOn || ""
+      };
 
-    const normalized = data
-      .map((item, index) => {
-        const normalizedItem = {
-          ...item,
-          id: item.id ?? item.notificationId ?? index,
-          isRead: item.isRead ?? item.read ?? item.isread ?? false,
-          title: item.title || "Notification",
-          description: item.description || item.message || "No message",
-          type: item.type || "info",
-          timeAgo: item.timeAgo || item.createdAt || item.createdOn || "",
-        };
-
-        console.log(`📦 Normalized Notification [${index}]`, normalizedItem);
-        return normalizedItem;
-      })
-      .filter((item) => !item.isRead); // ✅ only keep unread
-
-    console.log("✅ Final unread notifications in state:", normalized);
+      return normalizedItem;
+    }).
+    filter((item) => !item.isRead); // ✅ only keep unread
 
     return normalized;
   };
@@ -142,65 +137,62 @@ function UserNotifications() {
 
   const unreadCount = notifications.length;
 
-  console.log("🔴 Current notifications state:", notifications);
-  console.log("🔴 Unread count:", unreadCount);
-
   return (
-    <div className="notifications-container">
-      <div className="notifications-header">
-        <div>
-          <h2>My Notifications</h2>
-          <p>{unreadCount} unread notifications</p>
-        </div>
-
+    <div className="notifications-container">
+      <div className="notifications-header">
+        <div>
+          <h2>My Notifications</h2>
+          <p>{unreadCount} unread notifications</p>
+        </div>
+
         <button
           className="mark-read-btn"
           onClick={markAllAsRead}
-          disabled={unreadCount === 0 || markingAll}
-        >
-          {markingAll ? "Marking..." : "Mark all as read"}
-        </button>
-      </div>
+          disabled={unreadCount === 0 || markingAll}>
+          
+          {markingAll ? "Marking..." : "Mark all as read"}
+        </button>
+      </div>
+
+      <div className="notifications-list">
+        {loading ?
+        <CardSkeleton count={4} variant="panel" /> :
+        notifications.length === 0 ?
+        <p className="no-notifications">No notifications</p> :
 
-      <div className="notifications-list">
-        {loading ? (
-          <CardSkeleton count={4} variant="panel" />
-        ) : notifications.length === 0 ? (
-          <p className="no-notifications">No notifications</p>
-        ) : (
-          notifications.map((item, index) => (
-            <div
-              key={item.id || index}
-              className="notification-card unread"
-              onClick={() => markAsRead(item.id)}
-              style={{ cursor: "pointer" }}
-            >
-              <div className={`icon-circle ${item.type || "info"}`}>
-                {getIcon(item.type)}
-              </div>
-
-              <div className="notification-content">
-                <div className="notification-title">
-                  {item.title}
-                  <span className="unread-dot"></span>
-                </div>
-
-                <p>{item.description}</p>
-              </div>
-
-              <div className="notification-time">
-                {updatingId === item.id
-                  ? "Updating..."
-                  : markingAll
-                  ? "Updating..."
-                  : item.timeAgo}
-              </div>
+        notifications.map((item, index) =>
+        <div
+          key={item.id || index}
+          className="notification-card unread"
+          onClick={() => markAsRead(item.id)}
+          style={{ cursor: "pointer" }}>
+          
+              <div className={`icon-circle ${item.type || "info"}`}>
+                {getIcon(item.type)}
+              </div>
+
+              <div className="notification-content">
+                <div className="notification-title">
+                  {item.title}
+                  <span className="unread-dot"></span>
+                </div>
+
+                <p>{item.description}</p>
+              </div>
+
+              <div className="notification-time">
+                {updatingId === item.id ?
+            "Updating..." :
+            markingAll ?
+            "Updating..." :
+            item.timeAgo}
+              </div>
             </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
+        )
+        }
+      </div>
+    </div>);
+
 }
 
 export default UserNotifications;

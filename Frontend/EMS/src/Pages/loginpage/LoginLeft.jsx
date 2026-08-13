@@ -6,8 +6,8 @@ import { API_ENDPOINTS } from "../../api/endpoints";
 import {
   clearAuthData,
   extractAdminId,
-  getAuthStorage,
-} from "../../utils/authStorage";
+  getAuthStorage } from
+"../../utils/authStorage";
 import { normalizeRole } from "../../utils/authorization";
 import { useAdminPermissions } from "../../context/AdminPermissionContext";
 import { useEmployeePermissions } from "../../context/EmployeePermissionContext";
@@ -16,7 +16,7 @@ import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
 
 const ROLE_NAME_CLAIM =
-  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+"http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
 
 const toDisplayRoleName = (value) => {
   const normalized = String(value ?? "").trim();
@@ -36,13 +36,46 @@ const toDisplayRoleName = (value) => {
   return normalized;
 };
 
+const resolveLoginType = (value = "", endpoint = "") => {
+  const normalized = String(value ?? "").
+  trim().
+  toLowerCase().
+  replace(/[\s_-]+/g, "");
+
+  if (endpoint === API_ENDPOINTS.auth.superAdminLogin) {
+    return "super-admin";
+  }
+
+  if (endpoint === API_ENDPOINTS.auth.adminLogin) {
+    return "admin";
+  }
+
+  if (endpoint === API_ENDPOINTS.auth.userLogin) {
+    return "user";
+  }
+
+  if (["superadmin", "superadministrator"].includes(normalized)) {
+    return "super-admin";
+  }
+
+  if (["admin", "administrator"].includes(normalized)) {
+    return "admin";
+  }
+
+  if (["onboarding", "candidate"].includes(normalized)) {
+    return "onboarding";
+  }
+
+  return normalized ? "user" : "";
+};
+
 export default function LoginLeft() {
   const navigate = useNavigate();
   const { refreshPermissions: refreshAdminPermissions } = useAdminPermissions();
   const { refreshPermissions: refreshEmployeePermissions } = useEmployeePermissions();
   const [form, setForm] = useState({
     email: "",
-    password: "",
+    password: ""
   });
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
@@ -54,10 +87,10 @@ export default function LoginLeft() {
       const base64Url = token.split(".")[1];
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
       const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split("")
-          .map((char) => `%${(`00${char.charCodeAt(0).toString(16)}`).slice(-2)}`)
-          .join("")
+        atob(base64).
+        split("").
+        map((char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`).
+        join("")
       );
 
       return JSON.parse(jsonPayload);
@@ -81,8 +114,8 @@ export default function LoginLeft() {
   const authRequestOptions = {
     skipAuth: true,
     headers: {
-      "Content-Type": "application/json",
-    },
+      "Content-Type": "application/json"
+    }
   };
 
   const shouldFallbackToUserLogin = (error) => {
@@ -94,9 +127,9 @@ export default function LoginLeft() {
 
     const message = String(
       error?.response?.data?.message ||
-        error?.response?.data ||
-        error?.message ||
-        ""
+      error?.response?.data ||
+      error?.message ||
+      ""
     ).toLowerCase();
 
     return /invalid|unauthori[sz]ed|role|credential|account|not found|does not exist/.test(
@@ -107,27 +140,28 @@ export default function LoginLeft() {
   const submitLoginRequest = async () => {
     const payload = {
       email: form.email,
-      password: form.password,
+      password: form.password
     };
 
     const endpoints = [
-      API_ENDPOINTS.auth.superAdminLogin,
-      API_ENDPOINTS.auth.adminLogin,
-      API_ENDPOINTS.auth.userLogin,
-    ];
+    API_ENDPOINTS.auth.superAdminLogin,
+    API_ENDPOINTS.auth.adminLogin,
+    API_ENDPOINTS.auth.userLogin];
 
     let lastError = null;
 
     for (const endpoint of endpoints) {
       try {
-        return await api.post(endpoint, payload, authRequestOptions);
+        const response = await api.post(endpoint, payload, authRequestOptions);
+
+        return { response, endpoint };
       } catch (error) {
         lastError = error;
 
         if (
-          endpoint !== API_ENDPOINTS.auth.userLogin &&
-          shouldFallbackToUserLogin(error)
-        ) {
+        endpoint !== API_ENDPOINTS.auth.userLogin &&
+        shouldFallbackToUserLogin(error))
+        {
           continue;
         }
 
@@ -145,7 +179,7 @@ export default function LoginLeft() {
     if (savedEmail && savedPassword) {
       setForm({
         email: savedEmail,
-        password: savedPassword,
+        password: savedPassword
       });
       setRememberMe(true);
     }
@@ -156,7 +190,7 @@ export default function LoginLeft() {
 
     setForm((prev) => ({
       ...prev,
-      [name]: name === "email" ? value.toLowerCase() : value,
+      [name]: name === "email" ? value.toLowerCase() : value
     }));
 
     if (error) {
@@ -193,7 +227,9 @@ export default function LoginLeft() {
     const storage = getAuthStorage(rememberMe);
 
     try {
-      const response = await submitLoginRequest();
+      const loginResult = await submitLoginRequest();
+      const response = loginResult?.response;
+      const loginEndpoint = loginResult?.endpoint || "";
 
       if (response.status !== 200 || !response.data?.token) {
         throw new Error(response.data?.message || `Login failed (${response.status})`);
@@ -202,16 +238,16 @@ export default function LoginLeft() {
       const token = response.data.token;
       const decoded = parseJwt(token);
       const decodedRoleName =
-        decoded?.roleName ||
-        decoded?.[ROLE_NAME_CLAIM] ||
-        decoded?.role ||
-        "";
+      decoded?.roleName ||
+      decoded?.[ROLE_NAME_CLAIM] ||
+      decoded?.role ||
+      "";
 
       const roleId =
-        response.data.roleId ||
-        decoded?.RoleId ||
-        decoded?.roleId ||
-        null;
+      response.data.roleId ||
+      decoded?.RoleId ||
+      decoded?.roleId ||
+      null;
 
       const employeeId = resolveIdentityValue(
         response.data.employeeId,
@@ -235,8 +271,8 @@ export default function LoginLeft() {
         decoded?.nameid,
         decoded?.sub,
         decoded?.[
-          "http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"
-        ]
+        "http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"]
+
       );
 
       const attendanceId = resolveIdentityValue(
@@ -302,61 +338,59 @@ export default function LoginLeft() {
       );
 
       const resolvedEmployeeId =
-        employeeId || userId || attendanceId;
+      employeeId || userId || attendanceId;
 
       const authenticatedRole = normalizeRole(
         response.data.role ||
-          decoded?.role ||
-          decoded?.[
-            ROLE_NAME_CLAIM
-          ] ||
-          decodedRoleName ||
-          ""
+        decoded?.role ||
+        decoded?.[
+        ROLE_NAME_CLAIM] ||
+
+        decodedRoleName ||
+        ""
       );
 
-      const roleName = authenticatedRole
-        ? toDisplayRoleName(authenticatedRole)
-        : toDisplayRoleName(
-            response.data.roleName ||
-              decodedRoleName ||
-              response.data.role ||
-              decoded?.role ||
-              ""
-          );
+      const roleName = authenticatedRole ?
+      toDisplayRoleName(authenticatedRole) :
+      toDisplayRoleName(
+        response.data.roleName ||
+        decodedRoleName ||
+        response.data.role ||
+        decoded?.role ||
+        ""
+      );
 
       const adminId = extractAdminId(decoded, response.data);
 
       if (authenticatedRole === "admin") {
-        console.log("[Admin Permission] Login response:", response.data);
-        console.log("[Admin Permission] Current role:", authenticatedRole);
-        console.log("[Admin Permission] Admin ID:", adminId);
+
       }
 
-      const loginType = String(
+      const loginType = resolveLoginType(
         response.data.userType ||
-          response.data.loginType ||
-          response.data.accountType ||
-          response.data.type ||
-          decoded?.userType ||
-          decoded?.loginType ||
-          decoded?.accountType ||
-          ""
-      ).toLowerCase();
+        response.data.loginType ||
+        response.data.accountType ||
+        response.data.type ||
+        decoded?.userType ||
+        decoded?.loginType ||
+        decoded?.accountType ||
+        "",
+        loginEndpoint
+      );
 
       const isOnboardingLogin =
-        Boolean(onboardingId) &&
-        (
-        authenticatedRole === "onboarding" ||
-        authenticatedRole === "candidate" ||
-        normalizeRole(roleName) === "onboarding" ||
-        normalizeRole(roleName) === "candidate" ||
-        loginType.includes("onboarding") ||
-        loginType.includes("candidate") ||
-        response.data.isOnboardingUser === true ||
-        response.data.isOnboarding === true ||
-        decoded?.isOnboardingUser === true ||
-          decoded?.isOnboarding === true
-        );
+      Boolean(onboardingId) && (
+
+      authenticatedRole === "onboarding" ||
+      authenticatedRole === "candidate" ||
+      normalizeRole(roleName) === "onboarding" ||
+      normalizeRole(roleName) === "candidate" ||
+      loginType.includes("onboarding") ||
+      loginType.includes("candidate") ||
+      response.data.isOnboardingUser === true ||
+      response.data.isOnboarding === true ||
+      decoded?.isOnboardingUser === true ||
+      decoded?.isOnboarding === true);
 
       if (!token) {
         throw new Error(
@@ -376,9 +410,9 @@ export default function LoginLeft() {
         );
       }
 
-      const isSuperAdminLogin = authenticatedRole === "superadmin";
+      const isSuperAdminLogin = loginType === "super-admin";
       const shouldUseAdminPermissions =
-        authenticatedRole === "admin" || isSuperAdminLogin;
+      loginType === "admin" || loginType === "super-admin";
 
       clearAuthData();
 
@@ -392,8 +426,12 @@ export default function LoginLeft() {
       storage.setItem("roleId", roleId || "");
       storage.setItem("email", form.email);
       storage.setItem(
+        "loginType",
+        isOnboardingLogin ? "onboarding" : loginType || ""
+      );
+      storage.setItem(
         "userType",
-        isOnboardingLogin ? "Onboarding" : roleName || authenticatedRole
+        isOnboardingLogin ? "onboarding" : loginType || ""
       );
       storage.setItem(
         "userData",
@@ -403,16 +441,17 @@ export default function LoginLeft() {
         "user",
         JSON.stringify(
           response.data.superAdmin ||
-            response.data.admin ||
-            response.data.user ||
-            response.data
+          response.data.admin ||
+          response.data.user ||
+          response.data
         )
       );
 
       if (isSuperAdminLogin) {
         storage.setItem("role", "superadmin");
         storage.setItem("roleName", "SuperAdmin");
-        storage.setItem("userType", "SuperAdmin");
+        storage.setItem("loginType", "super-admin");
+        storage.setItem("userType", "super-admin");
         storage.setItem("isSuperAdmin", "true");
       } else {
         storage.removeItem("isSuperAdmin");
@@ -467,14 +506,14 @@ export default function LoginLeft() {
       startSessionTimer();
 
       navigate(isOnboardingLogin ? "/onboarding" : "/dashboard", {
-        replace: true,
+        replace: true
       });
     } catch (requestError) {
       const message =
-        requestError.response?.data?.message ||
-        requestError.response?.data?.error ||
-        requestError.message ||
-        "";
+      requestError.response?.data?.message ||
+      requestError.response?.data?.error ||
+      requestError.message ||
+      "";
 
       if (message.includes("Email does not exist")) {
         setError("No employee record was found for this email address.");
@@ -496,23 +535,23 @@ export default function LoginLeft() {
     <>
       <div className="auth-card-top">
         {/* <button
-          type="button"
-          className="auth-back-home-button"
-          onClick={() => navigate("/")}
-        >
-          <span className="auth-back-home-icon" aria-hidden="true">
-            <FaChevronLeft />
-          </span>
-          <span>Back to Home</span>
-        </button> */}
+           type="button"
+           className="auth-back-home-button"
+           onClick={() => navigate("/")}
+          >
+           <span className="auth-back-home-icon" aria-hidden="true">
+             <FaChevronLeft />
+           </span>
+           <span>Back to Home</span>
+          </button> */}
 
         <div className="auth-card-head">
           <p className="auth-eyebrow">Welcome Back</p>
           <h2 className="auth-card-title">Sign in to PIRNAV HRMS</h2>
           {/* <p className="auth-card-subtitle">
-            Access your secure workspace for people operations, approvals,
-            payroll, and reporting.
-          </p> */}
+             Access your secure workspace for people operations, approvals,
+             payroll, and reporting.
+            </p> */}
         </div>
       </div>
 
@@ -528,8 +567,8 @@ export default function LoginLeft() {
           autoComplete="email"
           placeholder="Enter your email address"
           icon={FaEnvelope}
-          required
-        />
+          required />
+        
 
         <AuthField
           label="Password"
@@ -544,17 +583,17 @@ export default function LoginLeft() {
           action={{
             label: showPassword ? "Hide password" : "Show password",
             icon: showPassword ? <FaEye /> : <FaEyeSlash />,
-            onClick: () => setShowPassword((prev) => !prev),
-          }}
-        />
+            onClick: () => setShowPassword((prev) => !prev)
+          }} />
+        
 
         <div className="auth-inline-row">
           <label className="auth-checkbox">
             <input
               type="checkbox"
               checked={rememberMe}
-              onChange={handleRememberMe}
-            />
+              onChange={handleRememberMe} />
+            
             <span>Remember me</span>
           </label>
 
@@ -574,6 +613,6 @@ export default function LoginLeft() {
           Create account
         </Link>
       </p>
-    </>
-  );
+    </>);
+
 }

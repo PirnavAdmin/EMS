@@ -9,7 +9,7 @@ import { toastError } from "@/components/common/toast/toastService";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const getDaysInMonth = (year, monthIndex) =>
-  new Date(year, monthIndex + 1, 0).getDate();
+new Date(year, monthIndex + 1, 0).getDate();
 
 const normalizeDate = (value) => {
   const parsedDate = parseDate(value);
@@ -46,14 +46,14 @@ const addYearsClamped = (date, years) => {
 const addMonthsClamped = (date, months) => {
   const totalMonths = date.getMonth() + months;
   const year = date.getFullYear() + Math.floor(totalMonths / 12);
-  const month = ((totalMonths % 12) + 12) % 12;
+  const month = (totalMonths % 12 + 12) % 12;
   const day = Math.min(date.getDate(), getDaysInMonth(year, month));
 
   return new Date(year, month, day);
 };
 
 const formatDurationUnit = (value, label) =>
-  `${value} ${value === 1 ? label : `${label}s`}`;
+`${value} ${value === 1 ? label : `${label}s`}`;
 
 const calculateExperienceDuration = (fromValue, toValue) => {
   const startDate = normalizeDate(fromValue);
@@ -61,7 +61,7 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   if (!startDate) {
     return {
       label: "",
-      yearsValue: 0,
+      yearsValue: 0
     };
   }
 
@@ -70,17 +70,17 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   if (endDate < startDate) {
     return {
       label: "",
-      yearsValue: 0,
+      yearsValue: 0
     };
   }
 
   let years = endDate.getFullYear() - startDate.getFullYear();
 
   if (
-    endDate.getMonth() < startDate.getMonth() ||
-    (endDate.getMonth() === startDate.getMonth() &&
-      endDate.getDate() < startDate.getDate())
-  ) {
+  endDate.getMonth() < startDate.getMonth() ||
+  endDate.getMonth() === startDate.getMonth() &&
+  endDate.getDate() < startDate.getDate())
+  {
     years -= 1;
   }
 
@@ -91,8 +91,8 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   const afterYears = addYearsClamped(startDate, years);
 
   let months =
-    (endDate.getFullYear() - afterYears.getFullYear()) * 12 +
-    (endDate.getMonth() - afterYears.getMonth());
+  (endDate.getFullYear() - afterYears.getFullYear()) * 12 + (
+  endDate.getMonth() - afterYears.getMonth());
 
   if (endDate.getDate() < afterYears.getDate()) {
     months -= 1;
@@ -111,12 +111,12 @@ const calculateExperienceDuration = (fromValue, toValue) => {
         endDate.getMonth(),
         endDate.getDate()
       ) -
-        Date.UTC(
-          afterMonths.getFullYear(),
-          afterMonths.getMonth(),
-          afterMonths.getDate()
-        )) /
-        ONE_DAY_MS
+      Date.UTC(
+        afterMonths.getFullYear(),
+        afterMonths.getMonth(),
+        afterMonths.getDate()
+      )) /
+      ONE_DAY_MS
     )
   );
 
@@ -136,10 +136,10 @@ const calculateExperienceDuration = (fromValue, toValue) => {
 
   return {
     label: parts.join(" "),
-    yearsValue: years,
+    yearsValue: years
   };
 };
- 
+
 function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   const emptyExperience = {
     id: 0,
@@ -150,19 +150,17 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
     years: "",
     yearsValue: 0,
     reason: "",
-    description: "",
+    description: ""
   };
- 
+
   const [experiences, setExperiences] = useState([emptyExperience]);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const isEditMode = data && data.length > 0;
- 
+
   useEffect(() => {
     if (!data || data.length === 0) return;
- 
-    console.log("📥 Incoming data:", data);
- 
+
     const mapped = data.map((exp) => {
       const fromDate = exp.fromDate ? exp.fromDate.split("T")[0] : "";
       const toDate = exp.toDate ? exp.toDate.split("T")[0] : "";
@@ -176,19 +174,19 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
         from: fromDate,
         to: toDate,
         years: duration.label || (Number.isFinite(fallbackYears) ? String(fallbackYears) : ""),
-        yearsValue: duration.label
-          ? duration.yearsValue
-          : Number.isFinite(fallbackYears)
-            ? fallbackYears
-            : 0,
+        yearsValue: duration.label ?
+        duration.yearsValue :
+        Number.isFinite(fallbackYears) ?
+        fallbackYears :
+        0,
         reason: exp.reasonForLeaving || "",
-        description: exp.description || "",
+        description: exp.description || ""
       };
     });
- 
+
     setExperiences(mapped);
   }, [data]);
- 
+
   const handleChange = (index, e) => {
     const updated = [...experiences];
     const { name, value } = e.target;
@@ -205,274 +203,262 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
 
     setExperiences(updated);
   };
- 
+
   const addExperience = () => {
     setExperiences([...experiences, { ...emptyExperience }]);
   };
- 
+
   // ✅ REMOVE = DELETE API + UI UPDATE
   const removeExperience = async (index) => {
-    console.log("🗑️ Remove clicked:", index);
- 
+
     if (!employeeId) {
       toastError("Employee ID missing");
       return;
     }
- 
+
     if (!window.confirm("Delete experience?")) return;
- 
+
     try {
       setLoading(true);
- 
+
       const response = await api.delete(
         API_ENDPOINTS.employeeExperience.byEmployeeId(employeeId)
       );
- 
-      console.log("📥 Delete Response:", response.data);
- 
-      console.log("✅ Deleted from backend");
- 
+
       // ✅ Update UI
       const updated = experiences.filter((_, i) => i !== index);
       setExperiences(updated.length ? updated : [emptyExperience]);
- 
+
     } catch (err) {
-      console.error("🔥 Delete error:", err);
+
       toastError("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
- 
- const handleSave = async () => {
-  console.log("🚀 Save clicked");
- 
-  if (!employeeId) {
-    toastError("Employee ID missing");
-    return;
-  }
- 
-  try {
-    setLoading(true);
- 
-    // ✅ DELETE old experiences first (only in edit mode)
-    if (isEditMode) {
-      await api.delete(
-        API_ENDPOINTS.employeeExperience.byEmployeeId(employeeId)
-      );
+
+  const handleSave = async () => {
+
+    if (!employeeId) {
+      toastError("Employee ID missing");
+      return;
     }
- 
-    // ✅ Save all experiences one by one
-    const requests = experiences.map((exp) => {
- 
-      const payload = {
-        Employee_Id: employeeId,
-        CompanyName: exp.company?.trim() || "",
-        Designation: exp.designation?.trim() || "",
-        FromDate: toIsoDateString(exp.from),
-        ToDate: toIsoDateString(exp.to),
-        Years: Number.isFinite(exp.yearsValue) ? exp.yearsValue : 0,
-        ReasonForLeaving: exp.reason?.trim() || "",
-        Description: exp.description?.trim() || "",
-      };
- 
-      console.log("📤 Payload:", payload);
- 
-      return api.post(
-        API_ENDPOINTS.employeeExperience.list,
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+
+    try {
+      setLoading(true);
+
+      // ✅ DELETE old experiences first (only in edit mode)
+      if (isEditMode) {
+        await api.delete(
+          API_ENDPOINTS.employeeExperience.byEmployeeId(employeeId)
+        );
+      }
+
+      // ✅ Save all experiences one by one
+      const requests = experiences.map((exp) => {
+
+        const payload = {
+          Employee_Id: employeeId,
+          CompanyName: exp.company?.trim() || "",
+          Designation: exp.designation?.trim() || "",
+          FromDate: toIsoDateString(exp.from),
+          ToDate: toIsoDateString(exp.to),
+          Years: Number.isFinite(exp.yearsValue) ? exp.yearsValue : 0,
+          ReasonForLeaving: exp.reason?.trim() || "",
+          Description: exp.description?.trim() || ""
+        };
+
+        return api.post(
+          API_ENDPOINTS.employeeExperience.list,
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json"
+            }
+          }
+        );
+      });
+
+      // ✅ Wait all inserts complete
+      const responses = await Promise.all(requests);
+
+      setSuccessMsg(
+        `${isEditMode ? "Updated" : "Added"} successfully!`
       );
-    });
- 
-    // ✅ Wait all inserts complete
-    const responses = await Promise.all(requests);
- 
-    console.log("📥 All Responses:", responses);
- 
-    setSuccessMsg(
-      `${isEditMode ? "Updated" : "Added"} successfully!`
-    );
- 
-    if (onNext) {
-      onNext();
+
+      if (onNext) {
+        onNext();
+      }
+
+    } catch (err) {
+
+      toastError("Something went wrong");
+    } finally {
+      setLoading(false);
     }
- 
-  } catch (err) {
-    console.error("🔥 Save error:", err);
-    toastError("Something went wrong");
-  } finally {
-    setLoading(false);
-  }
-};
- 
+  };
+
   return (
-    <div className="form-section">
-      <h3>Add Previous Work Experience</h3>
- 
-      {experiences.map((exp, index) => (
-        <div className="form-card" key={index}>
-          <div className="card-header">
-            <h4>Experience {index + 1}</h4>
- 
-            {!viewMode && experiences.length > 1 && (
-              <button
-                type="button"
-                className="remove-btn"
-                onClick={() => removeExperience(index)}
-              >
-                Remove
+    <div className="form-section">
+      <h3>Add Previous Work Experience</h3>
+ 
+      {experiences.map((exp, index) =>
+      <div className="form-card" key={index}>
+          <div className="card-header">
+            <h4>Experience {index + 1}</h4>
+ 
+            {!viewMode && experiences.length > 1 &&
+          <button
+            type="button"
+            className="remove-btn"
+            onClick={() => removeExperience(index)}>
+            
+                Remove
               </button>
-            )}
-          </div>
- 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Company Name</label>
+          }
+          </div>
+ 
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Company Name</label>
               <input
-                type="text"
-                name="company"
-                value={exp.company || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode}
-              />
-            </div>
- 
-            <div className="form-group">
-              <label>Designation</label>
+              type="text"
+              name="company"
+              value={exp.company || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>Designation</label>
               <input
-                type="text"
-                name="designation"
-                value={exp.designation || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode}
-              />
-            </div>
- 
-            <div className="form-group">
-              <label>From Date</label>
+              type="text"
+              name="designation"
+              value={exp.designation || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>From Date</label>
               <AppDatePicker
-                name="from"
-                value={exp.from || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode}
-              />
-            </div>
- 
-            <div className="form-group">
-              <label>To Date</label>
+              name="from"
+              value={exp.from || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>To Date</label>
               <AppDatePicker
-                name="to"
-                value={exp.to || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode}
-              />
-            </div>
- 
-            <div className="form-group">
-              <label>Years of Experience</label>
+              name="to"
+              value={exp.to || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>Years of Experience</label>
               <input
-                type="text"
-                name="years"
-                value={exp.years || ""}
-                readOnly
-                placeholder="Auto-calculated duration"
-                disabled={viewMode}
-                className="experience-years-input"
-              />
-            </div>
- 
-            <div className="form-group">
-              <label>Reason for Leaving</label>
+              type="text"
+              name="years"
+              value={exp.years || ""}
+              readOnly
+              placeholder="Auto-calculated duration"
+              disabled={viewMode}
+              className="experience-years-input" />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>Reason for Leaving</label>
               <input
-                type="text"
-                name="reason"
-                value={exp.reason || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode}
-              />
-            </div>
- 
-            <div className="form-group full">
-              <label>Description</label>
+              type="text"
+              name="reason"
+              value={exp.reason || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group full">
+              <label>Description</label>
               <textarea
-                name="description"
-                value={exp.description || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode}
-              />
-            </div>
-          </div>
+              name="description"
+              value={exp.description || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+          </div>
         </div>
-      ))}
- 
-      {!viewMode && (
-        <button
-          type="button"
-          className="btn primary add-experience-btn"
-          onClick={addExperience}
-        >
-          + Add Another Experience
+      )}
+ 
+      {!viewMode &&
+      <button
+        type="button"
+        className="btn primary add-experience-btn"
+        onClick={addExperience}>
+        
+          + Add Another Experience
         </button>
-      )}
- 
-      <div className="step-actions">
+      }
+ 
+      <div className="step-actions">
         <button
           type="button"
           className="btn secondary"
           onClick={onBack}
-          disabled={loading}
-        >
-          Back
-        </button>
-        {successMsg && (
-          <p className="workflow-feedback success">
-            {successMsg}
+          disabled={loading}>
+          
+          Back
+        </button>
+        {successMsg &&
+        <p className="workflow-feedback success">
+            {successMsg}
           </p>
-        )}
- 
+        }
+ 
         <button
           type="button"
           className="btn primary"
           onClick={handleSave}
-          disabled={loading}
-        >
-          {loading
-            ? isEditMode
-              ? "Updating..."
-              : "Saving..."
-            : isEditMode
-              ? "Update & Next"
-              : "Save & Next"}
-        </button>
- 
-        {!viewMode && (
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => {
-              console.log("⏭️ Skipped Experience");
-              setSuccessMsg("Skipped");
- 
-              setTimeout(() => {
-                if (onNext) {
-                  onNext(); // ✅ FIX
-                }
-              }, 500);
-            }}
-          >
-            Skip
+          disabled={loading}>
+          
+          {loading ?
+          isEditMode ?
+          "Updating..." :
+          "Saving..." :
+          isEditMode ?
+          "Update & Next" :
+          "Save & Next"}
+        </button>
+ 
+        {!viewMode &&
+        <button
+          type="button"
+          className="btn secondary"
+          onClick={() => {
+
+            setSuccessMsg("Skipped");
+
+            setTimeout(() => {
+              if (onNext) {
+                onNext(); // ✅ FIX
+              }
+            }, 500);
+          }}>
+          
+            Skip
           </button>
-        )}
-      </div>
-    </div>
-  );
+        }
+      </div>
+    </div>);
+
 }
- 
+
 export default Experience;
- 
- 

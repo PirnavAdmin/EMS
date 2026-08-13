@@ -226,8 +226,6 @@ export const fetchRolePermissionsByRoleName = async (roleName) => {
     }
   );
 
-  console.log("Reloaded Permissions:", response.data);
-
   const snapshot = normalizeRolePermissionSnapshot(response.data, {
     roleName: normalizedRoleName,
   });
@@ -236,6 +234,30 @@ export const fetchRolePermissionsByRoleName = async (roleName) => {
 };
 
 export const fetchRolePermissionsByRoleId = fetchRolePermissionsByRoleName;
+
+export const fetchAllowedRoleModules = async ({
+  role = "",
+  roleName = "",
+} = {}) => {
+  const resolvedRole = resolveRolePermissionInput(roleName || role);
+  const endpoint = API_ENDPOINTS.rolePermission.allowedModules;
+  if (!endpoint) {
+    return [];
+  }
+
+  const response = await api.get(endpoint, {
+    headers: {
+      Accept: "application/json",
+    },
+    skipAuthFailureHandling: true,
+  });
+
+  const snapshot = normalizeRolePermissionSnapshot(response.data, {
+    roleName: resolvedRole,
+  });
+
+  return Array.isArray(snapshot?.modules) ? snapshot.modules : [];
+};
 
 const normalizePermissionForSave = (permission = {}) => {
   const moduleId = normalizeId(permission.moduleId ?? permission.ModuleId ?? "");
@@ -309,8 +331,6 @@ export const saveRolePermissions = async ({
       Accept: "application/json",
     },
   });
-
-  console.log("API Response:", response.data);
 
   return response.data;
 };

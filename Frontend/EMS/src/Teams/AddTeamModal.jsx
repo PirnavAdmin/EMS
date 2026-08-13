@@ -4,8 +4,8 @@ import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import {
   TEAM_DAY_OPTIONS,
-  TEAM_ENGAGEMENT_OPTIONS,
-} from "./teamsData";
+  TEAM_ENGAGEMENT_OPTIONS } from
+"./teamsData";
 
 const createInitialForm = (defaultTeamNumber = "") => ({
   teamNumber: defaultTeamNumber,
@@ -14,14 +14,14 @@ const createInitialForm = (defaultTeamNumber = "") => ({
   engagementType: "Project",
   projectName: "",
   reportingDays: [...TEAM_DAY_OPTIONS],
-  memberIds: [],
+  memberIds: []
 });
 
 function AddTeamModal({
   open,
   onClose,
   onCreate,
-  defaultTeamNumber = "TM-04",
+  defaultTeamNumber = "TM-04"
 }) {
   const [form, setForm] = useState(createInitialForm(defaultTeamNumber));
   const [errors, setErrors] = useState({});
@@ -31,14 +31,14 @@ function AddTeamModal({
   const [projects, setProjects] = useState([]);
   const [memberSearch, setMemberSearch] = useState("");
   const getToken = () =>
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("token");
+  localStorage.getItem("token") ||
+  sessionStorage.getItem("token");
 
   const selectableEmployees = employees;
 
   const selectedMembers = useMemo(() => {
     return employees.filter((employee) =>
-      form.memberIds.includes(employee.employee_Id)
+    form.memberIds.includes(employee.employee_Id)
     );
   }, [employees, form.memberIds]);
 
@@ -48,12 +48,12 @@ function AddTeamModal({
     if (!search) return employees;
 
     return employees.filter((employee) =>
-      (employee.name || "")
-        .toLowerCase()
-        .includes(search) ||
-      String(employee.employee_Id || "")
-        .toLowerCase()
-        .includes(search)
+    (employee.name || "").
+    toLowerCase().
+    includes(search) ||
+    String(employee.employee_Id || "").
+    toLowerCase().
+    includes(search)
     );
   }, [employees, memberSearch]);
 
@@ -68,43 +68,39 @@ function AddTeamModal({
         };
 
         const [
-          employeeRes,
-          managerRes,
-          projectRes
-        ] = await Promise.all([
-          api.get(API_ENDPOINTS.team.availableEmployees, { headers }),
-          api.get(API_ENDPOINTS.team.managers, { headers }),
-          api.get(API_ENDPOINTS.team.projects.list, { headers })
-        ]);
-
-        console.log(employeeRes.data);
-        console.log(managerRes.data);
-        console.log(projectRes.data);
+        employeeRes,
+        managerRes,
+        projectRes] =
+        await Promise.all([
+        api.get(API_ENDPOINTS.team.availableEmployees, { headers }),
+        api.get(API_ENDPOINTS.team.managers, { headers }),
+        api.get(API_ENDPOINTS.team.projects.list, { headers })]
+        );
 
         const employees =
-          employeeRes.data?.data ||
-          employeeRes.data?.list ||
-          employeeRes.data ||
-          [];
+        employeeRes.data?.data ||
+        employeeRes.data?.list ||
+        employeeRes.data ||
+        [];
 
         const managers =
-          managerRes.data?.data ||
-          managerRes.data?.list ||
-          managerRes.data ||
-          [];
+        managerRes.data?.data ||
+        managerRes.data?.list ||
+        managerRes.data ||
+        [];
 
         const projects =
-          projectRes.data?.data ||
-          projectRes.data?.list ||
-          projectRes.data ||
-          [];
+        projectRes.data?.data ||
+        projectRes.data?.list ||
+        projectRes.data ||
+        [];
 
         setEmployees(Array.isArray(employees) ? employees : []);
         setManagers(Array.isArray(managers) ? managers : []);
         setProjects(Array.isArray(projects) ? projects : []);
 
       } catch (error) {
-        console.error(error);
+
       }
     };
 
@@ -148,25 +144,25 @@ function AddTeamModal({
   const updateField = (name, value) => {
     setForm((current) => ({
       ...current,
-      [name]: value,
+      [name]: value
     }));
 
     setErrors((current) => ({
       ...current,
-      [name]: "",
+      [name]: ""
     }));
   };
 
   const toggleDay = (day) => {
     setForm((current) => {
       const isSelected = current.reportingDays.includes(day);
-      const nextDays = isSelected
-        ? current.reportingDays.filter((item) => item !== day)
-        : [...current.reportingDays, day];
+      const nextDays = isSelected ?
+      current.reportingDays.filter((item) => item !== day) :
+      [...current.reportingDays, day];
 
       return {
         ...current,
-        reportingDays: nextDays,
+        reportingDays: nextDays
       };
     });
   };
@@ -174,13 +170,13 @@ function AddTeamModal({
   const toggleMember = (employeeId) => {
     setForm((current) => {
       const isSelected = current.memberIds.includes(employeeId);
-      const nextMemberIds = isSelected
-        ? current.memberIds.filter((id) => id !== employeeId)
-        : [...current.memberIds, employeeId];
+      const nextMemberIds = isSelected ?
+      current.memberIds.filter((id) => id !== employeeId) :
+      [...current.memberIds, employeeId];
 
       return {
         ...current,
-        memberIds: nextMemberIds,
+        memberIds: nextMemberIds
       };
     });
   };
@@ -188,7 +184,7 @@ function AddTeamModal({
   const removeMember = (employeeId) => {
     setForm((current) => ({
       ...current,
-      memberIds: current.memberIds.filter((id) => id !== employeeId),
+      memberIds: current.memberIds.filter((id) => id !== employeeId)
     }));
   };
 
@@ -231,10 +227,10 @@ function AddTeamModal({
       engagementType: form.engagementType,
       projectName: form.projectName.trim(),
       reportingDays:
-        form.reportingDays.length > 0
-          ? form.reportingDays
-          : [...TEAM_DAY_OPTIONS],
-      memberIds: [...form.memberIds],
+      form.reportingDays.length > 0 ?
+      form.reportingDays :
+      [...TEAM_DAY_OPTIONS],
+      memberIds: [...form.memberIds]
     };
 
     const createdTeam = await onCreate?.(sanitizedPayload);
@@ -258,8 +254,8 @@ function AddTeamModal({
         if (event.target === event.currentTarget) {
           onClose?.();
         }
-      }}
-    >
+      }}>
+      
       <div className="team-modal" role="dialog" aria-modal="true" aria-labelledby="add-team-title">
         <div className="team-modal-header">
           <div>
@@ -275,8 +271,8 @@ function AddTeamModal({
             type="button"
             className="team-modal-close"
             onClick={onClose}
-            aria-label="Close add team modal"
-          >
+            aria-label="Close add team modal">
+            
             <FaTimes />
           </button>
         </div>
@@ -290,16 +286,16 @@ function AddTeamModal({
                 className="team-form-input"
                 value={form.teamNumber}
                 onChange={(event) =>
-                  updateField(
-                    "teamNumber",
-                    event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
-                  )
+                updateField(
+                  "teamNumber",
+                  event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+                )
                 }
-                placeholder="TM-04"
-              />
-              {errors.teamNumber ? (
-                <span className="team-form-error">{errors.teamNumber}</span>
-              ) : null}
+                placeholder="TM-04" />
+              
+              {errors.teamNumber ?
+              <span className="team-form-error">{errors.teamNumber}</span> :
+              null}
             </div>
 
             <div className="team-form-field">
@@ -309,11 +305,11 @@ function AddTeamModal({
                 className="team-form-input"
                 value={form.teamName}
                 onChange={(event) => updateField("teamName", event.target.value)}
-                placeholder="Enter team name"
-              />
-              {errors.teamName ? (
-                <span className="team-form-error">{errors.teamName}</span>
-              ) : null}
+                placeholder="Enter team name" />
+              
+              {errors.teamName ?
+              <span className="team-form-error">{errors.teamName}</span> :
+              null}
             </div>
 
             <div className="team-form-field">
@@ -322,24 +318,24 @@ function AddTeamModal({
                 id="team-manager"
                 className="team-form-select"
                 value={form.reportingManager}
-                onChange={(e) => updateField("reportingManager", e.target.value)}
-              >
+                onChange={(e) => updateField("reportingManager", e.target.value)}>
+                
                 <option value="">Select Manager</option>
 
-                {managers.map((manager) => (
-                  <option
-                    key={manager.employee_Id}
-                    value={manager.employee_Id}
-                  >
+                {managers.map((manager) =>
+                <option
+                  key={manager.employee_Id}
+                  value={manager.employee_Id}>
+                  
                     {manager.employeeName ||
-                      manager.name ||
-                      manager.fullName}
+                  manager.name ||
+                  manager.fullName}
                   </option>
-                ))}
+                )}
               </select>
-              {errors.reportingManager ? (
-                <span className="team-form-error">{errors.reportingManager}</span>
-              ) : null}
+              {errors.reportingManager ?
+              <span className="team-form-error">{errors.reportingManager}</span> :
+              null}
             </div>
 
             <div className="team-form-field">
@@ -349,14 +345,14 @@ function AddTeamModal({
                 className="team-form-select"
                 value={form.engagementType}
                 onChange={(event) =>
-                  updateField("engagementType", event.target.value)
-                }
-              >
-                {TEAM_ENGAGEMENT_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
+                updateField("engagementType", event.target.value)
+                }>
+                
+                {TEAM_ENGAGEMENT_OPTIONS.map((option) =>
+                <option key={option} value={option}>
                     {option}
                   </option>
-                ))}
+                )}
               </select>
             </div>
 
@@ -366,26 +362,26 @@ function AddTeamModal({
                 id="team-project"
                 className="team-form-select"
                 value={form.projectName}
-                onChange={(e) => updateField("projectName", e.target.value)}
-              >
+                onChange={(e) => updateField("projectName", e.target.value)}>
+                
 
                 <option value="">
                   Select Project
                 </option>
 
-                {projects.map(project => (
-                  <option
-                    key={project.project_Id}
-                    value={project.project_Id}
-                  >
+                {projects.map((project) =>
+                <option
+                  key={project.project_Id}
+                  value={project.project_Id}>
+                  
                     {project.project_Name}
                   </option>
-                ))}
+                )}
 
               </select>
-              {errors.projectName ? (
-                <span className="team-form-error">{errors.projectName}</span>
-              ) : null}
+              {errors.projectName ?
+              <span className="team-form-error">{errors.projectName}</span> :
+              null}
             </div>
 
             <div className="team-form-field team-form-field-wide">
@@ -399,11 +395,11 @@ function AddTeamModal({
                       key={day}
                       type="button"
                       className={`team-day-button ${isSelected ? "is-active" : ""}`}
-                      onClick={() => toggleDay(day)}
-                    >
+                      onClick={() => toggleDay(day)}>
+                      
                       {day}
-                    </button>
-                  );
+                    </button>);
+
                 })}
               </div>
             </div>
@@ -413,40 +409,40 @@ function AddTeamModal({
               <button
                 type="button"
                 className="team-multiselect-trigger"
-                onClick={() => setMembersOpen((current) => !current)}
-              >
+                onClick={() => setMembersOpen((current) => !current)}>
+                
                 <span>
-                  {selectedMembers.length > 0
-                    ? `${selectedMembers.length} member${selectedMembers.length > 1 ? "s" : ""
-                    } selected`
-                    : "Select team members"}
+                  {selectedMembers.length > 0 ?
+                  `${selectedMembers.length} member${selectedMembers.length > 1 ? "s" : ""} selected` :
+
+                  "Select team members"}
                 </span>
 
                 <FaChevronDown className={membersOpen ? "is-open" : ""} />
               </button>
 
-              {membersOpen && (
-                <div className="team-multiselect-menu">
+              {membersOpen &&
+              <div className="team-multiselect-menu">
 
                   <div className="team-member-search">
                     <input
-                      type="text"
-                      placeholder="Search employee..."
-                      value={memberSearch}
-                      onChange={(e) => setMemberSearch(e.target.value)}
-                      className="team-member-search-input"
-                    />
+                    type="text"
+                    placeholder="Search employee..."
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    className="team-member-search-input" />
+                  
                   </div>
-                  {filteredEmployees.map((employee) => (
-                    <label
-                      key={employee.employee_Id}
-                      className="team-member-option"
-                    >
+                  {filteredEmployees.map((employee) =>
+                <label
+                  key={employee.employee_Id}
+                  className="team-member-option">
+                  
                       <input
-                        type="checkbox"
-                        checked={form.memberIds.includes(employee.employee_Id)}
-                        onChange={() => toggleMember(employee.employee_Id)}
-                      />
+                    type="checkbox"
+                    checked={form.memberIds.includes(employee.employee_Id)}
+                    onChange={() => toggleMember(employee.employee_Id)} />
+                  
 
                       <div className="team-member-info">
                         <strong>{employee.name}</strong>
@@ -455,36 +451,36 @@ function AddTeamModal({
                         </small>
                       </div>
                     </label>
-                  ))}
+                )}
                 </div>
-              )}
+              }
 
-              {errors.memberIds ? (
-                <span className="team-form-error">{errors.memberIds}</span>
-              ) : null}
+              {errors.memberIds ?
+              <span className="team-form-error">{errors.memberIds}</span> :
+              null}
 
-              {selectedMembers.length > 0 && (
-                <div className="team-selected-members">
+              {selectedMembers.length > 0 &&
+              <div className="team-selected-members">
                   {selectedMembers.map((member) => {
-                    const id = member.employee_Id;
-                    const name = member.name;
+                  const id = member.employee_Id;
+                  const name = member.name;
 
-                    return (
-                      <span key={id} className="team-selected-chip">
+                  return (
+                    <span key={id} className="team-selected-chip">
                         <span>{name}</span>
 
                         <button
-                          type="button"
-                          onClick={() => removeMember(id)}
-                          aria-label={`Remove ${name}`}
-                        >
+                        type="button"
+                        onClick={() => removeMember(id)}
+                        aria-label={`Remove ${name}`}>
+                        
                           <FaTimes />
                         </button>
-                      </span>
-                    );
-                  })}
+                      </span>);
+
+                })}
                 </div>
-              )}
+              }
             </div>
           </div>
         </div>
@@ -499,8 +495,8 @@ function AddTeamModal({
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default AddTeamModal;
