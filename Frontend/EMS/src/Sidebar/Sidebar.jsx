@@ -351,6 +351,17 @@ function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClose }) {
       ? menuState.active
       : routeMenu;
 
+  useEffect(() => {
+    console.log("[Sidebar] Permission context", {
+      pathname: location.pathname,
+      roleName,
+      isAdmin: isAdmin(),
+      isSuperAdmin: superAdminUser,
+      isOnboardingUser: isOnboardingUser(),
+      hasEmployeeRole: hasRole("employee", "user"),
+    });
+  }, [location.pathname, roleName, superAdminUser]);
+
   const setMenuButtonRef = (menuKey) => (node) => {
     if (node) {
       menuButtonRefs.current[menuKey] = node;
