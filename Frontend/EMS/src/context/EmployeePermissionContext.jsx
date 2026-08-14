@@ -8,7 +8,7 @@ import {
   getAuthStorage } from
 "../utils/authStorage";
 import { normalizeRole } from "../utils/authorization";
-import { useAdminPermissions } from "../../context/AdminPermissionContext";
+import { useAdminPermissions } from "../context/AdminPermissionContext";
 import { useEmployeePermissions } from "../../context/EmployeePermissionContext";
 import { startSessionTimer } from "../../utils/sessionManager";
 import AuthField from "./AuthField";
