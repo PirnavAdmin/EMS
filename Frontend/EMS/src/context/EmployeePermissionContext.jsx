@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FaEnvelope, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
+import { API_ENDPOINTS } from "../api/endpoints";
 import {
   clearAuthData,
   getAuthStorage } from
