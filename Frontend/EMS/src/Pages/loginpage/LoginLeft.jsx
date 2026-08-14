@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { FaChevronLeft, FaEnvelope, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
+import { FaEnvelope, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import {
   clearAuthData,
-  extractAdminId,
   getAuthStorage } from
 "../../utils/authStorage";
 import { normalizeRole } from "../../utils/authorization";
@@ -14,61 +13,61 @@ import { useEmployeePermissions } from "../../context/EmployeePermissionContext"
 import { startSessionTimer } from "../../utils/sessionManager";
 import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
-
+ 
 const ROLE_NAME_CLAIM =
 "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
-
+ 
 const toDisplayRoleName = (value) => {
   const normalized = String(value ?? "").trim();
-
+ 
   if (!normalized) {
     return "";
   }
-
+ 
   const lowered = normalized.toLowerCase();
-
+ 
   if (lowered === "admin") return "Admin";
   if (["superadmin", "super admin", "super_admin"].includes(lowered)) return "SuperAdmin";
   if (lowered === "user") return "User";
   if (lowered === "employee") return "Employee";
   if (lowered === "onboarding" || lowered === "candidate") return "Onboarding";
-
+ 
   return normalized;
 };
-
+ 
 const resolveLoginType = (value = "", endpoint = "") => {
   const normalized = String(value ?? "").
   trim().
   toLowerCase().
   replace(/[\s_-]+/g, "");
-
+ 
   if (endpoint === API_ENDPOINTS.auth.superAdminLogin) {
     return "super-admin";
   }
-
+ 
   if (endpoint === API_ENDPOINTS.auth.adminLogin) {
     return "admin";
   }
-
+ 
   if (endpoint === API_ENDPOINTS.auth.userLogin) {
     return "user";
   }
-
+ 
   if (["superadmin", "superadministrator"].includes(normalized)) {
     return "super-admin";
   }
-
+ 
   if (["admin", "administrator"].includes(normalized)) {
     return "admin";
   }
-
+ 
   if (["onboarding", "candidate"].includes(normalized)) {
     return "onboarding";
   }
-
+ 
   return normalized ? "user" : "";
 };
-
+ 
 export default function LoginLeft() {
   const navigate = useNavigate();
   const { refreshPermissions: refreshAdminPermissions } = useAdminPermissions();
@@ -81,7 +80,7 @@ export default function LoginLeft() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
+ 
   const parseJwt = (token) => {
     try {
       const base64Url = token.split(".")[1];
@@ -92,90 +91,98 @@ export default function LoginLeft() {
         map((char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`).
         join("")
       );
-
+ 
       return JSON.parse(jsonPayload);
     } catch {
       return null;
     }
   };
-
+ 
   const resolveIdentityValue = (...values) => {
     for (const value of values) {
       const normalizedValue = String(value ?? "").trim();
-
+ 
       if (normalizedValue) {
         return normalizedValue;
       }
     }
-
+ 
     return "";
   };
-
+ 
   const authRequestOptions = {
     skipAuth: true,
     headers: {
       "Content-Type": "application/json"
     }
   };
-
+ 
   const shouldFallbackToUserLogin = (error) => {
     const status = error?.response?.status;
-
+ 
     if ([400, 401, 403, 404].includes(status)) {
       return true;
     }
-
+ 
     const message = String(
       error?.response?.data?.message ||
       error?.response?.data ||
       error?.message ||
       ""
     ).toLowerCase();
-
+ 
     return /invalid|unauthori[sz]ed|role|credential|account|not found|does not exist/.test(
       message
     );
   };
-
+ 
   const submitLoginRequest = async () => {
     const payload = {
       email: form.email,
       password: form.password
     };
-
+ 
     const endpoints = [
     API_ENDPOINTS.auth.superAdminLogin,
     API_ENDPOINTS.auth.adminLogin,
     API_ENDPOINTS.auth.userLogin];
-
+ 
     let lastError = null;
-
+ 
     for (const endpoint of endpoints) {
       try {
+        if (endpoint === API_ENDPOINTS.auth.userLogin) {
+          console.log("[LOGIN] Calling:", endpoint);
+        }
+ 
         const response = await api.post(endpoint, payload, authRequestOptions);
-
+ 
         return { response, endpoint };
       } catch (error) {
         lastError = error;
-
+ 
+        if (endpoint === API_ENDPOINTS.auth.userLogin) {
+          console.error("[LOGIN ERROR]", error?.response?.data);
+        }
+ 
         if (
         endpoint !== API_ENDPOINTS.auth.userLogin &&
         shouldFallbackToUserLogin(error))
         {
           continue;
         }
-
+ 
         throw error;
       }
     }
-
+ 
     throw lastError;
   };
-
+ 
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberEmail");
     const savedPassword = localStorage.getItem("rememberPassword");
-
+ 
     if (savedEmail && savedPassword) {
       setForm({
         email: savedEmail,
@@ -184,57 +191,61 @@ export default function LoginLeft() {
       setRememberMe(true);
     }
   }, []);
-
+ 
   const handleChange = (event) => {
     const { name, value } = event.target;
-
+ 
     setForm((prev) => ({
       ...prev,
       [name]: name === "email" ? value.toLowerCase() : value
     }));
-
+ 
     if (error) {
       setError("");
     }
   };
-
+ 
   const handleRememberMe = (event) => {
     const checked = event.target.checked;
     setRememberMe(checked);
-
+ 
     if (!checked) {
       localStorage.removeItem("rememberEmail");
       localStorage.removeItem("rememberPassword");
     }
   };
-
+ 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
+ 
     if (!form.email.trim() || !form.password) {
       setError("Please enter your email address and password.");
       return;
     }
-
+ 
     if (!isValidEmail(form.email)) {
       setError("Enter a valid email address.");
       return;
     }
-
+ 
     setError("");
     setLoading(true);
-
+ 
     const storage = getAuthStorage(rememberMe);
-
+ 
     try {
       const loginResult = await submitLoginRequest();
       const response = loginResult?.response;
       const loginEndpoint = loginResult?.endpoint || "";
-
+ 
       if (response.status !== 200 || !response.data?.token) {
+        if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
+          console.error("[LOGIN ERROR]", response?.data);
+        }
+ 
         throw new Error(response.data?.message || `Login failed (${response.status})`);
       }
-
+ 
       const token = response.data.token;
       const decoded = parseJwt(token);
       const decodedRoleName =
@@ -242,13 +253,13 @@ export default function LoginLeft() {
       decoded?.[ROLE_NAME_CLAIM] ||
       decoded?.role ||
       "";
-
+ 
       const roleId =
       response.data.roleId ||
       decoded?.RoleId ||
       decoded?.roleId ||
       null;
-
+ 
       const employeeId = resolveIdentityValue(
         response.data.employeeId,
         response.data.employee_Id,
@@ -260,7 +271,7 @@ export default function LoginLeft() {
         decoded?.employeeID,
         decoded?.empId
       );
-
+ 
       const userId = resolveIdentityValue(
         response.data.userId,
         response.data.user_Id,
@@ -272,9 +283,9 @@ export default function LoginLeft() {
         decoded?.sub,
         decoded?.[
         "http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"]
-
+ 
       );
-
+ 
       const attendanceId = resolveIdentityValue(
         response.data.attendanceId,
         response.data.attendance_Id,
@@ -283,7 +294,7 @@ export default function LoginLeft() {
         decoded?.AttendanceId,
         decoded?.Attendance_Id
       );
-
+ 
       const onboardingId = resolveIdentityValue(
         response.data.onboardingId,
         response.data.onboarding_Id,
@@ -298,7 +309,7 @@ export default function LoginLeft() {
         decoded?.candidateOnboardingId,
         decoded?.CandidateOnboardingId
       );
-
+ 
       const organizationId = resolveIdentityValue(
         response.data.organizationId,
         response.data.organization_Id,
@@ -309,7 +320,7 @@ export default function LoginLeft() {
         decoded?.organizationID,
         decoded?.orgId
       );
-
+ 
       const branchId = resolveIdentityValue(
         response.data.branchId,
         response.data.branch_Id,
@@ -318,7 +329,7 @@ export default function LoginLeft() {
         decoded?.branch_Id,
         decoded?.branchID
       );
-
+ 
       const companyId = resolveIdentityValue(
         response.data.companyId,
         response.data.company_Id,
@@ -327,7 +338,7 @@ export default function LoginLeft() {
         decoded?.company_Id,
         decoded?.companyID
       );
-
+ 
       const tenantId = resolveIdentityValue(
         response.data.tenantId,
         response.data.tenant_Id,
@@ -336,20 +347,20 @@ export default function LoginLeft() {
         decoded?.tenant_Id,
         decoded?.tenantID
       );
-
+ 
       const resolvedEmployeeId =
       employeeId || userId || attendanceId;
-
+ 
       const authenticatedRole = normalizeRole(
         response.data.role ||
         decoded?.role ||
         decoded?.[
         ROLE_NAME_CLAIM] ||
-
+ 
         decodedRoleName ||
         ""
       );
-
+ 
       const roleName = authenticatedRole ?
       toDisplayRoleName(authenticatedRole) :
       toDisplayRoleName(
@@ -359,13 +370,7 @@ export default function LoginLeft() {
         decoded?.role ||
         ""
       );
-
-      const adminId = extractAdminId(decoded, response.data);
-
-      if (authenticatedRole === "admin") {
-
-      }
-
+ 
       const loginType = resolveLoginType(
         response.data.userType ||
         response.data.loginType ||
@@ -377,10 +382,10 @@ export default function LoginLeft() {
         "",
         loginEndpoint
       );
-
+ 
       const isOnboardingLogin =
       Boolean(onboardingId) && (
-
+ 
       authenticatedRole === "onboarding" ||
       authenticatedRole === "candidate" ||
       normalizeRole(roleName) === "onboarding" ||
@@ -391,31 +396,45 @@ export default function LoginLeft() {
       response.data.isOnboarding === true ||
       decoded?.isOnboardingUser === true ||
       decoded?.isOnboarding === true);
-
+ 
       if (!token) {
         throw new Error(
           "Login failed: Login response is missing required authentication data."
         );
       }
-
+ 
       if (!authenticatedRole && !isOnboardingLogin) {
+        if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
+          console.error("[LOGIN ERROR]", response?.data);
+        }
+ 
         throw new Error(
           "Login failed: Role information is missing from the authentication response."
         );
       }
-
+ 
       if (!roleName && !isOnboardingLogin) {
+        if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
+          console.error("[LOGIN ERROR]", response?.data);
+        }
+ 
         throw new Error(
           "Login failed: Role name is missing from the authentication response."
         );
       }
-
+ 
+      if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
+        console.log("[LOGIN] Success:", response?.data);
+        console.log("[LOGIN] User ID:", response?.data?.userId);
+        console.log("[LOGIN] Role:", response?.data?.role);
+      }
+ 
       const isSuperAdminLogin = loginType === "super-admin";
       const shouldUseAdminPermissions =
       loginType === "admin" || loginType === "super-admin";
-
+ 
       clearAuthData();
-
+ 
       storage.setItem("token", token);
       localStorage.setItem("loginTime", String(Date.now()));
       storage.setItem(
@@ -446,7 +465,7 @@ export default function LoginLeft() {
           response.data
         )
       );
-
+ 
       if (isSuperAdminLogin) {
         storage.setItem("role", "superadmin");
         storage.setItem("roleName", "SuperAdmin");
@@ -456,45 +475,45 @@ export default function LoginLeft() {
       } else {
         storage.removeItem("isSuperAdmin");
       }
-
+ 
       if (isOnboardingLogin) {
         storage.setItem("onboardingId", onboardingId);
         storage.setItem("isOnboardingUser", "true");
       }
-
+ 
       if (!isOnboardingLogin && resolvedEmployeeId) {
         storage.setItem("employeeId", resolvedEmployeeId);
       }
-
+ 
       if (!isOnboardingLogin && userId) {
         storage.setItem("userId", userId);
       }
-
+ 
       if (!isOnboardingLogin && attendanceId) {
         storage.setItem("attendanceId", attendanceId);
       }
-
+ 
       if (organizationId) {
         storage.setItem("organizationId", organizationId);
       }
-
+ 
       if (branchId) {
         storage.setItem("branchId", branchId);
       }
-
+ 
       if (companyId) {
         storage.setItem("companyId", companyId);
       }
-
+ 
       if (tenantId) {
         storage.setItem("tenantId", tenantId);
       }
-
+ 
       if (rememberMe) {
         localStorage.setItem("rememberEmail", form.email);
         localStorage.setItem("rememberPassword", form.password);
       }
-
+ 
       if (!isOnboardingLogin) {
         if (shouldUseAdminPermissions) {
           await refreshAdminPermissions({ force: true });
@@ -502,9 +521,9 @@ export default function LoginLeft() {
           await refreshEmployeePermissions({ force: true });
         }
       }
-
+ 
       startSessionTimer();
-
+ 
       navigate(isOnboardingLogin ? "/onboarding" : "/dashboard", {
         replace: true
       });
@@ -514,7 +533,7 @@ export default function LoginLeft() {
       requestError.response?.data?.error ||
       requestError.message ||
       "";
-
+ 
       if (message.includes("Email does not exist")) {
         setError("No employee record was found for this email address.");
       } else if (message.includes("company")) {
@@ -530,7 +549,7 @@ export default function LoginLeft() {
       setLoading(false);
     }
   };
-
+ 
   return (
     <>
       <div className="auth-card-top">
@@ -544,7 +563,7 @@ export default function LoginLeft() {
            </span>
            <span>Back to Home</span>
           </button> */}
-
+ 
         <div className="auth-card-head">
           <p className="auth-eyebrow">Welcome Back</p>
           <h2 className="auth-card-title">Sign in to PIRNAV HRMS</h2>
@@ -554,9 +573,9 @@ export default function LoginLeft() {
             </p> */}
         </div>
       </div>
-
+ 
       {error ? <div className="auth-status auth-status-error">{error}</div> : null}
-
+ 
       <form className="auth-form" onSubmit={handleSubmit}>
         <AuthField
           label="Email Address"
@@ -568,8 +587,8 @@ export default function LoginLeft() {
           placeholder="Enter your email address"
           icon={FaEnvelope}
           required />
-        
-
+       
+ 
         <AuthField
           label="Password"
           name="password"
@@ -585,28 +604,28 @@ export default function LoginLeft() {
             icon: showPassword ? <FaEye /> : <FaEyeSlash />,
             onClick: () => setShowPassword((prev) => !prev)
           }} />
-        
-
+       
+ 
         <div className="auth-inline-row">
           <label className="auth-checkbox">
             <input
               type="checkbox"
               checked={rememberMe}
               onChange={handleRememberMe} />
-            
+           
             <span>Remember me</span>
           </label>
-
+ 
           <Link to="/forgot-password" className="auth-link">
             Forgot password?
           </Link>
         </div>
-
+ 
         <button type="submit" className="auth-primary-button" disabled={loading}>
           {loading ? "Signing in..." : "Sign In"}
         </button>
       </form>
-
+ 
       <p className="auth-footer">
         Don&apos;t have an account?
         <Link to="/register" className="auth-link">
@@ -614,5 +633,7 @@ export default function LoginLeft() {
         </Link>
       </p>
     </>);
-
+ 
 }
+ 
+ 
