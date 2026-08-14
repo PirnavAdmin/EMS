@@ -7,7 +7,7 @@ import {
     logPermissionCollection,
     sanitizeForDebug,
     summarizeAxiosResponse
-} from "../utils/debugLogging";
+} from "../utils/debugLogging.js";
 
 const firstDefined = (...values) =>
     values.find((value) => value !== undefined && value !== null && value !== "");
