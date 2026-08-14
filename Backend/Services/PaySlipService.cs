@@ -533,8 +533,26 @@ namespace EmployeeManagementSystem.Services
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
 
+            var employeeNameForFile = personalInfo == null
+       ? employee.Name
+       : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+
+            if (string.IsNullOrWhiteSpace(employeeNameForFile))
+            {
+                employeeNameForFile = employee.Employee_Id;
+            }
+
+            // Remove characters that are not allowed in Windows/Linux filenames
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                employeeNameForFile = employeeNameForFile.Replace(c, '_');
+            }
+
+            // Replace spaces with underscores
+            employeeNameForFile = employeeNameForFile.Replace(" ", "_");
+
             var fileName =
-    $"Payslip_{employee.Employee_Id}_{GetIndianTime():yyyyMMddHHmmss}.docx";
+                $"{employeeNameForFile}_{employee.Employee_Id}_{month}_{year}.docx";
 
             var outputPath =
                 Path.Combine(outputFolder, fileName);

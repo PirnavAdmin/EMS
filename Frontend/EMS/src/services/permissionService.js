@@ -7,8 +7,7 @@ import {
     logPermissionCollection,
     sanitizeForDebug,
     summarizeAxiosResponse
-} from
-    "../utils/debugLogging";
+} from "../utils/debugLogging";
 
 const firstDefined = (...values) =>
     values.find((value) => value !== undefined && value !== null && value !== "");
@@ -151,7 +150,6 @@ export const fetchPermissionModules = async () => {
     }
 
     try {
-        console.log("[PERMISSION] Calling:", endpoint);
 
         const permissionResponse = await api.get(endpoint, {
             headers: {
@@ -159,10 +157,6 @@ export const fetchPermissionModules = async () => {
             },
             skipAuthFailureHandling: true
         });
-
-        console.log("[PERMISSION] Response:", permissionResponse?.data);
-        console.log("[PERMISSION] Status:", permissionResponse?.status);
-        console.log("[PERMISSION] Permissions:", permissionResponse?.data);
 
         return normalizePermissionList(permissionResponse?.data);
     } catch (error) {
@@ -350,9 +344,6 @@ export const fetchUserPermissionsByEmployeeId = async (employeeId) => {
             }
         });
 
-        console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
-        console.log("[PERMISSION API] Status:", response?.status);
-        console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
 
         const snapshot = normalizeUserPermissionSnapshot(response.data, {
             employeeId: normalizedEmployeeId
