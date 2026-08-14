@@ -11,6 +11,12 @@ import {
   getStoredUserRecord,
   persistEmployeePermissions } from
 "../utils/authStorage";
+import {
+  logApiError,
+  logPermissionCollection,
+  sanitizeForDebug,
+  summarizeAxiosResponse } from
+"../utils/debugLogging";
 
 const normalizeId = (value) => String(value ?? "").trim();
 
@@ -166,12 +172,10 @@ const requestAllowedModules = async ({
   trim().
   toLowerCase().
   replace(/[\s_-]+/g, "");
+  console.log("[PERMISSION] Permission Flow:", permissionFlow);
+  console.log("[PERMISSION] Normalized Role:", normalizedRole);
 
   if (!isEmployee(loggedInRole)) {
-    if (permissionFlow === "superadmin-bypass") {
-
-    }
-
     return persistEmployeePermissions({
       userId: getStoredEmployeeId() || "",
       userEmail: getStoredEmployeeEmail() || "",
@@ -206,25 +210,42 @@ const requestAllowedModules = async ({
     return emptySnapshot;
   }
 
-  const response = await api.get(endpoint, {
-    headers: {
-      Accept: "application/json"
-    },
-    skipAuthFailureHandling: true
-  });
+  try {
+    console.log("========== MODULE PERMISSION START ==========");
+    console.log("[PERMISSION] Current User ID:", resolvedEmployeeId || getStoredEmployeeId() || "");
+    console.log("[PERMISSION] Current Employee ID:", resolvedEmployeeId || getStoredEmployeeId() || "");
+    console.log("[PERMISSION] Current Role:", loggedInRole || "");
+    console.log("[PERMISSION] Permission API Endpoint:", endpoint);
 
-  const normalizedSnapshot = normalizeEmployeePermissionSnapshot(response.data, {
-    userId: resolvedEmployeeId,
-    userEmail: userEmail || getStoredEmployeeEmail() || ""
-  });
+    const response = await api.get(endpoint, {
+      headers: {
+        Accept: "application/json"
+      },
+      skipAuthFailureHandling: true
+    });
 
-  const persistedSnapshot = persistEmployeePermissions({
-    userId: normalizedSnapshot.userId || getStoredEmployeeId() || "",
-    userEmail: normalizedSnapshot.userEmail || getStoredEmployeeEmail() || "",
-    modules: normalizedSnapshot.modules
-  });
+    console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
+    console.log("[PERMISSION API] Status:", response?.status);
+    console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
 
-  return persistedSnapshot;
+    const normalizedSnapshot = normalizeEmployeePermissionSnapshot(response.data, {
+      userId: resolvedEmployeeId,
+      userEmail: userEmail || getStoredEmployeeEmail() || ""
+    });
+
+    const persistedSnapshot = persistEmployeePermissions({
+      userId: normalizedSnapshot.userId || getStoredEmployeeId() || "",
+      userEmail: normalizedSnapshot.userEmail || getStoredEmployeeEmail() || "",
+      modules: normalizedSnapshot.modules
+    });
+
+    logPermissionCollection(persistedSnapshot.modules || []);
+
+    return persistedSnapshot;
+  } catch (error) {
+    logApiError("[API ERROR]", error);
+    throw error;
+  }
 };
 
 export const fetchAllowedEmployeeModules = async ({

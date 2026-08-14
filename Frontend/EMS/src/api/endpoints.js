@@ -210,9 +210,9 @@ export const API = {
   EMPLOYEE_SALARY_STRUCTURE: {
     CREATE: "/EmployeeSalaryStructure",
     GET_BY_EMPLOYEE: (employeeId) =>
-      `/EmployeeSalaryStructure/${employeeId}`,
-    UPDATE: (employeeId) =>
-      `/EmployeeSalaryStructure/${employeeId}`,
+      `/EmployeeSalaryStructure/${encodePathSegment(employeeId)}`,
+    UPDATE: (id) =>
+      `/EmployeeSalaryStructure/${encodePathSegment(id)}`,
   },
 
   // ================= EDUCATION =================

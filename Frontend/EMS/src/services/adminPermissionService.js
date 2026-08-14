@@ -5,6 +5,12 @@ import {
   isSuperAdmin,
   normalizePermissionList } from
 "../utils/authorization";
+import {
+  logApiError,
+  logPermissionCollection,
+  sanitizeForDebug,
+  summarizeAxiosResponse } from
+"../utils/debugLogging";
 import { normalizePermissionList as normalizeEditablePermissionList } from "./permissionService";
 import {
   getStoredAdminEmail,
@@ -225,6 +231,9 @@ const requestAllowedModules = async ({
       })
     );
 
+    console.log("[PERMISSION] Permission Flow:", permissionFlow);
+    logPermissionCollection(snapshot.modules || []);
+
     return snapshot;
   }
 
@@ -266,7 +275,7 @@ const requestAllowedModules = async ({
         return emptySnapshot;
       }
 
-      const permissionApi = `/api${endpoint}`;
+      console.log("[PERMISSION API] Endpoint:", endpoint);
 
       const response = await api.get(endpoint, {
         headers: {
@@ -274,6 +283,10 @@ const requestAllowedModules = async ({
         },
         skipAuthFailureHandling: true
       });
+
+      console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
+      console.log("[PERMISSION API] Status:", response?.status);
+      console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
 
       const normalizedSnapshot = normalizePermissionSnapshot(response.data, {
         adminId: requestParams.adminId || getStoredAdminId() || "",
@@ -289,10 +302,12 @@ const requestAllowedModules = async ({
       const allowedModules = snapshot.modules;
 
       setCurrentAdminAllowedModules(allowedModules);
+      logPermissionCollection(allowedModules);
 
       return snapshot;
     } catch (error) {
       lastError = error;
+      logApiError("[API ERROR]", error);
 
       if (hasAuthFailure(error)) {
         throw error;
@@ -343,6 +358,8 @@ role,
   normalizedRole === "admin" ?
   "admin-permission" :
   "no-permission-api";
+
+  console.log("[PERMISSION] Permission Flow:", permissionFlow);
 
   if (normalizedRole === "superadmin") {
 

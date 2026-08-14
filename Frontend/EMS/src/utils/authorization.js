@@ -5,10 +5,13 @@ import {
   getStoredLoginType,
   getStoredPermissions,
   getStoredAuthValue,
+  getStoredEmployeeId,
+  getStoredUserId,
 } from "./authStorage";
 import { getCurrentAdminAllowedModules } from "./adminPermissionState";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { toBoolean } from "./boolean";
+import { describePermissionForLog } from "./debugLogging";
 
 const normalizeRoleValue = (value) =>
   String(value ?? "")
@@ -308,6 +311,24 @@ export const modulePermissionMatches = (permissionModule, requestedModule) => {
   return storedModule === targetModule;
 };
 
+const matchesModulePermission = (permission, moduleName) => {
+  const permissionModule = permission?.moduleName ?? permission?.ModuleName ?? "";
+
+  if (!permissionModule || !String(moduleName ?? "").trim()) {
+    return false;
+  }
+
+  return (
+    modulePermissionMatches(permissionModule, moduleName) ||
+    ticketPermissionMatches(permissionModule, moduleName)
+  );
+};
+
+const findPermissionForModule = (permissions = [], moduleName) =>
+  Array.isArray(permissions)
+    ? permissions.find((permission) => matchesModulePermission(permission, moduleName)) || null
+    : null;
+
 export const hasModulePermission = (moduleName, action = "canAccess") => {
   const activeRole = getUserRole() || getUserRoleName();
   const loginType = getStoredLoginType();
@@ -315,6 +336,83 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
   const onboardingRole = isOnboardingUser();
   const adminPermissionRole =
     loginType === "admin" || (!loginType && isAdmin(activeRole));
+  const userRole = activeRole || loginType || "";
+  const userId = getStoredUserId() || "";
+  const employeeId = getStoredEmployeeId() || "";
+  const permissions =
+    superAdminRole || adminPermissionRole
+      ? getCurrentAdminAllowedModules()
+      : getStoredPermissions(activeRole);
+  const permissionFound = findPermissionForModule(permissions, moduleName);
+  const canView = Boolean(
+    permissionFound?.canView ??
+      permissionFound?.CanView ??
+      false
+  );
+  const accessGranted = superAdminRole
+    ? true
+    : onboardingRole
+      ? false
+      : Array.isArray(permissions) &&
+        permissions.length > 0 &&
+        permissions.some((permission) => {
+          const permissionModule = permission.moduleName ?? permission.ModuleName;
+
+          if (
+            !modulePermissionMatches(permissionModule, moduleName) &&
+            !ticketPermissionMatches(permissionModule, moduleName)
+          ) {
+            return false;
+          }
+
+          const canAccess =
+            permission.canAccess ??
+            permission.CanAccess ??
+            permission.canView ??
+            permission.CanView ??
+            true;
+
+          if (canAccess !== true) {
+            return false;
+          }
+
+          if (!action || action === "canAccess") {
+            return true;
+          }
+
+          return (
+            permission[action] ??
+            permission[action[0].toUpperCase() + action.slice(1)] ??
+            canAccess
+          ) === true;
+        });
+
+  console.log("[MODULE ACCESS CHECK]", {
+    module: moduleName,
+    userRole,
+    userId,
+    employeeId,
+    permissionFound: permissionFound ? describePermissionForLog(permissionFound) : null,
+    canView,
+    accessGranted,
+  });
+
+  if (accessGranted) {
+    console.log("[MODULE ACCESS GRANTED]", {
+      module: moduleName,
+      role: userRole,
+      userId,
+      permission: permissionFound ? describePermissionForLog(permissionFound) : null,
+    });
+  } else {
+    console.warn("[MODULE ACCESS DENIED]", {
+      module: moduleName,
+      role: userRole,
+      userId,
+      employeeId,
+      permission: permissionFound ? describePermissionForLog(permissionFound) : null,
+    });
+  }
 
   if (superAdminRole) {
     return true;
@@ -324,55 +422,11 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
     return false;
   }
 
-  const matchesPermission = (permission) => {
-    const permissionModule = permission.moduleName ?? permission.ModuleName;
-
-    if (
-      !modulePermissionMatches(permissionModule, moduleName) &&
-      !ticketPermissionMatches(permissionModule, moduleName)
-    ) {
-      return false;
-    }
-
-    const canAccess =
-      permission.canAccess ??
-      permission.CanAccess ??
-      permission.canView ??
-      permission.CanView ??
-      true;
-
-    if (canAccess !== true) {
-      return false;
-    }
-
-    if (!action || action === "canAccess") {
-      return true;
-    }
-
-    return (
-      permission[action] ??
-      permission[action[0].toUpperCase() + action.slice(1)] ??
-      canAccess
-    ) === true;
-  };
-
-  if (adminPermissionRole) {
-    const permissions = getCurrentAdminAllowedModules();
-
-    if (!Array.isArray(permissions) || permissions.length === 0) {
-      return false;
-    }
-
-    return permissions.some(matchesPermission);
-  }
-
-  const permissions = getStoredPermissions(activeRole);
-
   if (!Array.isArray(permissions) || permissions.length === 0) {
     return false;
   }
 
-  return permissions.some(matchesPermission);
+  return accessGranted;
 };
 
 export const hasPermission = (moduleName, action = "canAccess") =>

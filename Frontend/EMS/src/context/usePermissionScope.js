@@ -58,7 +58,20 @@ export const usePermissionScope = () => {
   employeePermissions;
 
   useEffect(() => {
+    console.log("[ROLE DEBUG]", {
+      apiRole: getStoredJwtRole() || "",
+      storedRole: getStoredRole() || getStoredRoleName() || "",
+      contextRole: authenticatedRole,
+      normalizedRole: resolveAuthRole(authenticatedRole || "", "")
+    });
 
+    console.log("[PERMISSION SCOPE]", {
+      loginType,
+      permissionFlow,
+      adminPermissionCount,
+      employeePermissionCount,
+      selectedPermissionFlow: permissionFlow
+    });
   }, [
   authenticatedRole,
   loginType,

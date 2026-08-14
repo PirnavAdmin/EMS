@@ -2,6 +2,12 @@ import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import { toBoolean } from "../utils/boolean";
+import {
+  logApiError,
+  logPermissionCollection,
+  sanitizeForDebug,
+  summarizeAxiosResponse } from
+"../utils/debugLogging";
 import { normalizePermissionList } from "./permissionService";
 
 const firstDefined = (...values) =>
@@ -245,18 +251,32 @@ export const fetchAllowedRoleModules = async ({
     return [];
   }
 
-  const response = await api.get(endpoint, {
-    headers: {
-      Accept: "application/json",
-    },
-    skipAuthFailureHandling: true,
-  });
+  try {
+    console.log("[PERMISSION API] Endpoint:", endpoint);
 
-  const snapshot = normalizeRolePermissionSnapshot(response.data, {
-    roleName: resolvedRole,
-  });
+    const response = await api.get(endpoint, {
+      headers: {
+        Accept: "application/json",
+      },
+      skipAuthFailureHandling: true,
+    });
 
-  return Array.isArray(snapshot?.modules) ? snapshot.modules : [];
+    console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
+    console.log("[PERMISSION API] Status:", response?.status);
+    console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
+
+    const snapshot = normalizeRolePermissionSnapshot(response.data, {
+      roleName: resolvedRole,
+    });
+    const permissions = Array.isArray(snapshot?.modules) ? snapshot.modules : [];
+
+    logPermissionCollection(permissions);
+
+    return permissions;
+  } catch (error) {
+    logApiError("[API ERROR]", error);
+    throw error;
+  }
 };
 
 const normalizePermissionForSave = (permission = {}) => {

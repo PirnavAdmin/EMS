@@ -22,6 +22,7 @@ import {
   getAuthenticatedUserSnapshot,
   getStoredAdminEmail,
   getStoredAdminId,
+  getStoredAuthValue,
   getStoredRefreshToken,
   getStoredLoginType,
   getStoredRole,
@@ -42,6 +43,7 @@ import {
   normalizePermissionList,
   isSuperAdmin } from
 "../utils/authorization";
+import { logPermissionCollection, sanitizeForDebug } from "../utils/debugLogging";
 
 const AdminPermissionContext = createContext(null);
 
@@ -372,6 +374,21 @@ export const AdminPermissionProvider = ({ children }) => {
       isAdminRole ?
       "admin-permission" :
       "no-permission-api";
+      const selectedPermissionApi = isSuperAdminRole ?
+      "none" :
+      isAdminRole ?
+      "/AdminPermission/allowed-modules" :
+      "none";
+
+      console.log("========== MODULE PERMISSION START ==========");
+      console.log(
+        "[PERMISSION] Current User ID:",
+        authSnapshot.adminId || getStoredAdminId() || getStoredAuthValue("userId") || ""
+      );
+      console.log("[PERMISSION] Current Employee ID:", getStoredAuthValue("employeeId") || "");
+      console.log("[PERMISSION] Current Role:", currentRole);
+      console.log("[PERMISSION] Permission API Endpoint:", selectedPermissionApi);
+      console.log("[PERMISSION] Permission Flow:", permissionFlow);
 
       if (isSuperAdminRole) {
 
@@ -382,6 +399,7 @@ export const AdminPermissionProvider = ({ children }) => {
           })
         );
 
+        logPermissionCollection(snapshot.modules || []);
         applySnapshot(snapshot);
 
         return snapshot.modules;
@@ -426,15 +444,20 @@ export const AdminPermissionProvider = ({ children }) => {
           adminEmail: currentAdminEmail
         });
 
+        const apiModules = Array.isArray(modules) ? modules : [];
         const snapshot = {
           adminId: currentAdminId,
           adminEmail: currentAdminEmail,
-          modules
+          modules: apiModules
         };
+
+        console.log("[PERMISSION PROCESSING] Raw permissions:", sanitizeForDebug(apiModules));
+        console.log("[PERMISSION PROCESSING] Processed permissions:", sanitizeForDebug(snapshot.modules));
+        console.log("[PERMISSION PROCESSING] Permission state before update:", sanitizeForDebug(allowedModules));
 
         applySnapshot(snapshot);
 
-        return modules;
+        return apiModules;
       } catch (fetchError) {
         const errorStatusCode = Number(fetchError?.response?.status || 0);
 
@@ -458,7 +481,7 @@ export const AdminPermissionProvider = ({ children }) => {
         throw fetchError;
       }
     },
-    [applySnapshot, clearPermissionState, syncAuthState]
+    [allowedModules, applySnapshot, clearPermissionState, syncAuthState]
   );
 
   useEffect(() => {
@@ -477,6 +500,10 @@ export const AdminPermissionProvider = ({ children }) => {
 
     return () => window.clearTimeout(timer);
   }, [allowedModules.length, refreshPermissions, role, token]);
+
+  useEffect(() => {
+    console.log("[PERMISSION STATE] Updated permissions:", sanitizeForDebug(allowedModules));
+  }, [allowedModules]);
 
   const value = useMemo(
     () => ({
