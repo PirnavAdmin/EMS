@@ -6,7 +6,7 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import {
   clearAuthData,
   getAuthStorage } from
-"../../utils/authStorage";
+"../utils/authStorage";
 import { normalizeRole } from "../../utils/authorization";
 import { useAdminPermissions } from "../../context/AdminPermissionContext";
 import { useEmployeePermissions } from "../../context/EmployeePermissionContext";
