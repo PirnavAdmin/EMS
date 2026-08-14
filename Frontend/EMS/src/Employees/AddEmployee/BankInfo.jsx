@@ -349,7 +349,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Annual CTC */}
           <div className="form-group">
-            <label>Annual CTC</label>
+            <label>Annual CTC (Without Variable Pay)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -373,7 +373,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Basic Salary */}
           <div className="form-group">
-            <label>Basic Salary</label>
+            <label>Basic Salary (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -397,7 +397,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* HRA */}
           <div className="form-group">
-            <label>HRA</label>
+            <label>HRA (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -421,7 +421,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Conveyance Allowance */}
           <div className="form-group">
-            <label>Conveyance Allowance</label>
+            <label>Conveyance Allowance (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -446,7 +446,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Medical Allowance */}
           <div className="form-group">
-            <label>Medical Allowance</label>
+            <label>Medical Allowance (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -469,7 +469,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Special Allowance */}
           <div className="form-group">
-            <label>Special Allowance</label>
+            <label>Special Allowance (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -492,7 +492,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Employee PF */}
           <div className="form-group">
-            <label>Employee PF</label>
+            <label>Employee PF (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -515,7 +515,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Employer PF */}
           <div className="form-group">
-            <label>Employer PF</label>
+            <label>Employer PF (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -538,7 +538,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Professional Tax */}
           <div className="form-group">
-            <label>Professional Tax</label>
+            <label>Professional Tax (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -561,7 +561,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* TDS */}
           <div className="form-group">
-            <label>TDS</label>
+            <label>TDS (Monthly If Applicable)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -584,7 +584,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
           {/* Other Deduction */}
           <div className="form-group">
-            <label>Other Deduction</label>
+            <label>Other Deduction (Monthly)</label>
             <input
               type="text"
               inputMode="numeric"
