@@ -2,28 +2,34 @@ import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import { toBoolean } from "../utils/boolean";
-
+import {
+  logApiError,
+  logPermissionCollection,
+  sanitizeForDebug,
+  summarizeAxiosResponse } from
+"../utils/debugLogging";
+ 
 const firstDefined = (...values) =>
 values.find((value) => value !== undefined && value !== null && value !== "");
-
+ 
 const normalizeId = (value) => String(value ?? "").trim();
-
+ 
 const normalizePayloadId = (value) => {
   const normalized = normalizeId(value);
-
+ 
   if (!normalized) {
     return "";
   }
-
+ 
   const numericValue = Number(normalized);
-
+ 
   if (Number.isFinite(numericValue) && normalized === String(numericValue)) {
     return numericValue;
   }
-
+ 
   return normalized;
 };
-
+ 
 export const normalizePermissionRecord = (permission = {}) => {
   const permissionId = firstDefined(
     permission.permissionId,
@@ -85,7 +91,7 @@ export const normalizePermissionRecord = (permission = {}) => {
   const canApprove = toBoolean(firstDefined(permission.canApprove, permission.CanApprove, permission.approve, permission.Approve, hasGranularPermissions ? false : legacyAccess));
   const derivedAccess =
   canView || canAdd || canEdit || canDelete || canUpload || canDownload || canSubmit || canApprove;
-
+ 
   return {
     permissionId,
     screenId,
@@ -105,7 +111,7 @@ export const normalizePermissionRecord = (permission = {}) => {
     toBoolean(firstDefined(permission.canAccess, permission.CanAccess, false))
   };
 };
-
+ 
 const extractPermissionCollection = (payload) => {
   const candidates = [
   payload?.modules,
@@ -121,21 +127,49 @@ const extractPermissionCollection = (payload) => {
   payload?.data?.data?.modules?.$values,
   payload?.data?.data?.Modules?.$values,
   extractCollection(payload)];
-
+ 
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
       return candidate;
     }
   }
-
+ 
   return [];
 };
-
+ 
 export const normalizePermissionList = (payload) =>
 extractPermissionCollection(payload).
 map(normalizePermissionRecord).
 filter((permission) => permission.moduleId || permission.moduleName);
-
+ 
+export const fetchPermissionModules = async () => {
+  const endpoint = API_ENDPOINTS.permission.get;
+ 
+  if (!endpoint) {
+    return [];
+  }
+ 
+  try {
+    console.log("[PERMISSION] Calling:", endpoint);
+ 
+    const permissionResponse = await api.get(endpoint, {
+      headers: {
+        Accept: "application/json"
+      },
+      skipAuthFailureHandling: true
+    });
+ 
+    console.log("[PERMISSION] Response:", permissionResponse?.data);
+    console.log("[PERMISSION] Status:", permissionResponse?.status);
+    console.log("[PERMISSION] Permissions:", permissionResponse?.data);
+ 
+    return normalizePermissionList(permissionResponse?.data);
+  } catch (error) {
+    console.error("[PERMISSION ERROR]", error?.response?.data);
+    throw error;
+  }
+};
+ 
 export const normalizeEmployeeRecord = (employee = {}) => ({
   employeeId: String(
     firstDefined(
@@ -160,19 +194,19 @@ export const normalizeEmployeeRecord = (employee = {}) => ({
   role: String(firstDefined(employee.role, employee.Role, employee.roleName, employee.RoleName, "")).trim(),
   status: String(firstDefined(employee.status, employee.Status, employee.isActive === false ? "Inactive" : "", employee.IsActive === false ? "Inactive" : "", "Active")).trim()
 });
-
+ 
 export const getUserPermission = async (roleName) => {
   const response = await api.get(
     API_ENDPOINTS.rolePermission.get(roleName)
   );
-
+ 
   return normalizePermissionList(response.data);
 };
-
+ 
 const normalizeUserPermissionSnapshot = (payload = {}, fallback = {}) => {
   const response = payload?.data ?? payload ?? {};
   const permissions = normalizePermissionList(response);
-
+ 
   return {
     employeeId: normalizeId(
       firstDefined(
@@ -201,11 +235,11 @@ const normalizeUserPermissionSnapshot = (payload = {}, fallback = {}) => {
     modules: permissions
   };
 };
-
+ 
 export const getUserPermissionErrorMessage = (
 error,
 fallback = "We could not load user permissions right now.") =>
-
+ 
 (error?.response?.data?.errors && typeof error.response.data.errors === "object" ?
 Object.values(error.response.data.errors).
 flat().
@@ -220,8 +254,8 @@ error?.response?.data?.title ||
 error?.response?.data ||
 error?.message ||
 fallback;
-
-const normalizeUserPermissionForSave = (permission = {}, fallbackEmployeeId = "") => {
+ 
+const normalizeUserPermissionForSave = (permission = {}) => {
   const moduleId = firstDefined(
     permission.moduleId,
     permission.ModuleId,
@@ -238,7 +272,7 @@ const normalizeUserPermissionForSave = (permission = {}, fallbackEmployeeId = ""
     permission.CanAccess ?? (
     canView || canAdd || canEdit || canDelete)
   );
-
+ 
   return {
     ModuleId: normalizePayloadId(moduleId),
     CanAccess: canAccess,
@@ -248,75 +282,90 @@ const normalizeUserPermissionForSave = (permission = {}, fallbackEmployeeId = ""
     CanDelete: canDelete
   };
 };
-
+ 
 export const buildUserPermissionSavePayload = ({
   employeeId = "",
   permissions = []
 } = {}) => {
   const normalizedEmployeeId = normalizeId(employeeId);
-
+ 
   if (!normalizedEmployeeId) {
     throw new Error("Employee ID is required.");
   }
-
+ 
   const uniquePermissions = new Map();
-
+ 
   const normalizedPermissions = Array.isArray(permissions) ?
   permissions.map((permission) =>
-  normalizeUserPermissionForSave(permission, normalizedEmployeeId)
+  normalizeUserPermissionForSave(permission)
   ) :
   [];
-
+ 
   normalizedPermissions.forEach((permission) => {
     const key = normalizeId(permission.ModuleId);
-
+ 
     if (!key) {
       return;
     }
-
+ 
     uniquePermissions.set(key, permission);
   });
-
+ 
   const modules = Array.from(uniquePermissions.values()).sort((left, right) => {
     const leftNumber = Number(left.ModuleId);
     const rightNumber = Number(right.ModuleId);
-
+ 
     if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
       return leftNumber - rightNumber;
     }
-
+ 
     return String(left.ModuleId ?? "").localeCompare(String(right.ModuleId ?? ""), undefined, {
       numeric: true,
       sensitivity: "base"
     });
   });
-
+ 
   return {
     EmployeeId: normalizedEmployeeId,
     Modules: modules
   };
 };
-
+ 
 export const fetchUserPermissionsByEmployeeId = async (employeeId) => {
   const normalizedEmployeeId = normalizeId(employeeId);
-
+ 
   if (!normalizedEmployeeId) {
     throw new Error("Employee ID is required.");
   }
-
-  const response = await api.get(API_ENDPOINTS.userPermission.get(normalizedEmployeeId), {
-    headers: {
-      Accept: "application/json"
-    }
-  });
-
-  const snapshot = normalizeUserPermissionSnapshot(response.data, {
-    employeeId: normalizedEmployeeId
-  });
-
-  return snapshot;
+ 
+  const endpoint = API_ENDPOINTS.userPermission.get(normalizedEmployeeId);
+ 
+  try {
+    console.log("[PERMISSION API] Endpoint:", endpoint);
+ 
+    const response = await api.get(endpoint, {
+      headers: {
+        Accept: "application/json"
+      }
+    });
+ 
+    console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
+    console.log("[PERMISSION API] Status:", response?.status);
+    console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
+ 
+    const snapshot = normalizeUserPermissionSnapshot(response.data, {
+      employeeId: normalizedEmployeeId
+    });
+ 
+    logPermissionCollection(snapshot.modules || []);
+ 
+    return snapshot;
+  } catch (error) {
+    logApiError("[API ERROR]", error);
+    throw error;
+  }
 };
-
+ 
 export const saveUserPermissions = async ({
   employeeId = "",
   permissions = []
@@ -325,39 +374,36 @@ export const saveUserPermissions = async ({
     employeeId,
     permissions
   });
-
+ 
   const response = await api.post(API_ENDPOINTS.userPermission.save, payload, {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json"
     }
   });
-
+ 
   return response.data;
 };
-
+ 
 export const getEmployeesByRole = async (roleName) => {
   const employeesListEndpoint = API_ENDPOINTS?.employees?.list;
-
+ 
   if (!employeesListEndpoint) {
     throw new Error("Employee LIST endpoint is not configured.");
   }
-
-  try {
-    const response = await api.get(employeesListEndpoint);
-    const normalizedRole = String(roleName ?? "").trim().toLowerCase();
-
-    return extractCollection(response?.data ?? []).
-    map(normalizeEmployeeRecord).
-    filter((employee) => {
-      if (!normalizedRole) {
-        return true;
-      }
-
-      return String(employee.role ?? "").trim().toLowerCase() === normalizedRole;
-    });
-  } catch (error) {
-
-    throw error;
-  }
+ 
+  const response = await api.get(employeesListEndpoint);
+  const normalizedRole = String(roleName ?? "").trim().toLowerCase();
+ 
+  return extractCollection(response?.data ?? []).
+  map(normalizeEmployeeRecord).
+  filter((employee) => {
+    if (!normalizedRole) {
+      return true;
+    }
+ 
+    return String(employee.role ?? "").trim().toLowerCase() === normalizedRole;
+  });
 };
+ 
+ 
