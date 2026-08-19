@@ -303,7 +303,7 @@
 .demo-primary-action:hover:not(:disabled) {
   transform: scale(1.03);
   background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
-  box-shadow: var(--theme-shadow-md);
+  box-shadow: none;
 }
 
 .demo-secondary-action {
@@ -317,7 +317,7 @@
   transform: scale(1.03);
   border-color: var(--border-strong);
   background: var(--card-hover-bg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .demo-primary-action:disabled {

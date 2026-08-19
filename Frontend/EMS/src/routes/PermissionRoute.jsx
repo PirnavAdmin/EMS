@@ -1,9 +1,7 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { usePermissionScope } from "../context/usePermissionScope";
-import { getStoredEmployeeId, getStoredUserId } from "../utils/authStorage";
-import { isSuperAdmin, modulePermissionMatches } from "../utils/authorization";
-import { describePermissionForLog } from "../utils/debugLogging";
+import { modulePermissionMatches } from "../utils/authorization";
 
 const matchesModulePermission = (permission, moduleName) => {
   const permissionModule = permission?.moduleName ?? permission?.ModuleName ?? "";
@@ -22,22 +20,7 @@ const PermissionRoute = ({ children, module }) => {
   const {
     loadingPermissions,
     allowedModules = [],
-    permissionScope,
-    authenticatedRole,
   } = usePermissionScope();
-  const location = useLocation();
-  const currentPath = location.pathname;
-  const currentRole = String(authenticatedRole || permissionScope || "").trim().toLowerCase();
-  const userId = getStoredUserId() || "";
-  const employeeId = getStoredEmployeeId() || "";
-  const permissionFound = Array.isArray(allowedModules)
-    ? allowedModules.find((permission) => matchesModulePermission(permission, module)) || null
-    : null;
-  const canView = Boolean(
-    permissionFound?.canView ??
-      permissionFound?.CanView ??
-      false
-  );
   const accessGranted = Array.isArray(allowedModules)
     ? allowedModules.some((permission) => {
         const canAccess = permission?.canAccess ?? permission?.CanAccess ?? false;
@@ -58,58 +41,13 @@ const PermissionRoute = ({ children, module }) => {
       })
     : false;
 
-  if (isSuperAdmin()) {
-    console.log("[MODULE ACCESS CHECK]", {
-      module,
-      route: currentPath,
-      userRole: currentRole,
-      userId,
-      employeeId,
-      permissionFound: permissionFound ? describePermissionForLog(permissionFound) : null,
-      canView,
-      accessGranted: true
-    });
-    console.log("[MODULE ACCESS GRANTED]", {
-      module,
-      role: currentRole,
-      userId,
-      permission: permissionFound ? describePermissionForLog(permissionFound) : null
-    });
-    return children;
-  }
-
   if (loadingPermissions) {
     return null;
   }
 
-  console.log("[MODULE ACCESS CHECK]", {
-    module,
-    route: currentPath,
-    userRole: currentRole,
-    userId,
-    employeeId,
-    permissionFound: permissionFound ? describePermissionForLog(permissionFound) : null,
-    canView,
-    accessGranted
-  });
-
   if (accessGranted) {
-    console.log("[MODULE ACCESS GRANTED]", {
-      module,
-      role: currentRole,
-      userId,
-      permission: permissionFound ? describePermissionForLog(permissionFound) : null
-    });
     return children;
   }
-
-  console.warn("[MODULE ACCESS DENIED]", {
-    module,
-    role: currentRole,
-    userId,
-    employeeId,
-    permission: permissionFound ? describePermissionForLog(permissionFound) : null
-  });
 
   return <Navigate to="/unauthorized" replace />;
 };

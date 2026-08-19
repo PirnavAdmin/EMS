@@ -94,7 +94,7 @@ builder.Services.AddScoped<ReportsService>();
 
 builder.Services.AddScoped<IManualPayslipService, ManualPayslipService>();
 
-builder.Services.AddHostedService<AutoCheckoutService>();
+//builder.Services.AddHostedService<AutoCheckoutService>();
 
 builder.Services.AddScoped<ExperienceOfferLetterService>();
 builder.Services.AddScoped<ITeamService, TeamService>();

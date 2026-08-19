@@ -7,9 +7,7 @@ import {
 "../utils/authorization";
 import {
   logApiError,
-  logPermissionCollection,
-  sanitizeForDebug,
-  summarizeAxiosResponse } from
+  logPermissionCollection } from
 "../utils/debugLogging";
 import { normalizePermissionList as normalizeEditablePermissionList } from "./permissionService";
 import {
@@ -231,7 +229,6 @@ const requestAllowedModules = async ({
       })
     );
 
-    console.log("[PERMISSION] Permission Flow:", permissionFlow);
     logPermissionCollection(snapshot.modules || []);
 
     return snapshot;
@@ -275,18 +272,12 @@ const requestAllowedModules = async ({
         return emptySnapshot;
       }
 
-      console.log("[PERMISSION API] Endpoint:", endpoint);
-
       const response = await api.get(endpoint, {
         headers: {
           Accept: "application/json"
         },
         skipAuthFailureHandling: true
       });
-
-      console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
-      console.log("[PERMISSION API] Status:", response?.status);
-      console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
 
       const normalizedSnapshot = normalizePermissionSnapshot(response.data, {
         adminId: requestParams.adminId || getStoredAdminId() || "",
@@ -358,8 +349,6 @@ role,
   normalizedRole === "admin" ?
   "admin-permission" :
   "no-permission-api";
-
-  console.log("[PERMISSION] Permission Flow:", permissionFlow);
 
   if (normalizedRole === "superadmin") {
 

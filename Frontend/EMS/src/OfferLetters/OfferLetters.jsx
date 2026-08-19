@@ -318,7 +318,10 @@ function OfferLetters() {
   useState(null);
   const [deletingRelievingLetterId, setDeletingRelievingLetterId] =
   useState(null);
+  const [relievingCurrentPage, setRelievingCurrentPage] = useState(1);
   const sendRequestLockRef = useRef(false);
+
+  const RELIEVING_LETTERS_PER_PAGE = 10;
 
   /* ================= PAGINATION ================= */
   const [currentPage, setCurrentPage] = useState(1);
@@ -744,7 +747,8 @@ HR Team`
       const res = await api.get(API_ENDPOINTS.employees.list, {
         headers: {
           Authorization: `Bearer ${token}`
-        }
+        },
+        cacheTTL: 60 * 1000
       });
 
       const data = Array.isArray(res.data) ?
@@ -782,6 +786,26 @@ HR Team`
       setCurrentPage(totalPages);
     }
   }, [currentPage, letters.length, lettersPerPage]);
+
+  const relievingTotalPages = Math.max(
+    1,
+    Math.ceil(generatedRelievingLetters.length / RELIEVING_LETTERS_PER_PAGE)
+  );
+  const relievingSafeCurrentPage = Math.min(
+    Math.max(relievingCurrentPage, 1),
+    relievingTotalPages
+  );
+  const relievingPageStartIndex =
+  (relievingSafeCurrentPage - 1) * RELIEVING_LETTERS_PER_PAGE;
+  const visibleRelievingLetters = generatedRelievingLetters.slice(
+    relievingPageStartIndex,
+    relievingPageStartIndex + RELIEVING_LETTERS_PER_PAGE
+  );
+  useEffect(() => {
+    setRelievingCurrentPage((prevPage) =>
+      Math.min(Math.max(prevPage, 1), relievingTotalPages)
+    );
+  }, [relievingTotalPages]);
 
   /* ================= VALIDATION ================= */
   const validateForm = () => {
@@ -2945,8 +2969,8 @@ HR Team`
                         Loading relieving letters...
                       </td>
                     </tr> :
-                generatedRelievingLetters.length > 0 ?
-                generatedRelievingLetters.map((item, index) => {
+                visibleRelievingLetters.length > 0 ?
+                visibleRelievingLetters.map((item, index) => {
                   const employeeId = getRelievingLetterEmployeeId(item);
                   const relievingLetterId = getRelievingLetterId(item);
                   const relievingLetterStatus =
@@ -3055,6 +3079,63 @@ HR Team`
                 }
                 </tbody>
               </table>
+            </div>
+
+            <div className="app-pagination-bar relieving-pagination-bar">
+              <div className="app-pagination-info">
+                Page <strong>{relievingSafeCurrentPage}</strong> of{" "}
+                <strong>{relievingTotalPages}</strong> &middot; Showing{" "}
+                <strong>
+                  {generatedRelievingLetters.length === 0 ? 0 : relievingPageStartIndex + 1}
+                </strong>
+                &ndash;
+                <strong>
+                  {generatedRelievingLetters.length === 0
+                    ? 0
+                    : Math.min(
+                        relievingPageStartIndex + RELIEVING_LETTERS_PER_PAGE,
+                        generatedRelievingLetters.length
+                      )}
+                </strong>{" "}
+                of <strong>{generatedRelievingLetters.length}</strong> relieving letters
+              </div>
+
+              <div className="app-pagination-controls relieving-pagination-controls">
+                <button
+                  type="button"
+                  className="pagination-btn app-pagination-button"
+                  disabled={
+                    relievingSafeCurrentPage === 1 || generatedRelievingLetters.length === 0
+                  }
+                  onClick={() =>
+                    setRelievingCurrentPage((prevPage) => Math.max(prevPage - 1, 1))
+                  }>
+                  Previous
+                </button>
+
+                <button
+                  type="button"
+                  className="pagination-btn app-pagination-button active"
+                  aria-current="page"
+                  onClick={() => setRelievingCurrentPage(relievingSafeCurrentPage)}>
+                  {relievingSafeCurrentPage}
+                </button>
+
+                <button
+                  type="button"
+                  className="pagination-btn app-pagination-button"
+                  disabled={
+                    relievingSafeCurrentPage === relievingTotalPages ||
+                    generatedRelievingLetters.length === 0
+                  }
+                  onClick={() =>
+                    setRelievingCurrentPage((prevPage) =>
+                      Math.min(prevPage + 1, relievingTotalPages)
+                    )
+                  }>
+                  Next
+                </button>
+              </div>
             </div>
           </div>
 

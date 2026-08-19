@@ -129,9 +129,10 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
         // 🔹 UPDATE (FIXED ✅)
-        [HttpPut("{employeeId}")]
+        [HttpPut("{*employeeId}")]
         public async Task<IActionResult> Update(string employeeId, EmployeePersonalInfoDto dto)
         {
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -223,9 +224,10 @@ namespace EmployeeManagementSystem.Controllers
 
         // 🔹 GET BY EMPLOYEE ID
 
-        [HttpGet("{employeeId}")]
+        [HttpGet("{*employeeId}")]
         public async Task<IActionResult> GetByEmployeeId(string employeeId)
         {
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
             var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
 
             bool isAdmin = await _context.Admins

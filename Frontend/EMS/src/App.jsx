@@ -23,6 +23,7 @@ import {
   endPerformanceTimer,
   startPerformanceTimer,
 } from "./utils/performance";
+import { recoverFromChunkLoadError } from "./utils/chunkLoadRecovery";
 import "./typography.css";
 import "./theme/theme-overrides.css";
 import { PageSkeleton } from "./components/Skeletons";
@@ -54,9 +55,23 @@ const lazyRoute = (routeName, loader) =>
 
     startPerformanceTimer(timerLabel);
 
-    return loader().finally(() => {
-      endPerformanceTimer(timerLabel);
-    });
+    return Promise.resolve()
+      .then(loader)
+      .then(
+        (module) => {
+          endPerformanceTimer(timerLabel);
+          return module;
+        },
+        (error) => {
+          endPerformanceTimer(timerLabel);
+
+          if (recoverFromChunkLoadError(error)) {
+            return new Promise(() => {});
+          }
+
+          throw error;
+        }
+      );
   });
 
 // Keep route transitions filled with a themed skeleton instead of a blank screen.

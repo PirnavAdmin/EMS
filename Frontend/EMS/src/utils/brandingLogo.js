@@ -4,6 +4,7 @@ import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
 
 const BRANDING_LOGO_UPDATED_EVENT = "ems-branding-logo-updated";
 let brandingFetchVersion = 0;
+const BRANDING_CACHE_TTL = 5 * 60 * 1000;
 
 const BRANDING_LOGO_FIELDS = {
   companyLogo: ["companyLogo", "CompanyLogo"],
@@ -90,8 +91,10 @@ export const resolveBrandingLogos = (payload, cacheToken = "") => {
   };
 };
 
-export const fetchBrandingLogos = async () => {
-  const response = await api.get(API_ENDPOINTS.settings.branding);
+export const fetchBrandingLogos = async ({ forceRefresh = false } = {}) => {
+  const response = await api.get(API_ENDPOINTS.settings.branding, {
+    cacheTTL: forceRefresh ? 0 : BRANDING_CACHE_TTL
+  });
   const cacheToken =
     normalizeString(response?.data?.lastUpdated) ||
     normalizeString(response?.data?.updatedAt) ||
@@ -119,11 +122,13 @@ export const useBrandingLogo = (fieldName) => {
   useEffect(() => {
     let isMounted = true;
 
-    const loadBrandingLogo = async () => {
+    const loadBrandingLogo = async (forceRefresh = false) => {
       const requestId = ++requestIdRef.current;
 
       try {
-        const logos = await fetchBrandingLogos();
+        const logos = await fetchBrandingLogos({
+          forceRefresh
+        });
 
         if (!isMounted || requestId !== requestIdRef.current) {
           return;
@@ -138,7 +143,7 @@ export const useBrandingLogo = (fieldName) => {
     };
 
     const handleBrandingLogoUpdate = () => {
-      loadBrandingLogo();
+      loadBrandingLogo(true);
     };
 
     loadBrandingLogo();

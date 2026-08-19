@@ -46,11 +46,13 @@ function UserNotifications() {
     return normalized;
   };
 
-  const fetchUserNotifications = useCallback(async () => {
+  const fetchUserNotifications = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
 
-      const data = await loadNotifications(currentRole);
+      const data = await loadNotifications(currentRole, undefined, {
+        forceRefresh
+      });
       setNotifications(normalizeNotifications(data));
     } finally {
       setLoading(false);
@@ -60,12 +62,16 @@ function UserNotifications() {
   useEffect(() => {
     fetchUserNotifications();
 
-    window.addEventListener("notificationsUpdated", fetchUserNotifications);
+    const handleNotificationsUpdated = () => {
+      fetchUserNotifications(true);
+    };
+
+    window.addEventListener("notificationsUpdated", handleNotificationsUpdated);
 
     return () => {
       window.removeEventListener(
         "notificationsUpdated",
-        fetchUserNotifications
+        handleNotificationsUpdated
       );
     };
   }, [fetchUserNotifications]);
@@ -85,7 +91,7 @@ function UserNotifications() {
 
       if (!success) {
         setNotifications(previousNotifications);
-        await fetchUserNotifications();
+        await fetchUserNotifications(true);
         return;
       }
 
@@ -110,7 +116,7 @@ function UserNotifications() {
 
       if (!success) {
         setNotifications(previousNotifications);
-        await fetchUserNotifications();
+        await fetchUserNotifications(true);
         return;
       }
 

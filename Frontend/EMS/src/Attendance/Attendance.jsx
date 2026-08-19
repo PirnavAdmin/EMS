@@ -125,8 +125,32 @@ function Attendance() {
       today.getMonth() + 1
     ).padStart(2, "0")}-${String(
       today.getDate()
-    ).padStart(2, "0")}`;
+      ).padStart(2, "0")}`;
   });
+
+  const dailyDateOptions = useMemo(() => {
+    const currentYear = today.getFullYear();
+
+    return Array.from({ length: 365 }, (_, i) => {
+      const date = new Date(currentYear, 0, 1);
+      date.setDate(date.getDate() + i);
+
+      const value = `${date.getFullYear()}-${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}-${String(
+        date.getDate()
+      ).padStart(2, "0")}`;
+
+      return {
+        value,
+        label: date.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        })
+      };
+    });
+  }, [today]);
 
   // ================= URL FILTER HANDLING =================
 
@@ -146,14 +170,18 @@ function Attendance() {
         .trim()
         .toLowerCase();
 
-    // Optimization: avoid no-op state updates that would rerender the full attendance table.
-    setViewMode((currentViewMode) =>
-      currentViewMode === nextViewMode ? currentViewMode : nextViewMode
-    );
+    const syncTimer = window.setTimeout(() => {
+      // Optimization: avoid no-op state updates that would rerender the full attendance table.
+      setViewMode((currentViewMode) =>
+        currentViewMode === nextViewMode ? currentViewMode : nextViewMode
+      );
 
-    setFilter((currentFilter) =>
-      currentFilter === nextState.filter ? currentFilter : nextState.filter
-    );
+      setFilter((currentFilter) =>
+        currentFilter === nextState.filter ? currentFilter : nextState.filter
+      );
+    }, 0);
+
+    return () => window.clearTimeout(syncTimer);
 
   }, [location.search]);
 
@@ -211,26 +239,11 @@ function Attendance() {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
             >
-              {Array.from({ length: 365 }, (_, i) => {
-                const date = new Date(new Date().getFullYear(), 0, 1);
-                date.setDate(date.getDate() + i);
-
-                const value = `${date.getFullYear()}-${String(
-                  date.getMonth() + 1
-                ).padStart(2, "0")}-${String(
-                  date.getDate()
-                ).padStart(2, "0")}`;
-
-                return (
-                  <option key={value} value={value}>
-                    {date.toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric"
-                    })}
-                  </option>
-                );
-              })}
+              {dailyDateOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           )}
           {/* ================= MONTH PICKER ================= */}

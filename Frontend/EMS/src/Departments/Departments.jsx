@@ -214,7 +214,10 @@ function Departments() {
     try {
 
       const res = await api.get(
-        API_ENDPOINTS.employees.list
+        API_ENDPOINTS.employees.list,
+        {
+          cacheTTL: 60 * 1000
+        }
       );
 
       const empData = extractCollection(

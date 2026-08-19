@@ -335,6 +335,7 @@ function AttendanceTable({
   const [detailsToDate, setDetailsToDate] = useState("");
   const activeRequestRef = useRef(0);
   const detailsRequestRef = useRef(0);
+  const detailsAbortRef = useRef(null);
   const checkInHourRef = useRef(null);
   const checkInMinuteRef = useRef(null);
 
@@ -949,64 +950,28 @@ function AttendanceTable({
       return "--";
     }
 
-    const checkIn =
-    getCheckIn(emp);
+    const employeeId =
+    getEmployeeId(emp);
+    const employeeName =
+    getEmployeeName(emp);
+    const apiWorkingHours =
+    emp?.workingHours;
 
-    const checkOut =
-    getCheckOut(emp);
+    console.log("Attendance working hours API value:", {
+      employeeId,
+      employeeName,
+      workingHours: apiWorkingHours
+    });
 
-    // NO CHECK IN
-    if (!checkIn) {
-      return "0h 0m";
+    if (
+    apiWorkingHours === null ||
+    apiWorkingHours === undefined ||
+    apiWorkingHours === "")
+    {
+      return "--";
     }
 
-    try {
-
-      const checkInDate =
-      new Date(checkIn);
-
-      // IF CHECK OUT EXISTS
-      // USE FINAL TIME
-      const endTime =
-      checkOut ?
-      new Date(checkOut) :
-      new Date();
-
-      // INVALID DATE
-      if (
-      isNaN(checkInDate.getTime()) ||
-      isNaN(endTime.getTime()))
-      {
-        return "0h 0m";
-      }
-
-      // DIFFERENCE
-      const diffMs =
-      endTime - checkInDate;
-
-      // TOTAL MINUTES
-      const totalMinutes =
-      Math.floor(diffMs / (1000 * 60));
-
-      // HOURS
-      const hours =
-      Math.floor(totalMinutes / 60);
-
-      // MINUTES
-      const minutes =
-      totalMinutes % 60;
-
-      return `${hours}h ${minutes}m`;
-
-    } catch (error) {
-
-      logPerformanceError(
-        "Hours Calculate Error:",
-        error
-      );
-
-      return "0h 0m";
-    }
+    return String(apiWorkingHours);
   };
 
   const formatCheckTime = (value) => {
@@ -1482,6 +1447,10 @@ function AttendanceTable({
     return () => clearInterval(interval);
 
   }, []);
+
+  useEffect(() => () => {
+    detailsAbortRef.current?.abort();
+  }, []);
   // =========================
   // FETCH DAILY / MONTHLY
   // =========================
@@ -1898,19 +1867,35 @@ function AttendanceTable({
     Array.isArray(attendanceData) ?
     attendanceData :
     [];
-    const uniqueEmployees = new Map();
+    const lookup = new Map();
 
     source.forEach((emp) => {
       const employeeId = String(getEmployeeId(emp) || "").trim();
-      if (!employeeId || uniqueEmployees.has(employeeId)) return;
+      if (!employeeId) return;
 
-      uniqueEmployees.set(employeeId, {
-        id: employeeId,
-        name: getEmployeeName(emp)
-      });
+      const employeeName = String(getEmployeeName(emp) || "").trim();
+      const normalizedId = employeeId.toLowerCase();
+
+      if (!lookup.has(normalizedId)) {
+        lookup.set(normalizedId, {
+          id: employeeId,
+          name: employeeName
+        });
+      }
+
+      if (employeeName) {
+        const normalizedName = employeeName.toLowerCase();
+
+        if (!lookup.has(normalizedName)) {
+          lookup.set(normalizedName, {
+            id: employeeId,
+            name: employeeName
+          });
+        }
+      }
     });
 
-    return Array.from(uniqueEmployees.values());
+    return lookup;
   }, [attendanceData, normalizedMonthlyData, viewMode]);
 
   const resolveEmployeeId = useCallback(
@@ -1918,12 +1903,8 @@ function AttendanceTable({
       const normalized = String(value || "").trim().toLowerCase();
       if (!normalized) return "";
 
-      const matchedEmployee = employeeDirectory.find((employee) => {
-        const employeeId = String(employee.id).toLowerCase();
-        const employeeName = String(employee.name).toLowerCase();
-
-        return employeeId === normalized || employeeName === normalized;
-      });
+      const matchedEmployee =
+      employeeDirectory.get(normalized);
 
       return matchedEmployee?.id || String(value).trim();
     },
@@ -2123,6 +2104,8 @@ function AttendanceTable({
   // =========================
   const openEditModal = (emp) => {
     detailsRequestRef.current += 1;
+    detailsAbortRef.current?.abort();
+    detailsAbortRef.current = null;
     setDetailsLoading(false);
     setDetailsModalOpen(false);
     setSelectedAttendance(null);
@@ -2213,6 +2196,9 @@ function AttendanceTable({
 
     const requestId =
     ++detailsRequestRef.current;
+    detailsAbortRef.current?.abort();
+    const controller = new AbortController();
+    detailsAbortRef.current = controller;
 
     const baseAttendanceDetails =
     buildAttendanceDetailsData(emp);
@@ -2230,12 +2216,17 @@ function AttendanceTable({
         {
           headers: {
             Authorization: `Bearer ${token}`
-          }
+          },
+          signal: controller.signal
         }
       );
 
       const workingHoursData =
       response?.data || {};
+
+      if (controller.signal.aborted) {
+        return;
+      }
 
       if (requestId !== detailsRequestRef.current) {
         return;
@@ -2254,6 +2245,10 @@ function AttendanceTable({
     }
     catch (error) {
 
+      if (controller.signal.aborted) {
+        return;
+      }
+
       if (requestId !== detailsRequestRef.current) {
         return;
       }
@@ -2270,7 +2265,11 @@ function AttendanceTable({
     } finally
     {
 
-      if (requestId === detailsRequestRef.current) {
+      if (
+      requestId === detailsRequestRef.current &&
+      detailsAbortRef.current === controller)
+      {
+        detailsAbortRef.current = null;
         setDetailsLoading(false);
       }
 
@@ -2280,6 +2279,8 @@ function AttendanceTable({
 
   const closeAttendanceDetails = useCallback(() => {
     detailsRequestRef.current += 1;
+    detailsAbortRef.current?.abort();
+    detailsAbortRef.current = null;
     setDetailsMonth("");
     setDetailsLoading(false);
     setDetailsModalOpen(false);

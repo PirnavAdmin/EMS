@@ -84,7 +84,7 @@ html[data-theme="aqua-professional"] {
   --button-secondary-border: var(--border-color);
   --button-secondary-text: var(--theme-primary);
   --button-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --button-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --button-shadow-hover: none;
   --theme-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --theme-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
   --theme-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -209,7 +209,7 @@ html[data-theme="enterprise-blue"] {
   --button-secondary-border: var(--border-color);
   --button-secondary-text: var(--theme-primary);
   --button-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --button-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --button-shadow-hover: none;
   --theme-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --theme-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
   --theme-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -336,7 +336,7 @@ html[data-theme="black-emerald-light"] {
   --button-secondary-border: var(--border-color);
   --button-secondary-text: var(--theme-primary);
   --button-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --button-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --button-shadow-hover: none;
   --theme-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --theme-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
   --theme-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -461,7 +461,7 @@ html[data-theme="simple-light"] {
   --button-secondary-border: var(--border-color);
   --button-secondary-text: var(--theme-primary);
   --button-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --button-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --button-shadow-hover: none;
   --theme-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --theme-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
   --theme-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -568,7 +568,7 @@ html[data-theme-mode="dark"] {
   --surface-shadow: 0 4px 12px rgba(0, 0, 0, 0.34);
   --surface-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.42);
   --button-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
-  --button-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.3);
+  --button-shadow-hover: none;
   --theme-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24);
   --theme-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
   --theme-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.34);
@@ -787,7 +787,7 @@ html[data-theme-mode="dark"]:not([data-theme="dark-executive"]):not(
   border-color: var(--border-strong);
   background: var(--section-bg);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-xs);
+  box-shadow: none;
 }
 
 .profile-mode-toggle.active {

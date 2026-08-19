@@ -25,7 +25,8 @@ function UserHolidays() {
         {
           headers: {
             Authorization: `Bearer ${token}`
-          }
+          },
+          cacheTTL: 5 * 60 * 1000
         }
       );
 

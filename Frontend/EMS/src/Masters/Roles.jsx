@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "./Roles.css";
 import { FaShieldAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +16,9 @@ import {
 const normalizeRoleStatus = (value) =>
 String(value || "").trim().toLowerCase() === "inactive" ? "Inactive" : "Active";
 
+const ROLES_PER_PAGE = 10;
+const EMPLOYEE_USERS_PER_PAGE = 10;
+
 function Roles() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,11 +30,13 @@ function Roles() {
   const [roleEmployees, setRoleEmployees] = useState([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [employeeCurrentPage, setEmployeeCurrentPage] = useState(1);
 
   const [isEdit, setIsEdit] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [deleteRoleId, setDeleteRoleId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [rolesForm, setRolesForm] = useState({
     roleName: "",
@@ -43,6 +48,18 @@ function Roles() {
   useEffect(() => {
     fetchRoles();
   }, []);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(roles.length / ROLES_PER_PAGE));
+
+    setCurrentPage((prevPage) => Math.min(Math.max(prevPage, 1), totalPages));
+  }, [roles.length]);
+
+  const totalPages = Math.max(1, Math.ceil(roles.length / ROLES_PER_PAGE));
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const pageStartIndex = (safeCurrentPage - 1) * ROLES_PER_PAGE;
+  const visibleRoles = roles.slice(pageStartIndex, pageStartIndex + ROLES_PER_PAGE);
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
 
   const fetchRoles = async () => {
     setLoading(true);
@@ -215,6 +232,7 @@ function Roles() {
     setEmployeeModalOpen(true);
     setEmployeeModalRole(role);
     setEmployeeSearch("");
+    setEmployeeCurrentPage(1);
     setRoleEmployees([]);
     setEmployeesLoading(true);
 
@@ -234,6 +252,7 @@ function Roles() {
     setEmployeeModalRole(null);
     setRoleEmployees([]);
     setEmployeeSearch("");
+    setEmployeeCurrentPage(1);
   };
 
   const handleEmployeeSelect = (employee) => {
@@ -256,16 +275,42 @@ function Roles() {
     );
   };
 
-  const filteredEmployees = roleEmployees.filter((employee) => {
+  const filteredEmployees = useMemo(() => {
     const query = employeeSearch.trim().toLowerCase();
 
     if (!query) {
-      return true;
+      return roleEmployees;
     }
 
-    return [employee.employeeId, employee.employeeName, employee.role, employee.status].
-    some((value) => String(value || "").toLowerCase().includes(query));
-  });
+    return roleEmployees.filter((employee) =>
+      [employee.employeeId, employee.employeeName, employee.role, employee.status].
+      some((value) => String(value || "").toLowerCase().includes(query))
+    );
+  }, [roleEmployees, employeeSearch]);
+
+  const employeeTotalPages = Math.max(
+    1,
+    Math.ceil(filteredEmployees.length / EMPLOYEE_USERS_PER_PAGE)
+  );
+  const safeEmployeeCurrentPage = Math.min(
+    Math.max(employeeCurrentPage, 1),
+    employeeTotalPages
+  );
+  const employeePageStartIndex =
+    (safeEmployeeCurrentPage - 1) * EMPLOYEE_USERS_PER_PAGE;
+  const visibleEmployees = filteredEmployees.slice(
+    employeePageStartIndex,
+    employeePageStartIndex + EMPLOYEE_USERS_PER_PAGE
+  );
+  const employeeRangeStart =
+    filteredEmployees.length === 0 ? 0 : employeePageStartIndex + 1;
+  const employeeRangeEnd =
+    filteredEmployees.length === 0 ?
+    0 :
+    Math.min(
+      employeePageStartIndex + EMPLOYEE_USERS_PER_PAGE,
+      filteredEmployees.length
+    );
 
   const resetForm = () => {
     setRolesForm({ roleName: "", status: "Active" });
@@ -377,7 +422,7 @@ function Roles() {
           </thead>
  
           <tbody>
-            {roles.map((r, i) =>
+            {visibleRoles.map((r, i) =>
             <tr
               key={r.roleId || i}
               style={{
@@ -502,8 +547,51 @@ function Roles() {
         </table>
       </div>
  
+      <div className="app-pagination-bar roles-pagination-bar">
+        <div className="app-pagination-info">
+          Showing{" "}
+          <strong>
+            {roles.length === 0 ? 0 : pageStartIndex + 1}
+            -
+            {Math.min(pageStartIndex + ROLES_PER_PAGE, roles.length)}
+          </strong>{" "}
+          of <strong>{roles.length}</strong> roles
+        </div>
+
+        <div className="app-pagination-controls">
+          <button
+            type="button"
+            className="pagination-btn"
+            onClick={() => setCurrentPage((prevPage) => Math.max(prevPage - 1, 1))}
+            disabled={safeCurrentPage === 1 || roles.length === 0}>
+            Previous
+          </button>
+
+          {pageNumbers.map((pageNumber) => (
+            <button
+              key={pageNumber}
+              type="button"
+              className={`pagination-btn ${pageNumber === safeCurrentPage ? "active" : ""}`}
+              onClick={() => setCurrentPage(pageNumber)}
+              aria-current={pageNumber === safeCurrentPage ? "page" : undefined}>
+              {pageNumber}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            className="pagination-btn"
+            onClick={() =>
+              setCurrentPage((prevPage) => Math.min(prevPage + 1, totalPages))
+            }
+            disabled={safeCurrentPage === totalPages || roles.length === 0}>
+            Next
+          </button>
+        </div>
+      </div>
+
       {rolesShowModal &&
-      <div className="roles-modal-overlay">
+      <div className="roles-modal-overlay">
           <div className="roles-modal-container">
             <h3>{isEdit ? "Edit Role" : "Add Role"}</h3>
  
@@ -573,7 +661,10 @@ function Roles() {
             className="roles-employee-search"
             placeholder="Search by employee ID, name, role, or status"
             value={employeeSearch}
-            onChange={(event) => setEmployeeSearch(event.target.value)} />
+            onChange={(event) => {
+              setEmployeeSearch(event.target.value);
+              setEmployeeCurrentPage(1);
+            }} />
           
 
             <div className="roles-employees-table-wrap">
@@ -591,8 +682,8 @@ function Roles() {
                 <tr>
                       <td colSpan={4}>Loading employees...</td>
                     </tr> :
-                filteredEmployees.length > 0 ?
-                filteredEmployees.map((employee) =>
+                visibleEmployees.length > 0 ?
+                visibleEmployees.map((employee) =>
                 <tr
                   key={employee.employeeId || employee.employeeName}
                   onClick={() => handleEmployeeSelect(employee)}>
@@ -621,6 +712,47 @@ function Roles() {
                 </tbody>
               </table>
             </div>
+
+            {!employeesLoading &&
+            <div className="roles-employees-pagination" aria-label="Employee users pagination">
+                <div className="roles-employees-pagination__info">
+                  Page {safeEmployeeCurrentPage} of {employeeTotalPages}{" \u00B7 "}Showing {employeeRangeStart}{"\u2013"}{employeeRangeEnd} of {filteredEmployees.length} employees
+                </div>
+
+                <div className="roles-employees-pagination__controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() =>
+                      setEmployeeCurrentPage((prevPage) => Math.max(prevPage - 1, 1))
+                    }
+                    disabled={safeEmployeeCurrentPage === 1 || filteredEmployees.length === 0}>
+                    Previous
+                  </button>
+
+                  <span
+                    className="pagination-btn active roles-employees-pagination__current-page"
+                    aria-current="page">
+                    {safeEmployeeCurrentPage}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() =>
+                      setEmployeeCurrentPage((prevPage) =>
+                        Math.min(prevPage + 1, employeeTotalPages)
+                      )
+                    }
+                    disabled={
+                      safeEmployeeCurrentPage === employeeTotalPages ||
+                      filteredEmployees.length === 0
+                    }>
+                    Next
+                  </button>
+                </div>
+              </div>
+            }
           </div>
         </div>
       }

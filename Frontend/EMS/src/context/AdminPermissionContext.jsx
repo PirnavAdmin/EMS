@@ -22,7 +22,6 @@ import {
   getAuthenticatedUserSnapshot,
   getStoredAdminEmail,
   getStoredAdminId,
-  getStoredAuthValue,
   getStoredRefreshToken,
   getStoredLoginType,
   getStoredRole,
@@ -43,7 +42,7 @@ import {
   normalizePermissionList,
   isSuperAdmin } from
 "../utils/authorization";
-import { logPermissionCollection, sanitizeForDebug } from "../utils/debugLogging";
+import { logPermissionCollection } from "../utils/debugLogging";
 
 const AdminPermissionContext = createContext(null);
 
@@ -369,26 +368,6 @@ export const AdminPermissionProvider = ({ children }) => {
       currentLoginType ?
       false :
       isAdmin(currentRole);
-      const permissionFlow = isSuperAdminRole ?
-      "superadmin-bypass" :
-      isAdminRole ?
-      "admin-permission" :
-      "no-permission-api";
-      const selectedPermissionApi = isSuperAdminRole ?
-      "none" :
-      isAdminRole ?
-      "/AdminPermission/allowed-modules" :
-      "none";
-
-      console.log("========== MODULE PERMISSION START ==========");
-      console.log(
-        "[PERMISSION] Current User ID:",
-        authSnapshot.adminId || getStoredAdminId() || getStoredAuthValue("userId") || ""
-      );
-      console.log("[PERMISSION] Current Employee ID:", getStoredAuthValue("employeeId") || "");
-      console.log("[PERMISSION] Current Role:", currentRole);
-      console.log("[PERMISSION] Permission API Endpoint:", selectedPermissionApi);
-      console.log("[PERMISSION] Permission Flow:", permissionFlow);
 
       if (isSuperAdminRole) {
 
@@ -451,10 +430,6 @@ export const AdminPermissionProvider = ({ children }) => {
           modules: apiModules
         };
 
-        console.log("[PERMISSION PROCESSING] Raw permissions:", sanitizeForDebug(apiModules));
-        console.log("[PERMISSION PROCESSING] Processed permissions:", sanitizeForDebug(snapshot.modules));
-        console.log("[PERMISSION PROCESSING] Permission state before update:", sanitizeForDebug(allowedModules));
-
         applySnapshot(snapshot);
 
         return apiModules;
@@ -500,10 +475,6 @@ export const AdminPermissionProvider = ({ children }) => {
 
     return () => window.clearTimeout(timer);
   }, [allowedModules.length, refreshPermissions, role, token]);
-
-  useEffect(() => {
-    console.log("[PERMISSION STATE] Updated permissions:", sanitizeForDebug(allowedModules));
-  }, [allowedModules]);
 
   const value = useMemo(
     () => ({

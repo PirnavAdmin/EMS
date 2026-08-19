@@ -1886,7 +1886,7 @@
 
 .add-employee .profile-download-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--surface-success-soft);
+  box-shadow: none;
 }
 
 .add-employee .profile-download-btn:disabled {
@@ -3323,7 +3323,7 @@ html[data-theme-mode="dark"] .add-employee .compact-dropdown-search input {
 .add-employee .add-education-btn:hover,
 .add-employee .add-experience-btn:hover {
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .add-employee .btn.secondary,
@@ -3344,7 +3344,7 @@ html[data-theme-mode="dark"] .add-employee .compact-dropdown-search input {
   background: var(--bg-muted);
   color: var(--text-strong);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .add-employee .remove-btn {

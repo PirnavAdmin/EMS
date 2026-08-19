@@ -151,19 +151,11 @@ export default function LoginLeft() {
 
     for (const endpoint of endpoints) {
       try {
-        if (endpoint === API_ENDPOINTS.auth.userLogin) {
-          console.log("[LOGIN] Calling:", endpoint);
-        }
-
         const response = await api.post(endpoint, payload, authRequestOptions);
 
         return { response, endpoint };
       } catch (error) {
         lastError = error;
-
-        if (endpoint === API_ENDPOINTS.auth.userLogin) {
-          console.error("[LOGIN ERROR]", error?.response?.data);
-        }
 
         if (
         endpoint !== API_ENDPOINTS.auth.userLogin &&
@@ -239,10 +231,6 @@ export default function LoginLeft() {
       const loginEndpoint = loginResult?.endpoint || "";
 
       if (response.status !== 200 || !response.data?.token) {
-        if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
-          console.error("[LOGIN ERROR]", response?.data);
-        }
-
         throw new Error(response.data?.message || `Login failed (${response.status})`);
       }
 
@@ -404,29 +392,15 @@ export default function LoginLeft() {
       }
 
       if (!authenticatedRole && !isOnboardingLogin) {
-        if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
-          console.error("[LOGIN ERROR]", response?.data);
-        }
-
         throw new Error(
           "Login failed: Role information is missing from the authentication response."
         );
       }
 
       if (!roleName && !isOnboardingLogin) {
-        if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
-          console.error("[LOGIN ERROR]", response?.data);
-        }
-
         throw new Error(
           "Login failed: Role name is missing from the authentication response."
         );
-      }
-
-      if (loginEndpoint === API_ENDPOINTS.auth.userLogin) {
-        console.log("[LOGIN] Success:", response?.data);
-        console.log("[LOGIN] User ID:", response?.data?.userId);
-        console.log("[LOGIN] Role:", response?.data?.role);
       }
 
       const isSuperAdminLogin = loginType === "super-admin";

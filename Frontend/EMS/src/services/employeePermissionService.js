@@ -13,9 +13,7 @@ import {
 "../utils/authStorage";
 import {
   logApiError,
-  logPermissionCollection,
-  sanitizeForDebug,
-  summarizeAxiosResponse } from
+  logPermissionCollection } from
 "../utils/debugLogging";
 
 const normalizeId = (value) => String(value ?? "").trim();
@@ -172,9 +170,6 @@ const requestAllowedModules = async ({
   trim().
   toLowerCase().
   replace(/[\s_-]+/g, "");
-  console.log("[PERMISSION] Permission Flow:", permissionFlow);
-  console.log("[PERMISSION] Normalized Role:", normalizedRole);
-
   if (!isEmployee(loggedInRole)) {
     return persistEmployeePermissions({
       userId: getStoredEmployeeId() || "",
@@ -211,22 +206,12 @@ const requestAllowedModules = async ({
   }
 
   try {
-    console.log("========== MODULE PERMISSION START ==========");
-    console.log("[PERMISSION] Current User ID:", resolvedEmployeeId || getStoredEmployeeId() || "");
-    console.log("[PERMISSION] Current Employee ID:", resolvedEmployeeId || getStoredEmployeeId() || "");
-    console.log("[PERMISSION] Current Role:", loggedInRole || "");
-    console.log("[PERMISSION] Permission API Endpoint:", endpoint);
-
     const response = await api.get(endpoint, {
       headers: {
         Accept: "application/json"
       },
       skipAuthFailureHandling: true
     });
-
-    console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
-    console.log("[PERMISSION API] Status:", response?.status);
-    console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
 
     const normalizedSnapshot = normalizeEmployeePermissionSnapshot(response.data, {
       userId: resolvedEmployeeId,

@@ -1569,7 +1569,9 @@ function AllTicketsPage({ scope = "admin" }) {
     const loadEmployees = async () => {
       try {
         setEmployeesLoading(true);
-        const response = await api.get(API_ENDPOINTS.employees.list);
+        const response = await api.get(API_ENDPOINTS.employees.list, {
+          cacheTTL: 60 * 1000
+        });
         const records = extractCollection(response.data).map((employee) =>
         normalizeEmployeeOption(employee)
         );

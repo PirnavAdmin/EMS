@@ -4,9 +4,7 @@ import { extractCollection } from "../utils/collections";
 import { toBoolean } from "../utils/boolean";
 import {
   logApiError,
-  logPermissionCollection,
-  sanitizeForDebug,
-  summarizeAxiosResponse } from
+  logPermissionCollection } from
 "../utils/debugLogging";
 import { normalizePermissionList } from "./permissionService";
 
@@ -252,18 +250,12 @@ export const fetchAllowedRoleModules = async ({
   }
 
   try {
-    console.log("[PERMISSION API] Endpoint:", endpoint);
-
     const response = await api.get(endpoint, {
       headers: {
         Accept: "application/json",
       },
       skipAuthFailureHandling: true,
     });
-
-    console.log("[PERMISSION API] Response:", summarizeAxiosResponse(response));
-    console.log("[PERMISSION API] Status:", response?.status);
-    console.log("[PERMISSION API] Response Data:", sanitizeForDebug(response?.data));
 
     const snapshot = normalizeRolePermissionSnapshot(response.data, {
       roleName: resolvedRole,

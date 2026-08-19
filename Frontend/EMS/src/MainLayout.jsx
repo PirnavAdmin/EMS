@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { App as CapApp } from "@capacitor/app";
 import Sidebar from "./Sidebar/Sidebar";
 import Header from "./dashboard/Header";
@@ -8,17 +8,7 @@ import { getStoredToken } from "./utils/authStorage";
 import { handleAutoLogout, isSessionExpired, startSessionTimer, clearSessionTimer } from "./utils/sessionManager";
 
 function MainLayout({ permissionScope }) {
-  const location = useLocation();
   const { loadingPermissions, error, errorStatus, refreshPermissions } = permissionScope;
-  const permissionScopeName = permissionScope?.permissionScope;
-  const permissionFlow = permissionScope?.permissionFlow;
-  const loginType = permissionScope?.loginType;
-  const allowedModules = Array.isArray(permissionScope?.allowedModules) ?
-  permissionScope.allowedModules :
-  [];
-  const permissionErrorMessage =
-  typeof error === "string" ? error : error?.message || "";
-  const hasPermissionError = Boolean(error);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -39,20 +29,6 @@ function MainLayout({ permissionScope }) {
     startSessionTimer();
     return undefined;
   }, []);
-
-  useEffect(() => {
-
-  }, [
-  location.pathname,
-  loadingPermissions,
-  errorStatus,
-  hasPermissionError,
-  permissionScopeName,
-  loginType,
-  permissionFlow,
-  allowedModules,
-  permissionErrorMessage]
-  );
 
   useEffect(() => {
     let listener;
@@ -146,7 +122,6 @@ function MainLayout({ permissionScope }) {
       className="app-layout">
       
       <Sidebar
-        key={location.pathname}
         collapsed={collapsed} />
       
 

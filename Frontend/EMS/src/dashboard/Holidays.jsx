@@ -68,6 +68,7 @@ function Holidays({ holidays: dashboardHolidays }) {
       try {
         const res = await api.get(API_ENDPOINTS.company.holidays.list, {
           signal: controller.signal,
+          cacheTTL: 5 * 60 * 1000
         });
 
         const data = extractCollection(res.data);

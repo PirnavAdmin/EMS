@@ -200,7 +200,7 @@
 .settings-sidebar-item:hover {
   transform: translateY(-1px);
   border-color: var(--border-strong);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .settings-nav-item.active,
@@ -979,7 +979,7 @@ input[type="number"].settings-input::-webkit-inner-spin-button,
 .settings-icon-button:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: var(--border-strong);
-  box-shadow: var(--button-shadow);
+  box-shadow: none;
 }
 
 .settings-icon-button:disabled {

@@ -211,11 +211,6 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
         }
       }, 800);
     } catch (error) {
-      console.error(
-        "Bank / Salary API Error:",
-        error?.response?.data || error?.message
-      );
-
       setApiError(
         error?.response?.data?.message ||
         error?.response?.data?.error ||

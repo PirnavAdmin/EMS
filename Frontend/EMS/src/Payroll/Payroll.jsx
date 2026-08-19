@@ -12,6 +12,7 @@ import {
   logPerformanceError,
   startPerformanceTimer } from
 "../utils/performance";
+import { toastError, toastSuccess } from "../components/common/Toast/toastService";
 import { FiDownload, FiLoader, FiTrash2 } from "react-icons/fi";
 
 const PAYROLL_MONTHS = [
@@ -479,6 +480,26 @@ PAYROLL_MONTHS.includes(String(value ?? "").trim());
 const isValidPayrollYear = (value) => {
   const normalizedYear = Number(value);
   return Number.isInteger(normalizedYear) && normalizedYear >= 1900 && normalizedYear <= 2100;
+};
+
+const isPayrollPeriodInPast = (selectedMonthName, selectedYear, currentMonthNumber, currentYear) => {
+  const selectedMonthNumber = PAYROLL_MONTHS.findIndex(
+    (month) => month === String(selectedMonthName ?? "").trim()
+  ) + 1;
+
+  if (!Number.isInteger(selectedMonthNumber) || selectedMonthNumber <= 0) {
+    return false;
+  }
+
+  if (selectedYear < currentYear) {
+    return true;
+  }
+
+  if (selectedYear > currentYear) {
+    return false;
+  }
+
+  return selectedMonthNumber < currentMonthNumber;
 };
 
 const formatBulkBatchFailureSummary = (failedBatches) => {
@@ -1021,16 +1042,35 @@ function Payroll() {
     );
 
     if (employeeIds.length === 0) {
+      setSuccessMsg("");
       setErrorMsg("Please select employee(s)");
       return;
     }
 
     const normalizedMonth = String(month ?? "").trim();
     const normalizedYear = Number(year);
-    const payrollPeriodLabel = `${normalizedMonth} ${normalizedYear}`;
 
     if (!isValidPayrollMonth(normalizedMonth) || !isValidPayrollYear(normalizedYear)) {
+      setSuccessMsg("");
       setErrorMsg("Please select a valid payroll month and year.");
+      return;
+    }
+
+    const currentSystemDate = new Date();
+    const currentMonthNumber = currentSystemDate.getMonth() + 1;
+    const currentYearNumber = currentSystemDate.getFullYear();
+
+    if (!isPayrollPeriodInPast(
+      normalizedMonth,
+      normalizedYear,
+      currentMonthNumber,
+      currentYearNumber
+    )) {
+      setSuccessMsg("");
+      const currentFutureMonthError =
+      "Payslip cannot be generated for the current or future month. Please select a previous month.";
+      setErrorMsg(currentFutureMonthError);
+      toastError(currentFutureMonthError);
       return;
     }
 
@@ -1048,9 +1088,6 @@ function Payroll() {
         selectedStandardPeriod
       );
       const rollingPeriodLabel = formatPayrollPeriodListLabel(rollingPeriods);
-      const rollingPeriodCountLabel = formatPayrollPeriodCountLabel(
-        rollingPeriods.length
-      );
       const bulkRequestMonths = rollingPeriods.map((period) => period.month);
       const totalRequestJobs = bulkBatches.length;
       const failedEmployeeIdSet = new Set();
@@ -1064,6 +1101,7 @@ function Payroll() {
 
       try {
         if (rollingPeriods.length === 0) {
+          setSuccessMsg("");
           setErrorMsg("Please select a valid payroll month and year.");
           return;
         }
@@ -1235,23 +1273,7 @@ function Payroll() {
         const totalDurationMs = Math.round(
           performance.now() - generationStartedAt
         );
-        const summaryParts = [];
 
-        if (generatedCount > 0) {
-          summaryParts.push(`${generatedCount} generated`);
-        }
-
-        if (skippedCount > 0) {
-          summaryParts.push(`${skippedCount} skipped`);
-        }
-
-        if (failedCount > 0) {
-          summaryParts.push(`${failedCount} failed`);
-        }
-
-        const successMessage = summaryParts.length > 0 ?
-        `Payslip generation completed for ${totalEmployees} ${totalEmployees === 1 ? "employee" : "employees"} across ${rollingPeriodCountLabel}. (${summaryParts.join(", ")}).` :
-        `Payslips generated successfully for ${totalEmployees} ${totalEmployees === 1 ? "employee" : "employees"} across ${rollingPeriodCountLabel}.`;
         const hasSuccessfulWork = generatedCount > 0 || skippedCount > 0;
         const hasFailures = failedCount > 0 || failedBatches.length > 0;
         const failureMessageParts = [];
@@ -1292,7 +1314,8 @@ function Payroll() {
 
         if (hasFailures) {
           if (hasSuccessfulWork) {
-            setSuccessMsg(successMessage);
+            setSuccessMsg("Payslip generated successfully.");
+            toastSuccess("Payslip generated successfully.");
           } else {
             setSuccessMsg("");
           }
@@ -1305,7 +1328,8 @@ function Payroll() {
 
           );
         } else {
-          setSuccessMsg(successMessage);
+          setSuccessMsg("Payslip generated successfully.");
+          toastSuccess("Payslip generated successfully.");
           setErrorMsg("");
         }
 
@@ -1503,14 +1527,12 @@ function Payroll() {
       });
 
       if (failedItems.length > 0) {
-        setSuccessMsg(
-          `Manual payslips generated for ${totalEmployees} employee(s) for ${payrollPeriodLabel}.`
-        );
+        setSuccessMsg("");
         setErrorMsg(failureSummary);
       } else {
-        setSuccessMsg(
-          `Manual payslips generated for ${totalEmployees} employee(s) for ${payrollPeriodLabel}.`
-        );
+        setSuccessMsg("Payslip generated successfully.");
+        toastSuccess("Payslip generated successfully.");
+        setErrorMsg("");
       }
     } catch (error) {
       logPerformanceError("Generate Error:", error.response?.data || error.message);
@@ -1839,21 +1861,30 @@ function Payroll() {
   `Generate ${selectedEmployees.length} ${selectedEmployees.length === 1 ? "Employee" : "Employees"} - ${selectedPayrollPeriodCountLabel}`;
 
   return (
-    <div className="payroll-page">
-      {/* LEFT PANEL */}
-      <div className={`employee-panel ${generating ? "panel-disabled" : ""}`}>
-        <div className="payroll-header">
-          <h2>Payroll</h2>
-        </div>
+    <div className="payroll-page">
+
+      {/* LEFT PANEL */}
+
+      <div className={`employee-panel ${generating ? "panel-disabled" : ""}`}>
+
+        <div className="payroll-header">
+
+          <h2>Payroll</h2>
+
+        </div>
+
         <input
           className="search-box"
           placeholder="Search by name, email, or ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           disabled={generating} />
-        
-
-        <div className="select-all-row">
+        
+
+
+
+        <div className="select-all-row">
+
               <label className="select-all-label">
                 <input
               type="checkbox"
@@ -1867,7 +1898,8 @@ function Payroll() {
                 </span>
               </label>
             </div>
-
+
+
         <div className="employee-list">
           {paginatedEmployees.map((emp) => {
             const normalizedEmployeeKey = normalizeEmployeeIdentifier(emp.employee_Id);
@@ -1879,7 +1911,8 @@ function Payroll() {
                 key={emp.employee_Id}
                 className={`employee-card ${isActive ? "active" : ""} ${generating ? "disabled-card" : ""}`}
                 onClick={() => handleCardClick(emp)}>
-                
+                
+
                 <input
                   type="checkbox"
                   checked={isChecked}
@@ -1889,17 +1922,28 @@ function Payroll() {
                     handleToggleEmployee(emp.employee_Id);
                   }}
                   onClick={(e) => e.stopPropagation()} />
-                
-                <div className="employee-card-body">
-                  <div className="employee-card-name">
-                    {emp.name}
-                  </div>
-
-                  <p className="employee-card-id">
-                    {emp.employee_Id}
-                  </p>
-                </div>
-                <span className="dept">{emp.department}</span>
+                
+
+                <div className="employee-card-body">
+
+                  <div className="employee-card-name">
+
+                    {emp.name}
+
+                  </div>
+
+
+
+                  <p className="employee-card-id">
+
+                    {emp.employee_Id}
+
+                  </p>
+
+                </div>
+
+                <span className="dept">{emp.department}</span>
+
               </div>);
 
           })}
@@ -1917,9 +1961,12 @@ function Payroll() {
           className="payroll-employee-pagination" />
         
       </div>
-
-      {/* RIGHT PANEL */}
-      <div className="payroll-content">
+
+
+      {/* RIGHT PANEL */}
+
+      <div className="payroll-content">
+
         {generating &&
         <div className="generation-overlay">
             <div className="generation-loader"></div>
@@ -1930,76 +1977,124 @@ function Payroll() {
                   {generationProgress.completed} / {generationProgress.total} completed
                 </span>
             }
-            </div>
+            </div>
+
           </div>
-        }
-
-        <div className={`employee-header ${generating ? "panel-disabled" : ""}`}>
+        }
+
+
+
+        <div className={`employee-header ${generating ? "panel-disabled" : ""}`}>
+
           {!isBulkMode ?
-          <>
-              <div className={`avatar ${selectedEmployees.length === 0 ? "bulk-avatar" : ""}`}>
-                {selectionAvatarText}
-              </div>
-              <div className="employee-header-info">
-                <h3>{selectionTitle}</h3>
-                <p className="employee-header-subtitle">{selectionSubtitle}</p>
-                <p>
-                  {previewEmployee?.employee_Id || "-"} {" • "}
-                  {previewEmployee?.department || "-"} {" • "}
-                  CTC {formatCurrency(previewEmployee?.ctc, true)} {" • "}
-                  Joined {formatDate(previewEmployee?.joiningDate)}
-                </p>
-              </div>
+          <>
+
+              <div className={`avatar ${selectedEmployees.length === 0 ? "bulk-avatar" : ""}`}>
+
+                {selectionAvatarText}
+
+              </div>
+
+              <div className="employee-header-info">
+
+                <h3>{selectionTitle}</h3>
+
+                <p className="employee-header-subtitle">{selectionSubtitle}</p>
+
+                <p>
+
+                  {previewEmployee?.employee_Id || "-"} {" • "}
+
+                  {previewEmployee?.department || "-"} {" • "}
+
+                  CTC {formatCurrency(previewEmployee?.ctc, true)} {" • "}
+
+                  Joined {formatDate(previewEmployee?.joiningDate)}
+
+                </p>
+
+              </div>
+
             </> :
 
-          <>
-              <div className="avatar bulk-avatar">{selectedEmployees.length}</div>
-              <div className="employee-header-info">
-                <h3>{selectionTitle}</h3>
-                <p className="employee-header-subtitle">{selectionSubtitle}</p>
-                <p>
-                  Bulk generation mode •{" "}
+          <>
+
+              <div className="avatar bulk-avatar">{selectedEmployees.length}</div>
+
+              <div className="employee-header-info">
+
+                <h3>{selectionTitle}</h3>
+
+                <p className="employee-header-subtitle">{selectionSubtitle}</p>
+
+                <p>
+
+                  Bulk generation mode •{" "}
+
                   {selectedEmployeeObjects.
                 slice(0, 3).
                 map((e) => e.name).
-                join(", ")}
+                join(", ")}
+
                   {selectedEmployeeObjects.length > 3 ?
                 ` +${selectedEmployeeObjects.length - 3} more` :
-                ""}
-                </p>
-              </div>
+                ""}
+
+                </p>
+
+              </div>
+
             </>
-          }
-
-          <div className="mode-dropdown-wrapper payroll-filter-wrapper">
-            <label>Payslip Mode</label>
+          }
+
+
+
+          <div className="mode-dropdown-wrapper payroll-filter-wrapper">
+
+            <label>Payslip Mode</label>
+
             <select
               value={generationMode}
               onChange={(e) => setGenerationMode(e.target.value)}
               className="mode-dropdown payroll-filter-select payroll-mode-select"
               disabled={generating}>
-              
-              <option value="auto">Auto Payslip</option>
-              <option value="manual">Manual Payslip</option>
-            </select>
-          </div>
-        </div>
-
-        {(successMsg || errorMsg) &&
-        <div className="payroll-generation-messages">
-            {successMsg && <div className="success-message">{successMsg}</div>}
-            {errorMsg && <div className="error-message">{errorMsg}</div>}
+              
+
+              <option value="auto">Auto Payslip</option>
+
+              <option value="manual">Manual Payslip</option>
+
+            </select>
+
           </div>
-        }
-
+
+        </div>
+
+
+
+        {(successMsg || errorMsg) &&
+        <div className="payroll-generation-messages">
+
+            {successMsg && <div className="success-message">{successMsg}</div>}
+
+            {errorMsg && <div className="error-message">{errorMsg}</div>}
+
+          </div>
+        }
+
+
+
         {/* AUTO MODE */}
         {generationMode === "auto" &&
         <>
             <div className="ctc-card">
               <div className="payroll-deduction-grid">
-
-                <div className="payroll-input-group">
-                  <label>DEDUCTION (₹)</label>
+
+
+                <div className="payroll-input-group">
+
+                  <label>DEDUCTION (₹)</label>
+
                   <input
                   type="number"
                   min="0"
@@ -2007,14 +2102,22 @@ function Payroll() {
                   onChange={(e) => setDeduction(e.target.value)}
                   placeholder="Enter Deduction"
                   disabled={generating} />
-                
-                  <small className="helper-text">
-                    Current Deduction: ₹{Number(deduction) || 0}
-                  </small>
-                </div>
-
-                <div className="payroll-input-group">
-                  <label>TDS (%)</label>
+                
+
+                  <small className="helper-text">
+
+                    Current Deduction: ₹{Number(deduction) || 0}
+
+                  </small>
+
+                </div>
+
+
+
+                <div className="payroll-input-group">
+
+                  <label>TDS (%)</label>
+
                   <input
                   type="number"
                   min="0"
@@ -2023,14 +2126,22 @@ function Payroll() {
                   onChange={(e) => setTdsPercentage(e.target.value)}
                   placeholder="Enter TDS Percentage"
                   disabled={generating} />
-                
-                  <small className="helper-text">
-                    Current TDS: {Number(tdsPercentage) || 0}%
-                  </small>
-                </div>
-
-              </div>
-            </div>
+                
+
+                  <small className="helper-text">
+
+                    Current TDS: {Number(tdsPercentage) || 0}%
+
+                  </small>
+
+                </div>
+
+
+
+              </div>
+
+            </div>
+
 
             <div className="generate-card">
               <h4>
@@ -2094,64 +2205,105 @@ function Payroll() {
               className="generate-btn"
               onClick={handleGeneratePayslip}
               disabled={generating || selectedEmployees.length === 0}>
-              
-                {generating ? "Generating..." : generateButtonLabel}
-              </button>
-            </div>
+              
+
+                {generating ? "Generating..." : generateButtonLabel}
+
+              </button>
+
+            </div>
+
           </>
-        }
-
-        {/* MANUAL MODE */}
+        }
+
+
+
+        {/* MANUAL MODE */}
+
         {generationMode === "manual" &&
-        <div className="generate-card">
-            <h4>
-              Manual Payslip Generation
-              <span className="selected-badge">
-                {generationBadgeText}
-              </span>
-            </h4>
-            <div className="period-section manual-top-controls payroll-filter-wrapper">
-              <div className="specific-period payroll-filter-group payroll-period-group">
-                <label>PAYSLIP MONTH</label>
-                <div className="period-buttons payroll-period-controls">
+        <div className="generate-card">
+
+            <h4>
+
+              Manual Payslip Generation
+
+              <span className="selected-badge">
+
+                {generationBadgeText}
+
+              </span>
+
+            </h4>
+
+            <div className="period-section manual-top-controls payroll-filter-wrapper">
+
+              <div className="specific-period payroll-filter-group payroll-period-group">
+
+                <label>PAYSLIP MONTH</label>
+
+                <div className="period-buttons payroll-period-controls">
+
                   <select
                   value={month}
                   onChange={(e) => setMonth(e.target.value)}
                   disabled={generating}
                   className="payroll-filter-select payroll-period-select">
-                  
+                  
+
                     {months.map((m) =>
-                  <option key={m} value={m}>
-                        {m}
+                  <option key={m} value={m}>
+
+                        {m}
+
                       </option>
-                  )}
-                  </select>
-                </div>
-              </div>
-
-              <div className="specific-period payroll-filter-group payroll-period-group">
-                <label>PAYSLIP YEAR</label>
-                <div className="period-buttons payroll-period-controls">
+                  )}
+
+                  </select>
+
+                </div>
+
+              </div>
+
+
+
+              <div className="specific-period payroll-filter-group payroll-period-group">
+
+                <label>PAYSLIP YEAR</label>
+
+                <div className="period-buttons payroll-period-controls">
+
                   <select
                   value={year}
                   onChange={(e) => setYear(parseInt(e.target.value))}
                   disabled={generating}
                   className="payroll-filter-select payroll-period-select">
-                  
+                  
+
                     {years.map((y) =>
-                  <option key={y} value={y}>
-                        {y}
+                  <option key={y} value={y}>
+
+                        {y}
+
                       </option>
-                  )}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="manual-fields-grid">
+                  )}
+
+                  </select>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+
+            <div className="manual-fields-grid">
+
               {MANUAL_FIELDS.map(([name, label]) =>
-            <div key={name} className="manual-field">
-                  <label>{label}</label>
+            <div key={name} className="manual-field">
+
+                  <label>{label}</label>
+
                   <input
                 type="number"
                 min="0"
@@ -2160,116 +2312,194 @@ function Payroll() {
                 onChange={handleManualInputChange}
                 placeholder={`Enter ${label}`}
                 disabled={generating} />
-              
+              
+
                 </div>
-            )}
-            </div>
-
+            )}
+
+            </div>
+
+
+
             <button
             className="generate-btn manual-generate-btn"
             onClick={handleGeneratePayslip}
             disabled={generating || selectedEmployees.length === 0}>
-            
-              {generating ? "Generating..." : generateButtonLabel}
-            </button>
+            
+
+              {generating ? "Generating..." : generateButtonLabel}
+
+            </button>
+
           </div>
-        }
-
-        {/* RECENT PAYSLIPS TABLE */}
-        <div className="recent-table">
-          <div className="recent-table-header">
-            <div className="recent-table-title-group">
-              <h4>Recently Generated</h4>
-
+        }
+
+
+
+        {/* RECENT PAYSLIPS TABLE */}
+
+        <div className="recent-table">
+
+          <div className="recent-table-header">
+
+            <div className="recent-table-title-group">
+
+              <h4>Recently Generated</h4>
+
+
+
               <button
                 disabled={isSalaryDownloading}
                 onClick={handleDownloadSalaryRegister}
                 className="payroll-report-btn">
-                
+                
+
                 {isSalaryDownloading ?
                 "Downloading..." :
-                "Download Monthly Report"}
-              </button>
-
+                "Download Monthly Report"}
+
+              </button>
+
+
+
               <button
                 disabled={isSendingPayslipEmails}
                 onClick={handleSendPayslipEmails}
                 className="payroll-report-btn">
-                
+                
+
                 {isSendingPayslipEmails ?
                 "Sending..." :
-                "Send Payslip Emails"}
-              </button>
-            </div>
-
-            <div className="recent-filters payroll-filter-wrapper">
+                "Send Payslip Emails"}
+
+              </button>
+
+            </div>
+
+
+
+            <div className="recent-filters payroll-filter-wrapper">
+
               <select
                 value={recentFilterMonth}
                 onChange={(e) => setRecentFilterMonth(e.target.value)}
                 disabled={generating || recentLoading}
                 className="payroll-filter-select payroll-report-filter-select">
-                
-                <option value="All">All Months</option>
+                
+
+                <option value="All">All Months</option>
+
                 {months.map((m) =>
-                <option key={m} value={m}>
-                    {m}
+                <option key={m} value={m}>
+
+                    {m}
+
                   </option>
-                )}
-              </select>
-
+                )}
+
+              </select>
+
+
+
               <select
                 value={recentFilterYear}
                 onChange={(e) => setRecentFilterYear(e.target.value)}
                 disabled={generating || recentLoading}
                 className="payroll-filter-select payroll-report-filter-select">
-                
-                <option value="All">All Years</option>
+                
+
+                <option value="All">All Years</option>
+
                 {years.map((y) =>
-                <option key={y} value={String(y)}>
-                    {y}
+                <option key={y} value={String(y)}>
+
+                    {y}
+
                   </option>
-                )}
-              </select>
-
-            </div>
-          </div>
-
-          <div className="payroll-scroll-hint">
-            Scroll horizontally to view more payroll details
-          </div>
-
-          <div className="table-scroll payroll-table-shell">
-            <table className="payroll-table">
-              {/* TABLE HEADER */}
-              <thead className="payroll-table-head">
-                <tr>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--left payroll-sticky-column payroll-col-employee">
-                    Employee
-                  </th>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-department">
-                    Department
-                  </th>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-period">
-                    Period
-                  </th>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--right payroll-col-netpay">
-                    Net Pay
-                  </th>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-deduction">
-                    Deduction
-                  </th>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-ctc">
-                    CTC
-                  </th>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-generated">
-                    Generated
-                  </th>
-                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-actions">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
+                )}
+
+              </select>
+
+
+
+            </div>
+
+          </div>
+
+
+
+          <div className="payroll-scroll-hint">
+
+            Scroll horizontally to view more payroll details
+
+          </div>
+
+
+
+          <div className="table-scroll payroll-table-shell">
+
+            <table className="payroll-table">
+
+              {/* TABLE HEADER */}
+
+              <thead className="payroll-table-head">
+
+                <tr>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--left payroll-sticky-column payroll-col-employee">
+
+                    Employee
+
+                  </th>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-department">
+
+                    Department
+
+                  </th>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-period">
+
+                    Period
+
+                  </th>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--right payroll-col-netpay">
+
+                    Net Pay
+
+                  </th>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-deduction">
+
+                    Deduction
+
+                  </th>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-ctc">
+
+                    CTC
+
+                  </th>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-generated">
+
+                    Generated
+
+                  </th>
+
+                  <th className="payroll-table-header payroll-header-cell payroll-header-cell--center payroll-col-actions">
+
+                    Actions
+
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+
               {/* TABLE BODY */}
               <tbody>
                 {recentLoading ?
@@ -2290,10 +2520,14 @@ function Payroll() {
                     </td>
                   </tr> :
                 paginatedRecentPayslips.length === 0 ?
-                <tr>
-                    <td colSpan="8" className="payroll-empty-state">
-                      No Payslips Generated
-                    </td>
+                <tr>
+
+                    <td colSpan="8" className="payroll-empty-state">
+
+                      No Payslips Generated
+
+                    </td>
+
                   </tr> :
 
                 paginatedRecentPayslips.map((p, index) => {
@@ -2303,59 +2537,106 @@ function Payroll() {
                   const ctcValue = getCtcValue(p, emp);
 
                   return (
-                    <tr key={p.id || index} className="payroll-table-row">
-                        {/* EMPLOYEE */}
-                        <td className="payroll-table-cell payroll-employee-cell payroll-sticky-column payroll-col-employee">
-                          <div className="payroll-employee-content">
-                            <div className="payroll-employee-name">
-                              {emp?.name || p.employeeName || p.employeeId}
-                            </div>
-
-                            <div className="payroll-employee-id">
-                              {p.employeeId}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* DEPARTMENT */}
-                        <td className="payroll-table-cell payroll-department-cell payroll-col-department">
-                          {emp?.department || p.department || "-"}
-                        </td>
-
-                        {/* PERIOD */}
-                        <td className="payroll-table-cell payroll-period-cell payroll-col-period">
-                          {p.month || "-"} {p.year || ""}
-                        </td>
-
-                        {/* NET PAY */}
-                        <td className="payroll-table-cell payroll-currency-cell payroll-netpay-cell payroll-col-netpay">
-                          {formatCurrency(p.netPay, true)}
-                        </td>
-
-                        {/* DEDUCTION */}
-                        <td className="payroll-table-cell payroll-currency-cell payroll-deduction-cell payroll-col-deduction">
+                    <tr key={p.id || index} className="payroll-table-row">
+
+                        {/* EMPLOYEE */}
+
+                        <td className="payroll-table-cell payroll-employee-cell payroll-sticky-column payroll-col-employee">
+
+                          <div className="payroll-employee-content">
+
+                            <div className="payroll-employee-name">
+
+                              {emp?.name || p.employeeName || p.employeeId}
+
+                            </div>
+
+
+
+                            <div className="payroll-employee-id">
+
+                              {p.employeeId}
+
+                            </div>
+
+                          </div>
+
+                        </td>
+
+
+
+                        {/* DEPARTMENT */}
+
+                        <td className="payroll-table-cell payroll-department-cell payroll-col-department">
+
+                          {emp?.department || p.department || "-"}
+
+                        </td>
+
+
+
+                        {/* PERIOD */}
+
+                        <td className="payroll-table-cell payroll-period-cell payroll-col-period">
+
+                          {p.month || "-"} {p.year || ""}
+
+                        </td>
+
+
+
+                        {/* NET PAY */}
+
+                        <td className="payroll-table-cell payroll-currency-cell payroll-netpay-cell payroll-col-netpay">
+
+                          {formatCurrency(p.netPay, true)}
+
+                        </td>
+
+
+
+                        {/* DEDUCTION */}
+
+                        <td className="payroll-table-cell payroll-currency-cell payroll-deduction-cell payroll-col-deduction">
+
                           {formatCurrency(
                           p.OtherDeductions ??
                           p.otherDeductions ??
                           p.deduction ??
                           0,
                           true
-                        )}
-                        </td>
-
-                        {/* CTC */}
-                        <td className="payroll-table-cell payroll-currency-cell payroll-ctc-cell payroll-col-ctc">
-                          {formatCurrency(ctcValue, true)}
-                        </td>
-
-                        {/* GENERATED */}
-                        <td className="payroll-table-cell payroll-generated-cell payroll-col-generated">
-                          {formatGeneratedDate(p.parsedGeneratedDate)}
-                        </td>
-
-                        {/* ACTION */}
-                        <td className="payroll-table-cell payroll-actions-cell payroll-col-actions">
-                          <div className="payroll-actions">
+                        )}
+
+                        </td>
+
+
+
+                        {/* CTC */}
+
+                        <td className="payroll-table-cell payroll-currency-cell payroll-ctc-cell payroll-col-ctc">
+
+                          {formatCurrency(ctcValue, true)}
+
+                        </td>
+
+
+
+                        {/* GENERATED */}
+
+                        <td className="payroll-table-cell payroll-generated-cell payroll-col-generated">
+
+                          {formatGeneratedDate(p.parsedGeneratedDate)}
+
+                        </td>
+
+
+
+                        {/* ACTION */}
+
+                        <td className="payroll-table-cell payroll-actions-cell payroll-col-actions">
+
+                          <div className="payroll-actions">
+
                             <button
                             type="button"
                             className="payroll-action-btn payroll-download-btn"
@@ -2363,9 +2644,12 @@ function Payroll() {
                             disabled={isDeletingRow}
                             title="Download Payslip"
                             aria-label={`Download payslip for ${emp?.name || p.employeeName || p.employeeId || "employee"}`}>
-                            
-                              <FiDownload aria-hidden="true" focusable="false" />
-                            </button>
+                            
+
+                              <FiDownload aria-hidden="true" focusable="false" />
+
+                            </button>
+
                             <button
                             type="button"
                             className="payroll-action-btn payroll-delete-btn"
@@ -2373,23 +2657,33 @@ function Payroll() {
                             disabled={isDeletingRow || p.id == null}
                             title={isDeletingRow ? "Deleting Payslip..." : "Delete Payslip"}
                             aria-label={`Delete payslip for ${emp?.name || p.employeeName || p.employeeId || "employee"}`}>
-                            
+                            
+
                               {isDeletingRow ?
                             <FiLoader className="payroll-action-spinner" aria-hidden="true" focusable="false" /> :
 
                             <FiTrash2 aria-hidden="true" focusable="false" />
-                            }
-                            </button>
-                          </div>
-                        </td>
+                            }
+
+                            </button>
+
+                          </div>
+
+                        </td>
+
                       </tr>);
 
                 })
-                }
-              </tbody>
-            </table>
-          </div>
-
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+
+
           <AppPagination
             totalItems={recentTotalCount}
             currentPage={recentPage}
@@ -2400,87 +2694,140 @@ function Payroll() {
             itemLabel="payslips"
             pageNumberDisplay="first-and-current" />
           
-        </div>
-
+        </div>
+
+
+
         {deleteTarget &&
         <div
           className="delete-overlay payroll-delete-overlay"
           role="presentation"
           onClick={closeDeleteModal}>
-          
+          
+
             <div
             className="delete-modal payroll-delete-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="payroll-delete-title"
             onClick={(event) => event.stopPropagation()}>
-            
-              <div className="payroll-delete-header">
-                <h3 id="payroll-delete-title" className="payroll-delete-title">
-                  Delete Payslip
-                </h3>
-              </div>
-
-              <div className="payroll-delete-body">
-                <p className="payroll-delete-message">
-                  Are you sure you want to delete this payslip?
-                </p>
-
-                <div className="payroll-delete-summary">
-                  <div className="payroll-delete-summary-row">
-                    <span className="payroll-delete-summary-label">Employee:</span>
-                    <span className="payroll-delete-summary-value">{deleteTargetEmployeeName}</span>
-                  </div>
-                  <div className="payroll-delete-summary-row">
-                    <span className="payroll-delete-summary-label">Month:</span>
-                    <span className="payroll-delete-summary-value">{deleteTargetMonth}</span>
-                  </div>
-                  <div className="payroll-delete-summary-row">
-                    <span className="payroll-delete-summary-label">Year:</span>
-                    <span className="payroll-delete-summary-value">{deleteTargetYear}</span>
-                  </div>
-                </div>
-
-                <p className="payroll-delete-warning">
-                  This action cannot be undone.
-                </p>
-
+            
+
+              <div className="payroll-delete-header">
+
+                <h3 id="payroll-delete-title" className="payroll-delete-title">
+
+                  Delete Payslip
+
+                </h3>
+
+              </div>
+
+
+
+              <div className="payroll-delete-body">
+
+                <p className="payroll-delete-message">
+
+                  Are you sure you want to delete this payslip?
+
+                </p>
+
+
+
+                <div className="payroll-delete-summary">
+
+                  <div className="payroll-delete-summary-row">
+
+                    <span className="payroll-delete-summary-label">Employee:</span>
+
+                    <span className="payroll-delete-summary-value">{deleteTargetEmployeeName}</span>
+
+                  </div>
+
+                  <div className="payroll-delete-summary-row">
+
+                    <span className="payroll-delete-summary-label">Month:</span>
+
+                    <span className="payroll-delete-summary-value">{deleteTargetMonth}</span>
+
+                  </div>
+
+                  <div className="payroll-delete-summary-row">
+
+                    <span className="payroll-delete-summary-label">Year:</span>
+
+                    <span className="payroll-delete-summary-value">{deleteTargetYear}</span>
+
+                  </div>
+
+                </div>
+
+
+
+                <p className="payroll-delete-warning">
+
+                  This action cannot be undone.
+
+                </p>
+
+
+
                 {errorMsg ?
-              <div className="payroll-delete-error" role="alert">
-                    {errorMsg}
+              <div className="payroll-delete-error" role="alert">
+
+                    {errorMsg}
+
                   </div> :
-              null}
-              </div>
-
-              <div className="delete-actions payroll-delete-actions">
+              null}
+
+              </div>
+
+
+
+              <div className="delete-actions payroll-delete-actions">
+
                 <button
                 type="button"
                 className="delete-cancel-btn"
                 onClick={closeDeleteModal}
                 disabled={Boolean(deletingPayslipId)}>
-                
-                  Cancel
-                </button>
+                
+
+                  Cancel
+
+                </button>
+
                 <button
                 type="button"
                 className="delete-confirm-btn payroll-delete-confirm-btn"
                 onClick={handleDeletePayslip}
                 disabled={Boolean(deletingPayslipId)}>
-                
+                
+
                   {deletingPayslipId ?
-                <>
-                      <FiLoader className="payroll-action-spinner" aria-hidden="true" focusable="false" />
-                      Deleting...
+                <>
+
+                      <FiLoader className="payroll-action-spinner" aria-hidden="true" focusable="false" />
+
+                      Deleting...
+
                     </> :
 
                 "Delete Payslip"
-                }
-                </button>
-              </div>
-            </div>
+                }
+
+                </button>
+
+              </div>
+
+            </div>
+
           </div>
-        }
-      </div>
+        }
+
+      </div>
+
     </div>);
 
 }

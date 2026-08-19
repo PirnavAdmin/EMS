@@ -1808,11 +1808,11 @@ button:disabled {
 
 #app-datepicker-portal {
   position: relative;
-  z-index: calc(var(--app-modal-surface-z) + 80);
+  z-index: 100001;
 }
 
 .react-datepicker-popper {
-  z-index: calc(var(--app-modal-surface-z) + 90) !important;
+  z-index: 100002 !important;
   max-width: calc(100vw - 16px);
   pointer-events: auto;
   animation: app-datepicker-pop 0.16s ease-out;
@@ -1970,7 +1970,10 @@ button:disabled {
   white-space: nowrap;
 }
 
-.app-calendar-dropdown-button:hover,
+.app-calendar-dropdown-button:hover {
+  border-color: var(--border-strong);
+}
+
 .app-calendar-dropdown-button:focus-visible {
   border-color: var(--border-strong);
   box-shadow: 0 0 0 3px var(--input-focus);

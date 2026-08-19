@@ -113,7 +113,7 @@
   border-color: var(--primary);
   color: var(--primary);
   transform: translateY(0);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .leave-filter-tab.is-active {
@@ -163,7 +163,7 @@
 .projects-add-btn:hover {
   background: var(--button-primary-hover);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 /* ================= TABLE STYLES ================= */

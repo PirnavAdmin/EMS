@@ -156,7 +156,7 @@
   background: var(--card-bg);
   color: var(--theme-secondary);
   transform: translateY(-1px);
-  box-shadow: 0 0 0 4px var(--input-focus);
+  box-shadow: none;
 }
 
 .app-header-search {
@@ -277,10 +277,7 @@
 .header-icon-button:hover {
   border-color: var(--theme-primary);
   transform: translateY(-1px);
-  box-shadow:
-    0 12px 24px rgba(15, 23, 42, 0.12),
-    0 0 0 3px var(--input-focus),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: none;
 }
 
 .header-icon-button:hover::before {
@@ -361,7 +358,13 @@
     box-shadow 0.2s ease;
 }
 
-.profile-trigger:hover,
+.profile-trigger:hover {
+  border-color: var(--theme-primary);
+  background: var(--card-bg);
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
 .profile-trigger[aria-expanded="true"] {
   border-color: var(--theme-primary);
   background: var(--card-bg);

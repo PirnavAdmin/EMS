@@ -24,7 +24,6 @@ import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import pirnavLogo from "../assets/pirnav.png";
 import { useBrandingLogo } from "../utils/brandingLogo";
-import { getStoredLoginType } from "../utils/authStorage";
 import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, isSuperAdmin } from "../utils/authorization";
 
 const SUPER_ADMIN_EXPANDABLE_MENUS = [];
@@ -330,7 +329,6 @@ function SubmenuLink({ to, icon, label, onClick }) {
 function Sidebar({ collapsed }) {
   const location = useLocation();
   const roleName = getUserRole();
-  const loginType = getStoredLoginType();
   const superAdminUser = isSuperAdmin();
   const resolvedLogo = useBrandingLogo("sidebarLogo");
   const logoSrc = resolvedLogo || pirnavLogo;
@@ -348,10 +346,6 @@ function Sidebar({ collapsed }) {
   menuState.interactionPath === location.pathname ?
   menuState.active :
   routeMenu;
-
-  useEffect(() => {
-
-  }, [location.pathname, roleName, loginType, superAdminUser]);
 
   const setMenuButtonRef = (menuKey) => (node) => {
     if (node) {
@@ -418,7 +412,12 @@ function Sidebar({ collapsed }) {
     }
 
     const updateDirection = () => {
-      syncSubmenuDirection(menuState.active);
+      const nextDirection = measureSubmenuDirection(menuState.active);
+
+      setSubmenuDirections((prev) => ({
+        ...prev,
+        [menuState.active]: nextDirection
+      }));
     };
 
     updateDirection();

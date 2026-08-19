@@ -62,7 +62,9 @@ function TicketForm({
     const loadEmployees = async () => {
       try {
         setLoadingEmployees(true);
-        const response = await api.get(API_ENDPOINTS.employees.list);
+        const response = await api.get(API_ENDPOINTS.employees.list, {
+          cacheTTL: 60 * 1000
+        });
         setEmployees(normalizeEmployeeList(response.data));
       } catch (error) {
 

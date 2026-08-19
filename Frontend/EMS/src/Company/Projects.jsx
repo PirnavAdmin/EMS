@@ -376,7 +376,9 @@ function Projects() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await api.get(API_ENDPOINTS.employees.list);
+      const res = await api.get(API_ENDPOINTS.employees.list, {
+        cacheTTL: 60 * 1000
+      });
       const employeeData = extractCollection(res.data);
       setEmployees(dedupeEmployeesByKey(employeeData));
     } catch (err) {

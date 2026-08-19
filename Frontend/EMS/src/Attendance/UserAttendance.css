@@ -227,7 +227,7 @@ button:hover::after {
 .checkin-btn:hover,
 .checkout-btn:hover {
   transform: none !important;
-  box-shadow: var(--shadow-sm) !important;
+  box-shadow: none !important;
 }
 
 /* Stats */

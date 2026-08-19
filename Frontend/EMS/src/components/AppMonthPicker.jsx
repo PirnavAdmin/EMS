@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 const MONTH_OPTIONS = [
   { value: 1, label: "January" },
@@ -26,10 +26,14 @@ function AppMonthPicker({
   yearId = "app-month-picker-year",
   disabled = false,
 }) {
-  const yearOptions = Array.from(
-    { length: Math.max(maxYear - minYear + 1, 1) },
-    (_, index) => minYear + index
-  ).reverse();
+  const yearOptions = useMemo(
+    () =>
+      Array.from(
+        { length: Math.max(maxYear - minYear + 1, 1) },
+        (_, index) => minYear + index
+      ).reverse(),
+    [maxYear, minYear]
+  );
 
   return (
     <div className="app-month-picker" role="group" aria-label="Month and year">

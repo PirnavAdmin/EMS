@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const MODAL_SELECTORS = [
   ".attendance-modal-overlay",
@@ -42,6 +42,8 @@ const isElementVisible = (element) => {
 };
 
 function GlobalUiController() {
+  const animationFrameRef = useRef(0);
+
   useEffect(() => {
     if (typeof document === "undefined" || typeof window === "undefined") {
       return undefined;
@@ -55,9 +57,21 @@ function GlobalUiController() {
       document.body.classList.toggle("app-modal-open", hasOpenModal);
     };
 
-    syncModalState();
+    const scheduleSyncModalState = () => {
+      if (animationFrameRef.current || typeof window.requestAnimationFrame !== "function") {
+        syncModalState();
+        return;
+      }
 
-    const observer = new MutationObserver(syncModalState);
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        animationFrameRef.current = 0;
+        syncModalState();
+      });
+    };
+
+    scheduleSyncModalState();
+
+    const observer = new MutationObserver(scheduleSyncModalState);
 
     observer.observe(document.body, {
       childList: true,
@@ -66,11 +80,15 @@ function GlobalUiController() {
       attributeFilter: ["class", "style", "open"],
     });
 
-    window.addEventListener("resize", syncModalState);
+    window.addEventListener("resize", scheduleSyncModalState);
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", syncModalState);
+      window.removeEventListener("resize", scheduleSyncModalState);
+      if (animationFrameRef.current && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+      animationFrameRef.current = 0;
       document.body.classList.remove("app-modal-open");
     };
   }, []);

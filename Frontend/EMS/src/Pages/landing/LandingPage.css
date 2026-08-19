@@ -246,7 +246,7 @@
 .landing-primary-action:hover:not(:disabled) {
   transform: scale(1.03);
   background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
-  box-shadow: var(--theme-shadow-md);
+  box-shadow: none;
 }
 
 .landing-secondary-action {
@@ -260,7 +260,7 @@
   transform: scale(1.03);
   border-color: var(--button-secondary-border, var(--border-strong));
   background: var(--button-secondary-hover);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .landing-navbar .landing-secondary-action {
@@ -1478,7 +1478,7 @@
 .landing-cta-primary:hover {
   transform: scale(1.03);
   background: var(--card-hover-bg);
-  box-shadow: var(--shadow-md);
+  box-shadow: none;
 }
 
 .landing-cta-secondary {
@@ -2122,4 +2122,3 @@
     box-shadow: none;
   }
 }
-

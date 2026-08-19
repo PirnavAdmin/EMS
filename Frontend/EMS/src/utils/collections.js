@@ -196,11 +196,48 @@ export const stableSort = (items, compare) =>
     })
     .map(({ item }) => item);
 
+const analyzeRecencyOrder = (items) => {
+  if (!Array.isArray(items) || items.length < 2) {
+    return {
+      hasSortableItem: Array.isArray(items) ? items.some(hasRecencySortKey) : false,
+      isSorted: true,
+    };
+  }
+
+  let hasSortableItem = hasRecencySortKey(items[0]);
+
+  for (let index = 1; index < items.length; index += 1) {
+    const currentItem = items[index];
+
+    if (!hasSortableItem && hasRecencySortKey(currentItem)) {
+      hasSortableItem = true;
+    }
+
+    if (compareByRecency(items[index - 1], currentItem) > 0) {
+      return {
+        hasSortableItem: true,
+        isSorted: false,
+      };
+    }
+  }
+
+  return {
+    hasSortableItem,
+    isSorted: true,
+  };
+};
+
 export const sortByRecency = (items) => {
   const safeItems = Array.isArray(items) ? items : [];
 
+  if (safeItems.length < 2) {
+    return safeItems;
+  }
+
   // Optimization: skip stable sorting when records have no date/id fields, preserving current order.
-  if (!safeItems.some(hasRecencySortKey)) {
+  const { hasSortableItem, isSorted } = analyzeRecencyOrder(safeItems);
+
+  if (!hasSortableItem || isSorted) {
     return safeItems;
   }
 

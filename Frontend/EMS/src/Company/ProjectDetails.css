@@ -44,7 +44,7 @@
 .project-details-back-btn:hover {
   border-color: var(--primary);
   color: var(--primary);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
   transform: translateY(-1px);
 }
 

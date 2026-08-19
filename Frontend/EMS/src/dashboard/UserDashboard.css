@@ -688,7 +688,7 @@
   background: var(--sidebar-accent-hover);
   border-color: var(--sidebar-accent-soft);
   transform: translateY(-1px);
-  box-shadow: var(--theme-shadow-sm);
+  box-shadow: none;
 }
 
 .udb-modal-overlay {

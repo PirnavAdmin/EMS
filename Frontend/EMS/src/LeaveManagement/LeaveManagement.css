@@ -198,7 +198,7 @@ body {
   border-color: var(--primary) !important;
   color: var(--primary) !important;
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .leave-filter-tab.is-active {
@@ -788,7 +788,7 @@ body {
   border-color: var(--theme-success-strong);
   color: var(--theme-success-strong);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .reject-btn {
@@ -802,7 +802,7 @@ body {
   border-color: var(--theme-danger-strong);
   color: var(--theme-danger-strong);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 .no-action {
@@ -962,7 +962,7 @@ body {
   background: var(--theme-danger-strong);
   border-color: var(--theme-danger-strong);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: none;
 }
 
 @media (max-width: 576px) {
@@ -2003,7 +2003,7 @@ body {
   border-color: var(--theme-danger-strong);
   color: var(--theme-danger-strong);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover) !important;
+  box-shadow: none !important;
 }
 
 .leave-history--my-requests .leave-action-btn:focus,

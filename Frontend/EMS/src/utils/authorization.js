@@ -11,7 +11,6 @@ import {
 import { getCurrentAdminAllowedModules } from "./adminPermissionState";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { toBoolean } from "./boolean";
-import { describePermissionForLog } from "./debugLogging";
 
 const normalizeRoleValue = (value) =>
   String(value ?? "")
@@ -386,33 +385,6 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
             canAccess
           ) === true;
         });
-
-  console.log("[MODULE ACCESS CHECK]", {
-    module: moduleName,
-    userRole,
-    userId,
-    employeeId,
-    permissionFound: permissionFound ? describePermissionForLog(permissionFound) : null,
-    canView,
-    accessGranted,
-  });
-
-  if (accessGranted) {
-    console.log("[MODULE ACCESS GRANTED]", {
-      module: moduleName,
-      role: userRole,
-      userId,
-      permission: permissionFound ? describePermissionForLog(permissionFound) : null,
-    });
-  } else {
-    console.warn("[MODULE ACCESS DENIED]", {
-      module: moduleName,
-      role: userRole,
-      userId,
-      employeeId,
-      permission: permissionFound ? describePermissionForLog(permissionFound) : null,
-    });
-  }
 
   if (superAdminRole) {
     return true;

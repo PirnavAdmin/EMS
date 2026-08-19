@@ -269,7 +269,9 @@ function EmployeeList() {
 
         const [roleRes, empRes, deptRes] = await Promise.all([
         api.get(API_ENDPOINTS.masters.roles.list),
-        api.get(API_ENDPOINTS.employees.list),
+        api.get(API_ENDPOINTS.employees.list, {
+          cacheTTL: 60 * 1000
+        }),
         api.get(API_ENDPOINTS.departments.list)]
         );
 
@@ -313,9 +315,12 @@ function EmployeeList() {
     }
   }, [errors.ctc, isEmployeeSalaryValid]);
 
-  const fetchEmployees = async (roleOptions = roles) => {
+  const fetchEmployees = async (roleOptions = roles, forceRefresh = false) => {
     try {
-      const res = await api.get(API_ENDPOINTS.employees.list);
+      const res = await api.get(API_ENDPOINTS.employees.list, {
+        dedupe: !forceRefresh,
+        cacheTTL: forceRefresh ? 0 : 60 * 1000
+      });
       setEmpList(normalizeEmployeeList(res, roleOptions));
       return true;
     } catch (err) {
@@ -532,7 +537,7 @@ function EmployeeList() {
       toastSuccess(isEditMode ? "Employee updated successfully." : "Employee added successfully.");
       setEmpShowModal(false);
       resetEmployeeForm();
-      await fetchEmployees();
+      await fetchEmployees(roles, true);
     } catch (err) {
 
       const backendMessage =
@@ -562,7 +567,7 @@ function EmployeeList() {
       setShowDeletePopup(false);
       setEmployeeToDelete(null);
       toastSuccess("Employee deleted successfully.");
-      await fetchEmployees();
+      await fetchEmployees(roles, true);
     } catch (err) {
 
       toastError("Delete failed.");
@@ -1328,7 +1333,7 @@ function EmployeeList() {
         open={showBulkUploadModal}
         onClose={() => setShowBulkUploadModal(false)}
         onUploaded={async () => {
-          const refreshed = await fetchEmployees();
+          const refreshed = await fetchEmployees(roles, true);
 
           if (refreshed) {
             setCurrentPage(1);

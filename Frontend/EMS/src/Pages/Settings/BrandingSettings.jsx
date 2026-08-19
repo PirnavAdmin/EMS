@@ -16,11 +16,13 @@ export default function BrandingSettings() {
   const fileInputRef = useRef(null);
   const loadRequestIdRef = useRef(0);
 
-  const refreshCompanyLogo = async () => {
+  const refreshCompanyLogo = async (forceRefresh = false) => {
     const requestId = ++loadRequestIdRef.current;
 
     try {
-      const logos = await fetchBrandingLogos();
+      const logos = await fetchBrandingLogos({
+        forceRefresh
+      });
 
       if (requestId !== loadRequestIdRef.current) {
         return "";
@@ -91,7 +93,7 @@ export default function BrandingSettings() {
         }
       });
 
-      const refreshedCompanyLogo = await refreshCompanyLogo();
+      const refreshedCompanyLogo = await refreshCompanyLogo(true);
 
       if (refreshedCompanyLogo) {
         setPreview("");

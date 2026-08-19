@@ -311,51 +311,28 @@ namespace EmployeeManagementSystem.Services
             //--------------------------------
             // EARNINGS AFTER ATTENDANCE / LOP
             //--------------------------------
+            decimal basic = RoundSalary(fullBasic * ratio);
 
-            decimal basic =
-                Math.Round(
-                    fullBasic * ratio,
-                    2,
-                    MidpointRounding.AwayFromZero);
+            decimal hra = RoundSalary(fullHRA * ratio);
 
-            decimal hra =
-                Math.Round(
-                    fullHRA * ratio,
-                    2,
-                    MidpointRounding.AwayFromZero);
+            decimal conveyance = RoundSalary(fullConveyance * ratio);
 
-            decimal conveyance =
-                Math.Round(
-                    fullConveyance * ratio,
-                    2,
-                    MidpointRounding.AwayFromZero);
-
-            decimal medical =
-                Math.Round(
-                    fullMedical * ratio,
-                    2,
-                    MidpointRounding.AwayFromZero);
+            decimal medical = RoundSalary(fullMedical * ratio);
 
             decimal specialAllowance =
-                Math.Round(
-                    fullSpecialAllowance * ratio,
-                    2,
-                    MidpointRounding.AwayFromZero);
-
+     RoundSalary(fullSpecialAllowance * ratio);
 
             //--------------------------------
             // TOTAL EARNINGS
             //--------------------------------
 
             decimal totalEarnings =
-                Math.Round(
-                    basic +
-                    hra +
-                    conveyance +
-                    medical +
-                    specialAllowance,
-                    2,
-                    MidpointRounding.AwayFromZero);
+    RoundSalary(
+        basic +
+        hra +
+        conveyance +
+        medical +
+        specialAllowance);
 
             decimal gross = totalEarnings;
 
@@ -370,12 +347,9 @@ namespace EmployeeManagementSystem.Services
                 fullConveyance +
                 fullMedical +
                 fullSpecialAllowance;
-
             decimal lopDeduction =
-                Math.Round(
-                    fullMonthlyEarnings - totalEarnings,
-                    2,
-                    MidpointRounding.AwayFromZero);
+                RoundSalary(
+                    fullMonthlyEarnings - totalEarnings);
 
             if (lopDeduction < 0)
             {
@@ -388,35 +362,28 @@ namespace EmployeeManagementSystem.Services
             //--------------------------------
 
             decimal pf =
-                Math.Round(
-                    salaryStructure.EmployeePF * ratio,
-                    2,
-                    MidpointRounding.AwayFromZero);
+     RoundSalary(
+         salaryStructure.EmployeePF * ratio);
 
 
             //--------------------------------
             // PROFESSIONAL TAX
             //--------------------------------
 
-            decimal professionalTax =
-                salaryStructure.ProfessionalTax;
+           decimal professionalTax =
+    RoundSalary(salaryStructure.ProfessionalTax);
 
-
-            //--------------------------------
-            // TDS
-            //--------------------------------
-
-            decimal tdsAmount =
-                salaryStructure.TDS;
-
+decimal tdsAmount =
+    RoundSalary(salaryStructure.TDS);
 
             //--------------------------------
             // OTHER DEDUCTIONS
             //--------------------------------
 
             decimal totalOtherDeduction =
-                salaryStructure.OtherDeduction +
-                OtherDeductions;
+      RoundSalary(
+          salaryStructure.OtherDeduction +
+          OtherDeductions);
 
 
             //--------------------------------
@@ -424,13 +391,11 @@ namespace EmployeeManagementSystem.Services
             //--------------------------------
 
             decimal totalDeductions =
-                Math.Round(
-                    pf +
-                    professionalTax +
-                    tdsAmount +
-                    totalOtherDeduction,
-                    2,
-                    MidpointRounding.AwayFromZero);
+      RoundSalary(
+          pf +
+          professionalTax +
+          tdsAmount +
+          totalOtherDeduction);
 
 
             //--------------------------------
@@ -438,10 +403,8 @@ namespace EmployeeManagementSystem.Services
             //--------------------------------
 
             decimal netSalary =
-                Math.Round(
-                    totalEarnings - totalDeductions,
-                    2,
-                    MidpointRounding.AwayFromZero);
+     RoundSalary(
+         totalEarnings - totalDeductions);
 
             if (netSalary < 0)
             {
@@ -534,8 +497,8 @@ namespace EmployeeManagementSystem.Services
                 Directory.CreateDirectory(outputFolder);
 
             var employeeNameForFile = personalInfo == null
-       ? employee.Name
-       : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+     ? employee.Name
+     : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
 
             if (string.IsNullOrWhiteSpace(employeeNameForFile))
             {
@@ -1525,7 +1488,13 @@ namespace EmployeeManagementSystem.Services
                 DateTime.UtcNow,
                 IndiaTimeZone);
         }
-
+        private static decimal RoundSalary(decimal amount)
+        {
+            return Math.Round(
+                amount,
+                0,
+                MidpointRounding.AwayFromZero);
+        }
         public static string NumberToWords(
             long number)
         {
@@ -1726,7 +1695,7 @@ namespace EmployeeManagementSystem.Services
                 {
                     // Start with 4.
                     // Increase only if your SMTP provider allows it.
-                    MaxDegreeOfParallelism = 8
+                    MaxDegreeOfParallelism = 4
                 };
 
 

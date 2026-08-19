@@ -842,9 +842,14 @@ function UserDashboard() {
           signal: controller.signal
         }),
         api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
-          signal: controller.signal
+          signal: controller.signal,
+          cacheTTL: 5 * 60 * 1000
         })]
         );
+
+        if (controller.signal.aborted) {
+          return;
+        }
 
         if (dashboardResult.status === "fulfilled") {
           setDashboardData(normalizeDashboardData(dashboardResult.value?.data || {}));

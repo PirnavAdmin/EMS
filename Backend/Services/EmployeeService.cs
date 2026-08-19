@@ -443,6 +443,7 @@ namespace EmployeeManagementSystem.Services
             if (employee == null)
                 return null;
 
+
             // 🔥 STORE OLD DEPARTMENT
             var oldDepartment = employee.Department;
 

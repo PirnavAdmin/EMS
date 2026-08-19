@@ -39,22 +39,23 @@ namespace EmployeeManagementSystem.Services
             //---------------------------------------
             // TASKS
             //---------------------------------------
-            // Total tickets assigned to the employee
-            var myTickets = await _context.Tickets
+
+            // Ticket statistics - single database query
+            var ticketStats = await _context.Tickets
+                .AsNoTracking()
                 .Where(t => t.AssignedTo == employeeId)
-                .CountAsync();
+                .GroupBy(t => 1)
+                .Select(g => new
+                {
+                    Total = g.Count(),
+                    Completed = g.Count(t => t.Status == "Completed"),
+                    Pending = g.Count(t => t.Status != "Completed")
+                })
+                .FirstOrDefaultAsync();
 
-            // Completed tickets
-            var completedTickets = await _context.Tickets
-                .Where(t => t.AssignedTo == employeeId &&
-                            t.Status == "Completed")
-                .CountAsync();
-
-            // Pending/In Progress tickets (anything not completed)
-            var pendingTickets = await _context.Tickets
-                .Where(t => t.AssignedTo == employeeId &&
-                            t.Status != "Completed")
-                .CountAsync();
+            var myTickets = ticketStats?.Total ?? 0;
+            var completedTickets = ticketStats?.Completed ?? 0;
+            var pendingTickets = ticketStats?.Pending ?? 0;
 
             //---------------------------------------
             // ATTENDANCE %
@@ -66,12 +67,17 @@ namespace EmployeeManagementSystem.Services
             var currentMonth = istNow.Month;
             var currentYear = istNow.Year;
 
+            var monthStart = new DateTime(currentYear, currentMonth, 1);
+            var monthEnd = monthStart.AddMonths(1);
+
             var presentDays = await _context.Attendance
-                .Where(a => a.Employee_Id == employeeId
-                    && a.Status == "Present"
-                    && a.Attendance_Date.Month == currentMonth
-                    && a.Attendance_Date.Year == currentYear)
-                .CountAsync();
+            .AsNoTracking()
+            .Where(a =>
+                a.Employee_Id == employeeId &&
+                a.Status == "Present" &&
+                a.Attendance_Date >= monthStart &&
+                a.Attendance_Date < monthEnd)
+            .CountAsync();
 
             var totalDays = DateTime.DaysInMonth(currentYear, currentMonth);
 
@@ -100,7 +106,7 @@ namespace EmployeeManagementSystem.Services
                 Activity = n.Message,
                 Time = GetTimeAgo(n.CreatedAt)
             }).ToList();
-           
+
             //---------------------------------------
             // UPCOMING HOLIDAYS
             //---------------------------------------

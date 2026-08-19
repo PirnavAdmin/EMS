@@ -455,7 +455,9 @@ export default function Assets() {
     try {
       setEmployeeLoadError("");
 
-      const res = await api.get(API_ENDPOINTS.employees.list);
+      const res = await api.get(API_ENDPOINTS.employees.list, {
+        cacheTTL: 60 * 1000
+      });
       const employeeList = extractCollection(res.data);
 
       employeeList.forEach((emp, index) => {

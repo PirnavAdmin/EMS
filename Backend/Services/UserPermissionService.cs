@@ -4,9 +4,6 @@ using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -208,11 +205,18 @@ namespace EmployeeManagementSystem.Services
             // 1. EMPLOYEE
             // =====================================================
 
+            var normalizedEmployeeId =
+     Uri.UnescapeDataString(employeeId ?? string.Empty).Trim();
+
             var employee =
                 await _context.Employees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x =>
-                        x.Employee_Id == employeeId);
+                        x.Employee_Id.Trim() == normalizedEmployeeId);
+
+            if (employee == null)
+                throw new Exception(
+                    $"Employee not found for EmployeeId: {normalizedEmployeeId}");
 
             if (employee == null)
                 throw new Exception("Employee not found.");

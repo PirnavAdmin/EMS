@@ -1,8 +1,7 @@
 import React from "react";
 import DebugErrorPanel from "./DebugErrorPanel";
-import {
-  APPLICATION_ERROR_EVENT } from
-"../utils/errorReporting";
+import { APPLICATION_ERROR_EVENT } from "../utils/errorReporting";
+import { recoverFromChunkLoadError } from "../utils/chunkLoadRecovery";
 
 const toErrorObject = (value) => {
   if (!value) {
@@ -148,6 +147,11 @@ class AppErrorBoundary extends React.Component {
     typeof window !== "undefined" ? window.location.pathname : "";
     const currentUrl =
     typeof window !== "undefined" ? window.location.href : "";
+
+    if (recoverFromChunkLoadError(error)) {
+      return;
+    }
+
     const details = buildErrorDetails({
       error,
       componentStack,
@@ -179,6 +183,11 @@ class AppErrorBoundary extends React.Component {
     const currentUrl =
     detail.meta?.currentUrl || (
     typeof window !== "undefined" ? window.location.href : "");
+
+    if (recoverFromChunkLoadError(detail.error || detail.message)) {
+      return;
+    }
+
     const details = buildErrorDetails({
       error,
       componentStack,
@@ -207,6 +216,11 @@ class AppErrorBoundary extends React.Component {
     }
 
     const error = toErrorObject(event?.error) || new Error(event?.message || "Unknown error");
+
+    if (recoverFromChunkLoadError(event?.error || event?.message || event)) {
+      return;
+    }
+
     const componentStack = error.stack || "";
     const details = buildErrorDetails({
       error,
@@ -244,6 +258,11 @@ class AppErrorBoundary extends React.Component {
     const error =
     toErrorObject(reason) ||
     new Error(typeof reason === "string" ? reason : "Unhandled promise rejection");
+
+    if (recoverFromChunkLoadError(reason || event?.message || event)) {
+      return;
+    }
+
     const componentStack = error.stack || "";
     const details = buildErrorDetails({
       error,

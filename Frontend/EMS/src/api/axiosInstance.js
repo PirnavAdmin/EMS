@@ -29,32 +29,119 @@ const api = axios.create({
 });
 
 const inFlightGetRequests = new Map();
+const cachedGetResponses = new Map();
+let cacheGeneration = 0;
 
-const resolveRequestUrl = (url, baseURL = BASE_URL) => {
-  const requestUrl = String(url || "").trim();
-  const requestBaseUrl = String(baseURL || "").trim();
+const DEFAULT_GET_CACHE_RULES = [
+  { prefix: "/admin-notifications", ttl: 15 * 1000 },
+  { prefix: "/user-notifications", ttl: 15 * 1000 },
+  { prefix: "/attendance", ttl: 15 * 1000 },
+  { prefix: "/dashboard", ttl: 30 * 1000 },
+  { prefix: "/user-dashboard", ttl: 30 * 1000 },
+  { prefix: "/superadmin/dashboard", ttl: 30 * 1000 },
+  { prefix: "/permission", ttl: 60 * 1000 },
+  { prefix: "/rolepermission", ttl: 60 * 1000 },
+  { prefix: "/userpermission", ttl: 60 * 1000 },
+  { prefix: "/adminpermission", ttl: 60 * 1000 },
+  { prefix: "/adminsubscription", ttl: 60 * 1000 },
+  { prefix: "/admin", ttl: 60 * 1000 },
+  { prefix: "/employees", ttl: 60 * 1000 },
+  { prefix: "/employeefulldetail", ttl: 60 * 1000 },
+  { prefix: "/employeepersonalinfo", ttl: 60 * 1000 },
+  { prefix: "/employeebankdetails", ttl: 60 * 1000 },
+  { prefix: "/employeesalarystructure", ttl: 60 * 1000 },
+  { prefix: "/employeeeducation", ttl: 60 * 1000 },
+  { prefix: "/employeeexperience", ttl: 60 * 1000 },
+  { prefix: "/employeedocuments", ttl: 60 * 1000 },
+  { prefix: "/departments", ttl: 60 * 1000 },
+  { prefix: "/roles", ttl: 60 * 1000 },
+  { prefix: "/clients", ttl: 60 * 1000 },
+  { prefix: "/projects", ttl: 60 * 1000 },
+  { prefix: "/company", ttl: 60 * 1000 },
+  { prefix: "/branches", ttl: 60 * 1000 },
+  { prefix: "/holidays", ttl: 5 * 60 * 1000 },
+  { prefix: "/team", ttl: 60 * 1000 },
+  { prefix: "/leavebalance", ttl: 30 * 1000 },
+  { prefix: "/employeeleave", ttl: 30 * 1000 },
+  { prefix: "/ticket", ttl: 30 * 1000 },
+  { prefix: "/payslip", ttl: 30 * 1000 },
+  { prefix: "/offerletter", ttl: 60 * 1000 },
+  { prefix: "/relievingletter", ttl: 60 * 1000 },
+  { prefix: "/experienceofferletter", ttl: 60 * 1000 },
+  { prefix: "/template", ttl: 60 * 1000 },
+  { prefix: "/workflow", ttl: 60 * 1000 },
+  { prefix: "/appraisal", ttl: 60 * 1000 },
+  { prefix: "/employeeclearance", ttl: 60 * 1000 },
+  { prefix: "/employeegoal", ttl: 60 * 1000 },
+  { prefix: "/employeeresignation", ttl: 60 * 1000 },
+  { prefix: "/employeeshift", ttl: 60 * 1000 },
+  { prefix: "/employeeweeklyoff", ttl: 60 * 1000 },
+  { prefix: "/exitinterview", ttl: 60 * 1000 },
+  { prefix: "/fullfinalsettlement", ttl: 60 * 1000 },
+  { prefix: "/goalreview", ttl: 60 * 1000 },
+  { prefix: "/performancecycle", ttl: 60 * 1000 },
+  { prefix: "/shift", ttl: 60 * 1000 },
+  { prefix: "/taxdeclaration", ttl: 60 * 1000 },
+  { prefix: "/taxdeclarationitem", ttl: 60 * 1000 },
+  { prefix: "/taxproof", ttl: 60 * 1000 },
+  { prefix: "/tds", ttl: 60 * 1000 },
+  { prefix: "/form16", ttl: 60 * 1000 },
+  { prefix: "/onboardingpersonalinfo", ttl: 60 * 1000 },
+  { prefix: "/onboardingeducation", ttl: 60 * 1000 },
+  { prefix: "/onboardingexperience", ttl: 60 * 1000 },
+  { prefix: "/onboardingdocuments", ttl: 60 * 1000 },
+  { prefix: "/agreement", ttl: 60 * 1000 },
+  { prefix: "/reports", ttl: 60 * 1000 },
+  { prefix: "/modulesearch", ttl: 15 * 1000 },
+];
 
-  if (!requestUrl) {
-    return requestBaseUrl || "";
-  }
+const normalizeCachePath = (url) => {
+  const normalizedUrl = String(url || "")
+    .trim()
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .split("?")[0]
+    .replace(/^\/api(?=\/|$)/i, "")
+    .replace(/\/{2,}/g, "/")
+    .toLowerCase();
 
-  if (/^https?:\/\//i.test(requestUrl)) {
-    return requestUrl;
-  }
-
-  return `${String(requestBaseUrl || BASE_URL).replace(/\/+$/, "")}/${requestUrl.replace(/^\/+/, "")}`;
+  return normalizedUrl;
 };
 
-const headersForLogging = (headers) => {
-  if (!headers) {
-    return {};
+const resolveDefaultCacheTTL = (url) => {
+  const normalizedPath = normalizeCachePath(url);
+
+  if (!normalizedPath) {
+    return 0;
   }
 
-  if (typeof headers.toJSON === "function") {
-    return headers.toJSON();
+  for (const rule of DEFAULT_GET_CACHE_RULES) {
+    if (normalizedPath.startsWith(rule.prefix)) {
+      return rule.ttl;
+    }
   }
 
-  return { ...headers };
+  return 0;
+};
+
+const invalidateGetRequestCaches = () => {
+  cacheGeneration += 1;
+  inFlightGetRequests.clear();
+  cachedGetResponses.clear();
+};
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("ems-auth-cleared", invalidateGetRequestCaches);
+}
+
+const getAuthScopeKey = () => {
+  const token = getStoredToken();
+  const role =
+    getStoredJwtRole() ||
+    getStoredRoleName() ||
+    getStoredRole() ||
+    "";
+
+  return `${String(token || "").trim()}|${String(role || "").trim()}`;
 };
 
 // =========================
@@ -94,10 +181,12 @@ const stableSerialize = (value) => {
 // =========================
 const getRequestKey = (
 url,
-config = {}) =>
+config = {},
+{ allowSignal = false } = {}) =>
 {
 
   if (
+  !allowSignal &&
   config.signal ||
 
   config.responseType &&
@@ -107,10 +196,15 @@ config = {}) =>
     return null;
   }
 
-  return `${url}?${stableSerialize(
+  return `${getAuthScopeKey()}::${url}?${stableSerialize(
     config.params
   )}`;
 };
+
+const cloneCachedResponse = (response) => ({
+  ...response,
+  data: response?.data
+});
 
 // =========================
 // DEDUPE GET REQUESTS
@@ -122,14 +216,45 @@ api.get = (
 url,
 config = {}) =>
 {
+  const hasExplicitCacheTTL = config.cacheTTL !== undefined;
+  const explicitCacheTTL = Number(config.cacheTTL || 0);
+  const cacheTTL = hasExplicitCacheTTL ?
+  explicitCacheTTL :
+  resolveDefaultCacheTTL(url);
+  const useCache = Number.isFinite(cacheTTL) && cacheTTL > 0;
+  const requestGeneration = cacheGeneration;
 
   const requestKey =
-  config.dedupe === false ?
+  config.dedupe === false && !useCache ?
   null :
   getRequestKey(
     url,
-    config
+    config,
+    {
+      allowSignal: useCache
+    }
   );
+
+  if (
+  useCache &&
+  requestKey)
+  {
+
+    const cachedResponse =
+    cachedGetResponses.get(requestKey);
+
+    if (
+    cachedResponse &&
+    cachedResponse.generation === requestGeneration &&
+    cachedResponse.expiresAt > Date.now())
+    {
+      return Promise.resolve(
+        cloneCachedResponse(
+          cachedResponse.response
+        )
+      );
+    }
+  }
 
   if (!requestKey) {
     return originalGet(
@@ -152,7 +277,26 @@ config = {}) =>
   originalGet(
     url,
     config
-  ).finally(() => {
+  ).then((response) => {
+
+    if (useCache && requestKey) {
+      if (requestGeneration !== cacheGeneration) {
+        return response;
+      }
+
+      cachedGetResponses.set(
+        requestKey,
+        {
+          response: cloneCachedResponse(response),
+          expiresAt: Date.now() + cacheTTL,
+          generation: requestGeneration
+        }
+      );
+    }
+
+    return response;
+
+  }).finally(() => {
 
     inFlightGetRequests.delete(
       requestKey
@@ -181,24 +325,6 @@ data) =>
 getStoredToken() &&
 isAuthenticationFailureResponse(status, data);
 
-const isNetworkOrTimeoutError = (error) => {
-  if (!error) {
-    return false;
-  }
-
-  if (error.code === "ECONNABORTED") {
-    return true;
-  }
-
-  const message = String(error.message || "").toLowerCase();
-
-  return (
-    message.includes("timeout") ||
-    message.includes("network error") ||
-    !error.response && Boolean(error.request));
-
-};
-
 // =========================
 // REQUEST INTERCEPTOR
 // =========================
@@ -208,11 +334,6 @@ api.interceptors.request.use(
 
     const token =
     getStoredToken();
-    const userRole =
-    getStoredJwtRole() ||
-    getStoredRoleName() ||
-    getStoredRole();
-
     const method =
     (
     config.method ||
@@ -221,7 +342,6 @@ api.interceptors.request.use(
 
     const url =
     config.url || "";
-    const requestUrl = resolveRequestUrl(url, config.baseURL || BASE_URL);
 
     if (!config.headers) {
       config.headers = {};
@@ -252,7 +372,7 @@ api.interceptors.request.use(
     token)
     {
 
-      if (
+    if (
       isSessionExpired())
       {
         endPerformanceTimer(
@@ -260,6 +380,7 @@ api.interceptors.request.use(
           performanceLabel
         );
 
+        invalidateGetRequestCaches();
         handleAutoLogout({
           reason: "Session expired before API request"
         });
@@ -292,16 +413,11 @@ api.interceptors.response.use(
       performanceLabel
     );
 
-    const responseType =
-    response?.config?.
-    responseType;
+    const responseMethod =
+    String(response?.config?.method || "").toLowerCase();
 
-    if (
-    responseType &&
-    responseType !== "json")
-    {
-
-      return response;
+    if (responseMethod && responseMethod !== "get" && responseMethod !== "head") {
+      invalidateGetRequestCaches();
     }
 
     if (
@@ -311,6 +427,7 @@ api.interceptors.response.use(
       response?.data
     ))
     {
+      invalidateGetRequestCaches();
       handleAutoLogout({
         reason: "Authentication failure response"
       });
@@ -320,6 +437,17 @@ api.interceptors.response.use(
           "Session expired"
         )
       );
+    }
+
+    const responseType =
+    response?.config?.
+    responseType;
+
+    if (
+    responseType &&
+    responseType !== "json")
+    {
+      return response;
     }
 
     response.data =
@@ -353,17 +481,18 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (
-    shouldForceLogout(
-      config,
-      status,
-      data
-    ))
-    {
-      handleAutoLogout({
-        reason: `Auth failure response (${status || "unknown status"})`
-      });
-    }
+  if (
+  shouldForceLogout(
+    config,
+    status,
+    data
+  ))
+  {
+    invalidateGetRequestCaches();
+    handleAutoLogout({
+      reason: `Auth failure response (${status || "unknown status"})`
+    });
+  }
 
     return Promise.reject(
       error

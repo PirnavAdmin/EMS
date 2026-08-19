@@ -25,11 +25,13 @@ function Notifications() {
 
   /* ================= FETCH ================= */
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
 
-      const data = await loadNotifications(currentRole);
+      const data = await loadNotifications(currentRole, undefined, {
+        forceRefresh
+      });
       setNotifications(
         Array.isArray(data)
           ? data
@@ -56,11 +58,11 @@ function Notifications() {
       );
 
       if (!success) {
-        await fetchNotifications();
+        await fetchNotifications(true);
         return;
       }
 
-      await fetchNotifications();
+      await fetchNotifications(true);
       window.dispatchEvent(new Event("notificationsUpdated"));
     } finally {
       setUpdatingId(null);
@@ -76,11 +78,11 @@ function Notifications() {
       );
 
       if (!success) {
-        await fetchNotifications();
+        await fetchNotifications(true);
         return;
       }
 
-      await fetchNotifications();
+      await fetchNotifications(true);
       window.dispatchEvent(new Event("notificationsUpdated"));
     } finally {
       // Nothing to reset here; the action is fire-and-forget.

@@ -39,12 +39,14 @@ function Holidays() {
     return getTodayInputValue();
   }, []);
 
-  const fetchHolidays = async () => {
+  const fetchHolidays = async (forceRefresh = false) => {
     try {
       const res = await api.get(API_ENDPOINTS.company.holidays.list, {
         headers: {
           Authorization: `Bearer ${token}`
-        }
+        },
+        dedupe: !forceRefresh,
+        cacheTTL: forceRefresh ? 0 : 5 * 60 * 1000
       });
 
       const formatted = sortByDateAsc(
@@ -64,7 +66,7 @@ function Holidays() {
       }));
 
       setHolidays(formatted);
-    } catch (err) {
+    } catch {
 
       toastError("Failed to load holidays.");
     }
@@ -195,8 +197,8 @@ function Holidays() {
 
       toastSuccess(editMode ? "Holiday updated successfully." : "Holiday added successfully.");
       closeModal();
-      await fetchHolidays();
-    } catch (error) {
+      await fetchHolidays(true);
+    } catch {
 
       toastError("Unable to save holiday.");
     } finally {
@@ -228,8 +230,8 @@ function Holidays() {
 
       toastSuccess("Holiday deleted successfully.");
       setHolidayToDelete(null);
-      await fetchHolidays();
-    } catch (error) {
+      await fetchHolidays(true);
+    } catch {
 
       toastError("Unable to delete holiday.");
     }

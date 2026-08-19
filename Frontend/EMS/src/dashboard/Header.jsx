@@ -79,12 +79,18 @@ function Header({ collapsed = false, onToggle }) {
     return safeEmail.split("@")[0].replace(/[._-]+/g, " ");
   }, [email, isSuperAdminUser]);
   const GreetingIcon = greetingMeta.Icon;
+  const unreadCount = useMemo(
+    () => notifications.filter((notification) => !notification.isRead).length,
+    [notifications]
+  );
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchNotificationStatus = async () => {
-      const data = await loadNotifications(role, authSnapshot);
+    const fetchNotificationStatus = async (forceRefresh = false) => {
+      const data = await loadNotifications(role, undefined, {
+        forceRefresh
+      });
 
       if (isMounted) {
         setNotifications(Array.isArray(data) ? data : []);
@@ -98,7 +104,7 @@ function Header({ collapsed = false, onToggle }) {
     };
 
     const handleNotificationsUpdated = () => {
-      fetchNotificationStatus();
+      fetchNotificationStatus(true);
     };
 
     syncGreeting();
@@ -141,9 +147,6 @@ function Header({ collapsed = false, onToggle }) {
     return () => window.clearTimeout(closeTimer);
   }, [location.pathname]);
 
-  const unreadCount = notifications.filter(
-    (notification) => !notification.isRead
-  ).length;
   const headerOffset = collapsed
     ? "var(--layout-sidebar-collapsed-width)"
     : "var(--layout-sidebar-width)";

@@ -133,31 +133,9 @@ export const summarizeAxiosResponse = (response) => {
   };
 };
 
-export const logApiError = (label, error) => {
-  const config = error?.config || error?.response?.config || {};
+export const logApiError = () => {};
 
-  console.error(label, {
-    url: config?.url,
-    method: String(config?.method || "").toUpperCase(),
-    status: error?.response?.status,
-    response: sanitizeForDebug(error?.response?.data),
-    message: error?.message,
-  });
-};
-
-export const logAuthStorageSnapshot = (storage, label = "[AUTH STORAGE]") => {
-  if (!storage) {
-    return;
-  }
-
-  console.log(label, {
-    userId: storage.getItem("userId"),
-    employeeId: storage.getItem("employeeId"),
-    role: storage.getItem("role"),
-    permissions: storage.getItem("permissions") ? "EXISTS" : "MISSING",
-    token: storage.getItem("token") ? "EXISTS" : "MISSING",
-  });
-};
+export const logAuthStorageSnapshot = () => {};
 
 export const describePermissionForLog = (permission = {}) => ({
   module:
@@ -188,13 +166,4 @@ export const describePermissionForLog = (permission = {}) => ({
   canAccess: Boolean(permission?.canAccess ?? permission?.CanAccess ?? false),
 });
 
-export const logPermissionCollection = (permissions = []) => {
-  const list = Array.isArray(permissions) ? permissions : [];
-
-  console.log("[PERMISSION] Total permissions:", list.length);
-  console.log("[PERMISSION] Permissions:", sanitizeForDebug(list));
-
-  list.forEach((permission, index) => {
-    console.log(`[PERMISSION ${index}]`, describePermissionForLog(permission));
-  });
-};
+export const logPermissionCollection = () => {};

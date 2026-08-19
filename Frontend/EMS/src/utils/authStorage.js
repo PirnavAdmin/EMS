@@ -1440,6 +1440,10 @@ export const clearAuthData = () => {
 
   sessionStorage.clear();
   clearCurrentAdminAllowedModules();
+
+  if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new Event("ems-auth-cleared"));
+  }
 };
 
 export const getStoredAuthValue = (key, fallback = "") =>

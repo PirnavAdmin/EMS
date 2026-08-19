@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./UserAttendance.css";
 import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
 import api from "../api/axiosInstance";
@@ -45,13 +45,13 @@ function UserAttendance() {
 
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkedOut, setCheckedOut] = useState(false);
-  const [loading, setLoading] = useState(false); // keep for page/history if needed
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkOutLoading, setCheckOutLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [viewType, setViewType] = useState("week");
   const [attendanceData, setAttendanceData] = useState([]);
+  const attendanceRequestRef = useRef(0);
 
   const [stats, setStats] = useState({
     checkIn: "--",
@@ -62,6 +62,7 @@ function UserAttendance() {
   });
 
   const formattedDate = formatDate(today);
+  const ATTENDANCE_HISTORY_CACHE_TTL = 30000;
 
   const formatTime = (value) => {
     if (!value) return "--";
@@ -105,11 +106,6 @@ function UserAttendance() {
 
     if (mins === 0) return `${hrs}h`;
     return `${hrs}h ${mins}m`;
-  };
-
-  const refreshAttendanceState = async () => {
-    await fetchWeeklySummary();
-    await fetchAttendanceHistory(viewType);
   };
 
   const normalizeStatus = (status) => {
@@ -260,28 +256,9 @@ function UserAttendance() {
     }
   };
 
-  const fetchWeeklySummary = async () => {
-    try {
-      const res = await api.get(API_ENDPOINTS.attendance.weekly, {
-        params: attendanceIdentityParams,
-        headers: {
-          Authorization: `Bearer ${getToken()}`
-        }
-      });
+  const fetchAttendanceHistory = async (type, forceRefresh = false) => {
+    const requestId = ++attendanceRequestRef.current;
 
-      const data = res.data;
-
-      const mapped = mapApiData(data);
-
-      updateTopStats(mapped);
-      updateTodayAttendanceState(mapped);
-
-    } catch (err) {
-
-    }
-  };
-
-  const fetchAttendanceHistory = async (type) => {
     try {
       setHistoryLoading(true);
 
@@ -299,8 +276,14 @@ function UserAttendance() {
         params: attendanceIdentityParams,
         headers: {
           Authorization: `Bearer ${getToken()}`
-        }
+        },
+        dedupe: !forceRefresh,
+        cacheTTL: forceRefresh ? 0 : ATTENDANCE_HISTORY_CACHE_TTL
       });
+
+      if (requestId !== attendanceRequestRef.current) {
+        return;
+      }
 
       const data = res.data;
       const mapped = mapApiData(data);
@@ -310,19 +293,19 @@ function UserAttendance() {
         updateTopStats(mapped);
         updateTodayAttendanceState(mapped);
       }
-    } catch (err) {
+    } catch {
+      if (requestId !== attendanceRequestRef.current) {
+        return;
+      }
 
       setAttendanceData([]);
     } finally {
-      setHistoryLoading(false);
-      setInitialLoading(false);
+      if (requestId === attendanceRequestRef.current) {
+        setHistoryLoading(false);
+        setInitialLoading(false);
+      }
     }
   };
-
-  useEffect(() => {
-    fetchWeeklySummary();
-    fetchAttendanceHistory("week");
-  }, []);
 
   useEffect(() => {
     fetchAttendanceHistory(viewType);
@@ -409,8 +392,7 @@ function UserAttendance() {
       setCheckedIn(true);
       setCheckedOut(false);
 
-      await fetchWeeklySummary();
-      await fetchAttendanceHistory(viewType);
+      await fetchAttendanceHistory(viewType, true);
 
     } catch (err) {
 
@@ -449,7 +431,7 @@ function UserAttendance() {
 
       toastSuccess("Checked out successfully");
       setCheckedOut(true);
-      await refreshAttendanceState();
+      await fetchAttendanceHistory(viewType, true);
     }
     catch (err) {
       const responseData =
@@ -518,7 +500,7 @@ function UserAttendance() {
       setReason("");
       setPendingCheckoutData(null);
 
-      await refreshAttendanceState();
+      await fetchAttendanceHistory(viewType, true);
     }
     catch (err) {
       const responseData =
@@ -791,8 +773,8 @@ function UserAttendance() {
             <span>STATUS</span>
           </div>
 
-          {historyLoading || loading ?
-          <div className="attendance-empty">
+          {historyLoading ?
+          <div className="attendance-empty">
               Loading attendance...
             </div> :
           !attendanceData || attendanceData.length === 0 ?

@@ -4,9 +4,7 @@ import { extractCollection } from "../utils/collections";
 import { toBoolean } from "../utils/boolean";
 import {
   logApiError,
-  logPermissionCollection,
-  sanitizeForDebug,
-  summarizeAxiosResponse
+  logPermissionCollection
 } from "../utils/debugLogging.js";
 
 const firstDefined = (...values) =>
@@ -160,7 +158,7 @@ export const fetchPermissionModules = async () => {
 
     return normalizePermissionList(permissionResponse?.data);
   } catch (error) {
-    console.error("[PERMISSION ERROR]", error?.response?.data);
+    logApiError("[PERMISSION ERROR]", error);
     throw error;
   }
 };
@@ -336,8 +334,6 @@ export const fetchUserPermissionsByEmployeeId = async (employeeId) => {
   const endpoint = API_ENDPOINTS.userPermission.get(normalizedEmployeeId);
 
   try {
-    console.log("[PERMISSION API] Endpoint:", endpoint);
-
     const response = await api.get(endpoint, {
       headers: {
         Accept: "application/json"

@@ -114,7 +114,7 @@
   --attendance-status-upcoming-text: var(--attendance-muted);
   --attendance-status-upcoming-border: var(--attendance-border);
   --button-shadow: 0 2px 8px var(--shadow-color);
-  --button-shadow-hover: 0 4px 12px rgba(4, 28, 50, 0.16);
+  --button-shadow-hover: none;
   --shadow-xs: var(--theme-shadow-xs);
   --shadow-sm: var(--theme-shadow-sm);
   --shadow-md: var(--theme-shadow-md);

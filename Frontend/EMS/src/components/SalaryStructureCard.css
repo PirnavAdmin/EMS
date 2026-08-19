@@ -65,12 +65,18 @@
   box-shadow: var(--button-shadow);
 }
 
-.salary-reset-btn:hover:not(:disabled),
+.salary-reset-btn:hover:not(:disabled) {
+  background: var(--button-secondary-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
 .salary-reset-btn:focus-visible:not(:disabled) {
   background: var(--button-secondary-hover);
   border-color: var(--border-strong);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: 0 0 0 3px var(--input-focus);
 }
 
 .salary-dropdown-wrapper {
@@ -106,7 +112,11 @@
   box-shadow: var(--button-shadow);
 }
 
-.salary-dropdown:hover:not(:disabled),
+.salary-dropdown:hover:not(:disabled) {
+  border-color: var(--theme-primary);
+  background: var(--card-bg);
+}
+
 .salary-dropdown:focus-visible:not(:disabled),
 .salary-dropdown.is-open {
   border-color: var(--theme-primary);
@@ -355,12 +365,18 @@
   box-shadow: var(--button-shadow);
 }
 
-.salary-ctc-btn:hover:not(:disabled),
+.salary-ctc-btn:hover:not(:disabled) {
+  background: var(--button-primary-hover);
+  border-color: var(--theme-secondary);
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
 .salary-ctc-btn:focus-visible:not(:disabled) {
   background: var(--button-primary-hover);
   border-color: var(--theme-secondary);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: 0 0 0 3px var(--input-focus);
 }
 
 .salary-ctc-value {
@@ -410,12 +426,18 @@
   box-shadow: var(--button-shadow);
 }
 
-.salary-small-btn:hover:not(:disabled),
+.salary-small-btn:hover:not(:disabled) {
+  background: var(--button-secondary-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
 .salary-small-btn:focus-visible:not(:disabled) {
   background: var(--button-secondary-hover);
   border-color: var(--border-strong);
   transform: translateY(-1px);
-  box-shadow: var(--button-shadow-hover);
+  box-shadow: 0 0 0 3px var(--input-focus);
 }
 
 .salary-ctc-btn:disabled,

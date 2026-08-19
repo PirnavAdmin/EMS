@@ -3,6 +3,8 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
 
+const NOTIFICATION_CACHE_TTL = 15 * 1000;
+
 const normalizeNotificationRole = (value) => {
   const normalized = String(value ?? "").
   trim().
@@ -82,27 +84,7 @@ const buildRequestConfig = (context) => {
   };
 };
 
-const getErrorMessage = (error) =>
-error?.response?.data?.message ||
-error?.response?.data?.error ||
-error?.response?.data?.title ||
-error?.response?.data ||
-error?.message ||
-"Notification request failed";
-
-const logNotificationEvent = ({
-  action,
-  context,
-  endpoint,
-  phase,
-  responseStatus,
-  error
-}) => {
-
-  if (error) {
-
-  }
-};
+const logNotificationEvent = () => undefined;
 
 export const getNotificationContext = (role, snapshot = getAuthenticatedUserSnapshot()) => {
   const resolvedRole = normalizeNotificationRole(role || snapshot.role || snapshot.roleName || "");
@@ -142,7 +124,11 @@ getNotificationContext(role, snapshot).config.readAll || "";
 export const getNotificationRoute = (role, snapshot) =>
 getNotificationContext(role, snapshot).route;
 
-export const loadNotifications = async (role, snapshot) => {
+export const loadNotifications = async (
+  role,
+  snapshot,
+  { forceRefresh = false } = {}
+) => {
   const context = getNotificationContext(role, snapshot);
 
   if (!context.isReady || !context.supportsNotifications || !context.endpoint) {
@@ -164,7 +150,10 @@ export const loadNotifications = async (role, snapshot) => {
   });
 
   try {
-    const response = await api.get(context.endpoint, buildRequestConfig(context));
+    const response = await api.get(context.endpoint, {
+      ...buildRequestConfig(context),
+      cacheTTL: forceRefresh ? 0 : NOTIFICATION_CACHE_TTL
+    });
 
     logNotificationEvent({
       action: "fetch",

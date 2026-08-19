@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { useAdminPermissions } from "./AdminPermissionContext";
 import { useEmployeePermissions } from "./EmployeePermissionContext";
 import {
@@ -45,50 +45,30 @@ export const usePermissionScope = () => {
   employeeRole || rolePermissionRole ?
   "role-permission" :
   "no-permission-api";
-  const adminPermissionCount = Array.isArray(adminPermissions?.allowedModules) ?
-  adminPermissions.allowedModules.length :
-  0;
-  const employeePermissionCount = Array.isArray(employeePermissions?.allowedModules) ?
-  employeePermissions.allowedModules.length :
-  0;
 
   const selectedPermissions =
   loginType === "admin" || loginType === "super-admin" ?
   adminPermissions :
   employeePermissions;
 
-  useEffect(() => {
-    console.log("[ROLE DEBUG]", {
-      apiRole: getStoredJwtRole() || "",
-      storedRole: getStoredRole() || getStoredRoleName() || "",
-      contextRole: authenticatedRole,
-      normalizedRole: resolveAuthRole(authenticatedRole || "", "")
-    });
-
-    console.log("[PERMISSION SCOPE]", {
+  return useMemo(
+    () => ({
+      ...selectedPermissions,
+      permissionScope: authenticatedRole,
+      authenticatedRole,
+      loginType,
+      selectedPermissionFlow: permissionFlow,
+      permissionFlow,
+      adminPermissions,
+      employeePermissions
+    }),
+    [
+      adminPermissions,
+      authenticatedRole,
+      employeePermissions,
       loginType,
       permissionFlow,
-      adminPermissionCount,
-      employeePermissionCount,
-      selectedPermissionFlow: permissionFlow
-    });
-  }, [
-  authenticatedRole,
-  loginType,
-  permissionFlow,
-  adminPermissionCount,
-  employeePermissionCount,
-  selectedPermissions]
+      selectedPermissions
+    ]
   );
-
-  return {
-    ...selectedPermissions,
-    permissionScope: authenticatedRole,
-    authenticatedRole,
-    loginType,
-    selectedPermissionFlow: permissionFlow,
-    permissionFlow,
-    adminPermissions,
-    employeePermissions
-  };
 };

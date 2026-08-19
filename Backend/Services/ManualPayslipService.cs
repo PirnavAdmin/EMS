@@ -77,36 +77,127 @@ namespace EmployeeManagementSystem.Services
             // ✅ Calculate paid days correctly
             decimal paidDays = totalWorkingDays - lopDays;
 
+
             //--------------------------------
-            decimal annualCTC = employee.CTC;
+            // SALARY STRUCTURE
+            //--------------------------------
 
-            decimal monthlyCTC = annualCTC / 12;
+            var salaryStructure = await _context.EmployeeSalaryStructures
+                .AsNoTracking()
+                .Where(x =>
+                    x.Employee_Id == dto.EmployeeId &&
+                    x.IsActive)
+                .OrderByDescending(x => x.EffectiveFrom)
+                .FirstOrDefaultAsync();
 
-            // ✅ SAME AS AUTO
-            decimal ratio = (decimal)paidDays / totalWorkingDays;
-            decimal basic = Math.Round((monthlyCTC * 0.3817m) * ratio);
+            if (salaryStructure == null)
+            {
+                throw new Exception(
+                    $"Salary structure not found for employee {dto.EmployeeId}.");
+            }
 
-            decimal hra = Math.Round((basic * 0.40m));
+            //--------------------------------
+            // ATTENDANCE RATIO
+            //--------------------------------
 
-            decimal conveyance = Math.Round(1600 * ratio);
+            decimal ratio =
+                totalWorkingDays == 0
+                    ? 0
+                    : paidDays / totalWorkingDays;
 
-            decimal medical = Math.Round(1250 * ratio);
 
-            decimal pf = Math.Round(basic * 0.12m);
+            //--------------------------------
+            // SALARY STRUCTURE VALUES
+            //--------------------------------
 
-            // ✅ KEEP THIS (your system logic)
-            decimal gross = Math.Round(monthlyCTC * ratio) - pf;
+            decimal annualCTC =
+                salaryStructure.AnnualCTC;
 
-            decimal specialAllowance = Math.Round(
-    gross - (basic + hra + conveyance + medical),
-    0,
-    MidpointRounding.AwayFromZero);
+            decimal monthlyCTC =
+                salaryStructure.MonthlyCTC;
 
-            decimal totalEarnings = Math.Round(
-                basic + hra + conveyance + medical + specialAllowance,
-                0,
-                MidpointRounding.AwayFromZero);
+            decimal fullBasic =
+                salaryStructure.BasicSalary;
 
+            decimal fullHRA =
+                salaryStructure.HRA;
+
+            decimal fullConveyance =
+                salaryStructure.ConveyanceAllowance;
+
+            decimal fullMedical =
+                salaryStructure.MedicalAllowance;
+
+            decimal fullSpecialAllowance =
+                salaryStructure.SpecialAllowance;
+
+            //--------------------------------
+            // EARNINGS AFTER ATTENDANCE / LOP
+            //--------------------------------
+
+            decimal basic =
+                RoundSalary(fullBasic * ratio);
+
+            decimal hra =
+                RoundSalary(fullHRA * ratio);
+
+            decimal conveyance =
+                RoundSalary(fullConveyance * ratio);
+
+            decimal medical =
+                RoundSalary(fullMedical * ratio);
+
+            decimal specialAllowance =
+                RoundSalary(fullSpecialAllowance * ratio);
+
+
+            //--------------------------------
+            // TOTAL EARNINGS
+            //--------------------------------
+
+            decimal totalEarnings =
+                RoundSalary(
+                    basic +
+                    hra +
+                    conveyance +
+                    medical +
+                    specialAllowance);
+
+            decimal gross = totalEarnings;
+
+            //--------------------------------
+            // LOP DEDUCTION
+            //--------------------------------
+
+            decimal fullMonthlyEarnings =
+                fullBasic +
+                fullHRA +
+                fullConveyance +
+                fullMedical +
+                fullSpecialAllowance;
+
+            decimal lopDeduction =
+                RoundSalary(
+                    fullMonthlyEarnings - totalEarnings);
+
+            if (lopDeduction < 0)
+                lopDeduction = 0;
+         
+            //--------------------------------
+            // PF
+            //--------------------------------
+
+            decimal pf =
+                RoundSalary(
+                    salaryStructure.EmployeePF * ratio);
+
+            //--------------------------------
+            // PROFESSIONAL TAX
+            //--------------------------------
+
+            decimal professionalTax =
+                RoundSalary(
+                    salaryStructure.ProfessionalTax);
             //--------------------------------
             // TDS
             //--------------------------------
@@ -116,39 +207,48 @@ namespace EmployeeManagementSystem.Services
                     "TDS percentage must be between 0 and 100.");
             }
 
-            decimal tdsAmount = 0m;
+            //--------------------------------
+            // TDS
+            //--------------------------------
 
-            if (dto.TDSPercentage > 0)
-            {
-                tdsAmount = Math.Round(
-                    totalEarnings * dto.TDSPercentage / 100m,
-                    2,
-                    MidpointRounding.AwayFromZero);
-            }
-
+            decimal tdsAmount =
+                RoundSalary(
+                    salaryStructure.TDS);
             //--------------------------------
             // PROFESSIONAL TAX
             //--------------------------------
-            decimal professionalTax = 200m;
+          
 
+            
             //--------------------------------
             // TOTAL DEDUCTIONS
             //--------------------------------
-            decimal totalDeductions = Math.Round(
-                pf +
-                professionalTax +
-                tdsAmount +
-                dto.OtherDeductions,
-                2,
-                MidpointRounding.AwayFromZero);
+            //--------------------------------
+            // OTHER DEDUCTIONS
+            //--------------------------------
+
+            decimal totalOtherDeduction =
+                RoundSalary(
+                    salaryStructure.OtherDeduction +
+                    dto.OtherDeductions);
+
+            decimal totalDeductions =
+                RoundSalary(
+                    pf +
+                    professionalTax +
+                    tdsAmount +
+                    totalOtherDeduction);
 
             //--------------------------------
             // NET SALARY
             //--------------------------------
-            decimal netSalary = Math.Round(
-                totalEarnings - totalDeductions,
-                2,
-                MidpointRounding.AwayFromZero);
+            //--------------------------------
+            // NET SALARY
+            //--------------------------------
+
+            decimal netSalary =
+                RoundSalary(
+                    totalEarnings - totalDeductions);
 
             if (netSalary < 0)
                 netSalary = 0;
@@ -164,10 +264,10 @@ namespace EmployeeManagementSystem.Services
             //--------------------------------
             // FILE PATH
             //--------------------------------
-            //var templatePath = Path.Combine(
-            //    Directory.GetCurrentDirectory(),
-            //    "Templates",
-            //    "PaySlipTemplate.docx");
+            var templatePath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "Templates",
+                "PaySlipTemplate.docx");
 
 
             // --------------------------------
@@ -176,49 +276,49 @@ namespace EmployeeManagementSystem.Services
 
             // --------------------------------
 
-            int companyId = 1;
+            //int companyId = 1;
 
-            var template = await _templateService
+            //var template = await _templateService
 
-                .GetActiveTemplateAsync(companyId, "PAYSLIP");
+            //    .GetActiveTemplateAsync(companyId, "PAYSLIP");
 
-            if (template == null)
+            //if (template == null)
 
-            {
+            //{
 
-                throw new Exception(
+            //    throw new Exception(
 
-                    "Payslip template not found. Please upload and set a default PAYSLIP template.");
+            //        "Payslip template not found. Please upload and set a default PAYSLIP template.");
 
-            }
+            //}
 
-            if (string.IsNullOrWhiteSpace(template.FilePath))
+            //if (string.IsNullOrWhiteSpace(template.FilePath))
 
-            {
+            //{
 
-                throw new Exception("Payslip template file path is empty.");
+            //    throw new Exception("Payslip template file path is empty.");
 
-            }
+            //}
 
-            var templatePath = Path.Combine(
+            //var templatePath = Path.Combine(
 
-                Directory.GetCurrentDirectory(),
+            //    Directory.GetCurrentDirectory(),
 
-                "wwwroot",
+            //    "wwwroot",
 
-                template.FilePath.TrimStart('/'));
+            //    template.FilePath.TrimStart('/'));
 
-            if (!File.Exists(templatePath))
+            //if (!File.Exists(templatePath))
 
-            {
+            //{
 
-                throw new Exception(
+            //    throw new Exception(
 
-                    $"Payslip template file not found: {templatePath}");
+            //        $"Payslip template file not found: {templatePath}");
 
-            }
+            //}
 
-            //
+            ////
 
 
             var outputFolder = Path.Combine(
@@ -327,9 +427,9 @@ namespace EmployeeManagementSystem.Services
      deductionLabel);
 
                 ReplaceBookmark(
-                    wordDoc,
-                    "OtherDeduction",
-                    dto.OtherDeductions.ToString("N2"));
+     wordDoc,
+     "OtherDeduction",
+     totalOtherDeduction.ToString("N2"));
                 ReplaceBookmark(wordDoc, "TotalDeduction", totalDeductions.ToString("N2"));
                 ReplaceBookmark(wordDoc, "NetSalary", netSalary.ToString("N2"));
 
@@ -349,6 +449,10 @@ namespace EmployeeManagementSystem.Services
                 //--------------------------------
                 ReplaceBookmark(wordDoc, "TotalWorkingDays", totalWorkingDays.ToString());
                 ReplaceBookmark(wordDoc, "LOPDays", lopDays.ToString());
+                ReplaceBookmark(
+    wordDoc,
+    "LOPDeduction",
+    lopDeduction.ToString("N2"));
                 ReplaceBookmark(wordDoc, "PaidDays", paidDays.ToString());
             }
 
@@ -461,23 +565,29 @@ namespace EmployeeManagementSystem.Services
         //{
         //    var sofficePath = @"C:\Program Files\LibreOffice\program\soffice.exe";
 
-            //    var process = new Process();
+        //    var process = new Process();
 
-            //    process.StartInfo.FileName = sofficePath;
-            //    process.StartInfo.Arguments =
-            //        $"--headless --convert-to pdf --outdir \"{Path.GetDirectoryName(pdfPath)}\" \"{docxPath}\"";
+        //    process.StartInfo.FileName = sofficePath;
+        //    process.StartInfo.Arguments =
+        //        $"--headless --convert-to pdf --outdir \"{Path.GetDirectoryName(pdfPath)}\" \"{docxPath}\"";
 
-            //    process.StartInfo.CreateNoWindow = true;
-            //    process.StartInfo.UseShellExecute = false;
+        //    process.StartInfo.CreateNoWindow = true;
+        //    process.StartInfo.UseShellExecute = false;
 
-            //    process.Start();
-            //    process.WaitForExit();
-            //}
+        //    process.Start();
+        //    process.WaitForExit();
+        //}
 
-            //--------------------------------
-            // NUMBER TO WORDS
-            //--------------------------------
-
+        //--------------------------------
+        // NUMBER TO WORDS
+        //--------------------------------
+        private static decimal RoundSalary(decimal amount)
+        {
+            return Math.Round(
+                amount,
+                0,
+                MidpointRounding.AwayFromZero);
+        }
         private DateTime GetIndianTime()
         {
             TimeZoneInfo indiaZone =

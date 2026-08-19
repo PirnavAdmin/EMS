@@ -912,13 +912,20 @@ function ScreenPermissions() {
         <div className="permission-matrix-wrap" aria-busy={isBusy}>
           {loading && !hasPermissions ? null :
           <table className="permission-matrix">
+              <colgroup>
+                <col className="permission-col-module" />
+                {ACTIONS.map((action) => (
+                  <col key={action.key} className="permission-col-action" />
+                ))}
+                <col className="permission-col-access" />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>Module</th>
+                  <th scope="col" className="permission-module-col">Module</th>
                   {ACTIONS.map((action) =>
-                <th key={action.key}>{action.label}</th>
+                <th key={action.key} scope="col" className="permission-action-col">{action.label}</th>
                 )}
-                  <th>Full Access</th>
+                  <th scope="col" className="permission-access-col">Full Access</th>
                 </tr>
               </thead>
               <tbody>
@@ -931,9 +938,9 @@ function ScreenPermissions() {
 
                 return (
                   <tr key={moduleKey}>
-                        <td>{permission.moduleName}</td>
+                        <td className="permission-module-col">{permission.moduleName}</td>
                         {ACTIONS.map((action) =>
-                    <td key={action.key}>
+                    <td key={action.key} className="permission-action-col">
                             <input
                         type="checkbox"
                         className="permission-checkbox"
@@ -946,7 +953,7 @@ function ScreenPermissions() {
                           event.target.checked
                         )
                         }
-                        aria-label={`${permission.moduleName} ${action.label}`} />
+                          aria-label={`${permission.moduleName} ${action.label}`} />
                       
                           </td>
                     )}
