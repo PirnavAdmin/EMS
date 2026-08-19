@@ -114,4 +114,6 @@ USER ${APP_UID}
  
 EXPOSE 8080
 
+ENTRYPOINT ["dotnet", "EmployeeManagementSystem.dll"]
+
  
