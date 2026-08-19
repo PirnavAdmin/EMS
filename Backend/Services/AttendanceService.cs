@@ -4,11 +4,16 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace EmployeeManagementSystem.Services
@@ -19,6 +24,25 @@ namespace EmployeeManagementSystem.Services
 
     {
 
+        private static readonly SemaphoreSlim CheckoutSemaphore =
+        new SemaphoreSlim(40, 40);
+        private static AttendanceSettings? _cachedAttendanceSettings;
+        private static DateTime _attendanceSettingsCacheTime = DateTime.MinValue;
+
+        private static readonly object _attendanceSettingsCacheLock = new();
+        private static readonly TimeSpan AttendanceSettingsCacheDuration =
+            TimeSpan.FromMinutes(5);
+
+        private static readonly Dictionary<string, (ShiftMaster? Shift, DateTime CachedAt)>
+            _shiftCache = new();
+
+        private static readonly object _shiftCacheLock = new();
+
+        private static readonly TimeSpan ShiftCacheDuration =
+            TimeSpan.FromMinutes(5);
+        private static bool _shiftConfigurationChecked = false;
+        private static bool _shiftConfigurationExists = false;
+        private static readonly SemaphoreSlim _shiftConfigurationSemaphore = new(1, 1);
         private readonly AppDbContext _context;
 
         private readonly IAdminNotificationService _notificationService;
@@ -97,14 +121,38 @@ namespace EmployeeManagementSystem.Services
 
         private AttendanceSettings GetAttendanceSettings()
         {
-            var settings = _context.AttendanceSettings
-                .AsNoTracking()
-                .FirstOrDefault();
+            lock (_attendanceSettingsCacheLock)
+            {
+                if (_cachedAttendanceSettings != null &&
+                    DateTime.UtcNow - _attendanceSettingsCacheTime <
+                    AttendanceSettingsCacheDuration)
+                {
+                    return _cachedAttendanceSettings;
+                }
 
-            if (settings == null)
-                throw new Exception("Attendance Settings not configured.");
+                var settings = _context.AttendanceSettings
+                    .AsNoTracking()
+                    .FirstOrDefault();
 
-            return settings;
+                if (settings == null)
+                    throw new Exception("Attendance Settings not configured.");
+
+                _cachedAttendanceSettings = new AttendanceSettings
+                {
+                    Id = settings.Id,
+                    OfficeStartTime = settings.OfficeStartTime,
+                    OfficeEndTime = settings.OfficeEndTime,
+                    CheckInStartTime = settings.CheckInStartTime,
+                    LateAfterTime = settings.LateAfterTime,
+                    CheckoutTime = settings.CheckoutTime,
+                    HalfDayHours = settings.HalfDayHours,
+                    UpdatedAt = settings.UpdatedAt
+                };
+
+                _attendanceSettingsCacheTime = DateTime.UtcNow;
+
+                return _cachedAttendanceSettings;
+            }
         }
 
         //---------------------------------------
@@ -116,13 +164,15 @@ namespace EmployeeManagementSystem.Services
      ClaimsPrincipal user,
      CheckInLocationDto dto)
         {
-
+            var requestTimeUtc = DateTime.UtcNow;
+            var requestTimeIst = ConvertToIST(requestTimeUtc);
             var emp = await GetEmployee(user);
 
             if (emp == null)
                 return new UnauthorizedObjectResult("Invalid user");
 
             var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
             var monday = today.AddDays(
     -(int)(today.DayOfWeek == DayOfWeek.Sunday
         ? 6
@@ -164,12 +214,10 @@ namespace EmployeeManagementSystem.Services
 
             }
 
-            var now = DateTime.UtcNow;
-
-            var ist = ConvertToIST(now);
+            var now = requestTimeUtc;
+            var ist = requestTimeIst;
 
             var settings = GetAttendanceSettings();
-
 
 
             TimeSpan checkInStart = settings.CheckInStartTime;
@@ -308,33 +356,58 @@ namespace EmployeeManagementSystem.Services
       CheckOutLocationDto dto)
 
         {
+            var requestTimeUtc = DateTime.UtcNow;
+            var requestTimeIst = ConvertToIST(requestTimeUtc);
+            await CheckoutSemaphore.WaitAsync();
 
-            var emp = await GetEmployee(user);
-
-            if (emp == null) return new UnauthorizedObjectResult("Invalid user");
-
-
-            var today = DateTime.UtcNow.Date;
-
-            var shift = await GetApplicableShiftAsync(emp.Employee_Id);
-
-            Attendance? att = null;
-
-            if (shift != null && shift.IsNightShift)
-
+            try
             {
 
-                // Try today's attendance first
+                var emp = await GetEmployee(user);
 
-                att = await _context.Attendance.FirstOrDefaultAsync(x =>
+                if (emp == null) return new UnauthorizedObjectResult("Invalid user");
 
-                    x.Employee_Id == emp.Employee_Id &&
 
-                    x.Attendance_Date.Date == today);
+                var today = DateTime.UtcNow.Date;
 
-                // If not found, check yesterday's attendance
+                var tomorrow = today.AddDays(1);
+                var shift = await GetApplicableShiftAsync(emp.Employee_Id);
 
-                if (att == null)
+                Attendance? att = null;
+
+                if (shift != null && shift.IsNightShift)
+
+                {
+
+                    // Try today's attendance first
+
+                    att = await _context.Attendance.FirstOrDefaultAsync(x =>
+
+                        x.Employee_Id == emp.Employee_Id &&
+
+                        x.Attendance_Date >= today &&
+
+                        x.Attendance_Date < tomorrow);
+
+                    // If not found, check yesterday's attendance
+
+                    if (att == null)
+
+                    {
+
+                        att = await _context.Attendance.FirstOrDefaultAsync(x =>
+
+                            x.Employee_Id == emp.Employee_Id &&
+
+                            x.Attendance_Date >= today.AddDays(-1) &&
+
+                            x.Attendance_Date < today);
+
+                    }
+
+                }
+
+                else
 
                 {
 
@@ -342,300 +415,292 @@ namespace EmployeeManagementSystem.Services
 
                         x.Employee_Id == emp.Employee_Id &&
 
-                        x.Attendance_Date.Date == today.AddDays(-1));
+                        x.Attendance_Date >= today &&
+
+                        x.Attendance_Date < tomorrow);
 
                 }
 
-            }
 
-            else
+                if (att == null)
 
-            {
+                    return new BadRequestObjectResult("Check-in not found");
 
-                att = await _context.Attendance.FirstOrDefaultAsync(x =>
 
-                    x.Employee_Id == emp.Employee_Id &&
+                var now = requestTimeUtc;
+                // Restrict checkout after 6:15 PM IST
+                var istNow = requestTimeIst;
 
-                    x.Attendance_Date.Date == today);
+                //var cutoffTime = istNow.Date.AddHours(18).AddMinutes(15); // 6:15 PM
 
-            }
+                //if (istNow > cutoffTime)
+                //{
+                //    return new BadRequestObjectResult(new
+                //    {
+                //        Message = "Checkout is allowed only until 6:15 PM."
+                //    });
+                //}
 
+                att.Check_Out = now;
 
-            if (att == null)
 
-                return new BadRequestObjectResult("Check-in not found");
+                var settings = GetAttendanceSettings();
+                TimeSpan checkoutTime = settings.CheckoutTime;
 
+                int grace = 0;
 
+                if (shift != null)
 
+                {
 
+                    checkoutTime = shift.EndTime;
 
-            var now = DateTime.UtcNow;
-            // Restrict checkout after 6:15 PM IST
-            var istNow = ConvertToIST(DateTime.UtcNow);
+                    grace = shift.GraceTimeMinutes;
 
-            //var cutoffTime = istNow.Date.AddHours(18).AddMinutes(15); // 6:15 PM
+                }
 
-            //if (istNow > cutoffTime)
-            //{
-            //    return new BadRequestObjectResult(new
-            //    {
-            //        Message = "Checkout is allowed only until 6:15 PM."
-            //    });
-            //}
+                DateTime cutoffTime;
 
-            att.Check_Out = now;
+                if (shift != null && shift.IsNightShift)
 
+                {
 
-            var settings = GetAttendanceSettings();
-            TimeSpan checkoutTime = settings.CheckoutTime;
+                    cutoffTime = att.Attendance_Date.Date
 
-            int grace = 0;
+                        .AddDays(1)
 
-            if (shift != null)
+                        .Add(checkoutTime)
 
-            {
+                        .AddMinutes(grace);
 
-                checkoutTime = shift.EndTime;
+                }
 
-                grace = shift.GraceTimeMinutes;
+                else
 
-            }
+                {
 
-            DateTime cutoffTime;
+                    cutoffTime = att.Attendance_Date.Date
 
-            if (shift != null && shift.IsNightShift)
+                        .Add(checkoutTime)
 
-            {
+                        .AddMinutes(grace);
 
-                cutoffTime = att.Attendance_Date.Date
+                }
 
-                    .AddDays(1)
+                if (istNow > cutoffTime)
 
-                    .Add(checkoutTime)
+                {
 
-                    .AddMinutes(grace);
+                    return new BadRequestObjectResult(
 
-            }
+                        $"Checkout allowed only until {cutoffTime:dd-MMM-yyyy hh:mm tt}");
 
-            else
+                }
 
-            {
+                att.Check_Out = now;
 
-                cutoffTime = att.Attendance_Date.Date
 
-                    .Add(checkoutTime)
 
-                    .AddMinutes(grace);
 
-            }
 
-            if (istNow > cutoffTime)
 
-            {
+                double halfDayHours = (double)settings.HalfDayHours;
 
-                return new BadRequestObjectResult(
+                if (shift != null)
 
-                    $"Checkout allowed only until {cutoffTime:dd-MMM-yyyy hh:mm tt}");
+                {
 
-            }
+                    halfDayHours = (double)shift.HalfDayHours;
 
-            att.Check_Out = now;
+                }
 
+                var minutes = (int)(now - att.Check_In.Value).TotalMinutes;
 
+                att.WorkingMinutes = minutes;
 
+                var hours = minutes / 60.0;
 
+                // Half Day = HalfDayHours - 1  (e.g. if HalfDayHours = 4, Half Day starts at 3)
+                // vishnu change
 
+                if (hours >= halfDayHours - 1 &&
 
-            double halfDayHours = (double)settings.HalfDayHours;
+        hours < halfDayHours)
 
-            if (shift != null)
+                {
 
-            {
+                    att.Status = "Half Day";
 
-                halfDayHours = (double)shift.HalfDayHours;
+                }
 
-            }
+                else if (hours >= halfDayHours)
 
-            var minutes = (int)(now - att.Check_In.Value).TotalMinutes;
+                {
 
-            att.WorkingMinutes = minutes;
+                    if (att.Status != "Late")
 
-            var hours = minutes / 60.0;
+                        att.Status = "Present";
 
-            // Half Day = HalfDayHours - 1  (e.g. if HalfDayHours = 4, Half Day starts at 3)
-            // vishnu change
+                }
 
-            if (hours >= halfDayHours - 1 &&
+                else
 
-    hours < halfDayHours)
+                {
 
-            {
+                    att.Status = "Absent";
 
-                att.Status = "Half Day";
+                }
 
-            }
+                //
 
-            else if (hours >= halfDayHours)
 
-            {
-
-                if (att.Status != "Late")
-
-                    att.Status = "Present";
-
-            }
-
-            else
-
-            {
-
-                att.Status = "Absent";
-
-            }
-
-            //
-
-
-            // Store checkout location
-            att.CheckOutLatitude = dto.Latitude;
-            att.CheckOutLongitude = dto.Longitude;
-
-            if (dto == null)
-            {
-                return new BadRequestObjectResult("Checkout payload is null");
-            }
-
-            if (dto.Latitude == 0 || dto.Longitude == 0)
-            {
-                return new BadRequestObjectResult("Latitude/Longitude missing");
-            }
-
-            // Calculate distance
-            if (att.CheckInLatitude.HasValue &&
-     att.CheckInLongitude.HasValue)
-            {
-                var distance = GeoHelper.CalculateDistance(
-                    (double)att.CheckInLatitude.Value,
-                    (double)att.CheckInLongitude.Value,
-                    (double)dto.Latitude,
-                    (double)dto.Longitude);
-
+                // Store checkout location
                 att.CheckOutLatitude = dto.Latitude;
                 att.CheckOutLongitude = dto.Longitude;
 
-                // Stores KM (rename column later if possible)
-                att.DistanceMeters = (decimal)distance;
-
-                // Valid within 1 KM
-                if (distance <= 1)
+                if (dto == null)
                 {
-                    att.LocationStatus = "VALID";
-                    att.IsLocationMismatch = false;
-                    att.LocationChangeReason = null;
+                    return new BadRequestObjectResult("Checkout payload is null");
                 }
-                else
+
+                if (dto.Latitude == 0 || dto.Longitude == 0)
                 {
-                    if (string.IsNullOrWhiteSpace(dto.LocationChangeReason))
+                    return new BadRequestObjectResult("Latitude/Longitude missing");
+                }
+
+                // Calculate distance
+                if (att.CheckInLatitude.HasValue &&
+         att.CheckInLongitude.HasValue)
+                {
+                    var distance = GeoHelper.CalculateDistance(
+                        (double)att.CheckInLatitude.Value,
+                        (double)att.CheckInLongitude.Value,
+                        (double)dto.Latitude,
+                        (double)dto.Longitude);
+
+                    att.CheckOutLatitude = dto.Latitude;
+                    att.CheckOutLongitude = dto.Longitude;
+
+                    // Stores KM (rename column later if possible)
+                    att.DistanceMeters = (decimal)distance;
+
+                    // Valid within 1 KM
+                    if (distance <= 1)
                     {
-                        return new BadRequestObjectResult(new
-                        {
-                            requiresReason = true,
-                            message = "Reason is required when checkout location is more than 1 KM away."
-                        });
+                        att.LocationStatus = "VALID";
+                        att.IsLocationMismatch = false;
+                        att.LocationChangeReason = null;
                     }
-
-                    att.LocationStatus = "MISMATCH";
-                    att.IsLocationMismatch = true;
-                    att.LocationChangeReason = dto.LocationChangeReason.Trim();
-
-                    var allowedRoles = new[]
+                    else
                     {
+                        if (string.IsNullOrWhiteSpace(dto.LocationChangeReason))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                requiresReason = true,
+                                message = "Reason is required when checkout location is more than 1 KM away."
+                            });
+                        }
+
+                        att.LocationStatus = "MISMATCH";
+                        att.IsLocationMismatch = true;
+                        att.LocationChangeReason = dto.LocationChangeReason.Trim();
+
+                        var allowedRoles = new[]
+                        {
             "HR",
             "HR Admin",
             "Manager"
         };
 
-                    var recipients = await (
-                        from u in _context.Users
-                        join r in _context.Roles
-                            on u.RoleId equals r.RoleId
-                        where u.Email != null &&
-                              allowedRoles.Contains(r.Name)
-                        select u.Email
-                    ).ToListAsync();
+                        var recipients = await (
+                            from u in _context.Users
+                            join r in _context.Roles
+                                on u.RoleId equals r.RoleId
+                            where u.Email != null &&
+                                  allowedRoles.Contains(r.Name)
+                            select u.Email
+                        ).ToListAsync();
 
-                    recipients.Add("hr.admin@pirnav.com");
-                    recipients.Add("hr@pirnav.com");
+                        recipients.Add("hr.admin@pirnav.com");
+                        recipients.Add("hr@pirnav.com");
 
-                    //vishnu change
+                        //vishnu change
 
-                    recipients = recipients
+                        recipients = recipients
 
-    .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
 
-    .ToList();
+        .ToList();
 
-                    // Notification Settings Check
+                        // Notification Settings Check
 
-                    var notification = await _context.NotificationSettings
+                        var notification = await _context.NotificationSettings
 
-                        .AsNoTracking()
+                            .AsNoTracking()
 
-                        .FirstOrDefaultAsync();
+                            .FirstOrDefaultAsync();
 
-                    if (notification != null &&
+                        if (notification != null &&
 
-                        notification.EnableEmailNotifications &&
+                            notification.EnableEmailNotifications &&
 
-                        notification.EnableLocationMismatchEmails)
+                            notification.EnableLocationMismatchEmails)
 
-                    {
-
-
-                        foreach (var email in recipients)
                         {
-                            await _emailService.SendLocationMismatchEmail(
-                                email,
-                                emp.Employee_Id,
-                                emp.Name ?? "",
-                                emp.Email ?? "",
-                                att.CheckInLatitude.Value,
-                                att.CheckInLongitude.Value,
-                                (decimal)dto.Latitude,
-                                (decimal)dto.Longitude,
-                                (decimal)distance,   // Distance in KM
-                                dto.LocationChangeReason
-                            );
+
+
+                            foreach (var email in recipients)
+                            {
+                                BackgroundJob.Enqueue<LocationMismatchEmailJobService>(
+                                service => service.SendAsync(
+                                    email,
+                                    emp.Employee_Id,
+                                    emp.Name ?? "",
+                                    emp.Email ?? "",
+                                    att.CheckInLatitude.Value,
+                                    att.CheckInLongitude.Value,
+                                    (decimal)dto.Latitude,
+                                    (decimal)dto.Longitude,
+                                    (decimal)distance,
+                                    dto.LocationChangeReason
+                                    ));
+                            }
                         }
                     }
                 }
+                att.CheckOutLatitude = dto.Latitude;
+                att.CheckOutLongitude = dto.Longitude;
+
+                await _context.SaveChangesAsync();
+
+                return new OkObjectResult(new
+                {
+                    Message = "Check-out successful",
+
+                    CheckOutTime = ConvertToIST(att.Check_Out.Value)
+             .ToString("hh:mm:ss tt"),
+
+                    CheckOutLatitude = att.CheckOutLatitude,
+                    CheckOutLongitude = att.CheckOutLongitude,
+
+                    Distance = Math.Round((double)att.DistanceMeters, 2),
+                    DistanceUnit = "KM",
+
+                    WorkingHours = FormatHours(att.WorkingMinutes),
+
+                    BreakMinutes = att.TotalBreakMinutes,
+
+                    Status = att.Status
+                });
+
+
+
             }
-            att.CheckOutLatitude = dto.Latitude;
-            att.CheckOutLongitude = dto.Longitude;
-
-            await _context.SaveChangesAsync();
-
-            return new OkObjectResult(new
+            finally
             {
-                Message = "Check-out successful",
-
-                CheckOutTime = ConvertToIST(att.Check_Out.Value)
-         .ToString("hh:mm:ss tt"),
-
-                CheckOutLatitude = att.CheckOutLatitude,
-                CheckOutLongitude = att.CheckOutLongitude,
-
-                Distance = Math.Round((double)att.DistanceMeters, 2),
-                DistanceUnit = "KM",
-
-                WorkingHours = FormatHours(att.WorkingMinutes),
-
-                BreakMinutes = att.TotalBreakMinutes,
-
-                Status = att.Status
-            });
-
-
+                CheckoutSemaphore.Release();
+            }
         }
 
 
@@ -1125,13 +1190,13 @@ namespace EmployeeManagementSystem.Services
                     UL = usedLeaves,
                     BL = balanceLeaves,
                     TotalWorkingDays = totalWorkingDays,
-                    
+
                     Days = days
                 });
             }
 
             return result;
-        }  
+        }
         //---------------------------------------
 
         // REQUIRED METHODS (UNCHANGED)
@@ -1140,12 +1205,12 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<IActionResult> GetWeeklyAttendance(ClaimsPrincipal user)
         {
-            await CheckMissingCheckouts();
-
             var emp = await GetEmployee(user);
 
             if (emp == null)
                 return new UnauthorizedObjectResult("Invalid user");
+
+            //    await CheckMissingCheckouts();          
 
             var today = DateTime.UtcNow.Date;
             int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
@@ -1732,23 +1797,20 @@ namespace EmployeeManagementSystem.Services
             await Task.CompletedTask;
         }
 
-
         public async Task CheckMissingCheckouts()
         {
             var istNow = ConvertToIST(DateTime.UtcNow);
             var today = istNow.Date;
 
-            // Only records that actually have a check-in,
-            // but do NOT have a checkout.
-            //
-            // Only Present and Late are eligible for MC/LMC.
-            var records = await _context.Attendance
+            var query = _context.Attendance
                 .Where(a =>
-                    a.Check_In != null &&
-                    a.Check_Out == null &&
-                    (a.Status == "Present" ||
-                     a.Status == "Late"))
-                .ToListAsync();
+                a.Check_In != null &&
+                a.Check_Out == null &&
+                (a.Status == "Present" ||
+                 a.Status == "Late"));
+
+
+            var records = await query.ToListAsync();
 
             if (!records.Any())
                 return;
@@ -4439,134 +4501,170 @@ namespace EmployeeManagementSystem.Services
         }
 
         private async Task<ShiftMaster?> GetApplicableShiftAsync(string employeeId)
-
         {
-
-            var today = DateTime.UtcNow.Date;
-
-            // =========================================================
-
-            // 1. Shift Roster (Highest Priority)
-
-            // =========================================================
-
-            var roster = await _context.ShiftRosters
-
-                .AsNoTracking()
-
-                .FirstOrDefaultAsync(x =>
-
-                    x.Employee_Id == employeeId &&
-
-                    x.RosterDate.Date == today);
-
-            if (roster != null)
-
+            // If there are no active shifts configured, don't query
+            // roster/rotation/assignment tables for every employee.
+            lock (_shiftCacheLock)
             {
-
-                return await _context.ShiftMasters
-
-                    .AsNoTracking()
-
-                    .FirstOrDefaultAsync(x => x.ShiftId == roster.ShiftId);
-
+                if (_shiftConfigurationChecked && !_shiftConfigurationExists)
+                {
+                    return null;
+                }
             }
 
-            // =========================================================
-
-            // 2. Shift Rotation
-
-            // =========================================================
-
-            var rotation = await _context.ShiftRotations
-
-                .AsNoTracking()
-
-                .FirstOrDefaultAsync(x =>
-
-                    x.Employee_Id == employeeId &&
-
-                    x.IsActive &&
-
-                    x.EffectiveFrom.Date <= today);
-
-            if (rotation != null)
-
+            // Check cache first
+            lock (_shiftCacheLock)
             {
-
-                int shiftId = rotation.Shift1Id;
-
-                if (rotation.RotationType == "Weekly")
-
+                if (_shiftCache.TryGetValue(employeeId, out var cached) &&
+                    DateTime.UtcNow - cached.CachedAt < ShiftCacheDuration)
                 {
+                    return cached.Shift;
+                }
+            }
 
-                    var weeks =
+            // Check once whether any active shift configuration exists.
 
-                        (today - rotation.EffectiveFrom.Date).Days / 7;
+            if (!_shiftConfigurationChecked)
+            {
+                await _shiftConfigurationSemaphore.WaitAsync();
 
-                    var shifts = new List<int>();
+                try
+                {
+                    if (!_shiftConfigurationChecked)
+                    {
+                        var hasActiveShift = await _context.ShiftMasters
+                            .AsNoTracking()
+                            .AnyAsync(x => x.IsActive);
 
-                    shifts.Add(rotation.Shift1Id);
-
-                    if (rotation.Shift2Id.HasValue)
-
-                        shifts.Add(rotation.Shift2Id.Value);
-
-                    if (rotation.Shift3Id.HasValue)
-
-                        shifts.Add(rotation.Shift3Id.Value);
-
-                    shiftId = shifts[weeks % shifts.Count];
-
+                        lock (_shiftCacheLock)
+                        {
+                            _shiftConfigurationExists = hasActiveShift;
+                            _shiftConfigurationChecked = true;
+                        }
+                    }
+                }
+                finally
+                {
+                    _shiftConfigurationSemaphore.Release();
                 }
 
-                return await _context.ShiftMasters
-
-                    .AsNoTracking()
-
-                    .FirstOrDefaultAsync(x => x.ShiftId == shiftId);
-
+                lock (_shiftCacheLock)
+                {
+                    if (!_shiftConfigurationExists)
+                    {
+                        return null;
+                    }
+                }
             }
 
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+
+            ShiftMaster? shift = null;
+
+            // =========================================================
+            // 1. Shift Roster - Highest Priority
             // =========================================================
 
-            // 3. Employee Shift Assignment
-
-            // =========================================================
-
-            var assignment = await _context.EmployeeShiftAssignments
-
+            var rosterShiftId = await _context.ShiftRosters
                 .AsNoTracking()
-
-                .FirstOrDefaultAsync(x =>
-
+                .Where(x =>
                     x.Employee_Id == employeeId &&
+                    x.RosterDate >= today &&
+                    x.RosterDate < tomorrow)
+                .Select(x => x.ShiftId)
+                .FirstOrDefaultAsync();
 
-                    x.IsActive);
-
-            if (assignment != null)
-
+            if (rosterShiftId != 0)
             {
-                
-                return await _context.ShiftMasters
-
+                shift = await _context.ShiftMasters
                     .AsNoTracking()
-
-                    .FirstOrDefaultAsync(x =>
-
-                        x.ShiftId == assignment.ShiftId);
-
+                    .FirstOrDefaultAsync(x => x.ShiftId == rosterShiftId);
             }
 
             // =========================================================
-
-            // 4. Default Shift
-
+            // 2. Shift Rotation
             // =========================================================
 
-            return await _context.ShiftMasters
+            if (shift == null)
+            {
+                var rotation = await _context.ShiftRotations
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == employeeId &&
+                        x.IsActive &&
+                        x.EffectiveFrom < tomorrow);
 
-    .FirstOrDefaultAsync(x => x.IsActive);
+                if (rotation != null)
+                {
+                    int shiftId = rotation.Shift1Id;
+
+                    if (rotation.RotationType == "Weekly")
+                    {
+                        var weeks =
+                            (today - rotation.EffectiveFrom.Date).Days / 7;
+
+                        var shifts = new List<int>
+                {
+                    rotation.Shift1Id
+                };
+
+                        if (rotation.Shift2Id.HasValue)
+                            shifts.Add(rotation.Shift2Id.Value);
+
+                        if (rotation.Shift3Id.HasValue)
+                            shifts.Add(rotation.Shift3Id.Value);
+
+                        if (shifts.Count > 0)
+                            shiftId = shifts[weeks % shifts.Count];
+                    }
+
+                    shift = await _context.ShiftMasters
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.ShiftId == shiftId);
+                }
+            }
+
+            // =========================================================
+            // 3. Employee Shift Assignment
+            // =========================================================
+
+            if (shift == null)
+            {
+                var assignment = await _context.EmployeeShiftAssignments
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == employeeId &&
+                        x.IsActive);
+
+                if (assignment != null)
+                {
+                    shift = await _context.ShiftMasters
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x =>
+                            x.ShiftId == assignment.ShiftId);
+                }
+            }
+
+            // =========================================================
+            // 4. Default Shift
+            // =========================================================
+
+            if (shift == null)
+            {
+                shift = await _context.ShiftMasters
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.IsActive);
+            }
+
+            // Cache the resolved shift, including no shift found.
+            // This prevents repeated database queries when no shift is configured.
+            lock (_shiftCacheLock)
+            {
+                _shiftCache[employeeId] = (shift, DateTime.UtcNow);
+            }
+
+            return shift;
 
         }
 
@@ -4602,3 +4700,4 @@ namespace EmployeeManagementSystem.Services
 
     }
 }
+
