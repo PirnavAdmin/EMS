@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import "./Holidays.css";
 import { FaCalendarAlt } from "react-icons/fa";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import TruncatedText from "../components/TruncatedText";
 import { extractCollection } from "../utils/collections";
 import { formatDate } from "../utils/date";
 import { getStoredToken } from "../utils/authStorage";
+import { getHolidays } from "../services/companyService";
 
 function UserHolidays() {
 
@@ -20,8 +19,7 @@ function UserHolidays() {
 
     try {
 
-      const res = await api.get(
-        API_ENDPOINTS.company.holidays.list,
+      const res = await getHolidays(
         {
           headers: {
             Authorization: `Bearer ${token}`

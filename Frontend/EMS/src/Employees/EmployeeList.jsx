@@ -3,7 +3,6 @@ import { X } from "lucide-react";
 import { FaCloudUploadAlt } from "react-icons/fa";
 import "./EmployeeList.css";
 import { useNavigate } from "react-router-dom";
-import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
 import BulkUploadModal from "./BulkUploadModal";
 import AppDatePicker from "../components/AppDatePicker";
@@ -23,6 +22,15 @@ import {
   buildSalaryBreakupPayload } from
 "../utils/salaryStructure";
 import { toastSuccess, toastError } from "../components/common/Toast/toastService";
+import {
+  createEmployee,
+  deleteEmployee,
+  getEmployees,
+  updateEmployee,
+} from "../services/employeeService";
+import { downloadFullMaster } from "../services/employeeService";
+import { getDepartments } from "../services/departmentService";
+import { getRoles } from "../services/roleService";
 
 const initialEmployeeForm = {
   id: "",
@@ -214,19 +222,15 @@ function EmployeeList() {
   const isEditMode = Boolean(empForm.originalId);
 
   const downloadEmployeeExcelFile = async ({
-    endpoint,
     filename,
     successMessage,
     errorMessage,
-    setLoadingState,
-    consoleLabel
+    setLoadingState
   }) => {
     try {
       setLoadingState(true);
 
-      const response = await api.get(endpoint, {
-        responseType: "blob"
-      });
+      const response = await downloadFullMaster();
 
       const blob = new Blob([response.data], {
         type: EXCEL_MIME_TYPE
@@ -254,12 +258,10 @@ function EmployeeList() {
 
   const handleDownloadExcel = () =>
   downloadEmployeeExcelFile({
-    endpoint: API_ENDPOINTS.employees.downloadFullMaster,
     filename: "employee-full-master.xlsx",
     successMessage: "Download completed successfully.",
     errorMessage: "Failed to download Employee Excel.",
-    setLoadingState: setIsDownloading,
-    consoleLabel: "Employee Excel download"
+    setLoadingState: setIsDownloading
   });
 
   useEffect(() => {
@@ -268,11 +270,11 @@ function EmployeeList() {
         setLoading(true);
 
         const [roleRes, empRes, deptRes] = await Promise.all([
-        api.get(API_ENDPOINTS.masters.roles.list),
-        api.get(API_ENDPOINTS.employees.list, {
+        getRoles(),
+        getEmployees({
           cacheTTL: 60 * 1000
         }),
-        api.get(API_ENDPOINTS.departments.list)]
+        getDepartments()]
         );
 
         const roleOptions = normalizeRoleOptions(roleRes);
@@ -317,7 +319,7 @@ function EmployeeList() {
 
   const fetchEmployees = async (roleOptions = roles, forceRefresh = false) => {
     try {
-      const res = await api.get(API_ENDPOINTS.employees.list, {
+      const res = await getEmployees({
         dedupe: !forceRefresh,
         cacheTTL: forceRefresh ? 0 : 60 * 1000
       });
@@ -525,11 +527,11 @@ function EmployeeList() {
       };
 
       if (isEditMode) {
-        await api.put(API_ENDPOINTS.employees.byId(empForm.id), payload, {
+        await updateEmployee(empForm.id, payload, {
           headers: { "Content-Type": "application/json" }
         });
       } else {
-        await api.post(API_ENDPOINTS.employees.list, payload, {
+        await createEmployee(payload, {
           headers: { "Content-Type": "application/json" }
         });
       }
@@ -563,7 +565,7 @@ function EmployeeList() {
     if (!employeeToDelete) return;
 
     try {
-      await api.delete(API_ENDPOINTS.employees.byId(employeeToDelete));
+      await deleteEmployee(employeeToDelete);
       setShowDeletePopup(false);
       setEmployeeToDelete(null);
       toastSuccess("Employee deleted successfully.");

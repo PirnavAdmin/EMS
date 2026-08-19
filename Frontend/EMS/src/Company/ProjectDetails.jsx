@@ -25,14 +25,13 @@ import {
 "react-icons/fa";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import EmptyState from "../components/EmptyState";
 import { CardSkeleton, TableSkeleton } from "../components/Skeletons";
 import useTheme from "../theme/useTheme";
 import { formatDate } from "../utils/date";
 import "./../TicketManagement/TicketManagement.css";
 import "./ProjectDetails.css";
+import { getProjects, getProjectById } from "../services/projectService";
 import AutoAssignConfirmModal from "../TicketManagement/AutoAssignConfirmModal";
 import {
   AUTO_ASSIGN_SUCCESS_MESSAGE,
@@ -1044,12 +1043,10 @@ function ProjectDetails() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const detailRequest = api.get(
-          API_ENDPOINTS.company.projects.byId(encodeURIComponent(projectId))
-        );
+        const detailRequest = getProjectById(projectId);
         const shouldFetchCollectionFallback = !normalizedInitialProject;
         const collectionRequest = shouldFetchCollectionFallback ?
-        api.get(API_ENDPOINTS.company.projects.list) :
+        getProjects() :
         null;
 
         const [detailResult, collectionResult] = await Promise.allSettled(

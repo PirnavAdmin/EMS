@@ -1,8 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
 import { resolveAuthRole } from "../../utils/authorization";
+import { verifyOtpByRole } from "../../services/authService";
 
 const OTP_LENGTH = 6;
 
@@ -101,8 +100,8 @@ export default function OtpLeft() {
     setLoading(true);
 
     try {
-      await api.post(
-        API_ENDPOINTS.auth.verifyOtpByRole(role),
+      await verifyOtpByRole(
+        role,
         {
           email,
           otp: otpValue,

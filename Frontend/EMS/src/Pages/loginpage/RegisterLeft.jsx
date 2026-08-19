@@ -9,9 +9,8 @@ import {
 
 import { Link, useNavigate } from "react-router-dom";
 
-import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
 import { toastSuccess } from "@/components/common/toast/toastService";
+import { registerUser } from "../../services/authService";
 
 import AuthField from "./AuthField";
 
@@ -410,8 +409,7 @@ export default function RegisterLeft() {
 
     try {
 
-      await api.post(
-        API_ENDPOINTS.auth.userRegister,
+      await registerUser(
         {
           firstName,
           lastName,

@@ -1,7 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
 import "./Dashboard.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import {
   compareDatesAsc,
@@ -10,6 +8,7 @@ import {
   getTodayInputValue,
 } from "../utils/date";
 import { logPerformanceError } from "../utils/performance";
+import { getHolidays } from "../services/companyService";
 
 const sortHolidays = (items) => {
   const today = getTodayInputValue();
@@ -66,7 +65,7 @@ function Holidays({ holidays: dashboardHolidays }) {
 
     const fetchHolidays = async () => {
       try {
-        const res = await api.get(API_ENDPOINTS.company.holidays.list, {
+        const res = await getHolidays({
           signal: controller.signal,
           cacheTTL: 5 * 60 * 1000
         });

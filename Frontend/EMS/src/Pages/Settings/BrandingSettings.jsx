@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
 import {
   fetchBrandingLogos,
   notifyBrandingLogoUpdated } from
 "../../utils/brandingLogo";
+import { uploadBrandingLogo } from "../../services/settingsService";
 
 export default function BrandingSettings() {
   const [companyLogo, setCompanyLogo] = useState("");
@@ -87,11 +86,7 @@ export default function BrandingSettings() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      await api.post(API_ENDPOINTS.settings.brandingUpload, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
-        }
-      });
+      await uploadBrandingLogo(formData);
 
       const refreshedCompanyLogo = await refreshCompanyLogo(true);
 

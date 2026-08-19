@@ -1,14 +1,20 @@
 import React, { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import "./AttendanceTable.css";
 import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
 import {
   downloadMonthlyAttendanceReport,
   downloadWeeklyAttendanceReport,
   getDownloadErrorMessage } from
 "./attendanceReports";
+import {
+  downloadDailyAttendance,
+  getMonthlyAttendance,
+  getTodayAttendance,
+  getWorkingHours,
+  updateAttendance,
+  uploadMonthlyAttendance } from
+"../services/attendanceService";
 import {
   formatMonthYear,
   formatDate,
@@ -356,7 +362,6 @@ function AttendanceTable({
   const [locationModalData, setLocationModalData] = useState(null);
   const [locationAddressLoading, setLocationAddressLoading] = useState(false);
   const locationRequestRef = useRef(0);
-
   const token = getStoredToken();
 
   // =========================
@@ -1464,18 +1469,12 @@ function AttendanceTable({
 
       const todayDate = selectedDate || getTodayInputValue();
 
-      const res = await api.get(
-        API_ENDPOINTS.attendance.today,
-        {
-          signal,
-          params: {
-            date: todayDate
-          },
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+      const res = await getTodayAttendance({
+        signal,
+        params: {
+          date: todayDate
         }
-      );
+      });
 
       const raw = Array.isArray(res.data) ?
       res.data :
@@ -1509,7 +1508,7 @@ function AttendanceTable({
         setLoading(false);
       }
     }
-  }, [token, selectedDate]);
+  }, [selectedDate]);
 
   const fetchMonthlyAttendance = useCallback(async (requestId, signal) => {
     let canceled = false;
@@ -1519,12 +1518,9 @@ function AttendanceTable({
       setLoading(true);
       startPerformanceTimer(timerLabel);
 
-      const res = await api.get(API_ENDPOINTS.attendance.monthly, {
+      const res = await getMonthlyAttendance({
         signal,
-        params: { month: monthNum, year: yearNum },
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        params: { month: monthNum, year: yearNum }
       });
 
       const raw = Array.isArray(res.data) ?
@@ -1559,7 +1555,7 @@ function AttendanceTable({
         setLoading(false);
       }
     }
-  }, [monthNum, yearNum, token]);
+  }, [monthNum, yearNum]);
 
   useEffect(() => {
     const requestId = ++activeRequestRef.current;
@@ -2014,16 +2010,10 @@ function AttendanceTable({
       if (downloadReportType === "Daily") {
         const targetDate = downloadReportDate || getTodayInputValue();
 
-        const response = await api.get(
-          API_ENDPOINTS.attendance.downloadDaily,
-          {
-            params: { date: targetDate },
-            responseType: "arraybuffer",
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
+        const response = await downloadDailyAttendance({
+          params: { date: targetDate },
+          responseType: "arraybuffer"
+        });
 
         const blob = new Blob([response.data]);
         const url = window.URL.createObjectURL(blob);
@@ -2211,15 +2201,9 @@ function AttendanceTable({
     try {
 
       const response =
-      await api.get(
-        API_ENDPOINTS.attendance.workingHours(employeeId),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
-          signal: controller.signal
-        }
-      );
+      await getWorkingHours(employeeId, {
+        signal: controller.signal
+      });
 
       const workingHoursData =
       response?.data || {};
@@ -2345,8 +2329,7 @@ function AttendanceTable({
       `${editForm.date}T${editForm.checkOut}:00` :
       null;
 
-      await api.post(
-        API_ENDPOINTS.attendance.adminUpdate,
+      await updateAttendance(
         {},
         {
           params: {
@@ -2354,9 +2337,6 @@ function AttendanceTable({
             date: editForm.date,
             checkIn: checkInDateTime,
             checkOut: checkOutDateTime
-          },
-          headers: {
-            Authorization: `Bearer ${token}`
           }
         }
       );
@@ -3192,20 +3172,15 @@ function AttendanceTable({
                   const formData = new FormData();
                   formData.append("file", file);
 
-                  await api.post(
-                    API_ENDPOINTS.attendance.uploadMonthly,
-                    formData,
-                    {
-                      params: {
-                        month: monthNum || new Date().getMonth() + 1,
-                        year: yearNum || new Date().getFullYear()
-                      },
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "multipart/form-data"
-                      }
+                  await uploadMonthlyAttendance(formData, {
+                    params: {
+                      month: monthNum || new Date().getMonth() + 1,
+                      year: yearNum || new Date().getFullYear()
+                    },
+                    headers: {
+                      "Content-Type": "multipart/form-data"
                     }
-                  );
+                  });
 
                   toastSuccess(
                     "Monthly attendance uploaded successfully"

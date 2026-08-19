@@ -10,8 +10,10 @@ import {
 "react-icons/fa";
 import "./BulkUploadModal.css";
 
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
+import {
+  bulkUploadEmployees,
+  downloadEmployeeTemplate,
+} from "../services/employeeService";
 
 const EXCEL_MIME_TYPE =
 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -171,30 +173,26 @@ function BulkUploadModal({
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const response = await api.post(
-        API_ENDPOINTS.employees.bulkUpload,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data"
-          },
-          onUploadProgress: (progressEvent) => {
-            const total = progressEvent.total || progressEvent.loaded || 0;
-            const loaded = progressEvent.loaded || 0;
+      const response = await bulkUploadEmployees(formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        },
+        onUploadProgress: (progressEvent) => {
+          const total = progressEvent.total || progressEvent.loaded || 0;
+          const loaded = progressEvent.loaded || 0;
 
-            if (!total) {
-              return;
-            }
-
-            const nextProgress = Math.min(
-              99,
-              Math.round(loaded / total * 100)
-            );
-
-            setUploadProgress(nextProgress);
+          if (!total) {
+            return;
           }
+
+          const nextProgress = Math.min(
+            99,
+            Math.round(loaded / total * 100)
+          );
+
+          setUploadProgress(nextProgress);
         }
-      );
+      });
 
       const refreshResult = await onUploaded?.(response.data || {});
 
@@ -243,12 +241,9 @@ function BulkUploadModal({
     setIsTemplateDownloading(true);
 
     try {
-      const response = await api.get(
-        API_ENDPOINTS.employees.downloadEmployeeTemplate,
-        {
-          responseType: "blob"
-        }
-      );
+      const response = await downloadEmployeeTemplate({
+        responseType: "blob"
+      });
 
       const blob = new Blob([response.data], {
         type: EXCEL_MIME_TYPE

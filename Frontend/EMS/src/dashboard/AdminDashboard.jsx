@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import { FaBirthdayCake, FaChevronRight, FaRedo } from "react-icons/fa";
 import "./Dashboard.css";
 import { toastError } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
+import { buildServerUrl } from "../api/endpoints";
 import { PageSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { formatDate } from "../utils/date";
@@ -18,6 +17,8 @@ import {
   getAttendanceDashboardErrorMessage,
   getAdminAttendanceOverview } from
 "../services/attendanceService";
+import { getAdminDashboard } from "../services/dashboardService";
+import { getUpcomingBirthdays } from "../services/employeeService";
 
 import TopCharts from "./TopCharts";
 import RecentActivity from "./RecentActivity";
@@ -233,10 +234,10 @@ function AdminDashboard() {
         startPerformanceTimer(timerLabel);
 
         const [dashboardResult, birthdaysResult] = await Promise.allSettled([
-        api.get(API_ENDPOINTS.dashboard, {
+        getAdminDashboard({
           signal: controller.signal
         }),
-        api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
+        getUpcomingBirthdays({
           signal: controller.signal,
           cacheTTL: 5 * 60 * 1000
         })]

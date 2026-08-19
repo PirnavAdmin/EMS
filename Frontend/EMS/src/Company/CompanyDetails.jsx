@@ -8,8 +8,6 @@ import {
 "react-icons/fa";
 import "./CompanyDetails.css";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
 import { extractCollection } from "../utils/collections";
 import { formatDate, toIsoDateString } from "../utils/date";
@@ -28,6 +26,14 @@ import {
   validatePhoneNumber,
   validateTinNumber } from
 "../utils/validation";
+import {
+  createBranch,
+  deleteBranch,
+  getBranches,
+  getCompanyById,
+  updateBranch,
+  updateCompany,
+} from "../services/companyService";
 
 const COMPANY_ID = 1;
 
@@ -124,7 +130,7 @@ function CompanyDetails() {
 
   const fetchCompany = async () => {
     try {
-      const res = await api.get(API_ENDPOINTS.company.getById(COMPANY_ID));
+      const res = await getCompanyById(COMPANY_ID);
       const data = res.data || {};
 
       setCompany({
@@ -144,7 +150,7 @@ function CompanyDetails() {
 
   const fetchBranches = async () => {
     try {
-      const res = await api.get(API_ENDPOINTS.company.branches.list);
+      const res = await getBranches();
       const mappedBranches = extractCollection(res.data).map((branchItem) => ({
         id: branchItem.id,
         name: branchItem.branchName || "",
@@ -607,7 +613,7 @@ function CompanyDetails() {
         branchList: []
       };
 
-      await api.put(API_ENDPOINTS.company.update(COMPANY_ID), payload);
+      await updateCompany(COMPANY_ID, payload);
       toastSuccess("Company details updated successfully.");
       closeModal();
       await fetchCompany();
@@ -635,13 +641,13 @@ function CompanyDetails() {
       };
 
       if (editingBranchId) {
-        await api.put(API_ENDPOINTS.company.branches.byId(editingBranchId), payload, {
+        await updateBranch(editingBranchId, payload, {
           headers: {
             "Content-Type": "application/json"
           }
         });
       } else {
-        await api.post(API_ENDPOINTS.company.branches.list, payload, {
+        await createBranch(payload, {
           headers: {
             "Content-Type": "application/json"
           }
@@ -682,7 +688,7 @@ function CompanyDetails() {
     }
 
     try {
-      await api.delete(API_ENDPOINTS.company.branches.byId(selectedBranch.id));
+      await deleteBranch(selectedBranch.id);
       toastSuccess("Branch deleted successfully.");
       setShowDeleteModal(false);
       closeBranchPopup();

@@ -788,6 +788,15 @@ requestSettings({
   hintKeys: COMPANY_HINTS
 });
 
+export const uploadBrandingLogo = (formData, config = {}) =>
+  api.post(API_ENDPOINTS.settings.brandingUpload, formData, {
+    ...config,
+    headers: {
+      ...(config.headers || {}),
+      "Content-Type": "multipart/form-data"
+    }
+  });
+
 export const fetchNotificationSettings = () =>
 requestSettings({
   endpoint: API_ENDPOINTS.settings.notification,

@@ -11,16 +11,15 @@ import {
 "react-icons/fa";
 
 import "./UserPayslip.css";
-import api from "../api/axiosInstance";
 import { extractCollection } from "../utils/collections";
 import { getStoredToken } from "../utils/authStorage";
 import { isAdmin } from "../utils/authorization";
 import { PageSkeleton } from "../components/Skeletons";
 
 import {
-  API_ENDPOINTS,
   buildServerUrl } from
 "../api/endpoints";
+import { getMyPayslips, getRecentPayslips } from "../services/payrollService";
 
 function UserPayslip() {
   const [payslips, setPayslips] = useState([]);
@@ -31,16 +30,20 @@ function UserPayslip() {
 
   const fetchPayslips = useCallback(async () => {
     try {
-      const endpoint =
+      const request =
       isAdminUser ?
-      API_ENDPOINTS.payroll.recent :
-      API_ENDPOINTS.payroll.myPayslips;
-
-      const res = await api.get(endpoint, {
+      getRecentPayslips({
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }) :
+      getMyPayslips({
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
+
+      const res = await request;
 
       setPayslips(extractCollection(res.data));
     } catch (err) {

@@ -18,8 +18,6 @@ import {
   FaCalendarAlt,
   FaTrash } from
 "react-icons/fa";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import CompactSearchableDropdown from "../components/CompactSearchableDropdown";
 import {
   deleteOfferLetter,
@@ -37,6 +35,7 @@ import AppDatePicker from "../components/AppDatePicker";
 import DocumentSendStatusButton from "../components/documentSendStatus/DocumentSendStatusButton";
 import SendAgainModal from "../components/documentSendStatus/SendAgainModal";
 import useDocumentSendStatus from "../hooks/useDocumentSendStatus";
+import { getEmployees } from "../services/employeeService";
 import { sortByNewestIdFirst } from "../utils/collections";
 import { formatDate } from "../utils/date";
 import { extractDownloadFileName } from "../utils/downloadUtils";
@@ -645,7 +644,7 @@ HR Team`
   };
 
   /* ================= FETCH OFFER LETTERS ================= */
-  const fetchOfferLetters = useCallback(async () => {
+  const fetchOfferLetters = useCallback(async ({ signal } = {}) => {
     try {
       const token = getToken();
 
@@ -654,10 +653,13 @@ HR Team`
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
-        return;
+        return [];
       }
 
-      const res = await getAllOfferLetters();
+      const res = await getAllOfferLetters({
+        signal,
+        cacheTTL: 30 * 1000
+      });
 
       const data = Array.isArray(res.data) ?
       res.data :
@@ -666,16 +668,12 @@ HR Team`
       [];
 
       setLetters(sortByNewestIdFirst(data, (letter) => letter.id));
-
-      const newTotalPages =
-      Math.ceil(data.length / lettersPerPage) || 1;
-
-      if (currentPage > newTotalPages) {
-        setCurrentPage(1);
-      }
-
       return data;
     } catch (error) {
+
+      if (error?.code === "ERR_CANCELED") {
+        return [];
+      }
 
       const message = await getOfferLetterApiErrorMessage(
         error,
@@ -685,17 +683,23 @@ HR Team`
       toast.error(message);
       return [];
     }
-  }, [currentPage, lettersPerPage]);
+  }, []);
 
   const refreshOfferLetterData = useCallback(async () => {
     await fetchOfferLetters();
   }, [fetchOfferLetters]);
 
   useEffect(() => {
-    fetchOfferLetters();
+    const controller = new AbortController();
+
+    fetchOfferLetters({
+      signal: controller.signal
+    });
+
+    return () => controller.abort();
   }, [fetchOfferLetters]);
 
-  const loadRelievingLetters = useCallback(async () => {
+  const loadRelievingLetters = useCallback(async ({ signal } = {}) => {
     try {
       const token = getToken();
 
@@ -704,12 +708,15 @@ HR Team`
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
-        return;
+        return [];
       }
 
       setLoadingRelievingLetters(true);
 
-      const response = await getAllRelievingLetters();
+      const response = await getAllRelievingLetters({
+        signal,
+        cacheTTL: 30 * 1000
+      });
       const data = Array.isArray(response.data) ?
       response.data :
       Array.isArray(response.data?.data) ?
@@ -717,7 +724,12 @@ HR Team`
       [];
 
       setGeneratedRelievingLetters(data);
+      return data;
     } catch (error) {
+
+      if (error?.code === "ERR_CANCELED") {
+        return [];
+      }
 
       const message = await getOfferLetterApiErrorMessage(
         error,
@@ -725,12 +737,13 @@ HR Team`
         "relieving letter"
       );
       toast.error(message);
+      return [];
     } finally {
       setLoadingRelievingLetters(false);
     }
   }, []);
 
-  const fetchEmployees = useCallback(async () => {
+  const fetchEmployees = useCallback(async ({ signal } = {}) => {
     try {
       setEmployeesLoading(true);
 
@@ -741,13 +754,11 @@ HR Team`
         setTimeout(() => {
           redirectToLogin();
         }, 1200);
-        return;
+        return [];
       }
 
-      const res = await api.get(API_ENDPOINTS.employees.list, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
+      const res = await getEmployees({
+        signal,
         cacheTTL: 60 * 1000
       });
 
@@ -758,22 +769,45 @@ HR Team`
       [];
 
       setEmployees(normalizeEmployeesForDropdown(data));
+      return data;
     } catch (error) {
 
+      if (error?.code === "ERR_CANCELED") {
+        return [];
+      }
+
       toast.error("Failed to fetch employees");
+      return [];
     } finally {
       setEmployeesLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (letterType === "relieving" && employees.length === 0) {
-      fetchEmployees();
+    if (letterType !== "relieving" || employees.length > 0) {
+      return undefined;
     }
-    if (letterType === "relieving") {
-      loadRelievingLetters();
+
+    const controller = new AbortController();
+    fetchEmployees({
+      signal: controller.signal
+    });
+
+    return () => controller.abort();
+  }, [employees.length, fetchEmployees, letterType]);
+
+  useEffect(() => {
+    if (letterType !== "relieving") {
+      return undefined;
     }
-  }, [employees.length, fetchEmployees, letterType, loadRelievingLetters]);
+
+    const controller = new AbortController();
+    loadRelievingLetters({
+      signal: controller.signal
+    });
+
+    return () => controller.abort();
+  }, [letterType, loadRelievingLetters]);
 
   useEffect(() => {
     setCurrentPage(1);

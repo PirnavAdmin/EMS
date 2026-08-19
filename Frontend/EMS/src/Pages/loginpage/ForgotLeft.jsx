@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { FaEnvelope } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
 import { resolveAuthRole } from "../../utils/authorization";
 import { getStoredRole } from "../../utils/authStorage";
 import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
+import { forgotPasswordByRole } from "../../services/authService";
 
 export default function ForgotLeft() {
   const navigate = useNavigate();
@@ -38,11 +37,7 @@ export default function ForgotLeft() {
 
   const requestOtp = async () => {
     const payload = { email };
-    const response = await api.post(
-      API_ENDPOINTS.auth.forgotPasswordByRole(recoveryRole),
-      payload,
-      authRequestOptions
-    );
+    const response = await forgotPasswordByRole(recoveryRole, payload, authRequestOptions);
 
     return {
       response,

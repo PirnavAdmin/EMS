@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./LeaveManagement.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import AppPagination from "../components/AppPagination";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { formatDate, isDateRangeValid, parseDate } from "../utils/date";
 import { FaChevronDown, FaFilter } from "react-icons/fa";
+import {
+  getAllLeaveRequests,
+  getEmployeeLeaveDetails,
+  getLeaveBalanceByEmployee,
+  getWfhRequests,
+  updateLeaveStatus,
+  updateWfhStatus,
+} from "../services/leaveService";
 
 function LeaveManagement() {
   const [filter, setFilter] = useState("All");
@@ -83,7 +89,7 @@ function LeaveManagement() {
   /* ================= FETCH LEAVES ================= */
   const fetchLeaves = async () => {
     try {
-      const res = await api.get(API_ENDPOINTS.leave.all, {
+      const res = await getAllLeaveRequests({
         headers: {
           Authorization: `Bearer ${getToken()}`
         }
@@ -101,8 +107,7 @@ function LeaveManagement() {
 
   const fetchWFH = async () => {
     try {
-      const res = await api.get(
-        API_ENDPOINTS.wfh.all,
+      const res = await getWfhRequests(
         {
           headers: {
             Authorization: `Bearer ${getToken()}`
@@ -147,8 +152,8 @@ function LeaveManagement() {
 
       if (!leaveBalance) {
         try {
-          const balanceResponse = await api.get(
-            API_ENDPOINTS.leaveBalance.byEmployee(leave.employeeId),
+          const balanceResponse = await getLeaveBalanceByEmployee(
+            leave.employeeId,
             {
               headers: {
                 Authorization: `Bearer ${getToken()}`
@@ -167,10 +172,8 @@ function LeaveManagement() {
         }
       }
 
-      const response = await api.get(
-        API_ENDPOINTS.leave.employeeLeaveDetails(
-          leave.employeeId
-        ),
+      const response = await getEmployeeLeaveDetails(
+        leave.employeeId,
         {
           headers: {
             Authorization: `Bearer ${getToken()}`
@@ -236,8 +239,8 @@ function LeaveManagement() {
         `${leaveId}-${status}`
       );
 
-      await api.put(
-        API_ENDPOINTS.leave.updateStatus(leaveId),
+      await updateLeaveStatus(
+        leaveId,
         null,
         {
           params: { status },
@@ -278,8 +281,8 @@ function LeaveManagement() {
 
       setActionLoading(`${id}-${status}`);
 
-      await api.put(
-        API_ENDPOINTS.wfh.updateStatus(id),
+      await updateWfhStatus(
+        id,
         null,
         {
           params: { status },

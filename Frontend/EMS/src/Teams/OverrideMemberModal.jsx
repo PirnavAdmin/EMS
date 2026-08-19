@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaCheck, FaChevronDown, FaTimes } from "react-icons/fa";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
+import { getTeamProjects } from "../services/teamService";
 
 const createInitialState = (member, teamProjectName) => {
   const hasProjectOverride = Boolean(member?.crossTeam || member?.overrideProjectName);
@@ -40,35 +39,24 @@ function OverrideMemberModal({
   const [projects, setProjects] = useState([]);
 
   useEffect(() => {
-
-  }, [projects]);
-
-  useEffect(() => {
-
-  }, [form]);
-
-  useEffect(() => {
     if (!open) {
       return undefined;
     }
 
+    const controller = new AbortController();
     setForm(createInitialState(member, teamProjectName));
     setErrors({});
 
     const fetchProjects = async () => {
       try {
-        const token =
-        localStorage.getItem("token") ||
-        sessionStorage.getItem("token");
+        const res = await getTeamProjects({
+          signal: controller.signal,
+          cacheTTL: 60 * 1000
+        });
 
-        const res = await api.get(
-          API_ENDPOINTS.team.projects.list,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
+        if (controller.signal.aborted) {
+          return;
+        }
 
         const data =
         res.data?.data ??
@@ -92,10 +80,10 @@ function OverrideMemberModal({
 
         setProjects(formatted);
 
-        setProjects(formatted);
-
       } catch (err) {
-
+        if (err?.code === "ERR_CANCELED") {
+          return;
+        }
         setProjects([]);
       }
     };
@@ -109,7 +97,10 @@ function OverrideMemberModal({
     };
 
     window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
+    return () => {
+      controller.abort();
+      window.removeEventListener("keydown", handleEscape);
+    };
   }, [member, onClose, open, teamProjectName]);
 
   useEffect(() => {

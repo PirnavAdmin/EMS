@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../Employees/EmployeeList.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import AppPagination from "../components/AppPagination";
 import TruncatedText from "../components/TruncatedText";
 import { TableSkeleton } from "../components/Skeletons";
 import { toastError, toastSuccess } from "../components/common/toast/toastService";
 import { extractCollection } from "../utils/collections";
 import { formatDate } from "../utils/date";
+import {
+  deleteOnboardingPersonalInfo,
+  getOnboardingPersonalInfoList,
+} from "../services/onboardingPersonalService";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -68,7 +70,7 @@ function AdminOnboardingList() {
     setLoading(true);
 
     try {
-      const response = await api.get(API_ENDPOINTS.onboardingPersonalInfo.list);
+      const response = await getOnboardingPersonalInfoList();
       setCandidates(extractCollection(response.data).map(normalizeCandidate));
     } catch (error) {
 
@@ -157,7 +159,7 @@ function AdminOnboardingList() {
     if (!candidateToDelete) return;
 
     try {
-      await api.delete(API_ENDPOINTS.onboardingPersonalInfo.delete(candidateToDelete));
+      await deleteOnboardingPersonalInfo(candidateToDelete);
       toastSuccess("Candidate deleted successfully.");
       setCandidateToDelete(null);
       await fetchCandidates();

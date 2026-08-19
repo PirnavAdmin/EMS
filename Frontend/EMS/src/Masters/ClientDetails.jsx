@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { PageSkeleton } from "../components/Skeletons";
+import { getClientByName } from "../services/clientService";
 
 function ClientDetails() {
   const { id } = useParams();
@@ -19,13 +18,25 @@ function ClientDetails() {
       return;
     }
 
+    const controller = new AbortController();
+
     const fetchClient = async () => {
       try {
-        const response = await api.get(API_ENDPOINTS.masters.clients.byId(id));
+        const response = await getClientByName(id, {
+          signal: controller.signal,
+          cacheTTL: 60 * 1000
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
 
         const data = response.data;
         setClient(data);
       } catch (err) {
+        if (err?.code === "ERR_CANCELED") {
+          return;
+        }
 
         setError(err.message);
       } finally {
@@ -34,6 +45,8 @@ function ClientDetails() {
     };
 
     fetchClient();
+
+    return () => controller.abort();
   }, [id]);
 
   /* ================= UI STATES ================= */

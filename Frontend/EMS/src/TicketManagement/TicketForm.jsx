@@ -7,8 +7,6 @@ import "./TicketManagement.css";
 import AppDatePicker from "../components/AppDatePicker";
 import CompactSearchableDropdown from "../components/CompactSearchableDropdown";
 import { PageSkeleton } from "../components/Skeletons";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import { getInputDateValue, getTodayInputValue } from "../utils/date";
 import {
@@ -28,6 +26,7 @@ import {
   getTicketApiErrorMessage,
   updateTicket } from
 "../services/ticketService";
+import { getEmployees } from "../services/employeeService";
 import { isAdmin } from "../utils/authorization";
 
 const normalizeEmployeeList = (response) =>
@@ -59,14 +58,25 @@ function TicketForm({
   const today = getTodayInputValue();
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadEmployees = async () => {
       try {
         setLoadingEmployees(true);
-        const response = await api.get(API_ENDPOINTS.employees.list, {
+        const response = await getEmployees({
+          signal: controller.signal,
           cacheTTL: 60 * 1000
         });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
         setEmployees(normalizeEmployeeList(response.data));
       } catch (error) {
+        if (error?.code === "ERR_CANCELED") {
+          return;
+        }
 
         toast.error("Unable to load employee list.");
       } finally {
@@ -75,6 +85,7 @@ function TicketForm({
     };
 
     loadEmployees();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {

@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./Holidays.css";
 import { FaCalendarAlt } from "react-icons/fa";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
 import TruncatedText from "../components/TruncatedText";
 import { extractCollection, sortByDateAsc } from "../utils/collections";
@@ -14,6 +12,12 @@ import {
   toIsoDateString } from
 "../utils/date";
 import { getStoredToken } from "../utils/authStorage";
+import {
+  createHoliday,
+  deleteHoliday,
+  getHolidays,
+  updateHoliday,
+} from "../services/companyService";
 
 const EMPTY_HOLIDAY = {
   id: null,
@@ -41,7 +45,7 @@ function Holidays() {
 
   const fetchHolidays = async (forceRefresh = false) => {
     try {
-      const res = await api.get(API_ENDPOINTS.company.holidays.list, {
+      const res = await getHolidays({
         headers: {
           Authorization: `Bearer ${token}`
         },
@@ -176,8 +180,8 @@ function Holidays() {
       setSaving(true);
 
       if (editMode) {
-        await api.put(
-          API_ENDPOINTS.company.holidays.byId(trimmedHoliday.id),
+        await updateHoliday(
+          trimmedHoliday.id,
           payload,
           {
             headers: {
@@ -187,7 +191,7 @@ function Holidays() {
           }
         );
       } else {
-        await api.post(API_ENDPOINTS.company.holidays.list, payload, {
+        await createHoliday(payload, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`
@@ -222,7 +226,7 @@ function Holidays() {
 
   const handleDelete = async () => {
     try {
-      await api.delete(API_ENDPOINTS.company.holidays.byId(holidayToDelete.id), {
+      await deleteHoliday(holidayToDelete.id, {
         headers: {
           Authorization: `Bearer ${token}`
         }

@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Projects.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import AppPagination from "../components/AppPagination";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection } from "../utils/collections";
 import { formatDate, toIsoDateString } from "../utils/date";
+import { getClients } from "../services/clientService";
+import { getEmployees } from "../services/employeeService";
+import { createProject, deleteProject, getProjects, updateProject } from "../services/projectService";
 
 const PROJECT_STATUSES = [
 "All",
@@ -354,7 +355,7 @@ function Projects() {
   const fetchProjects = async () => {
     try {
       setProjectsLoading(true);
-      const response = await api.get(API_ENDPOINTS.company.projects.list);
+      const response = await getProjects();
       setProjectRecords(extractCollection(response));
     } catch (error) {
 
@@ -366,7 +367,7 @@ function Projects() {
 
   const fetchClients = async () => {
     try {
-      const response = await api.get(API_ENDPOINTS.masters.clients.list);
+      const response = await getClients();
       setClients(normalizeClients(response));
     } catch (error) {
 
@@ -376,7 +377,7 @@ function Projects() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await api.get(API_ENDPOINTS.employees.list, {
+      const res = await getEmployees({
         cacheTTL: 60 * 1000
       });
       const employeeData = extractCollection(res.data);
@@ -706,7 +707,6 @@ function Projects() {
           return;
         }
 
-        const updateUrl = API_ENDPOINTS.company.projects.byId(encodeURIComponent(projectRouteId));
         const updatePayload = {
           ...payload,
           client: String(selectedClient?.name || trimmedForm.client || "").trim(),
@@ -727,11 +727,11 @@ function Projects() {
           }))
         };
 
-        await api.put(updateUrl, updatePayload, {
+        await updateProject(projectRouteId, updatePayload, {
           headers: { "Content-Type": "application/json" }
         });
       } else {
-        await api.post(API_ENDPOINTS.company.projects.list, payload, { headers: { "Content-Type": "application/json" } });
+        await createProject(payload, { headers: { "Content-Type": "application/json" } });
       }
       toastSuccess(projectsEditMode ? "Project updated successfully." : "Project saved successfully.");
       await fetchProjects();
@@ -842,7 +842,7 @@ function Projects() {
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
     try {
-      await api.delete(API_ENDPOINTS.company.projects.byId(projectToDelete.id));
+      await deleteProject(projectToDelete.id);
       toastSuccess("Project deleted successfully.");
       await fetchProjects();
       closeDeletePopup();

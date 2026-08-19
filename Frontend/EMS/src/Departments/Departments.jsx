@@ -3,9 +3,14 @@ import { FaTimes, FaUsers } from "react-icons/fa";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
 import "./Departments.css";
 
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
+import {
+  createDepartment,
+  deleteDepartment,
+  getDepartments,
+  updateDepartment,
+} from "../services/departmentService";
+import { getEmployees } from "../services/employeeService";
 
 const EMPTY_DEPARTMENT_FORM = {
   name: "",
@@ -161,9 +166,7 @@ function Departments() {
 
     try {
 
-      const res = await api.get(
-        API_ENDPOINTS.departments.list
-      );
+      const res = await getDepartments();
 
       const cleaned = extractCollection(
         res.data
@@ -213,12 +216,9 @@ function Departments() {
 
     try {
 
-      const res = await api.get(
-        API_ENDPOINTS.employees.list,
-        {
-          cacheTTL: 60 * 1000
-        }
-      );
+      const res = await getEmployees({
+        cacheTTL: 60 * 1000
+      });
 
       const empData = extractCollection(
         res.data
@@ -652,8 +652,8 @@ function Departments() {
 
       if (editId) {
 
-        await api.put(
-          API_ENDPOINTS.departments.byId(editId),
+        await updateDepartment(
+          editId,
           {
             departmentName: trimmed.name,
             departmentHead: trimmed.head,
@@ -673,8 +673,7 @@ function Departments() {
 
       {
 
-        await api.post(
-          API_ENDPOINTS.departments.list,
+        await createDepartment(
           payload,
           {
             headers: {
@@ -810,10 +809,8 @@ function Departments() {
 
     try {
 
-      await api.delete(
-        API_ENDPOINTS.departments.byId(
-          resolvedDepartmentId
-        ),
+      await deleteDepartment(
+        resolvedDepartmentId,
         {
           params:
           buildDepartmentIdentifierFields(

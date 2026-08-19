@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./UserAttendance.css";
 import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import {
   formatDate,
   getDayName,
@@ -13,6 +11,14 @@ import {
   acquireReliableLocation,
   getGeolocationErrorMessage } from
 "./gpsLocation";
+import {
+  checkInAttendance,
+  checkOutAttendance,
+  getCurrentMonthAttendance,
+  getPreviousMonthAttendance,
+  getPreviousWeekAttendance,
+  getWeeklyAttendance } from
+"../services/attendanceService";
 import {
   FaSignInAlt,
   FaSignOutAlt,
@@ -27,9 +33,6 @@ import {
 /* eslint-disable react-hooks/exhaustive-deps */
 
 function UserAttendance() {
-  const getToken = () =>
-  localStorage.getItem("token") || sessionStorage.getItem("token");
-
   const today = new Date();
   const attendanceIdentityParams = useMemo(
     () => getStoredIdentityParams(),
@@ -261,25 +264,22 @@ function UserAttendance() {
 
     try {
       setHistoryLoading(true);
-
-      let apiUrl = API_ENDPOINTS.attendance.weekly;
-
-      if (type === "lastWeek") {
-        apiUrl = API_ENDPOINTS.attendance.previousWeek;
-      } else if (type === "month") {
-        apiUrl = API_ENDPOINTS.attendance.currentMonth;
-      } else if (type === "lastMonth") {
-        apiUrl = API_ENDPOINTS.attendance.previousMonth;
-      }
-
-      const res = await api.get(apiUrl, {
+      const config = {
         params: attendanceIdentityParams,
-        headers: {
-          Authorization: `Bearer ${getToken()}`
-        },
         dedupe: !forceRefresh,
         cacheTTL: forceRefresh ? 0 : ATTENDANCE_HISTORY_CACHE_TTL
-      });
+      };
+
+      const request =
+      type === "lastWeek" ?
+      getPreviousWeekAttendance(config) :
+      type === "month" ?
+      getCurrentMonthAttendance(config) :
+      type === "lastMonth" ?
+      getPreviousMonthAttendance(config) :
+      getWeeklyAttendance(config);
+
+      const res = await request;
 
       if (requestId !== attendanceRequestRef.current) {
         return;
@@ -376,16 +376,7 @@ function UserAttendance() {
     }
 
     try {
-      await api.post(
-        API_ENDPOINTS.attendance.checkIn,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
+      await checkInAttendance(payload);
 
       toastSuccess("Checked in successfully");
 
@@ -418,16 +409,7 @@ function UserAttendance() {
     }
 
     try {
-      await api.post(
-        API_ENDPOINTS.attendance.checkOut,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
+      await checkOutAttendance(payload);
 
       toastSuccess("Checked out successfully");
       setCheckedOut(true);
@@ -480,19 +462,10 @@ function UserAttendance() {
     setReasonSubmitting(true);
 
     try {
-      await api.post(
-        API_ENDPOINTS.attendance.checkOut,
-        {
-          ...pendingCheckoutData,
-          locationChangeReason: trimmedReason
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
+      await checkOutAttendance({
+        ...pendingCheckoutData,
+        locationChangeReason: trimmedReason
+      });
 
       toastSuccess("Checked out successfully");
       setCheckedOut(true);

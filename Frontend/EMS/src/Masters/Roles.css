@@ -587,3 +587,26 @@
   }
 }
 
+.roles-delete-modal {
+  width: min(440px, calc(100vw - 32px));
+  padding: 28px 30px 26px;
+  border-radius: 18px;
+}
+
+.roles-delete-modal h2 {
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+
+.roles-delete-modal p {
+  font-size: 16px;
+  margin-bottom: 28px;
+}
+
+.roles-delete-modal .roles-modal-btn {
+  min-width: 105px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 13px;
+  font-size: 15px;
+}

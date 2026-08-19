@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import "./Payroll.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS, buildApiUrl } from "../api/endpoints";
 import AppPagination from "../components/AppPagination";
 import { formatDate } from "../utils/date";
 import { formatCurrency as formatAppCurrency } from "../utils/formatters";
-import { getStoredToken } from "../utils/authStorage";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import {
   endPerformanceTimer,
@@ -14,6 +11,17 @@ import {
 "../utils/performance";
 import { toastError, toastSuccess } from "../components/common/Toast/toastService";
 import { FiDownload, FiLoader, FiTrash2 } from "react-icons/fi";
+import {
+  deletePayslip,
+  downloadPayslip,
+  downloadSalaryRegister,
+  generateAllPayslips,
+  generateManualPayslip,
+  getPayrollEmployees,
+  getPayslipsByEmployee,
+  getRecentPayslips,
+  sendAllPayrollEmails,
+} from "../services/payrollService";
 
 const PAYROLL_MONTHS = [
 "January", "February", "March", "April", "May", "June",
@@ -707,7 +715,6 @@ function Payroll() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingPayslipId, setDeletingPayslipId] = useState(null);
 
-  const token = getStoredToken();
   const months = PAYROLL_MONTHS;
   const years = PAYROLL_YEARS;
 
@@ -724,9 +731,9 @@ function Payroll() {
       // Optimization: time initial payroll employee loading and cancel stale route requests.
       startPerformanceTimer(timerLabel);
 
-      const res = await api.get(API_ENDPOINTS.payroll.employees, {
+      const res = await getPayrollEmployees({
         signal,
-        headers: { Authorization: `Bearer ${token}` }
+        cacheTTL: 60 * 1000
       });
       const empData = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setEmployees(empData);
@@ -740,7 +747,7 @@ function Payroll() {
     } finally {
       endPerformanceTimer(timerLabel);
     }
-  }, [token]);
+  }, []);
 
   const fetchRecentPayslips = useCallback(async (signal, options = {}) => {
     let canceled = false;
@@ -753,9 +760,9 @@ function Payroll() {
 
       startPerformanceTimer(timerLabel);
 
-      const res = await api.get(API_ENDPOINTS.payroll.recent, {
+      const res = await getRecentPayslips({
         signal,
-        headers: { Authorization: `Bearer ${token}` }
+        cacheTTL: 30 * 1000
       });
 
       setAllPayslips(normalizePayslipRecords(res.data, months));
@@ -785,7 +792,7 @@ function Payroll() {
         setRecentLoading(false);
       }
     }
-  }, [token, months]);
+  }, [months]);
 
   const fetchEmployeePayslips = useCallback(async (employeeId, signal, options = {}) => {
     if (!employeeId) {
@@ -802,9 +809,9 @@ function Payroll() {
 
       startPerformanceTimer(timerLabel);
 
-      const res = await api.get(API_ENDPOINTS.payroll.byEmployee(employeeId), {
+      const res = await getPayslipsByEmployee(employeeId, {
         signal,
-        headers: { Authorization: `Bearer ${token}` }
+        cacheTTL: 30 * 1000
       });
 
       setAllPayslips(normalizePayslipRecords(res.data, months));
@@ -831,7 +838,7 @@ function Payroll() {
         setRecentLoading(false);
       }
     }
-  }, [token, months]);
+  }, [months]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1150,16 +1157,7 @@ function Payroll() {
 
           try {
 
-            const response = await api.post(
-              API_ENDPOINTS.payroll.generateAll,
-              payload,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json"
-                }
-              }
-            );
+            const response = await generateAllPayslips(payload);
 
             const batchSummary = extractBulkGenerationSummary(response?.data, batch);
             generatedCount += batchSummary.generatedCount;
@@ -1411,12 +1409,7 @@ function Payroll() {
             ...manualPayloadBase
           };
 
-          await api.post(API_ENDPOINTS.payroll.manualGenerate, payload, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json"
-            }
-          });
+          await generateManualPayslip(payload);
 
           logPayrollTiming("[Payroll] Manual payslip request", {
             employeeId,
@@ -1554,15 +1547,7 @@ function Payroll() {
 
   const handleDownloadPayslip = async (id) => {
     try {
-      const response = await api.get(
-        buildApiUrl(API_ENDPOINTS.payroll.download(id)),
-        {
-          responseType: "blob",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      const response = await downloadPayslip(id);
 
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
@@ -1627,11 +1612,7 @@ function Payroll() {
       setDeletingPayslipId(payslipId);
       setErrorMsg("");
 
-      await api.delete(API_ENDPOINTS.payroll.delete(payslipId), {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await deletePayslip(payslipId);
 
       setAllPayslips((prev) =>
       prev.filter((p) => String(p.id) !== String(payslipId))
@@ -1662,17 +1643,14 @@ function Payroll() {
       const registerYear =
       recentFilterYear === "All" ? year : Number(recentFilterYear);
 
-      const response = await api.get(
-        buildApiUrl(API_ENDPOINTS.payroll.salaryRegister),
+      const response = await downloadSalaryRegister(
         {
-          params: {
-            month: registerMonth,
-            year: Number(registerYear)
-          },
-          responseType: "blob",
+          month: registerMonth,
+          year: Number(registerYear)
+        },
+        {
           timeout: 120000,
           headers: {
-            Authorization: `Bearer ${token}`,
             Accept:
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           }
@@ -1761,19 +1739,12 @@ function Payroll() {
       const emailYear =
       recentFilterYear === "All" ? year : Number(recentFilterYear);
 
-      const response = await api.post(
-        API_ENDPOINTS.payroll.sendAllEmails,
-        null,
-        {
-          params: {
-            month: emailMonth,
-            year: Number(emailYear)
-          },
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+      const response = await sendAllPayrollEmails(null, {
+        params: {
+          month: emailMonth,
+          year: Number(emailYear)
         }
-      );
+      });
 
       const responseData = response?.data;
       const successMessage =

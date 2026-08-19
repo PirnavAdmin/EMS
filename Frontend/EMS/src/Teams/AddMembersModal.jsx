@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaSearch, FaTimes } from "react-icons/fa";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
+import { getAvailableTeamEmployees } from "../services/teamService";
 
 function AddMembersModal({
   open,
@@ -13,10 +12,6 @@ function AddMembersModal({
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [employees, setEmployees] = useState([]);
 
-  const getToken = () =>
-  localStorage.getItem("token") ||
-  sessionStorage.getItem("token");
-
   const getEmployeeId = (employee) =>
   employee?.employee_Id ??
   employee?.employeeId ??
@@ -25,19 +20,20 @@ function AddMembersModal({
   useEffect(() => {
     if (!open) return;
 
+    const controller = new AbortController();
     setSearch("");
     setSelectedMembers([]);
 
     const fetchEmployees = async () => {
       try {
-        const res = await api.get(
-          API_ENDPOINTS.team.availableEmployees,
-          {
-            headers: {
-              Authorization: `Bearer ${getToken()}`
-            }
-          }
-        );
+        const res = await getAvailableTeamEmployees({
+          signal: controller.signal,
+          cacheTTL: 60 * 1000
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
 
         const data =
         res.data?.data ||
@@ -47,12 +43,15 @@ function AddMembersModal({
 
         setEmployees(Array.isArray(data) ? data : []);
       } catch (err) {
-
+        if (err?.code === "ERR_CANCELED") {
+          return;
+        }
         setEmployees([]);
       }
     };
 
     fetchEmployees();
+    return () => controller.abort();
   }, [open]);
 
   const availableEmployees = useMemo(() => {

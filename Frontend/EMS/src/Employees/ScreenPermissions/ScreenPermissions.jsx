@@ -1,15 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaArrowLeft, FaRedo, FaSave } from "react-icons/fa";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
 import { TableSkeleton } from "../../components/Skeletons";
 import { toastError, toastSuccess } from "../../components/common/toast/toastService";
 import { extractCollection } from "../../utils/collections";
 import {
   buildRolePermissionSavePayload,
   getRolePermissionErrorMessage,
-  normalizeRolePermissionSnapshot,
   saveRolePermissions } from
 "../../services/rolePermissionService";
 import {
@@ -18,6 +15,8 @@ import {
   getUserPermissionErrorMessage,
   saveUserPermissions } from
 "../../services/permissionService";
+import { fetchRolePermissionsByRoleName } from "../../services/rolePermissionService";
+import { getRoles } from "../../services/roleService";
 import { useAdminPermissions } from "../../context/AdminPermissionContext";
 import "./ScreenPermissions.css";
 
@@ -84,9 +83,6 @@ const getRolePermissionParameterCandidates = (role = {}) => {
   filter(Boolean).
   filter((value, index, values) => index === values.findIndex((candidate) => candidate === value));
 };
-
-const buildRolePermissionApiUrl = (permissionParameter) =>
-`/api/RolePermission/${encodeURIComponent(String(permissionParameter ?? "").trim())}`;
 
 const compareModuleIds = (left, right) => {
   const leftNumber = Number(left);
@@ -269,7 +265,7 @@ function ScreenPermissions() {
     }
 
     try {
-      const response = await api.get(API_ENDPOINTS.masters.roles.list, {
+      const response = await getRoles({
         headers: {
           Accept: "application/json"
         }
@@ -347,23 +343,13 @@ function ScreenPermissions() {
       try {
         for (let index = 0; index < permissionParameterCandidates.length; index += 1) {
           const permissionParameter = permissionParameterCandidates[index];
-          const apiUrl = buildRolePermissionApiUrl(permissionParameter);
 
           try {
-            const response = await api.get(API_ENDPOINTS.rolePermission.get(permissionParameter), {
-              headers: {
-                Accept: "application/json"
-              }
-            });
+            const snapshot = await fetchRolePermissionsByRoleName(permissionParameter);
 
             if (requestId !== permissionRequestIdRef.current) {
               return permissionsRef.current;
             }
-
-            const snapshot = normalizeRolePermissionSnapshot(response.data, {
-              roleId: selectedRole.roleId,
-              roleName: selectedRole.roleName
-            });
 
             const nextPermissions = sortPermissions(
               (snapshot.permissions || []).map((permission) =>

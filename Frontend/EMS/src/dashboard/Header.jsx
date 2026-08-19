@@ -18,7 +18,6 @@ import {
 import { isAdmin, isSuperAdmin } from "../utils/authorization";
 import { handleAutoLogout } from "../utils/sessionManager";
 import {
-  getNotificationEndpoint,
   getNotificationRoute,
   loadNotifications,
 } from "../services/notificationService";
@@ -63,7 +62,6 @@ function Header({ collapsed = false, onToggle }) {
   const isAdminUser = isAdmin(role);
   const isSuperAdminUser = isSuperAdmin(role);
   const email = getStoredAuthValue("email", "No Email");
-  const notificationEndpoint = getNotificationEndpoint(role, authSnapshot);
   const notificationTarget = getNotificationRoute(role, authSnapshot);
 
   const profileLabel = useMemo(() => {
@@ -103,7 +101,16 @@ function Header({ collapsed = false, onToggle }) {
       }
     };
 
-    const handleNotificationsUpdated = () => {
+    const handleNotificationsUpdated = (event) => {
+      const nextNotifications = event?.detail?.notifications;
+
+      if (Array.isArray(nextNotifications)) {
+        if (isMounted) {
+          setNotifications(nextNotifications);
+        }
+        return;
+      }
+
       fetchNotificationStatus(true);
     };
 
@@ -121,7 +128,7 @@ function Header({ collapsed = false, onToggle }) {
         handleNotificationsUpdated
       );
     };
-  }, [authSnapshot.isReady, authSnapshot.token, notificationEndpoint, role]);
+  }, [authSnapshot.isReady, authSnapshot.token, role]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {

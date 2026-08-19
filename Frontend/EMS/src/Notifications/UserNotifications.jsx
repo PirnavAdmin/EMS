@@ -20,8 +20,6 @@ function UserNotifications() {
   const [updatingId, setUpdatingId] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
   const authSnapshot = getAuthenticatedUserSnapshot();
-  const authReady = authSnapshot.isReady;
-  const authToken = authSnapshot.token;
   const currentRole = authSnapshot.role || authSnapshot.roleName || "";
 
   const normalizeNotifications = (data) => {
@@ -53,11 +51,13 @@ function UserNotifications() {
       const data = await loadNotifications(currentRole, undefined, {
         forceRefresh
       });
-      setNotifications(normalizeNotifications(data));
+      const nextNotifications = normalizeNotifications(data);
+      setNotifications(nextNotifications);
+      return nextNotifications;
     } finally {
       setLoading(false);
     }
-  }, [authReady, authToken, currentRole]);
+  }, [currentRole]);
 
   useEffect(() => {
     fetchUserNotifications();
@@ -95,7 +95,14 @@ function UserNotifications() {
         return;
       }
 
-      window.dispatchEvent(new Event("notificationsUpdated"));
+      const refreshedNotifications = await fetchUserNotifications(true);
+      window.dispatchEvent(
+        new CustomEvent("notificationsUpdated", {
+          detail: {
+            notifications: refreshedNotifications
+          }
+        })
+      );
     } finally {
       setUpdatingId(null);
     }
@@ -120,7 +127,14 @@ function UserNotifications() {
         return;
       }
 
-      window.dispatchEvent(new Event("notificationsUpdated"));
+      const refreshedNotifications = await fetchUserNotifications(true);
+      window.dispatchEvent(
+        new CustomEvent("notificationsUpdated", {
+          detail: {
+            notifications: refreshedNotifications
+          }
+        })
+      );
     } catch (error) {
       setNotifications(previousNotifications);
     } finally {

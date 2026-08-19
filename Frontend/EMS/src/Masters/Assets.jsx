@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Assets.css";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
+import { buildServerUrl } from "../api/endpoints";
 import AppPagination from "../components/AppPagination";
 import { extractCollection, sortByNewestIdFirst } from "../utils/collections";
 import { formatEmployeeCode, normalizeText } from "../utils/formatters";
+import {
+  createAsset,
+  deleteAsset,
+  getAssets,
+  updateAsset,
+} from "../services/assetService";
+import { getEmployees } from "../services/employeeService";
 
 const EMPTY_ASSET = {
   name: "",
@@ -280,7 +286,7 @@ export default function Assets() {
   const fetchAssets = async () => {
     try {
 
-      const res = await api.get(API_ENDPOINTS.masters.assets.list);
+      const res = await getAssets();
 
       const extractedData = extractCollection(res.data);
 
@@ -455,7 +461,7 @@ export default function Assets() {
     try {
       setEmployeeLoadError("");
 
-      const res = await api.get(API_ENDPOINTS.employees.list, {
+      const res = await getEmployees({
         cacheTTL: 60 * 1000
       });
       const employeeList = extractCollection(res.data);
@@ -916,9 +922,9 @@ export default function Assets() {
       );
 
       if (editId) {
-        await api.put(API_ENDPOINTS.masters.assets.byId(editId), formData);
+        await updateAsset(editId, formData);
       } else {
-        await api.post(API_ENDPOINTS.masters.assets.list, formData);
+        await createAsset(formData);
       }
 
       toastSuccess(editId ? "Asset updated successfully." : "Asset saved successfully.");
@@ -965,7 +971,7 @@ export default function Assets() {
     if (!assetToDelete) return;
 
     try {
-      await api.delete(API_ENDPOINTS.masters.assets.byId(assetToDelete.assetId));
+      await deleteAsset(assetToDelete.assetId);
       toastSuccess("Asset deleted successfully.");
       setShowDeletePopup(false);
       setAssetToDelete(null);

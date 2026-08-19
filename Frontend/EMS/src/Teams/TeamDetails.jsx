@@ -12,8 +12,15 @@ import EditTeamModal from "./EditTeamModal";
 import AddMembersModal from "./AddMembersModal";
 import DeleteTeamModal from "./DeleteTeamModal";
 import RemoveMemberModal from "./RemoveMemberModal";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
+import {
+  addTeamMembers,
+  deleteTeam,
+  getTeamById,
+  removeTeamMember,
+  updateTeam,
+  updateTeamMemberOverride,
+  updateTeamReportingDays,
+} from "../services/teamService";
 import { hasModulePermission, isEmployee } from "../utils/authorization";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
 
@@ -33,25 +40,19 @@ function TeamDetails() {
   const [removeMember, setRemoveMember] = useState(null);
   const canManageTeams = !isEmployee() && hasModulePermission("Teams");
 
-  const getToken = useCallback(
-    () =>
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("token"),
-    []
-  );
-
-  const fetchTeam = useCallback(async () => {
+  const fetchTeam = useCallback(async (signal) => {
     try {
       setIsLoading(true);
 
-      const res = await api.get(
-        API_ENDPOINTS.team.byId(teamId),
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
+      if (!teamId) {
+        setTeam(null);
+        return null;
+      }
+
+      const res = await getTeamById(teamId, {
+        signal,
+        cacheTTL: 60 * 1000
+      });
 
       setTeam({
         ...res.data,
@@ -62,13 +63,18 @@ function TeamDetails() {
         res.data.reportingDays || [...TEAM_DAY_OPTIONS]
       );
 
+      return res.data;
+
     } finally {
       setIsLoading(false);
     }
-  }, [getToken, teamId]);
+  }, [teamId]);
 
   useEffect(() => {
-    fetchTeam();
+    const controller = new AbortController();
+    void fetchTeam(controller.signal).catch(() => {});
+
+    return () => controller.abort();
   }, [fetchTeam]);
 
   const summary = useMemo(() => {
@@ -99,24 +105,15 @@ function TeamDetails() {
     }
 
     try {
-
-      await api.put(
-        API_ENDPOINTS.team.updateReportingDays,
-        {
-          teamId: team.id,
-          reportingDays: draftReportingDays
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
+      await updateTeamReportingDays({
+        teamId: team.id,
+        reportingDays: draftReportingDays
+      });
       toastSuccess("Reporting days updated");
 
       setIsEditingReportingDays(false);
 
-      fetchTeam();
+      await fetchTeam().catch(() => {});
 
     } catch (err) {
 
@@ -172,24 +169,12 @@ function TeamDetails() {
     };
 
     try {
-
-      const res = await api.put(
-        API_ENDPOINTS.team.memberOverride,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
-
-      fetchTeam();
+      await updateTeamMemberOverride(payload);
+      await fetchTeam().catch(() => {});
 
     } catch (err) {
 
     }
-
-    fetchTeam();
   };
 
   if (isLoading) {
@@ -386,21 +371,13 @@ function TeamDetails() {
               engagementType: form.engagementType
             };
 
-            await api.put(
-              API_ENDPOINTS.team.update,
-              payload,
-              {
-                headers: {
-                  Authorization: `Bearer ${getToken()}`
-                }
-              }
-            );
+            await updateTeam(payload);
 
             toastSuccess("Team updated successfully");
 
             setIsEditTeamOpen(false);
 
-            fetchTeam();
+            await fetchTeam().catch(() => {});
 
           } catch (err) {
 
@@ -416,25 +393,16 @@ function TeamDetails() {
         onSave={async (employeeIds) => {
 
           try {
-
-            await api.post(
-              API_ENDPOINTS.team.addMembers,
-              {
-                teamId: team.id,
-                employeeIds
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${getToken()}`
-                }
-              }
-            );
+            await addTeamMembers({
+              teamId: team.id,
+              employeeIds
+            });
 
             toastSuccess("Members added");
 
             setIsAddMemberOpen(false);
 
-            fetchTeam();
+            await fetchTeam().catch(() => {});
 
           } catch (err) {
 
@@ -452,15 +420,7 @@ function TeamDetails() {
         onDelete={async () => {
 
           try {
-
-            await api.delete(
-              API_ENDPOINTS.team.delete(team.id),
-              {
-                headers: {
-                  Authorization: `Bearer ${getToken()}`
-                }
-              }
-            );
+            await deleteTeam(team.id);
 
             toastSuccess("Team deleted");
 
@@ -482,24 +442,13 @@ function TeamDetails() {
         onRemove={async () => {
 
           try {
-
-            await api.delete(
-              API_ENDPOINTS.team.removeMember(
-                team.id,
-                removeMember.employeeId
-              ),
-              {
-                headers: {
-                  Authorization: `Bearer ${getToken()}`
-                }
-              }
-            );
+            await removeTeamMember(team.id, removeMember.employeeId);
 
             toastSuccess("Member removed");
 
             setRemoveMember(null);
 
-            fetchTeam();
+            await fetchTeam().catch(() => {});
 
           } catch (err) {
 

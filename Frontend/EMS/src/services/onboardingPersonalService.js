@@ -36,3 +36,18 @@ export const updateOnboardingPersonalInfo = async (onboardingId, payload) => {
 
   return response.data;
 };
+
+export const getOnboardingPersonalInfoList = async (config = {}) => {
+  const response = await api.get(API_ENDPOINTS.onboardingPersonalInfo.list, config);
+
+  return response.data;
+};
+
+export const deleteOnboardingPersonalInfo = async (onboardingId, config = {}) => {
+  const response = await api.delete(
+    API_ENDPOINTS.onboardingPersonalInfo.delete(onboardingId),
+    config
+  );
+
+  return response.data;
+};

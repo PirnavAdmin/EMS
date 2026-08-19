@@ -7,10 +7,15 @@ import {
   FaEllipsisV } from
 "react-icons/fa";
 import { toastSuccess, toastError } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { extractCollection } from "../utils/collections";
 import { formatDate } from "../utils/date";
+import {
+  createClient,
+  deleteClient,
+  getClients,
+  updateClient,
+} from "../services/clientService";
+import { getProjects } from "../services/projectService";
 
 const EMPTY_CLIENT_FORM = {
   client_Name: "",
@@ -42,6 +47,7 @@ function Clients() {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
   const [projectCounts, setProjectCounts] = useState({});
   const [errors, setErrors] = useState({});
 
@@ -51,7 +57,7 @@ function Clients() {
 
   const loadClients = async () => {
     try {
-      const res = await api.get(API_ENDPOINTS.masters.clients.list);
+      const res = await getClients();
       setClients(extractCollection(res.data));
     } catch (err) {
 
@@ -61,11 +67,12 @@ function Clients() {
 
   const loadProjectCounts = async () => {
     try {
-      const res = await api.get(API_ENDPOINTS.company.projects.list);
-      const allProjects = extractCollection(res.data);
+      const res = await getProjects();
+      const nextProjects = extractCollection(res.data);
+      setAllProjects(nextProjects);
 
       const counts = {};
-      allProjects.forEach((project) => {
+      nextProjects.forEach((project) => {
         if (!counts[project.client]) counts[project.client] = 0;
         counts[project.client] += 1;
       });
@@ -246,8 +253,6 @@ function Clients() {
     setProjects([]);
 
     try {
-      const res = await api.get(API_ENDPOINTS.company.projects.list);
-      const allProjects = extractCollection(res.data);
       const filteredProjects = allProjects.filter(
         (project) => project.client === client.client_Name
       );
@@ -375,10 +380,8 @@ function Clients() {
       if (isUpdate) {
         const clientToUpdate = clients[editIndex];
 
-        await api.put(
-          API_ENDPOINTS.masters.clients.byId(
-            encodeURIComponent(clientToUpdate.client_Name)
-          ),
+        await updateClient(
+          clientToUpdate.client_Name,
           trimmedClient,
           {
             headers: {
@@ -389,8 +392,7 @@ function Clients() {
 
         toastSuccess("Client updated successfully.");
       } else {
-        await api.post(
-          API_ENDPOINTS.masters.clients.list,
+        await createClient(
           {
             client_Name: trimmedClient.client_Name,
             description: trimmedClient.description,
@@ -421,11 +423,7 @@ function Clients() {
 
   const handleDelete = async (client) => {
     try {
-      await api.delete(
-        API_ENDPOINTS.masters.clients.byId(
-          encodeURIComponent(client.client_Name)
-        )
-      );
+      await deleteClient(client.client_Name);
 
       toastSuccess("Client deleted successfully.");
       setClients((prev) =>

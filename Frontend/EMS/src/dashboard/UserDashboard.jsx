@@ -27,8 +27,7 @@ import {
 "react-icons/fa";
 import "./UserDashboard.css";
 
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
+import { buildServerUrl } from "../api/endpoints";
 import { PageSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { formatDate, parseDate, timeAgo } from "../utils/date";
@@ -41,6 +40,8 @@ import {
   getAttendanceDashboardErrorMessage,
   getUserAttendanceDashboard } from
 "../services/attendanceService";
+import { getUserDashboard } from "../services/dashboardService";
+import { getUpcomingBirthdays } from "../services/employeeService";
 import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
 import { getNotificationRoute } from "../services/notificationService";
 
@@ -835,13 +836,13 @@ function UserDashboard() {
 
         const [dashboardResult, attendanceResult, birthdaysResult] =
         await Promise.allSettled([
-        api.get(API_ENDPOINTS.userDashboard, {
+        getUserDashboard({
           signal: controller.signal
         }),
         getUserAttendanceDashboard({
           signal: controller.signal
         }),
-        api.get(API_ENDPOINTS.employees.upcomingBirthdays, {
+        getUpcomingBirthdays({
           signal: controller.signal,
           cacheTTL: 5 * 60 * 1000
         })]

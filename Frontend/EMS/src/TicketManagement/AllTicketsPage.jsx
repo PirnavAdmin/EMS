@@ -31,8 +31,7 @@ import {
 import { toast } from "../components/common/Toast/toastService";
 
 import "./TicketManagement.css";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS, buildServerUrl } from "../api/endpoints";
+import { buildServerUrl } from "../api/endpoints";
 import AppDatePicker from "../components/AppDatePicker";
 import AppPagination from "../components/AppPagination";
 import CompactSearchableDropdown from "../components/CompactSearchableDropdown";
@@ -89,6 +88,7 @@ import {
   updateTicketStatus,
   uploadTicketBulkFile } from
 "../services/ticketService";
+import { getEmployees } from "../services/employeeService";
 
 const PAGE_SIZE = 10;
 
@@ -1566,10 +1566,13 @@ function AllTicketsPage({ scope = "admin" }) {
   }, [isEmployeeScope]);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadEmployees = async () => {
       try {
         setEmployeesLoading(true);
-        const response = await api.get(API_ENDPOINTS.employees.list, {
+        const response = await getEmployees({
+          signal: controller.signal,
           cacheTTL: 60 * 1000
         });
         const records = extractCollection(response.data).map((employee) =>
@@ -1577,6 +1580,9 @@ function AllTicketsPage({ scope = "admin" }) {
         );
         setEmployees(records);
       } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
 
         const errorMessage = await getTicketApiErrorMessage(
           error,
@@ -1585,11 +1591,14 @@ function AllTicketsPage({ scope = "admin" }) {
         toast.error(errorMessage);
         setEmployees([]);
       } finally {
-        setEmployeesLoading(false);
+        if (!controller.signal.aborted) {
+          setEmployeesLoading(false);
+        }
       }
     };
 
     loadEmployees();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {

@@ -17,6 +17,15 @@ import {
   FormSkeleton,
   TableSkeleton } from
 "../components/Skeletons";
+import {
+  applyWfh,
+  cancelLeave,
+  cancelWfh,
+  createLeaveRequest,
+  getLeaveRequests,
+  getMyLeaveBalance,
+  getMyWfhRequests,
+} from "../services/leaveService";
 
 const getLeaveRecordId = (leave) => {
   const value =
@@ -176,7 +185,7 @@ function UserLeaveManagement() {
     if (!token) return;
 
     try {
-      const res = await api.get(API_ENDPOINTS.leave.list, {
+      const res = await getLeaveRequests({
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -229,8 +238,7 @@ function UserLeaveManagement() {
 
     try {
 
-      const res = await api.get(
-        endpoint,
+      const res = await getMyWfhRequests(
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -260,7 +268,7 @@ function UserLeaveManagement() {
   const fetchBalance = async () => {
     try {
       setBalanceError("");
-      const res = await api.get(API_ENDPOINTS.leaveBalance.myLeaveBalance, {
+      const res = await getMyLeaveBalance({
         headers: {
           Authorization: `Bearer ${getToken()}`
         }
@@ -339,21 +347,17 @@ function UserLeaveManagement() {
     try {
       setLoading(true);
 
-      const endpoint =
-      form.leaveType === "Work From Home" ?
-      API_ENDPOINTS.wfh.apply :
-      API_ENDPOINTS.leave.list;
-
-      const res = await api.post(
-        endpoint,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+      const requestConfig = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         }
-      );
+      };
+
+      const res =
+      form.leaveType === "Work From Home" ?
+      await applyWfh(payload, requestConfig) :
+      await createLeaveRequest(payload, requestConfig);
 
       toast.success("Leave applied successfully ✅");
 
@@ -406,7 +410,7 @@ function UserLeaveManagement() {
     }
 
     try {
-      await api.delete(API_ENDPOINTS.leave.byId(resolvedLeaveId), {
+      await cancelLeave(resolvedLeaveId, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -431,9 +435,8 @@ function UserLeaveManagement() {
   const cancelWFH = async (id) => {
     try {
 
-      await api.put(
-        API_ENDPOINTS.wfh.cancel(id),
-        {},
+      await cancelWfh(
+        id,
         {
           headers: {
             Authorization: `Bearer ${getToken()}`

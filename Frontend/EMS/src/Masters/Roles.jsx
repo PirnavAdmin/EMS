@@ -3,11 +3,10 @@ import "./Roles.css";
 import { FaShieldAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByNewestIdFirst } from "../utils/collections";
 import { getEmployeesByRole } from "../services/permissionService";
+import { createRole, deleteRole, getRoles, updateRole } from "../services/roleService";
 import {
   normalizeWhitespace,
   validateRoleName } from
@@ -65,7 +64,7 @@ function Roles() {
     setLoading(true);
 
     try {
-      const res = await api.get(API_ENDPOINTS.masters.roles.list);
+      const res = await getRoles();
 
       const formattedData = sortByNewestIdFirst(
         extractCollection(res.data).map((role) => ({
@@ -161,19 +160,15 @@ function Roles() {
 
     try {
       if (isEdit) {
-        await api.put(
-          API_ENDPOINTS.masters.roles.byId(selectedRoleId),
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
+        await updateRole(selectedRoleId, payload, {
+          headers: {
+            "Content-Type": "application/json"
           }
-        );
+        });
 
         toastSuccess("Role updated successfully");
       } else {
-        await api.post(API_ENDPOINTS.masters.roles.list, payload, {
+        await createRole(payload, {
           headers: {
             "Content-Type": "application/json"
           }
@@ -194,7 +189,7 @@ function Roles() {
 
   const handleDelete = async (id) => {
     try {
-      await api.delete(API_ENDPOINTS.masters.roles.byId(id));
+      await deleteRole(id);
 
       toastSuccess("Role deleted successfully");
       fetchRoles();

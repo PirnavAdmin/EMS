@@ -294,3 +294,63 @@ export const getAdminAttendanceOverview = async ({
     dedupe: false
   });
 };
+
+export const getAttendanceFeed = (url, config = {}) =>
+  api.get(url, config);
+
+export const getWeeklyAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.weekly, config);
+
+export const getPreviousWeekAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.previousWeek, config);
+
+export const getCurrentMonthAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.currentMonth, config);
+
+export const getPreviousMonthAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.previousMonth, config);
+
+export const getTodayAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.today, config);
+
+export const getMonthlyAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.monthly, config);
+
+export const checkInAttendance = (payload, config = {}) =>
+  api.post(API_ENDPOINTS.attendance.checkIn, payload, config);
+
+export const checkOutAttendance = (payload, config = {}) =>
+  api.post(API_ENDPOINTS.attendance.checkOut, payload, config);
+
+export const startAttendanceBreak = (payload, config = {}) =>
+  api.post(API_ENDPOINTS.attendance.startBreak, payload, config);
+
+export const endAttendanceBreak = (payload, config = {}) =>
+  api.post(API_ENDPOINTS.attendance.endBreak, payload, config);
+
+export const updateAttendance = (payload, config = {}) =>
+  api.post(API_ENDPOINTS.attendance.adminUpdate, payload, config);
+
+export const downloadMonthlyAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.downloadMonthly, {
+    responseType: "blob",
+    ...config
+  });
+
+export const downloadWeeklyAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.downloadWeekly, {
+    responseType: "blob",
+    ...config
+  });
+
+export const downloadDailyAttendance = (config = {}) =>
+  api.get(API_ENDPOINTS.attendance.downloadDaily, {
+    responseType: "blob",
+    ...config
+  });
+
+export const getWorkingHours = (employeeId, config = {}) =>
+  api.get(API_ENDPOINTS.attendance.workingHours(employeeId), config);
+
+export const uploadMonthlyAttendance = (formData, config = {}) =>
+  api.post(API_ENDPOINTS.attendance.uploadMonthly, formData, config);

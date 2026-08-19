@@ -15,8 +15,6 @@ import {
 import { toastError } from "@/components/common/toast/toastService";
 import "./Reports.css";
 
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import { getStoredToken } from "../utils/authStorage";
 import {
   downloadBinaryFile,
@@ -25,6 +23,7 @@ import {
 import { formatCurrency } from "../utils/formatters";
 import { PageSkeleton } from "../components/Skeletons";
 import useTheme from "../theme/useTheme";
+import { getReports } from "../services/reportService";
 
 function Reports() {
   const token = getStoredToken();
@@ -46,7 +45,7 @@ function Reports() {
         setLoading(true);
         setError("");
 
-        const response = await api.get(API_ENDPOINTS.reports.all, {
+        const response = await getReports({
           headers: {
             Authorization: `Bearer ${token}`
           }

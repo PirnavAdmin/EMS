@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
-import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
 import { resolveAuthRole } from "../../utils/authorization";
 import AuthField from "./AuthField";
 import AuthLayout from "./AuthLayout";
@@ -13,6 +11,7 @@ import {
   getPasswordStrength,
   getPasswordValidationMessage,
 } from "./authUtils";
+import { resetPasswordByRole } from "../../services/authService";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -87,8 +86,8 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      await api.post(
-        API_ENDPOINTS.auth.resetPasswordByRole(role),
+      await resetPasswordByRole(
+        role,
         {
           email,
           otp: parseInt(otp, 10),

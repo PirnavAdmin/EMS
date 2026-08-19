@@ -19,8 +19,6 @@ function Notifications() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const authSnapshot = getAuthenticatedUserSnapshot();
-  const authReady = authSnapshot.isReady;
-  const authToken = authSnapshot.token;
   const currentRole = authSnapshot.role || authSnapshot.roleName || "";
 
   /* ================= FETCH ================= */
@@ -32,15 +30,13 @@ function Notifications() {
       const data = await loadNotifications(currentRole, undefined, {
         forceRefresh
       });
-      setNotifications(
-        Array.isArray(data)
-          ? data
-          : []
-      );
+      const nextNotifications = Array.isArray(data) ? data : [];
+      setNotifications(nextNotifications);
+      return nextNotifications;
     } finally {
       setLoading(false);
     }
-  }, [authReady, authToken, currentRole]);
+  }, [currentRole]);
 
   useEffect(() => {
     fetchNotifications();
@@ -62,8 +58,14 @@ function Notifications() {
         return;
       }
 
-      await fetchNotifications(true);
-      window.dispatchEvent(new Event("notificationsUpdated"));
+      const refreshedNotifications = await fetchNotifications(true);
+      window.dispatchEvent(
+        new CustomEvent("notificationsUpdated", {
+          detail: {
+            notifications: refreshedNotifications
+          }
+        })
+      );
     } finally {
       setUpdatingId(null);
     }
@@ -82,8 +84,14 @@ function Notifications() {
         return;
       }
 
-      await fetchNotifications(true);
-      window.dispatchEvent(new Event("notificationsUpdated"));
+      const refreshedNotifications = await fetchNotifications(true);
+      window.dispatchEvent(
+        new CustomEvent("notificationsUpdated", {
+          detail: {
+            notifications: refreshedNotifications
+          }
+        })
+      );
     } finally {
       // Nothing to reset here; the action is fire-and-forget.
     }

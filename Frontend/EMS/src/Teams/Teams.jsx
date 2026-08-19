@@ -8,8 +8,7 @@ import EmptyState from "../components/EmptyState";
 import { CardSkeleton } from "../components/Skeletons";
 import AddTeamModal from "./AddTeamModal";
 import TeamCard from "./TeamCard";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
+import { createTeam, getTeams } from "../services/teamService";
 import { hasModulePermission, isEmployee } from "../utils/authorization";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
 
@@ -39,37 +38,32 @@ function Teams() {
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
   const canManageTeams = !isEmployee() && hasModulePermission("Teams");
 
-  const getToken = useCallback(
-    () =>
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("token"),
-    []
-  );
-
-  const fetchTeams = useCallback(async () => {
+  const fetchTeams = useCallback(async (signal) => {
     try {
       setIsLoading(true);
 
-      const res = await api.get(
-        API_ENDPOINTS.team.list,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
+      const res = await getTeams({
+        signal,
+        cacheTTL: 60 * 1000
+      });
 
       setTeams(res.data || []);
 
+      return res.data || [];
     } catch (err) {
-
+      if (err?.code === "ERR_CANCELED") {
+        return [];
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
-    fetchTeams();
+    const controller = new AbortController();
+    fetchTeams(controller.signal);
+
+    return () => controller.abort();
   }, [fetchTeams]);
 
   useEffect(() => {
@@ -120,15 +114,7 @@ function Teams() {
 
   const handleCreateTeam = async (payload) => {
     try {
-      const response = await api.post(
-        API_ENDPOINTS.team.create,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
+      const response = await createTeam(payload);
 
       toastSuccess("Team Created");
 

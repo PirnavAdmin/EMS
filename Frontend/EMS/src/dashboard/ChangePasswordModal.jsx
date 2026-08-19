@@ -6,9 +6,8 @@ import {
   FaLock,
   FaTimes } from
 "react-icons/fa";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
 import "./ChangePasswordModal.css";
+import { changePasswordByRole } from "../services/authService";
 
 const INITIAL_FORM = {
   currentPassword: "",
@@ -221,17 +220,19 @@ function ChangePasswordModal({ open, onClose, role, email }) {
     setIsSubmitting(true);
 
     try {
-      const endpoint =
-      role?.toLowerCase() === "admin" ?
-      "/Admin/change-password" :
-      "/Employees/change-password";
-
-      await api.post(endpoint,
+      await changePasswordByRole(
+        role,
       {
         email: email,
         oldPassword: form.currentPassword,
         newPassword: form.newPassword,
         confirmPassword: form.confirmPassword
+      },
+      {
+        skipAuth: true,
+        headers: {
+          "Content-Type": "application/json"
+        }
       }
       );
 

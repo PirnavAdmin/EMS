@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaChevronDown, FaTimes } from "react-icons/fa";
-import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
+import {
+  getAvailableTeamEmployees,
+  getTeamManagers,
+  getTeamProjects,
+} from "../services/teamService";
 import {
   TEAM_DAY_OPTIONS,
   TEAM_ENGAGEMENT_OPTIONS } from
@@ -30,9 +33,6 @@ function AddTeamModal({
   const [membersOpen, setMembersOpen] = useState(false);
   const [projects, setProjects] = useState([]);
   const [memberSearch, setMemberSearch] = useState("");
-  const getToken = () =>
-  localStorage.getItem("token") ||
-  sessionStorage.getItem("token");
 
   const selectableEmployees = employees;
 
@@ -58,24 +58,34 @@ function AddTeamModal({
   }, [employees, memberSearch]);
 
   useEffect(() => {
+    if (!open) return undefined;
 
-    if (!open) return;
+    const controller = new AbortController();
 
     const fetchDropdowns = async () => {
       try {
-        const headers = {
-          Authorization: `Bearer ${getToken()}`
-        };
-
         const [
         employeeRes,
         managerRes,
         projectRes] =
         await Promise.all([
-        api.get(API_ENDPOINTS.team.availableEmployees, { headers }),
-        api.get(API_ENDPOINTS.team.managers, { headers }),
-        api.get(API_ENDPOINTS.team.projects.list, { headers })]
+        getAvailableTeamEmployees({
+          signal: controller.signal,
+          cacheTTL: 60 * 1000
+        }),
+        getTeamManagers({
+          signal: controller.signal,
+          cacheTTL: 60 * 1000
+        }),
+        getTeamProjects({
+          signal: controller.signal,
+          cacheTTL: 60 * 1000
+        })]
         );
+
+        if (controller.signal.aborted) {
+          return;
+        }
 
         const employees =
         employeeRes.data?.data ||
@@ -100,11 +110,14 @@ function AddTeamModal({
         setProjects(Array.isArray(projects) ? projects : []);
 
       } catch (error) {
-
+        if (error?.code === "ERR_CANCELED") {
+          return;
+        }
       }
     };
 
     fetchDropdowns();
+    return () => controller.abort();
 
   }, [open]);
 
