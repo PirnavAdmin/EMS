@@ -225,6 +225,13 @@ namespace EmployeeManagementSystem.Services
             };
         }
 
+
+        private string GetGeneratedLetterPath(string pdfPath)
+        {
+            return Path.Combine(
+                Directory.GetCurrentDirectory(),
+                pdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+        }
         private static string GetOrdinal(int day)
         {
             if (day >= 11 && day <= 13)
@@ -284,9 +291,7 @@ namespace EmployeeManagementSystem.Services
             if (string.IsNullOrWhiteSpace(letter.PdfPath))
                 throw new Exception("PDF path is empty.");
 
-            var fullPath = Path.Combine(
-                _environment.WebRootPath,
-                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            var fullPath = GetGeneratedLetterPath(letter.PdfPath);
 
             if (!System.IO.File.Exists(fullPath))
                 throw new Exception($"PDF file not found.\n{fullPath}");
@@ -336,9 +341,7 @@ namespace EmployeeManagementSystem.Services
             if (employee == null)
                 throw new Exception("Employee not found.");
 
-            var fullPath = Path.Combine(
-                _environment.WebRootPath,
-                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            var fullPath = GetGeneratedLetterPath(letter.PdfPath);
 
             await _emailService.SendEmailWithAttachment(
                 employee.Email,
@@ -386,9 +389,7 @@ namespace EmployeeManagementSystem.Services
             if (letter.Status == "Sent")
                 throw new Exception("Sent Relieving Letter cannot be deleted.");
 
-            var fullPath = Path.Combine(
-                _environment.WebRootPath,
-                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            var fullPath = GetGeneratedLetterPath(letter.PdfPath);
 
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
@@ -406,9 +407,7 @@ namespace EmployeeManagementSystem.Services
             if (letter == null)
                 throw new Exception("Relieving Letter not found.");
 
-            var fullPath = Path.Combine(
-                _environment.WebRootPath,
-                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            var fullPath = GetGeneratedLetterPath(letter.PdfPath);
 
             if (!System.IO.File.Exists(fullPath))
                 throw new Exception("PDF not found.");
