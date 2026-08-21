@@ -11,10 +11,6 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { toastSuccess } from "@/components/common/toast/toastService";
 import { registerUser } from "../../services/authService";
-import {
-  sanitizeEmailInput,
-  validateEmailAddress
-} from "../../utils/validation";
 
 import AuthField from "./AuthField";
 
@@ -96,14 +92,20 @@ export default function RegisterLeft() {
     else
     if (name === "email") {
 
+      // convert uppercase to lowercase
       nextValue = value.toLowerCase();
 
+      // remove spaces
+      nextValue =
+      nextValue.replace(/\s/g, "");
+
+      // allow only letters, numbers, @, ., _, -
       nextValue = nextValue.replace(
-        /[^a-z0-9@. ]/g,
+        /[^a-z0-9@._-]/g,
         ""
       );
 
-      nextValue = nextValue.slice(0, 60);
+      nextValue = nextValue.slice(0, 40);
 
     }
 
@@ -139,30 +141,6 @@ export default function RegisterLeft() {
       {})
     }));
 
-  };
-
-  const handleBlur = (event) => {
-    const { name, value } = event.target;
-
-    if (name !== "email") {
-      return;
-    }
-
-    const normalizedEmail = sanitizeEmailInput(value, 60);
-
-    setFormData((prev) => ({
-      ...prev,
-      email: normalizedEmail
-    }));
-
-    setErrors((prev) => ({
-      ...prev,
-      email: validateEmailAddress(normalizedEmail, {
-        label: "Email Address",
-        max: 60,
-        required: true
-      })
-    }));
   };
 
   //----------------------------------------
@@ -260,18 +238,8 @@ export default function RegisterLeft() {
     if (!email) {
 
       validationErrors.email =
-      "Email address is required.";
+      "Email Address is required";
 
-    } else {
-      const emailError = validateEmailAddress(email, {
-        label: "Email Address",
-        max: 60,
-        required: true
-      });
-
-      if (emailError) {
-        validationErrors.email = emailError;
-      }
     }
 
     //----------------------------------------
@@ -549,12 +517,11 @@ export default function RegisterLeft() {
           type="email"
           value={formData.email}
           onChange={handleChange}
-          onBlur={handleBlur}
           autoComplete="email"
           placeholder="Enter your email"
           icon={FaEnvelope}
           error={errors.email}
-          maxLength={60}
+          maxLength={40}
           required />
         
 

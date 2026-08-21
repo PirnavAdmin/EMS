@@ -5,13 +5,11 @@ import { API_ENDPOINTS } from "../../api/endpoints";
 import AppDatePicker from "../../components/AppDatePicker";
 import { parseDate, toIsoDateString } from "../../utils/date";
 import { toastError } from "@/components/common/toast/toastService";
-import { validateTextValue } from "../../utils/validation";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const MAX_EXPERIENCE_YEARS = 50;
 
 const getDaysInMonth = (year, monthIndex) =>
-  new Date(year, monthIndex + 1, 0).getDate();
+new Date(year, monthIndex + 1, 0).getDate();
 
 const normalizeDate = (value) => {
   const parsedDate = parseDate(value);
@@ -55,7 +53,7 @@ const addMonthsClamped = (date, months) => {
 };
 
 const formatDurationUnit = (value, label) =>
-  `${value} ${value === 1 ? label : `${label}s`}`;
+`${value} ${value === 1 ? label : `${label}s`}`;
 
 const calculateExperienceDuration = (fromValue, toValue) => {
   const startDate = normalizeDate(fromValue);
@@ -79,9 +77,10 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   let years = endDate.getFullYear() - startDate.getFullYear();
 
   if (
-    endDate.getMonth() < startDate.getMonth() ||
-    endDate.getMonth() === startDate.getMonth() &&
-    endDate.getDate() < startDate.getDate()) {
+  endDate.getMonth() < startDate.getMonth() ||
+  endDate.getMonth() === startDate.getMonth() &&
+  endDate.getDate() < startDate.getDate())
+  {
     years -= 1;
   }
 
@@ -92,8 +91,8 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   const afterYears = addYearsClamped(startDate, years);
 
   let months =
-    (endDate.getFullYear() - afterYears.getFullYear()) * 12 + (
-      endDate.getMonth() - afterYears.getMonth());
+  (endDate.getFullYear() - afterYears.getFullYear()) * 12 + (
+  endDate.getMonth() - afterYears.getMonth());
 
   if (endDate.getDate() < afterYears.getDate()) {
     months -= 1;
@@ -112,11 +111,11 @@ const calculateExperienceDuration = (fromValue, toValue) => {
         endDate.getMonth(),
         endDate.getDate()
       ) -
-        Date.UTC(
-          afterMonths.getFullYear(),
-          afterMonths.getMonth(),
-          afterMonths.getDate()
-        )) /
+      Date.UTC(
+        afterMonths.getFullYear(),
+        afterMonths.getMonth(),
+        afterMonths.getDate()
+      )) /
       ONE_DAY_MS
     )
   );
@@ -141,16 +140,6 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   };
 };
 
-const isExperienceRowEmpty = (experience) =>
-  [
-    experience.company,
-    experience.designation,
-    experience.from,
-    experience.to,
-    experience.reason,
-    experience.description].
-    every((value) => !String(value || "").trim());
-
 function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   const emptyExperience = {
     id: 0,
@@ -167,7 +156,6 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   const [experiences, setExperiences] = useState([emptyExperience]);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
-  const [errors, setErrors] = useState([]);
   const isEditMode = data && data.length > 0;
 
   useEffect(() => {
@@ -187,10 +175,10 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
         to: toDate,
         years: duration.label || (Number.isFinite(fallbackYears) ? String(fallbackYears) : ""),
         yearsValue: duration.label ?
-          duration.yearsValue :
-          Number.isFinite(fallbackYears) ?
-            fallbackYears :
-            0,
+        duration.yearsValue :
+        Number.isFinite(fallbackYears) ?
+        fallbackYears :
+        0,
         reason: exp.reasonForLeaving || "",
         description: exp.description || ""
       };
@@ -209,136 +197,15 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
         updated[index].from,
         updated[index].to
       );
-
       updated[index].years = duration.label;
       updated[index].yearsValue = duration.yearsValue;
-
-      if (duration.yearsValue > MAX_EXPERIENCE_YEARS) {
-        setErrors((prev) => {
-          const next = [...prev];
-
-          next[index] = {
-            ...(next[index] || {}),
-            to: "Experience cannot be more than 50 years",
-          };
-
-          return next;
-        });
-      } else {
-        setErrors((prev) => {
-          const next = [...prev];
-
-          if (next[index]?.to === "Experience cannot be more than 50 years") {
-            const nextError = { ...next[index] };
-            delete nextError.to;
-            next[index] = nextError;
-          }
-
-          return next;
-        });
-      }
     }
+
+    setExperiences(updated);
   };
 
   const addExperience = () => {
     setExperiences([...experiences, { ...emptyExperience }]);
-  };
-
-  const validate = () => {
-    const nextErrors = experiences.map(() => ({}));
-    const today = getTodayDate();
-    let isValid = true;
-
-    experiences.forEach((exp, index) => {
-      if (isExperienceRowEmpty(exp)) {
-        return;
-      }
-
-      const companyError = validateTextValue(exp.company, {
-        label: "Company Name",
-        min: 2,
-        max: 100,
-        required: false
-      });
-      if (companyError) {
-        nextErrors[index].company = companyError;
-        isValid = false;
-      }
-
-      const designationError = validateTextValue(exp.designation, {
-        label: "Designation",
-        min: 2,
-        max: 80,
-        required: false
-      });
-      if (designationError) {
-        nextErrors[index].designation = designationError;
-        isValid = false;
-      }
-
-      const fromDate = normalizeDate(exp.from);
-      const toDate = normalizeDate(exp.to);
-
-      if (String(exp.from || "").trim() && !fromDate) {
-        nextErrors[index].from = "Enter a valid From Date";
-        isValid = false;
-      }
-
-      if (fromDate && fromDate > today) {
-        nextErrors[index].from = "From Date cannot be in the future";
-        isValid = false;
-      }
-
-      if (String(exp.to || "").trim() && !toDate) {
-        nextErrors[index].to = "Enter a valid To Date";
-        isValid = false;
-      }
-
-      if (toDate && toDate > today) {
-        nextErrors[index].to = "To Date cannot be in the future";
-        isValid = false;
-      }
-
-      if (fromDate && toDate && toDate < fromDate) {
-        nextErrors[index].to = "To Date cannot be before From Date";
-        isValid = false;
-      }
-
-      if (fromDate && toDate && toDate >= fromDate) {
-        const duration = calculateExperienceDuration(exp.from, exp.to);
-
-        if (duration.yearsValue > MAX_EXPERIENCE_YEARS) {
-          nextErrors[index].to =
-            "Experience cannot be more than 50 years";
-          isValid = false;
-        }
-      }
-
-      const reasonError = validateTextValue(exp.reason, {
-        label: "Reason for Leaving",
-        min: 2,
-        max: 120,
-        required: false
-      });
-      if (reasonError) {
-        nextErrors[index].reason = reasonError;
-        isValid = false;
-      }
-
-      const descriptionError = validateTextValue(exp.description, {
-        label: "Description",
-        min: 2,
-        max: 500,
-        required: false
-      });
-      if (descriptionError) {
-        nextErrors[index].description = descriptionError;
-        isValid = false;
-      }
-    });
-
-    setErrors(nextErrors);
-    return isValid;
   };
 
   // ✅ REMOVE = DELETE API + UI UPDATE
@@ -377,15 +244,8 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
       return;
     }
 
-    if (!validate()) {
-      return;
-    }
-
     try {
       setLoading(true);
-      const experiencesToSave = experiences.filter(
-        (exp) => !isExperienceRowEmpty(exp)
-      );
 
       // ✅ DELETE old experiences first (only in edit mode)
       if (isEditMode) {
@@ -395,20 +255,14 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
       }
 
       // ✅ Save all experiences one by one
-      if (experiencesToSave.length === 0) {
-        setSuccessMsg(isEditMode ? "Experience cleared successfully!" : "No experience details to save.");
-        onNext?.();
-        return;
-      }
-
-      const requests = experiencesToSave.map((exp) => {
+      const requests = experiences.map((exp) => {
 
         const payload = {
           Employee_Id: employeeId,
           CompanyName: exp.company?.trim() || "",
           Designation: exp.designation?.trim() || "",
-          FromDate: exp.from ? toIsoDateString(exp.from) : null,
-          ToDate: exp.to ? toIsoDateString(exp.to) : null,
+          FromDate: toIsoDateString(exp.from),
+          ToDate: toIsoDateString(exp.to),
           Years: Number.isFinite(exp.yearsValue) ? exp.yearsValue : 0,
           ReasonForLeaving: exp.reason?.trim() || "",
           Description: exp.description?.trim() || ""
@@ -445,240 +299,164 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   };
 
   return (
-    <div className="form-section">
-
-      <h3>Add Previous Work Experience</h3>
-
-
-
+    <div className="form-section">
+      <h3>Add Previous Work Experience</h3>
+ 
       {experiences.map((exp, index) =>
-        <div className="form-card" key={index}>
-
-          <div className="card-header">
-
-            <h4>Experience {index + 1}</h4>
-
-
-
+      <div className="form-card" key={index}>
+          <div className="card-header">
+            <h4>Experience {index + 1}</h4>
+ 
             {!viewMode && experiences.length > 1 &&
-              <button
-                type="button"
-                className="remove-btn"
-                onClick={() => removeExperience(index)}>
-
-
-                Remove
-
+          <button
+            type="button"
+            className="remove-btn"
+            onClick={() => removeExperience(index)}>
+            
+                Remove
               </button>
-            }
-
-          </div>
-
-
-
-          <div className="form-grid">
-
-            <div className="form-group">
-
-              <label>Company Name</label>
-
+          }
+          </div>
+ 
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Company Name</label>
               <input
-                type="text"
-                name="company"
-                value={exp.company || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode} />
-              {errors[index]?.company && <span className="error" role="alert">{errors[index].company}</span>}
-
-
-            </div>
-
-
-
-            <div className="form-group">
-
-              <label>Designation</label>
-
+              type="text"
+              name="company"
+              value={exp.company || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>Designation</label>
               <input
-                type="text"
-                name="designation"
-                value={exp.designation || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode} />
-              {errors[index]?.designation && <span className="error" role="alert">{errors[index].designation}</span>}
-
-
-            </div>
-
-
-
-            <div className="form-group">
-
-              <label>From Date</label>
-
+              type="text"
+              name="designation"
+              value={exp.designation || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>From Date</label>
               <AppDatePicker
-                name="from"
-                value={exp.from || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode} />
-              {errors[index]?.from && <span className="error" role="alert">{errors[index].from}</span>}
-
-
-            </div>
-
-
-
-            <div className="form-group">
-
-              <label>To Date</label>
-
+              name="from"
+              value={exp.from || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>To Date</label>
               <AppDatePicker
-                name="to"
-                value={exp.to || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode} />
-              {errors[index]?.to && <span className="error" role="alert">{errors[index].to}</span>}
-
-
-            </div>
-
-
-
-            <div className="form-group">
-
-              <label>Years of Experience</label>
-
+              name="to"
+              value={exp.to || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>Years of Experience</label>
               <input
-                type="text"
-                name="years"
-                value={exp.years || ""}
-                readOnly
-                placeholder="Auto-calculated duration"
-                disabled={viewMode}
-                className="experience-years-input" />
-
-
-            </div>
-
-
-
-            <div className="form-group">
-
-              <label>Reason for Leaving</label>
-
+              type="text"
+              name="years"
+              value={exp.years || ""}
+              readOnly
+              placeholder="Auto-calculated duration"
+              disabled={viewMode}
+              className="experience-years-input" />
+            
+            </div>
+ 
+            <div className="form-group">
+              <label>Reason for Leaving</label>
               <input
-                type="text"
-                name="reason"
-                value={exp.reason || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode} />
-              {errors[index]?.reason && <span className="error" role="alert">{errors[index].reason}</span>}
-
-
-            </div>
-
-
-
-            <div className="form-group full">
-
-              <label>Description</label>
-
+              type="text"
+              name="reason"
+              value={exp.reason || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+ 
+            <div className="form-group full">
+              <label>Description</label>
               <textarea
-                name="description"
-                value={exp.description || ""}
-                onChange={(e) => handleChange(index, e)}
-                disabled={viewMode} />
-              {errors[index]?.description && <span className="error" role="alert">{errors[index].description}</span>}
-
-
-            </div>
-
-          </div>
-
+              name="description"
+              value={exp.description || ""}
+              onChange={(e) => handleChange(index, e)}
+              disabled={viewMode} />
+            
+            </div>
+          </div>
         </div>
-      )}
-
-
-
+      )}
+ 
       {!viewMode &&
-        <button
-          type="button"
-          className="btn primary add-experience-btn"
-          onClick={addExperience}>
-
-
-          + Add Another Experience
-
+      <button
+        type="button"
+        className="btn primary add-experience-btn"
+        onClick={addExperience}>
+        
+          + Add Another Experience
         </button>
-      }
-
-
-
-      <div className="step-actions">
-
+      }
+ 
+      <div className="step-actions">
         <button
           type="button"
           className="btn secondary"
           onClick={onBack}
           disabled={loading}>
-
-
-          Back
-
-        </button>
-
+          
+          Back
+        </button>
         {successMsg &&
-          <p className="workflow-feedback success">
-
-            {successMsg}
-
+        <p className="workflow-feedback success">
+            {successMsg}
           </p>
-        }
-
-
-
+        }
+ 
         <button
           type="button"
           className="btn primary"
           onClick={handleSave}
           disabled={loading}>
-
-
+          
           {loading ?
-            isEditMode ?
-              "Updating..." :
-              "Saving..." :
-            isEditMode ?
-              "Update & Next" :
-              "Save & Next"}
-
-        </button>
-
-
-
+          isEditMode ?
+          "Updating..." :
+          "Saving..." :
+          isEditMode ?
+          "Update & Next" :
+          "Save & Next"}
+        </button>
+ 
         {!viewMode &&
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => {
+        <button
+          type="button"
+          className="btn secondary"
+          onClick={() => {
 
-              setSuccessMsg("Skipped");
+            setSuccessMsg("Skipped");
 
-              setTimeout(() => {
-                if (onNext) {
-                  onNext(); // ✅ FIX
-                }
-              }, 500);
-            }}>
-
-
-            Skip
-
+            setTimeout(() => {
+              if (onNext) {
+                onNext(); // ✅ FIX
+              }
+            }, 500);
+          }}>
+          
+            Skip
           </button>
-        }
-
-      </div>
-
+        }
+      </div>
     </div>);
 
 }

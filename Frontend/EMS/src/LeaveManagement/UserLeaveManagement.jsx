@@ -10,9 +10,8 @@ import {
 "react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
-import { formatDate } from "../utils/date";
+import { formatDate, isDateRangeValid } from "../utils/date";
 import { extractCollection, sortByRecency } from "../utils/collections";
-import { validateLeaveDates } from "../utils/validation";
 import {
   CardSkeleton,
   FormSkeleton,
@@ -144,37 +143,11 @@ function UserLeaveManagement() {
   const [wfhData, setWfhData] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState([]);
   const [balanceError, setBalanceError] = useState("");
-  const [formErrors, setFormErrors] = useState({});
 
   const handleChange = (e) => {
-    const nextForm = {
+    setForm({
       ...form,
       [e.target.name]: e.target.value
-    };
-
-    setForm(nextForm);
-
-    setFormErrors((prev) => {
-      const nextErrors = {
-        ...prev,
-        [e.target.name]: ""
-      };
-
-      if (["leaveType", "fromDate", "toDate"].includes(e.target.name)) {
-        const dateErrors = validateLeaveDates(nextForm);
-
-        return {
-          ...nextErrors,
-          leaveType:
-          e.target.name === "leaveType" ? dateErrors.leaveType || "" : nextErrors.leaveType,
-          fromDate: dateErrors.fromDate || "",
-          toDate: dateErrors.toDate || "",
-          duration: dateErrors.duration || "",
-          financialYear: dateErrors.financialYear || ""
-        };
-      }
-
-      return nextErrors;
     });
   };
 
@@ -343,27 +316,16 @@ function UserLeaveManagement() {
   };
 
   const handleSubmit = async () => {
-    const validationErrors = validateLeaveDates(form);
-
-    if (!form.reason.trim()) {
-      validationErrors.reason = "This field is required.";
-    }
-
-    if (Object.values(validationErrors).some(Boolean)) {
-      setFormErrors(validationErrors);
-      toast.error(
-        validationErrors.leaveType ||
-        validationErrors.fromDate ||
-        validationErrors.toDate ||
-        validationErrors.duration ||
-        validationErrors.financialYear ||
-        validationErrors.reason ||
-        "Please fix the leave form errors."
-      );
+    if (!form.fromDate || !form.toDate || !form.reason.trim()) {
+      toast.error("Please fill all fields");
       return;
     }
 
-    if (form.fromDate && form.toDate && isWeekendOnlyRange(form.fromDate, form.toDate)) {
+    if (!isDateRangeValid(form.fromDate, form.toDate)) {
+      toast.error("From date cannot be after To date");
+      return;
+    }
+    if (isWeekendOnlyRange(form.fromDate, form.toDate)) {
       toast.error("Leave cannot be applied for weekends");
       return;
     }
@@ -409,7 +371,6 @@ function UserLeaveManagement() {
         toDate: "",
         reason: ""
       });
-      setFormErrors({});
     } catch (err) {
 
       const message =
@@ -661,9 +622,7 @@ function UserLeaveManagement() {
             <option value="Sick">Sick Leave</option>
             <option value="Earned">Earned Leave</option>
             <option value="Work From Home">Work From Home</option>
-          </select>
-          {formErrors.leaveType &&
-          <small className="field-error">{formErrors.leaveType}</small>}
+          </select>
 
           <div
           className="date-row"
@@ -685,8 +644,6 @@ function UserLeaveManagement() {
               name="fromDate"
               value={form.fromDate}
               onChange={handleChange} />
-              {formErrors.fromDate &&
-              <small className="field-error">{formErrors.fromDate}</small>}
             
             </div>
 
@@ -702,12 +659,6 @@ function UserLeaveManagement() {
               name="toDate"
               value={form.toDate}
               onChange={handleChange} />
-              {formErrors.toDate &&
-              <small className="field-error">{formErrors.toDate}</small>}
-              {formErrors.duration &&
-              <small className="field-error">{formErrors.duration}</small>}
-              {formErrors.financialYear &&
-              <small className="field-error">{formErrors.financialYear}</small>}
             
             </div>
           </div>
@@ -718,8 +669,6 @@ function UserLeaveManagement() {
           value={form.reason}
           onChange={handleChange}
           placeholder="Enter reason for leave..." />
-          {formErrors.reason &&
-          <small className="field-error">{formErrors.reason}</small>}
         
 
           <button

@@ -2,10 +2,6 @@ import React, { useEffect, useState } from "react";
 import "./AddEmployee.css";
 import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
-import {
-  REQUIRED_FIELD_MESSAGE,
-  validateTextValue
-} from "../../utils/validation";
 
 const degreeOptions = [
 "10th (SSC)",
@@ -45,16 +41,6 @@ education.year,
 education.percentage,
 education.specialization].
 every((value) => !String(value || "").trim());
-
-const isEducationRowStarted = (education) =>
-[
-education.Graduation,
-education.customGraduation,
-education.university,
-education.year,
-education.percentage,
-education.specialization].
-some((value) => String(value || "").trim());
 
 const mapEducationFromApi = (education) => {
   const degree = String(education.degree || "").trim();
@@ -181,9 +167,7 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
     Employee_Id: String(employeeId),
     Degree: getEducationDegree(education),
     UniversityBoard: String(education.university || "").trim(),
-    YearOfPassing: String(education.year || "").trim() ?
-    parseInt(education.year, 10) :
-    null,
+    YearOfPassing: parseInt(education.year, 10),
     PercentageCGPA: String(education.percentage || "").trim(),
     Specialization: String(education.specialization || "").trim()
   }));
@@ -241,99 +225,41 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
 
     educations.forEach((education, index) => {
       if (isEducationRowEmpty(education)) {
+        nextErrors[index].row = "Please complete or remove this education entry.";
+        isValid = false;
         return;
       }
 
       const qualification = getEducationDegree(education);
       const institution = String(education.university || "").trim();
       const year = String(education.year || "").trim();
-      const percentage = String(education.percentage || "").trim();
-      const specialization = String(education.specialization || "").trim();
 
       if (!qualification) {
-        nextErrors[index].Graduation = REQUIRED_FIELD_MESSAGE;
+        nextErrors[index].Graduation = "Qualification required";
         isValid = false;
       }
 
-      if (education.Graduation === "Other") {
-        const customQualificationError = validateTextValue(education.customGraduation, {
-          label: "Specify Qualification",
-          min: 2,
-          max: 80,
-          required: true
-        });
-
-        if (customQualificationError) {
-          nextErrors[index].customGraduation = customQualificationError;
-          isValid = false;
-        }
-      }
-
-      if (institution) {
-        const universityError = validateTextValue(institution, {
-          label: "University",
-          min: 2,
-          max: 120,
-          required: false
-        });
-
-        if (universityError) {
-          nextErrors[index].university = universityError;
-          isValid = false;
-        }
-      }
-
-      if (year) {
-        const currentYear = new Date().getFullYear();
-        const numericYear = Number(year);
-
-        if (!/^\d{4}$/.test(year)) {
-          nextErrors[index].year = "Enter a valid four-digit year";
-          isValid = false;
-        } else if (numericYear < 1950 || numericYear > currentYear) {
-          nextErrors[index].year = `Year must be between 1950 and ${currentYear}`;
-          isValid = false;
-        }
-      }
-
-      if (percentage) {
-        const numericPercentage = Number(percentage);
-
-        if (
-        !/^\d+(?:\.\d{1,2})?$/.test(percentage) ||
-        !Number.isFinite(numericPercentage) ||
-        numericPercentage <= 0 ||
-        numericPercentage > 100)
-        {
-          nextErrors[index].percentage = "Percentage must be greater than 0 and not more than 100";
-          isValid = false;
-        }
-      }
-
-      if (specialization) {
-        const specializationError = validateTextValue(specialization, {
-          label: "Specialization",
-          min: 2,
-          max: 80,
-          required: false
-        });
-
-        if (specializationError) {
-          nextErrors[index].specialization = specializationError;
-          isValid = false;
-        }
-      }
-
-      if (isEducationRowStarted(education) && !qualification) {
-        return;
-      }
-
-      if (!institution || !year) {
-        return;
-      }
-
-      if (nextErrors[index].university || nextErrors[index].year) {
+      if (!institution) {
+        nextErrors[index].university = "University required";
         isValid = false;
+      }
+
+      if (!/^\d{4}$/.test(year)) {
+        nextErrors[index].year = "Valid year required";
+        isValid = false;
+      }
+
+      if (!String(education.percentage || "").trim()) {
+        nextErrors[index].percentage = "Percentage required";
+        isValid = false;
+      }
+
+      if (!String(education.specialization || "").trim()) {
+        nextErrors[index].specialization = "Specialization required";
+        isValid = false;
+      }
+
+      if (!qualification || !institution || !year) {
         return;
       }
 
