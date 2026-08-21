@@ -490,9 +490,8 @@ decimal tdsAmount =
 
             var outputFolder = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot",
                 "GeneratedPayslips");
-
+            s
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
 

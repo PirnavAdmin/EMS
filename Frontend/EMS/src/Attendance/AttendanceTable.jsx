@@ -1210,8 +1210,8 @@ function AttendanceTable({
 
   const getDefaultEditTimes = (checkIn, checkOut) => {
     return {
-      checkIn: formatTimeForInput(checkIn) || DEFAULT_CHECKIN,
-      checkOut: formatTimeForInput(checkOut) || DEFAULT_CHECKOUT
+      checkIn: formatTimeForInput(checkIn),
+      checkOut: formatTimeForInput(checkOut)
     };
   };
 

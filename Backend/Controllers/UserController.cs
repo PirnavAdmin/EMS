@@ -1,59 +1,39 @@
 ﻿using EmployeeManagementSystem.Data;
-
 using EmployeeManagementSystem.DTOs;
-
 using EmployeeManagementSystem.Helpers;
-
 using EmployeeManagementSystem.Interfaces;
-
 using EmployeeManagementSystem.Models;
-
 using Microsoft.AspNetCore.Mvc;
-
 using Microsoft.EntityFrameworkCore;
-
-using System.IdentityModel.Tokens.Jwt;
+using System;
 using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
-
 {
-
     [ApiController]
-
     [Route("api/[controller]")]
-
     public class UserController : ControllerBase
-
     {
-
         private readonly AppDbContext _context;
-
         private readonly IEmailService _emailService;
-
         private readonly JwtHelper _jwtHelper;
         private readonly IAdminNotificationService _notificationService;
 
         public UserController(
-
             AppDbContext context,
-
             IEmailService emailService,
-
             JwtHelper jwtHelper,
-             IAdminNotificationService notificationService)
-
+            IAdminNotificationService notificationService)
         {
-
             _context = context;
-
             _emailService = emailService;
-
             _jwtHelper = jwtHelper;
             _notificationService = notificationService;
-
         }
 
+        // ============================================================
+        // GENERATE ONBOARDING ID
+        // ============================================================
 
         private async Task<string> GenerateOnboardingId()
         {
@@ -64,72 +44,177 @@ namespace EmployeeManagementSystem.Controllers
             if (lastCandidate == null)
                 return "OB001";
 
-            int number = int.Parse(lastCandidate.OnboardingId.Replace("OB", ""));
+            int number = int.Parse(
+                lastCandidate.OnboardingId.Replace("OB", "")
+            );
 
             return $"OB{(number + 1):D3}";
         }
-        // ================= REGISTER =================
+
+        // ============================================================
+        // REGISTER
+        // ============================================================
+
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Invalid registration data.",
+                    Errors = ModelState
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Email))
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Email is required."
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Password))
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Password is required."
+                });
+            }
 
             if (dto.Password != dto.ConfirmPassword)
-                return BadRequest("Passwords do not match");
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Passwords do not match."
+                });
+            }
 
-            if (await _context.Users.AnyAsync(x => x.Email == dto.Email))
-                return BadRequest("Email already exists");
+            string email = dto.Email.Trim();
+
+            // ========================================================
+            // CHECK IF USER ALREADY EXISTS
+            // ========================================================
+
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() == email.ToLower());
+
+            if (existingUser != null)
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Email already exists."
+                });
+            }
+
+            // ========================================================
+            // CHECK EMPLOYEE
+            // ========================================================
 
             var employee = await _context.Employees
-     .FirstOrDefaultAsync(e => e.Email == dto.Email);
+                .FirstOrDefaultAsync(e =>
+                    e.Email.ToLower() == email.ToLower());
+
+            // ========================================================
+            // EMPLOYEE NOT FOUND
+            // CREATE ONBOARDING CANDIDATE
+            // ========================================================
 
             if (employee == null)
             {
-                if (await _context.OnboardingCandidates.AnyAsync(x => x.Email == dto.Email))
+                var existingCandidate =
+                    await _context.OnboardingCandidates
+                        .FirstOrDefaultAsync(x =>
+                            x.Email.ToLower() == email.ToLower());
+
+                if (existingCandidate != null)
                 {
-                    return BadRequest("Email already registered.");
+                    return BadRequest(new
+                    {
+                        Status = false,
+                        Message = "Email already registered."
+                    });
                 }
 
                 var onboarding = new OnboardingCandidate
                 {
                     OnboardingId = await GenerateOnboardingId(),
-                    FullName = $"{dto.FirstName} {dto.LastName}".Trim(),
-                    Email = dto.Email,
-                    Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+
+                    FullName =
+                        $"{dto.FirstName} {dto.LastName}".Trim(),
+
+                    Email = email,
+
+                    // Store BCrypt password
+                    Password =
+                        BCrypt.Net.BCrypt.HashPassword(dto.Password),
+
                     Status = "Pending"
                 };
 
                 _context.OnboardingCandidates.Add(onboarding);
+
                 await _context.SaveChangesAsync();
 
                 return Ok(new
                 {
                     Status = true,
-                    Message = "Registration successful. Your onboarding request has been submitted.",
+                    Message =
+                        "Registration successful. Your onboarding request has been submitted.",
                     OnboardingId = onboarding.OnboardingId
                 });
             }
 
+            // ========================================================
+            // FIND DEFAULT EMPLOYEE ROLE
+            // ========================================================
+
             var defaultRole = await _context.Roles
-                .FirstOrDefaultAsync(r => r.Name.ToLower() == "employee");
+                .FirstOrDefaultAsync(r =>
+                    r.Name.ToLower() == "employee");
 
             if (defaultRole == null)
-                return StatusCode(500, "Default role 'Employee' not found. Please seed the Roles table.");
+            {
+                return StatusCode(500, new
+                {
+                    Status = false,
+                    Message =
+                        "Default role 'Employee' not found. Please seed the Roles table."
+                });
+            }
+
+            // ========================================================
+            // CREATE USER
+            // ========================================================
 
             var user = new Register
             {
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
-                Email = dto.Email,
-                Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Email = email,
+
+                // Store BCrypt password
+                Password =
+                    BCrypt.Net.BCrypt.HashPassword(dto.Password),
+
                 RoleId = defaultRole.RoleId
             };
 
             _context.Users.Add(user);
+
             await _context.SaveChangesAsync();
 
-            // SEND NOTIFICATION TO ADMIN
+            // ========================================================
+            // ADMIN NOTIFICATION
+            // ========================================================
+
             await _notificationService.CreateNotification(
                 "New User Registered",
                 $"{dto.FirstName} {dto.LastName} has registered successfully."
@@ -137,28 +222,227 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(new
             {
-                message = "Registered successfully",
-                roleAssigned = defaultRole.Name
+                Status = true,
+                Message = "Registered successfully",
+                RoleAssigned = defaultRole.Name
             });
         }
 
-        /// ================= LOGIN =================
-        // ================= LOGIN =================
+        // ============================================================
+        // LOGIN
+        // ============================================================
+
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
-            // First check normal users
-            var user = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == dto.Email);
-
-
-            if (user == null)
+            try
             {
-                // Check onboarding candidates
-                var candidate = await _context.OnboardingCandidates
-                    .FirstOrDefaultAsync(x => x.Email == dto.Email);
+                // ====================================================
+                // VALIDATION
+                // ====================================================
 
-                if (candidate == null)
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        Status = false,
+                        Message = "Invalid login data.",
+                        Errors = ModelState
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(dto.Email))
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message = "Email is required."
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(dto.Password))
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message = "Password is required."
+                    });
+                }
+
+                string email = dto.Email.Trim();
+
+                // ====================================================
+                // FIND NORMAL USER
+                // ====================================================
+
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(x =>
+                        x.Email.ToLower() == email.ToLower());
+
+                // ====================================================
+                // USER NOT FOUND
+                // CHECK ONBOARDING CANDIDATE
+                // ====================================================
+
+                if (user == null)
+                {
+                    var candidate =
+                        await _context.OnboardingCandidates
+                            .FirstOrDefaultAsync(x =>
+                                x.Email.ToLower() ==
+                                email.ToLower());
+
+                    // ------------------------------------------------
+                    // NO USER + NO CANDIDATE
+                    // ------------------------------------------------
+
+                    if (candidate == null)
+                    {
+                        return Unauthorized(new
+                        {
+                            Status = false,
+                            Message = "Invalid credentials."
+                        });
+                    }
+
+                    // ------------------------------------------------
+                    // ONBOARDING PASSWORD
+                    // ------------------------------------------------
+
+                    if (string.IsNullOrWhiteSpace(candidate.Password))
+                    {
+                        return Unauthorized(new
+                        {
+                            Status = false,
+                            Message = "Invalid credentials."
+                        });
+                    }
+
+                    bool candidatePasswordValid = false;
+
+                    try
+                    {
+                        candidatePasswordValid =
+                            BCrypt.Net.BCrypt.Verify(
+                                dto.Password,
+                                candidate.Password
+                            );
+                    }
+                    catch
+                    {
+                        candidatePasswordValid = false;
+                    }
+
+                    if (!candidatePasswordValid)
+                    {
+                        return Unauthorized(new
+                        {
+                            Status = false,
+                            Message = "Invalid credentials."
+                        });
+                    }
+
+                    // ------------------------------------------------
+                    // APPROVED CANDIDATE
+                    // ------------------------------------------------
+
+                    if (string.Equals(
+                        candidate.Status,
+                        "Approved",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Unauthorized(new
+                        {
+                            Status = false,
+                            Message =
+                                "Your onboarding has been completed. Please login using your employee account."
+                        });
+                    }
+
+                    // ------------------------------------------------
+                    // ONBOARDING TOKEN
+                    // ------------------------------------------------
+
+                    var onboardingToken =
+                        _jwtHelper.GenerateOnboardingToken(candidate);
+
+                    return Ok(new
+                    {
+                        Status = true,
+                        Message = "Login successful.",
+                        UserType = "Onboarding",
+                        token = onboardingToken,
+                        onboardingId = candidate.OnboardingId,
+                        email = candidate.Email
+                    });
+                }
+
+                // ====================================================
+                // NORMAL USER PASSWORD VALIDATION
+                // ====================================================
+
+                if (string.IsNullOrWhiteSpace(user.Password))
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message =
+                            "Password is not configured for this account."
+                    });
+                }
+
+                bool passwordValid = false;
+
+                // ----------------------------------------------------
+                // CHECK BCrypt PASSWORD
+                // ----------------------------------------------------
+
+                try
+                {
+                    passwordValid =
+                        BCrypt.Net.BCrypt.Verify(
+                            dto.Password,
+                            user.Password
+                        );
+                }
+                catch
+                {
+                    passwordValid = false;
+                }
+
+                // ----------------------------------------------------
+                // OPTIONAL LEGACY PASSWORD SUPPORT
+                // ----------------------------------------------------
+                //
+                // If your old database contains plain-text passwords,
+                // this allows the existing user to login once.
+                //
+                // After successful login, the password is immediately
+                // converted to BCrypt.
+                //
+                // New users will always use BCrypt.
+                // ----------------------------------------------------
+
+                if (!passwordValid)
+                {
+                    if (user.Password == dto.Password)
+                    {
+                        passwordValid = true;
+
+                        user.Password =
+                            BCrypt.Net.BCrypt.HashPassword(
+                                dto.Password
+                            );
+
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                // ====================================================
+                // WRONG PASSWORD
+                // ====================================================
+
+                if (!passwordValid)
                 {
                     return Unauthorized(new
                     {
@@ -167,137 +451,182 @@ namespace EmployeeManagementSystem.Controllers
                     });
                 }
 
-                if (!BCrypt.Net.BCrypt.Verify(dto.Password, candidate.Password))
+                // ====================================================
+                // ROLE CHECK
+                // ====================================================
+
+                if (user.RoleId == null)
                 {
                     return Unauthorized(new
                     {
                         Status = false,
-                        Message = "Invalid credentials."
+                        Message = "Role not assigned."
                     });
                 }
 
-                // Don't allow already converted candidates to login through onboarding
-                if (candidate.Status == "Approved")
+                // ====================================================
+                // FIND ROLE
+                // ====================================================
+
+                var role = await _context.Roles
+                    .FirstOrDefaultAsync(r =>
+                        r.RoleId == user.RoleId);
+
+                if (role == null)
                 {
                     return Unauthorized(new
                     {
                         Status = false,
-                        Message = "Your onboarding has been completed. Please login using your employee account."
+                        Message = "Role not found."
                     });
                 }
 
-                var onboardingToken = _jwtHelper.GenerateOnboardingToken(candidate);
+                // ====================================================
+                // ROLE ACTIVE CHECK
+                // ====================================================
+
+                if (!role.IsActive)
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message =
+                            "Your role is inactive. Please contact the administrator."
+                    });
+                }
+
+                // ====================================================
+                // FIND EMPLOYEE
+                // ====================================================
+
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e =>
+                        e.Email.ToLower() ==
+                        email.ToLower());
+
+                if (employee == null)
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message = "Employee not found."
+                    });
+                }
+
+                // ====================================================
+                // EMPLOYEE STATUS CHECK
+                // ====================================================
+
+                if (string.Equals(
+                    employee.Status,
+                    "Inactive",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message =
+                            "Your account is inactive. Please contact the administrator."
+                    });
+                }
+
+                // ====================================================
+                // EMPLOYEE ID
+                // ====================================================
+
+                string employeeId =
+                    employee.Employee_Id ?? string.Empty;
+
+                int? adminId =
+                    employee.AdminId;
+
+                string employeeName =
+                    string.IsNullOrWhiteSpace(employee.Name)
+                        ? employee.Email
+                        : employee.Name;
+
+                // ====================================================
+                // ACTIVITY LOG
+                // ====================================================
+
+                _context.ActivityLogs.Add(
+                    new ActivityLog
+                    {
+                        Activity =
+                            $"{employeeName} logged in",
+
+                        CreatedAt =
+                            DateTime.UtcNow
+                    });
+
+                await _context.SaveChangesAsync();
+
+                // ====================================================
+                // GENERATE JWT
+                // ====================================================
+
+                var token =
+                    _jwtHelper.GenerateToken(
+                        user,
+                        role.Name,
+                        employeeId,
+                        adminId
+                    );
+
+                // ====================================================
+                // LOGIN SUCCESS
+                // ====================================================
 
                 return Ok(new
                 {
                     Status = true,
                     Message = "Login successful.",
-                    UserType = "Onboarding",
-                    token = onboardingToken,
-                    onboardingId = candidate.OnboardingId,
-                    email = candidate.Email
+                    token = token,
+                    email = user.Email,
+                    userId = user.Id,
+                    employeeId = employee.Employee_Id,
+                    roleId = user.RoleId,
+                    adminId = employee.AdminId,
+                    roleName = role.Name
                 });
             }
-
-            if (user.RoleId == null)
+            catch (Exception ex)
             {
-                return Unauthorized(new
+                return StatusCode(500, new
                 {
                     Status = false,
-                    Message = "Role not assigned."
+                    Message = "An error occurred during login.",
+                    Error = ex.Message
                 });
             }
+        }
 
-            var role = await _context.Roles
-    .FirstOrDefaultAsync(r => r.RoleId == user.RoleId);
-
-            if (role == null)
-            {
-                return Unauthorized(new
-                {
-                    Status = false,
-                    Message = "Role not found."
-                });
-            }
-
-            // ✅ ADD THIS BLOCK
-            if (!role.IsActive)
-            {
-                return Unauthorized(new
-                {
-                    Status = false,
-                    Message = "Your role is inactive. Please contact the administrator."
-                });
-            }
-
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Email == user.Email);
-            string employeeId =
-    employee?.Employee_Id ?? string.Empty;
-
-            int? adminId =
-                employee?.AdminId;
-
-
-            if (employee == null)
-            {
-                return Unauthorized(new
-                {
-                    Status = false,
-                    Message = "Employee not found."
-                });
-            }
-
-            // ✅ Check Employee Status
-            if (string.Equals(employee.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
-            {
-                return Unauthorized(new
-                {
-                    Status = false,
-                    Message = "Your account is inactive. Please contact the administrator."
-                });
-            }
-
-            var employeeName = string.IsNullOrWhiteSpace(employee.Name)
-                ? employee.Email
-                : employee.Name;
-
-            _context.ActivityLogs.Add(new ActivityLog
-            {
-                Activity = $"{employeeName} logged in",
-                CreatedAt = DateTime.UtcNow
-            });
-
-            await _context.SaveChangesAsync();
-
-            var token = _jwtHelper.GenerateToken(
-      user,
-      role.Name,
-      employeeId,
-      adminId);
-
-            return Ok(new
-            {
-                Status = true,
-                Message = "Login successful.",
-                token = token,
-                email = user.Email,
-                userId = user.Id,
-                employeeId = employee.Employee_Id,
-                roleId = user.RoleId,
-                adminId = employee.AdminId,
-                roleName = role.Name
-            });
-        } // ================= FORGOT PASSWORD =================
+        // ============================================================
+        // FORGOT PASSWORD
+        // ============================================================
 
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        public async Task<IActionResult> ForgotPassword(
+            [FromBody] ForgotPasswordDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            if (string.IsNullOrWhiteSpace(dto.Email))
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Email is required."
+                });
+            }
+
+            string email = dto.Email.Trim();
+
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.ToLower());
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() ==
+                    email.ToLower());
 
             if (employee == null)
             {
@@ -309,7 +638,9 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             var user = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.ToLower());
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() ==
+                    email.ToLower());
 
             if (user == null)
             {
@@ -320,15 +651,23 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
-            var otp = Random.Shared.Next(100000, 999999).ToString();
+            var otp =
+                Random.Shared.Next(100000, 999999)
+                    .ToString();
 
             user.OtpCode = otp;
-            user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+
+            user.OtpExpiry =
+                DateTime.UtcNow.AddMinutes(10);
+
             user.IsOtpVerified = false;
 
             await _context.SaveChangesAsync();
 
-            await _emailService.SendOtpAsync(user.Email, otp);
+            await _emailService.SendOtpAsync(
+                user.Email,
+                otp
+            );
 
             return Ok(new
             {
@@ -336,39 +675,94 @@ namespace EmployeeManagementSystem.Controllers
                 Message = "OTP sent successfully."
             });
         }
-        // ================= VERIFY OTP =================
+
+        // ============================================================
+        // VERIFY OTP
+        // ============================================================
 
         [HttpPost("verify-otp")]
-
-        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDto dto)
-
+        public async Task<IActionResult> VerifyOtp(
+            [FromBody] VerifyOtpDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (string.IsNullOrWhiteSpace(dto.Email) ||
+                string.IsNullOrWhiteSpace(dto.Otp))
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Email and OTP are required."
+                });
+            }
+
+            string email = dto.Email.Trim();
 
             var user = await _context.Users
-
-                .FirstOrDefaultAsync(x => x.Email == dto.Email);
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() ==
+                    email.ToLower());
 
             if (user == null)
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "User not found."
+                });
+            }
 
-                return BadRequest("User not found");
+            if (string.IsNullOrWhiteSpace(user.OtpCode))
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "OTP not found."
+                });
+            }
 
-            if (user.OtpExpiry < DateTime.UtcNow)
+            if (!user.OtpExpiry.HasValue)
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "OTP expired."
+                });
+            }
 
-                return BadRequest("OTP expired");
+            if (user.OtpExpiry.Value < DateTime.UtcNow)
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "OTP expired."
+                });
+            }
 
             if (user.OtpCode.Trim() != dto.Otp.Trim())
-
-                return BadRequest("Invalid OTP");
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Invalid OTP."
+                });
+            }
 
             user.IsOtpVerified = true;
 
             await _context.SaveChangesAsync();
 
-            return Ok("OTP verified successfully");
-
+            return Ok(new
+            {
+                Status = true,
+                Message = "OTP verified successfully."
+            });
         }
 
-
+        // ============================================================
+        // RESET PASSWORD
+        // ============================================================
         // ================= RESET PASSWORD =================
 
         [HttpPost("reset-password")]
@@ -408,8 +802,5 @@ namespace EmployeeManagementSystem.Controllers
             return Ok("Password reset successful");
 
         }
-
     }
-
 }
-

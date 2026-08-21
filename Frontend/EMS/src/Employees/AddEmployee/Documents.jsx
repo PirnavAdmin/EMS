@@ -1765,13 +1765,6 @@ const Documents = forwardRef(function Documents({
   };
 
   const handleSaveAndNext = async () => {
-    if (agreementCategory === "documents" && documentCount === 0) {
-      const message = "Upload documents to continue.";
-      setApiError(message);
-      toastWarning(message);
-      return;
-    }
-
     try {
       setSavingNext(true);
       setApiError("");

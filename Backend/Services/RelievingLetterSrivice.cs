@@ -7,6 +7,7 @@ using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace EmployeeManagementSystem.Services
@@ -90,11 +91,9 @@ namespace EmployeeManagementSystem.Services
             // Create Folder
             // wwwroot/RelievingLetters/P259
             // =====================================
-
             var outputFolder = Path.Combine(
-                _environment.WebRootPath,
-                "RelievingLetters",
-                dto.EmployeeId);
+                Directory.GetCurrentDirectory(),
+                "GeneratedLetters");
 
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);

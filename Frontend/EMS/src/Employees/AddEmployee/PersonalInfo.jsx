@@ -8,6 +8,8 @@ import { formatEmployeeCode } from "../../utils/formatters";
 import { toIsoDateString } from "../../utils/date";
 import {
   normalizeWhitespace,
+  REQUIRED_FIELD_MESSAGE,
+  sanitizeAlphaNumericInput,
   sanitizeEmailInput,
   sanitizeLettersAndSpaces,
   sanitizePhoneInput,
@@ -228,15 +230,15 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
     }
 
     if (!formData.gender) {
-      nextErrors.gender = "Gender is required";
+      nextErrors.gender = REQUIRED_FIELD_MESSAGE;
     }
 
     if (!formData.maritalStatus) {
-      nextErrors.maritalStatus = "Marital status is required";
+      nextErrors.maritalStatus = REQUIRED_FIELD_MESSAGE;
     }
 
     if (!formData.dob) {
-      nextErrors.dob = "Date of birth is required";
+      nextErrors.dob = REQUIRED_FIELD_MESSAGE;
     }
 
     const phoneError = validatePhoneNumber(formData.phone);
@@ -252,43 +254,49 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
       nextErrors.email = emailError;
     }
 
-    if (!/^[0-9]{12}$/.test(formData.aadhaar)) {
+    if (!formData.aadhaar.trim()) {
+      nextErrors.aadhaar = REQUIRED_FIELD_MESSAGE;
+    } else if (!/^[0-9]{12}$/.test(formData.aadhaar)) {
       nextErrors.aadhaar = "Aadhaar must be 12 digits";
     }
 
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan)) {
+    if (!formData.pan.trim()) {
+      nextErrors.pan = REQUIRED_FIELD_MESSAGE;
+    } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan)) {
       nextErrors.pan = "Enter valid PAN (e.g., ABCDE1234F)";
     }
 
     if (!formData.department.trim()) {
-      nextErrors.department = "Department is required";
+      nextErrors.department = REQUIRED_FIELD_MESSAGE;
     }
 
     if (!isWorkExperienceFieldHidden && formData.workExperience === "") {
-      nextErrors.workExperience = "Experience is required";
+      nextErrors.workExperience = REQUIRED_FIELD_MESSAGE;
     }
 
     if (!formData.designation.trim()) {
-      nextErrors.designation = "Designation is required";
+      nextErrors.designation = REQUIRED_FIELD_MESSAGE;
+    } else if (formData.designation === "Other" && !formData.customDesignation.trim()) {
+      nextErrors.designation = REQUIRED_FIELD_MESSAGE;
     }
 
     if (!formData.joiningDate) {
-      nextErrors.joiningDate = "Joining date is required";
+      nextErrors.joiningDate = REQUIRED_FIELD_MESSAGE;
     }
 
     if (!formData.bloodGroup) {
-      nextErrors.bloodGroup = "Blood group is required";
+      nextErrors.bloodGroup = REQUIRED_FIELD_MESSAGE;
     }
 
     if (!formData.houseNo.trim()) {
-      nextErrors.houseNo = "House Number is required";
+      nextErrors.houseNo = REQUIRED_FIELD_MESSAGE;
     } else if (!/^[a-zA-Z0-9/-]{1,15}$/.test(formData.houseNo)) {
       nextErrors.houseNo =
         "Max 15 characters. Only letters, numbers, - or / allowed";
     }
 
     if (!formData.street.trim()) {
-      nextErrors.street = "Street is required";
+      nextErrors.street = REQUIRED_FIELD_MESSAGE;
     } else if (formData.street.length > 50) {
       nextErrors.street = "Street cannot exceed 50 characters";
     } else if (!/^[A-Za-z0-9,\s]+$/.test(formData.street)) {
@@ -303,7 +311,7 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
     }
 
     if (!formData.city.trim()) {
-      nextErrors.city = "City is required";
+      nextErrors.city = REQUIRED_FIELD_MESSAGE;
     } else if (formData.city.length > 50) {
       nextErrors.city = "City cannot exceed 50 characters";
     } else if (!/^[A-Za-z,\s]+$/.test(formData.city)) {
@@ -312,24 +320,26 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
     }
 
     if (!formData.district.trim()) {
-      nextErrors.district = "District is required";
+      nextErrors.district = REQUIRED_FIELD_MESSAGE;
     } else if (!/^[A-Za-z\s]{1,30}$/.test(formData.district)) {
       nextErrors.district = "Only alphabets allowed (max 30 characters)";
     }
 
     if (!formData.state.trim()) {
-      nextErrors.state = "State is required";
+      nextErrors.state = REQUIRED_FIELD_MESSAGE;
     } else if (!/^[A-Za-z\s]{1,30}$/.test(formData.state)) {
       nextErrors.state = "Only alphabets allowed (max 30 characters)";
     }
 
     if (!formData.country.trim()) {
-      nextErrors.country = "Country is required";
+      nextErrors.country = REQUIRED_FIELD_MESSAGE;
     } else if (!/^[A-Za-z\s]{1,30}$/.test(formData.country)) {
       nextErrors.country = "Only alphabets allowed (max 30 characters)";
     }
 
-    if (!/^[0-9]{6}$/.test(formData.pincode)) {
+    if (!formData.pincode.trim()) {
+      nextErrors.pincode = REQUIRED_FIELD_MESSAGE;
+    } else if (!/^[0-9]{6}$/.test(formData.pincode)) {
       nextErrors.pincode = "Enter valid 6-digit pincode";
     }
 

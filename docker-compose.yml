@@ -34,10 +34,10 @@ services:
 
       - /home/ubuntu/ems-storage/GeneratedLetters:/app/GeneratedLetters
 
-      - /home/ubuntu/ems-storage/GeneratedPayslips:/app/wwwroot/GeneratedPayslips
+      - /home/ubuntu/ems-storage/GeneratedPayslips:/app/GeneratedPayslips
 
       - /home/ubuntu/ems-storage/uploads:/app/wwwroot/uploads/employee-documents
-      - /home/ubuntu/ems-storage/RelievingLetters:/app/wwwroot/RelievingLetters
+     
 
       - /home/ubuntu/ems-storage/Agreements:/app/wwwroot/Agreements
 
