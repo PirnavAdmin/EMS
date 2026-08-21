@@ -6,9 +6,12 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -91,9 +94,11 @@ namespace EmployeeManagementSystem.Services
             // Create Folder
             // wwwroot/RelievingLetters/P259
             // =====================================
+
             var outputFolder = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "GeneratedLetters");
+                _environment.WebRootPath,
+                "RelievingLetters",
+                dto.EmployeeId);
 
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
@@ -191,8 +196,12 @@ namespace EmployeeManagementSystem.Services
             // =====================================
             // Save Relative Paths
             // =====================================
-            var relativePdfPath = Path.GetFileName(pdfPath);
 
+            var relativePdfPath = Path.Combine(
+                "RelievingLetters",
+                dto.EmployeeId,
+                Path.GetFileName(pdfPath))
+                .Replace("\\", "/");
 
             var relievingLetter = new RelievingLetter
             {
@@ -221,13 +230,6 @@ namespace EmployeeManagementSystem.Services
             };
         }
 
-
-        private string GetGeneratedLetterPath(string pdfPath)
-        {
-            return Path.Combine(
-                Directory.GetCurrentDirectory(),
-                pdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
-        }
         private static string GetOrdinal(int day)
         {
             if (day >= 11 && day <= 13)
@@ -274,7 +276,7 @@ namespace EmployeeManagementSystem.Services
 
             bookmark.Parent?.InsertAfter(run, bookmark);
         }
-       
+
 
         public async Task<RelievingLetterDownloadDto?> DownloadRelievingLetterAsync(int id)
         {
@@ -287,8 +289,9 @@ namespace EmployeeManagementSystem.Services
             if (string.IsNullOrWhiteSpace(letter.PdfPath))
                 throw new Exception("PDF path is empty.");
 
-            var relativePdfPath = Path.GetFileName(pdfPath);
-
+            var fullPath = Path.Combine(
+                _environment.WebRootPath,
+                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
             if (!System.IO.File.Exists(fullPath))
                 throw new Exception($"PDF file not found.\n{fullPath}");
@@ -338,8 +341,9 @@ namespace EmployeeManagementSystem.Services
             if (employee == null)
                 throw new Exception("Employee not found.");
 
-            var relativePdfPath = Path.GetFileName(pdfPath);
-
+            var fullPath = Path.Combine(
+                _environment.WebRootPath,
+                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
             await _emailService.SendEmailWithAttachment(
                 employee.Email,
@@ -387,8 +391,9 @@ namespace EmployeeManagementSystem.Services
             if (letter.Status == "Sent")
                 throw new Exception("Sent Relieving Letter cannot be deleted.");
 
-            var relativePdfPath = Path.GetFileName(pdfPath);
-
+            var fullPath = Path.Combine(
+                _environment.WebRootPath,
+                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
@@ -406,7 +411,9 @@ namespace EmployeeManagementSystem.Services
             if (letter == null)
                 throw new Exception("Relieving Letter not found.");
 
-            var relativePdfPath = Path.GetFileName(pdfPath);
+            var fullPath = Path.Combine(
+                _environment.WebRootPath,
+                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
             if (!System.IO.File.Exists(fullPath))
                 throw new Exception("PDF not found.");
