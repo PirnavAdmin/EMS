@@ -269,12 +269,10 @@ namespace EmployeeManagementSystem.Services
             }
 
             var run = new Run(
-                new Text(text ?? string.Empty)
-                {
-                    Space = SpaceProcessingModeValues.Preserve
-                });
-
-            bookmark.Parent?.InsertAfter(run, bookmark);
+     new DocumentFormat.OpenXml.Wordprocessing.Text(text ?? string.Empty)
+     {
+         Space = SpaceProcessingModeValues.Preserve
+     });
         }
 
 
