@@ -191,12 +191,8 @@ namespace EmployeeManagementSystem.Services
             // =====================================
             // Save Relative Paths
             // =====================================
+            var relativePdfPath = Path.GetFileName(pdfPath);
 
-            var relativePdfPath = Path.Combine(
-                "RelievingLetters",
-                dto.EmployeeId,
-                Path.GetFileName(pdfPath))
-                .Replace("\\", "/");
 
             var relievingLetter = new RelievingLetter
             {
