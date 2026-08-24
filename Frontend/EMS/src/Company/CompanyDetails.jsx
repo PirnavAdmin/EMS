@@ -32,7 +32,7 @@ import {
   getBranches,
   getCompanyById,
   updateBranch,
-  updateCompany,
+  updateCompany as updateCompanyApi,
 } from "../services/companyService";
 
 const COMPANY_ID = 1;
@@ -585,7 +585,7 @@ function CompanyDetails() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const updateCompany = async () => {
+  const handleSaveCompany = async () => {
     if (!validateCompany()) {
       return;
     }
@@ -605,7 +605,7 @@ function CompanyDetails() {
         branchList: []
       };
 
-      await updateCompany(COMPANY_ID, payload);
+      await updateCompanyApi(COMPANY_ID, payload);
       toastSuccess("Company details updated successfully.");
       closeModal();
       await fetchCompany();
@@ -693,43 +693,74 @@ function CompanyDetails() {
 
   return (
     <div className="company-page">
-<div className="company-card">
-      <div className="company-header">
-        <div className="company-header-copy">
-          <h2>{company.name || "Company"}</h2>
-          <p>Established: {formatDate(company.established)}</p>
-        </div>
-
+<div className="company-card">
+
+      <div className="company-header">
+
+        <div className="company-header-copy">
+
+          <h2>{company.name || "Company"}</h2>
+
+          <p>Established: {formatDate(company.established)}</p>
+
+        </div>
+
+
+
         <button
             className="company-header-edit app-button-secondary"
             type="button"
             onClick={() => setModalType("company")}>
-            
-          Edit Details
-        </button>
-      </div>
-
-      <div className="company-info">
+            
+
+          Edit Details
+
+        </button>
+
+      </div>
+
+
+
+      <div className="company-info">
+
         {companyInfoItems.map((item) =>
-          <div key={item.label} className="company-info-item">
-            <span className="company-info-icon" aria-hidden="true">
-              {item.icon}
-            </span>
-            <div>
-              <p>{item.label}</p>
-              <strong>{item.value}</strong>
-            </div>
+          <div key={item.label} className="company-info-item">
+
+            <span className="company-info-icon" aria-hidden="true">
+
+              {item.icon}
+
+            </span>
+
+            <div>
+
+              <p>{item.label}</p>
+
+              <strong>{item.value}</strong>
+
+            </div>
+
           </div>
-          )}
-      </div>
-    </div>
-
-    <div className="branch-header">
-      <div>
-        <h3>Branches</h3>
-        <p>{branches.length} branches registered</p>
-      </div>
-
+          )}
+
+      </div>
+
+    </div>
+
+
+
+    <div className="branch-header">
+
+      <div>
+
+        <h3>Branches</h3>
+
+        <p>{branches.length} branches registered</p>
+
+      </div>
+
+
+
       <button
           className="company-add-btn app-button-primary"
           type="button"
@@ -737,29 +768,51 @@ function CompanyDetails() {
           style={{
             transform: "translateX(-20px)"
           }}>
-          
-        + Add Branch
-      </button>
-    </div>
-
-    <div className="company-branch-table-wrap app-table-scroll">
-      <table className="branch-table">
-        <thead>
-          <tr>
-            <th>Branch Name</th>
-            <th style={{ textAlign: "center" }}>Established</th>
-            <th style={{ textAlign: "center" }}>Phone</th>
-            <th style={{ textAlign: "center" }}>Email</th>
-            <th style={{ textAlign: "center" }}>Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
+          
+
+        + Add Branch
+
+      </button>
+
+    </div>
+
+
+
+    <div className="company-branch-table-wrap app-table-scroll">
+
+      <table className="branch-table">
+
+        <thead>
+
+          <tr>
+
+            <th>Branch Name</th>
+
+            <th style={{ textAlign: "center" }}>Established</th>
+
+            <th style={{ textAlign: "center" }}>Phone</th>
+
+            <th style={{ textAlign: "center" }}>Email</th>
+
+            <th style={{ textAlign: "center" }}>Actions</th>
+
+          </tr>
+
+        </thead>
+
+
+
+        <tbody>
+
           {branches.length === 0 ?
-            <tr>
-              <td colSpan="5" className="app-table-empty-cell">
-                No branches available.
-              </td>
+            <tr>
+
+              <td colSpan="5" className="app-table-empty-cell">
+
+                No branches available.
+
+              </td>
+
             </tr> :
 
             branches.map((branchItem) =>
@@ -770,20 +823,34 @@ function CompanyDetails() {
                 setSelectedBranch(branchItem);
                 setShowBranchPopup(true);
               }}>
-              
-                <td>{branchItem.name}</td>
-                <td style={{ textAlign: "center" }}>
-                  {formatDate(branchItem.established)}
-                </td>
-
-                <td style={{ textAlign: "center" }}>
-                  {branchItem.phone}
-                </td>
-
-                <td style={{ textAlign: "center" }}>
-                  {branchItem.email}
-                </td>
-                <td>
+              
+
+                <td>{branchItem.name}</td>
+
+                <td style={{ textAlign: "center" }}>
+
+                  {formatDate(branchItem.established)}
+
+                </td>
+
+
+
+                <td style={{ textAlign: "center" }}>
+
+                  {branchItem.phone}
+
+                </td>
+
+
+
+                <td style={{ textAlign: "center" }}>
+
+                  {branchItem.email}
+
+                </td>
+
+                <td>
+
                   <div
                   className="branch-action-cell"
                   style={{
@@ -791,7 +858,8 @@ function CompanyDetails() {
                     gap: "10px",
                     alignItems: "center"
                   }}>
-                  
+                  
+
                     <button
                     className="company-edit-btn app-action-button app-action-button--edit"
                     type="button"
@@ -804,10 +872,14 @@ function CompanyDetails() {
                       event.stopPropagation();
                       openBranchForm(branchItem);
                     }}>
-                    
-                      Edit
-                    </button>
-
+                    
+
+                      Edit
+
+                    </button>
+
+
+
                     <button
                     className="company-delete-btn app-action-button app-action-button--delete"
                     type="button"
@@ -821,66 +893,112 @@ function CompanyDetails() {
                       setSelectedBranch(branchItem);
                       setShowDeleteModal(true);
                     }}>
-                    
-                      Delete
-                    </button>
-                  </div>
-                </td>
+                    
+
+                      Delete
+
+                    </button>
+
+                  </div>
+
+                </td>
+
               </tr>
             )
-            }
-        </tbody>
-      </table>
-    </div>
-
+            }
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+
+
     {showBranchPopup && selectedBranch &&
-      <div className="company-modal-overlay" onClick={closeBranchPopup}>
+      <div className="company-modal-overlay" onClick={closeBranchPopup}>
+
         <div
           className="company-modal-box company-modal-box-small"
           onClick={(event) => event.stopPropagation()}>
-          
-          <div className="company-modal-head">
-            <div>
-              <h3>Branch Details</h3>
-              <p>Review the selected branch information.</p>
-            </div>
-
+          
+
+          <div className="company-modal-head">
+
+            <div>
+
+              <h3>Branch Details</h3>
+
+              <p>Review the selected branch information.</p>
+
+            </div>
+
+
+
             <button
               type="button"
               className="company-modal-close"
               onClick={closeBranchPopup}>
-              
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="branch-details">
-            <div className="branch-detail-row">
-              <span>Name</span>
-              <strong>{selectedBranch.name}</strong>
-            </div>
-            <div className="branch-detail-row">
-              <span>Established</span>
-              <strong>{formatDate(selectedBranch.established)}</strong>
-            </div>
-            <div className="branch-detail-row">
-              <span>Phone</span>
-              <strong>{selectedBranch.phone}</strong>
-            </div>
-            <div className="branch-detail-row">
-              <span>Email</span>
-              <strong>{selectedBranch.email}</strong>
-            </div>
-          </div>
-
-          <div className="company-modal-btns">
+              
+
+              <X size={20} />
+
+            </button>
+
+          </div>
+
+
+
+          <div className="branch-details">
+
+            <div className="branch-detail-row">
+
+              <span>Name</span>
+
+              <strong>{selectedBranch.name}</strong>
+
+            </div>
+
+            <div className="branch-detail-row">
+
+              <span>Established</span>
+
+              <strong>{formatDate(selectedBranch.established)}</strong>
+
+            </div>
+
+            <div className="branch-detail-row">
+
+              <span>Phone</span>
+
+              <strong>{selectedBranch.phone}</strong>
+
+            </div>
+
+            <div className="branch-detail-row">
+
+              <span>Email</span>
+
+              <strong>{selectedBranch.email}</strong>
+
+            </div>
+
+          </div>
+
+
+
+          <div className="company-modal-btns">
+
             <button
               className="app-button-secondary"
               type="button"
               onClick={closeBranchPopup}>
-              
-              Close
-            </button>
+              
+
+              Close
+
+            </button>
+
             <button
               className="app-action-button app-action-button--edit"
               type="button"
@@ -888,9 +1006,12 @@ function CompanyDetails() {
                 closeBranchPopup();
                 openBranchForm(selectedBranch);
               }}>
-              
-              Edit
-            </button>
+              
+
+              Edit
+
+            </button>
+
             <button
               className="app-action-button app-action-button--delete"
               type="button"
@@ -898,281 +1019,430 @@ function CompanyDetails() {
                 setShowDeleteModal(true);
                 setShowBranchPopup(false);
               }}>
-              
-              Delete
-            </button>
-          </div>
-        </div>
+              
+
+              Delete
+
+            </button>
+
+          </div>
+
+        </div>
+
       </div>
-      }
-
+      }
+
+
+
     {showDeleteModal &&
       <div
         className="company-modal-overlay"
         onClick={() => setShowDeleteModal(false)}>
-        
+        
+
         <div
           className="company-modal-box company-modal-box-small"
           onClick={(event) => event.stopPropagation()}>
-          
-          <div className="company-modal-head">
-            <div>
-              <h3>Confirm Delete</h3>
-              <p>Are you sure you want to delete this branch?</p>
-            </div>
-
+          
+
+          <div className="company-modal-head">
+
+            <div>
+
+              <h3>Confirm Delete</h3>
+
+              <p>Are you sure you want to delete this branch?</p>
+
+            </div>
+
+
+
             <button
               type="button"
               className="company-modal-close"
               onClick={() => setShowDeleteModal(false)}>
-              
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="company-modal-btns">
+              
+
+              <X size={20} />
+
+            </button>
+
+          </div>
+
+
+
+          <div className="company-modal-btns">
+
             <button
               className="app-button-secondary"
               type="button"
               onClick={() => setShowDeleteModal(false)}>
-              
-              Cancel
-            </button>
+              
+
+              Cancel
+
+            </button>
+
             <button
               className="app-action-button app-action-button--delete"
               type="button"
               onClick={handleDeleteBranch}>
-              
-              Yes, Delete
-            </button>
-          </div>
-        </div>
+              
+
+              Yes, Delete
+
+            </button>
+
+          </div>
+
+        </div>
+
       </div>
-      }
-
+      }
+
+
+
     {modalType === "company" &&
-      <div className="company-modal-overlay" onClick={closeModal}>
+      <div className="company-modal-overlay" onClick={closeModal}>
+
         <div
           className="company-modal-box"
           onClick={(event) => event.stopPropagation()}>
-          
-          <div className="company-modal-head">
-            <div>
-              <h3>Edit Company Details</h3>
-              <p>Update company information with validated business details.</p>
-            </div>
-
+          
+
+          <div className="company-modal-head">
+
+            <div>
+
+              <h3>Edit Company Details</h3>
+
+              <p>Update company information with validated business details.</p>
+
+            </div>
+
+
+
             <button
               type="button"
               className="company-modal-close"
               onClick={closeModal}
               disabled={companySaving}>
-              
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="company-form-grid">
-            <div className="form-group">
-              <label>Company Name</label>
+              
+
+              <X size={20} />
+
+            </button>
+
+          </div>
+
+
+
+          <div className="company-form-grid">
+
+            <div className="form-group">
+
+              <label>Company Name</label>
+
               <input
                 name="name"
                 value={company.name}
                 onChange={handleCompanyChange}
                 className={companyErrors.name ? "input-error" : ""} />
-              
-              {companyErrors.name && <span className="error">{companyErrors.name}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>Established Date</label>
+              
+
+              {companyErrors.name && <span className="error">{companyErrors.name}</span>}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Established Date</label>
+
               <AppDatePicker
                 name="established"
                 value={company.established}
                 onChange={handleCompanyChange}
                 className={companyErrors.established ? "input-error" : ""} />
-              
+              
+
               {companyErrors.established &&
               <span className="error">{companyErrors.established}</span>
-              }
-            </div>
-
-            <div className="form-group">
-              <label>Phone Number</label>
+              }
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Phone Number</label>
+
               <input
                 name="phone"
                 value={company.phone}
                 onChange={handleCompanyChange}
                 className={companyErrors.phone ? "input-error" : ""} />
-              
-              {companyErrors.phone && <span className="error">{companyErrors.phone}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>Email Address</label>
+              
+
+              {companyErrors.phone && <span className="error">{companyErrors.phone}</span>}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Email Address</label>
+
               <input
                 name="email"
                 value={company.email}
                 onChange={handleCompanyChange}
                 className={companyErrors.email ? "input-error" : ""} />
-              
-              {companyErrors.email && <span className="error">{companyErrors.email}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>GST Number</label>
+              
+
+              {companyErrors.email && <span className="error">{companyErrors.email}</span>}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>GST Number</label>
+
               <input
                 name="gst"
                 value={company.gst}
                 onChange={handleCompanyChange}
                 className={companyErrors.gst ? "input-error" : ""} />
-              
-              {companyErrors.gst && <span className="error">{companyErrors.gst}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>TIN Number</label>
+              
+
+              {companyErrors.gst && <span className="error">{companyErrors.gst}</span>}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>TIN Number</label>
+
               <input
                 name="tin"
                 value={company.tin}
                 onChange={handleCompanyChange}
                 className={companyErrors.tin ? "input-error" : ""} />
-              
-              {companyErrors.tin && <span className="error">{companyErrors.tin}</span>}
-            </div>
-
-            <div className="form-group company-form-full">
-              <label>PAN Number</label>
+              
+
+              {companyErrors.tin && <span className="error">{companyErrors.tin}</span>}
+
+            </div>
+
+
+
+            <div className="form-group company-form-full">
+
+              <label>PAN Number</label>
+
               <input
                 name="pan"
                 value={company.pan}
                 onChange={handleCompanyChange}
                 className={companyErrors.pan ? "input-error" : ""} />
-              
-              {companyErrors.pan && <span className="error">{companyErrors.pan}</span>}
-            </div>
-          </div>
-
-          <div className="company-modal-btns">
+              
+
+              {companyErrors.pan && <span className="error">{companyErrors.pan}</span>}
+
+            </div>
+
+          </div>
+
+
+
+          <div className="company-modal-btns">
+
             <button
               className="app-button-secondary"
               type="button"
               onClick={closeModal}
               disabled={companySaving}>
-              
-              Cancel
-            </button>
-
+              
+
+              Cancel
+
+            </button>
+
+
+
             <button
               className="app-button-primary"
               type="button"
-              onClick={updateCompany}
+              onClick={handleSaveCompany}
               disabled={companySaving}>
-              
-              {companySaving ? "Updating..." : "Save"}
-            </button>
-          </div>
-        </div>
+              
+
+              {companySaving ? "Updating..." : "Save"}
+
+            </button>
+
+          </div>
+
+        </div>
+
       </div>
-      }
-
+      }
+
+
+
     {modalType === "branch" &&
-      <div className="company-modal-overlay" onClick={closeModal}>
+      <div className="company-modal-overlay" onClick={closeModal}>
+
         <div
           className="company-modal-box company-modal-box-small"
           onClick={(event) => event.stopPropagation()}>
-          
-          <div className="company-modal-head">
-            <div>
-              <h3>{editingBranchId ? "Edit Branch" : "Add Branch"}</h3>
-              <p>Capture branch contact and establishment details.</p>
-            </div>
-
+          
+
+          <div className="company-modal-head">
+
+            <div>
+
+              <h3>{editingBranchId ? "Edit Branch" : "Add Branch"}</h3>
+
+              <p>Capture branch contact and establishment details.</p>
+
+            </div>
+
+
+
             <button
               type="button"
               className="company-modal-close"
               onClick={closeModal}
               disabled={branchSaving}>
-              
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="company-form-grid company-form-grid-single">
-            <div className="form-group">
-              <label>Branch Name</label>
+              
+
+              <X size={20} />
+
+            </button>
+
+          </div>
+
+
+
+          <div className="company-form-grid company-form-grid-single">
+
+            <div className="form-group">
+
+              <label>Branch Name</label>
+
               <input
                 name="name"
                 value={branchForm.name}
                 onChange={handleBranchChange}
                 className={branchErrors.name ? "input-error" : ""} />
-              
-              {branchErrors.name && <span className="error">{branchErrors.name}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>Established Date</label>
+              
+
+              {branchErrors.name && <span className="error">{branchErrors.name}</span>}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Established Date</label>
+
               <AppDatePicker
                 name="established"
                 value={branchForm.established}
                 onChange={handleBranchChange}
                 className={branchErrors.established ? "input-error" : ""} />
-              
+              
+
               {branchErrors.established &&
               <span className="error">{branchErrors.established}</span>
-              }
-            </div>
-
-            <div className="form-group">
-              <label>Phone Number</label>
+              }
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Phone Number</label>
+
               <input
                 name="phone"
                 value={branchForm.phone}
                 onChange={handleBranchChange}
                 className={branchErrors.phone ? "input-error" : ""} />
-              
-              {branchErrors.phone && <span className="error">{branchErrors.phone}</span>}
-            </div>
-
-            <div className="form-group">
-              <label>Email Address</label>
+              
+
+              {branchErrors.phone && <span className="error">{branchErrors.phone}</span>}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Email Address</label>
+
               <input
                 name="email"
                 value={branchForm.email}
                 onChange={handleBranchChange}
                 className={branchErrors.email ? "input-error" : ""} />
-              
-              {branchErrors.email && <span className="error">{branchErrors.email}</span>}
-            </div>
-          </div>
-
-          <div className="company-modal-btns">
+              
+
+              {branchErrors.email && <span className="error">{branchErrors.email}</span>}
+
+            </div>
+
+          </div>
+
+
+
+          <div className="company-modal-btns">
+
             <button
               className="app-button-secondary"
               type="button"
               onClick={closeModal}
               disabled={branchSaving}>
-              
-              Cancel
-            </button>
+              
+
+              Cancel
+
+            </button>
+
             <button
               className="app-button-primary"
               type="button"
               onClick={handleSaveBranch}
               disabled={branchSaving}>
-              
+              
+
               {branchSaving ?
               editingBranchId ?
               "Updating..." :
               "Saving..." :
               editingBranchId ?
               "Update" :
-              "Save"}
-            </button>
-          </div>
-        </div>
+              "Save"}
+
+            </button>
+
+          </div>
+
+        </div>
+
       </div>
-      }
+      }
+
   </div>);
 
 }
