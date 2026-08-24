@@ -194,9 +194,9 @@ export const API = {
     // Kept lowercase to match the current working backend path used by the app.
     CREATE: "/employeepersonalinfo",
     LIST: "/employeepersonalinfo",
-    GET_BY_ID: (id) => `/employeepersonalinfo/${id}`,
-    UPDATE: (id) => `/employeepersonalinfo/${id}`,
-    DELETE: (id) => `/employeepersonalinfo/${id}`,
+    GET_BY_ID: (id) => `/employeepersonalinfo/${encodePathSegment(id)}`,
+    UPDATE: (id) => `/employeepersonalinfo/${encodePathSegment(id)}`,
+    DELETE: (id) => `/employeepersonalinfo/${encodePathSegment(id)}`,
   },
 
   // ================= BANK DETAILS =================

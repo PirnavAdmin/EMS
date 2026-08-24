@@ -248,12 +248,7 @@ function CompanyDetails() {
     } else
     if (name === "email") {
 
-      nextValue = value.
-      replace(/\s/g, "") // no spaces
-      .replace(/[^A-Za-z0-9@.]/g, "") // only alphabets numbers @ .
-      .replace(/@{2,}/g, "@") // prevent multiple @ together
-      .toLowerCase().
-      slice(0, 40);
+      nextValue = sanitizeEmailInput(value, 60);
 
       // allow only one @
       const atCount =
@@ -308,12 +303,7 @@ function CompanyDetails() {
       nextValue = value.replace(/\D/g, "").slice(0, 10);
     } else if (name === "email") {
 
-      nextValue = value.
-      replace(/\s/g, "").
-      replace(/[^A-Za-z0-9@.]/g, "").
-      replace(/@{2,}/g, "@").
-      toLowerCase().
-      slice(0, 40);
+      nextValue = sanitizeEmailInput(value, 60);
 
       const atCount =
       (nextValue.match(/@/g) || []).length;
@@ -418,18 +408,17 @@ function CompanyDetails() {
       nextErrors.email =
       "Only one @ is allowed";
 
-    } else
-    if (
-    !/^[a-z][a-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(
-      company.email
-    ))
-    {
+    } else {
 
-      nextErrors.email =
-      "Email must be like abc123@gmail.com";
+      const emailError = validateEmailAddress(company.email, {
+        label: "Email Address",
+        max: 35,
+        required: false
+      });
 
-    } else
-    {
+      if (emailError) {
+        nextErrors.email = emailError;
+      } else {
 
       const localPart =
       company.email.split("@")[0];
@@ -438,6 +427,8 @@ function CompanyDetails() {
 
         nextErrors.email =
         "Email cannot contain repeated same character continuously";
+
+      }
 
       }
     }
@@ -559,18 +550,17 @@ function CompanyDetails() {
       nextErrors.email =
       "Only one @ is allowed";
 
-    } else
-    if (
-    !/^[a-z][a-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(
-      branchForm.email
-    ))
-    {
+    } else {
 
-      nextErrors.email =
-      "Email must be like abc123@gmail.com";
+      const emailError = validateEmailAddress(branchForm.email, {
+        label: "Email Address",
+        max: 35,
+        required: false
+      });
 
-    } else
-    {
+      if (emailError) {
+        nextErrors.email = emailError;
+      } else {
 
       const localPart =
       branchForm.email.split("@")[0];
@@ -579,6 +569,8 @@ function CompanyDetails() {
 
         nextErrors.email =
         "Email cannot contain repeated same character continuously";
+
+      }
 
       }
     }

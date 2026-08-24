@@ -100,8 +100,8 @@ public class DepartmentsController : ControllerBase
         return Ok("Department deleted successfully");
     }
 
-    // ✅ Export Departments
-    [Permission(ModuleIds.Departments, PermissionAction.View)]
+    //// ✅ Export Departments
+    //[Permission(ModuleIds.Departments, PermissionAction.View)]
     [HttpGet("export")]
     public async Task<IActionResult> ExportDepartments()
     {

@@ -498,6 +498,20 @@ const findAgreementMatch = (agreementIndex, agreement) => {
   return null;
 };
 
+const hasSharedAgreementIdentity = (leftAgreement, rightAgreement) => {
+  const leftCandidates = getAgreementIdentityCandidates(leftAgreement);
+
+  if (leftCandidates.length === 0) {
+    return false;
+  }
+
+  const rightCandidates = new Set(
+    getAgreementIdentityCandidates(rightAgreement)
+  );
+
+  return leftCandidates.some((candidate) => rightCandidates.has(candidate));
+};
+
 const mergeAgreementLifecycleIds = (
 agreement,
 pendingMatch = null,
@@ -886,11 +900,18 @@ const Documents = forwardRef(function Documents({
 
   const isAgreementSelected = !!selectedAgreementDetails;
 
-  const isAgreementSigned =
-  selectedAgreementDetails &&
-  String(selectedAgreementDetails.status).
-  toLowerCase().
-  includes("signed");
+  const isAgreementSigned = Boolean(
+    selectedAgreementDetails &&
+    (
+      String(selectedAgreementDetails.status).
+      toLowerCase().
+      includes("signed") ||
+      selectedAgreementDetails.signedEmployeeAgreementId
+    )
+  );
+  const selectedAgreementStatus = isAgreementSigned ?
+  "Signed" :
+  selectedAgreementDetails?.status || "";
 
   const isSignatureFormValid =
   signatureName.trim() !== "" &&
@@ -910,16 +931,7 @@ const Documents = forwardRef(function Documents({
   isSignatureFormValid;
 
   // Enable ONLY after agreement is signed
-  const canViewSigned =
-  Boolean(
-    selectedAgreementDetails && (
-
-    selectedAgreementDetails.signedEmployeeAgreementId ||
-    String(selectedAgreementDetails.status).
-    toLowerCase().
-    includes("signed"))
-
-  );
+  const canViewSigned = Boolean(isAgreementSigned);
 
   const canDownloadSigned = canViewSigned;
 
@@ -1014,18 +1026,23 @@ const Documents = forwardRef(function Documents({
   }, [loadDocuments]);
 
   const loadAgreements = useCallback(
-    async ({ silent = false } = {}) => {
+    async ({
+      silent = false,
+      forceRefresh = false,
+      signedAgreementOverride = null
+    } = {}) => {
       if (!isAgreementCategory) {
-        return;
+        return null;
       }
 
-      const entityIdForAgreements = employeeKey || (isOnboardingMode ? "" : storedEmployeeId);
+      const entityIdForAgreements = employeeKey ||
+      (isOnboardingMode ? "" : storedEmployeeId);
 
       if (!entityIdForAgreements) {
         setAgreementList([]);
         setPendingAgreementCount(0);
         setSignedAgreementCount(0);
-        return;
+        return null;
       }
 
       if (!silent && isMountedRef.current) {
@@ -1037,21 +1054,16 @@ const Documents = forwardRef(function Documents({
       }
 
       try {
+        const requestConfig = forceRefresh ? {
+          cacheTTL: 0,
+          dedupe: false
+        } : undefined;
+
         const [pendingAgreements, signedAgreements, allAgreements] =
         await Promise.all([
-        getPendingAgreementCount(entityIdForAgreements),
-        getSignedAgreementCount(entityIdForAgreements),
-        getAgreementTypes()]
-        );
-        const pendingCodes = new Set(
-          pendingAgreements.
-          map((agreement) => normalizeAgreement(agreement).agreementCode).
-          filter(Boolean)
-        );
-        const signedCodes = new Set(
-          signedAgreements.
-          map((agreement) => normalizeAgreement(agreement).agreementCode).
-          filter(Boolean)
+        getPendingAgreementCount(entityIdForAgreements, requestConfig),
+        getSignedAgreementCount(entityIdForAgreements, requestConfig),
+        getAgreementTypes(requestConfig)]
         );
         const pendingAgreementIndex = buildAgreementIdentityIndex(
           pendingAgreements
@@ -1060,7 +1072,7 @@ const Documents = forwardRef(function Documents({
           signedAgreements
         );
 
-        const normalizedAgreements = allAgreements.map((agreement) => {
+        let normalizedAgreements = allAgreements.map((agreement) => {
           const normalizedAgreement = normalizeAgreement(agreement);
           const signedMatch = findAgreementMatch(
             signedAgreementIndex,
@@ -1095,41 +1107,127 @@ const Documents = forwardRef(function Documents({
           });
         });
 
+        if (signedAgreementOverride) {
+          const normalizedOverride = normalizeAgreement({
+            ...signedAgreementOverride,
+            status: "Signed",
+            signedEmployeeAgreementId:
+            signedAgreementOverride.signedEmployeeAgreementId ||
+            signedAgreementOverride.employeeAgreementId ||
+            signedAgreementOverride.agreementId ||
+            signedAgreementOverride.agreementCode ||
+            ""
+          });
+
+          const normalizedOverrideCode = String(
+            normalizedOverride.agreementCode || ""
+          ).
+          trim().
+          toLowerCase();
+
+          const overrideIndex = normalizedAgreements.findIndex((agreement) => {
+            if (hasSharedAgreementIdentity(agreement, normalizedOverride)) {
+              return true;
+            }
+
+            const agreementCode = String(
+              agreement.agreementCode || ""
+            ).
+            trim().
+            toLowerCase();
+
+            return Boolean(
+              normalizedOverrideCode &&
+              agreementCode &&
+              agreementCode === normalizedOverrideCode
+            );
+          });
+
+          if (overrideIndex >= 0) {
+            normalizedAgreements = normalizedAgreements.map((agreement, index) =>
+              index === overrideIndex ?
+              normalizeAgreement({
+                ...agreement,
+                ...normalizedOverride,
+                status: "Signed",
+                signedEmployeeAgreementId:
+                normalizedOverride.signedEmployeeAgreementId ||
+                agreement.signedEmployeeAgreementId ||
+                agreement.employeeAgreementId ||
+                agreement.agreementId ||
+                ""
+              }) :
+              agreement
+            );
+          } else {
+            normalizedAgreements = [
+            normalizeAgreement({
+              ...normalizedOverride,
+              status: "Signed"
+            }),
+            ...normalizedAgreements];
+          }
+        }
+
+        const agreementIdentityIndex = buildAgreementIdentityIndex(
+          normalizedAgreements
+        );
+        const nextPendingAgreementCount = normalizedAgreements.filter(
+          (agreement) =>
+          !String(agreement.status || "").toLowerCase().includes("signed")
+        ).length;
+        const nextSignedAgreementCount = normalizedAgreements.filter(
+          (agreement) =>
+          String(agreement.status || "").toLowerCase().includes("signed")
+        ).length;
+
         if (!isMountedRef.current) {
-          return;
+          return {
+            pendingAgreements,
+            signedAgreements,
+            normalizedAgreements
+          };
         }
 
         setAgreementList(normalizedAgreements);
-        setPendingAgreementCount(pendingAgreements.length);
-        setSignedAgreementCount(signedAgreements.length);
+        setPendingAgreementCount(nextPendingAgreementCount);
+        setSignedAgreementCount(nextSignedAgreementCount);
         setSelectedAgreement((currentAgreement) => {
           if (!normalizedAgreements.length) {
             return null;
           }
 
-          const currentId = normalizeAgreement(currentAgreement || {}).agreementId;
-
-          return (
-            normalizedAgreements.find(
-              (agreement) => agreement.agreementId === currentId
-            ) || null);
+          return findAgreementMatch(
+            agreementIdentityIndex,
+            currentAgreement
+          ) || null;
 
         });
         setLoadError("");
+
+        return {
+          pendingAgreements,
+          signedAgreements,
+          normalizedAgreements
+        };
       } catch (error) {
         if (!isMountedRef.current) {
-          return;
+          return null;
         }
 
         const message =
         error?.response?.data?.message || "Failed to load agreements";
 
-        setAgreementList([]);
-        setSelectedAgreement(null);
-        setPendingAgreementCount(0);
-        setSignedAgreementCount(0);
-        setLoadError(message);
-        toastError(message);
+        if (!silent) {
+          setAgreementList([]);
+          setSelectedAgreement(null);
+          setPendingAgreementCount(0);
+          setSignedAgreementCount(0);
+          setLoadError(message);
+          toastError(message);
+        }
+
+        return null;
       } finally {
         if (!silent && isMountedRef.current) {
           setAgreementLoading(false);
@@ -1563,14 +1661,6 @@ const Documents = forwardRef(function Documents({
     normalizedAgreement.employeeAgreementId ||
     normalizedAgreement.agreementCode ||
     "";
-    const requestUrl = API_ENDPOINTS.agreements.viewSigned(
-      normalizedAgreement.signedEmployeeAgreementId ||
-      normalizedAgreement.employeeAgreementId ||
-      normalizedAgreement.agreementId ||
-      normalizedAgreement.agreementCode ||
-      normalizedAgreement.id ||
-      ""
-    );
 
     if (!previewKey) {
       toastError("Agreement ID missing");
@@ -1697,7 +1787,7 @@ const Documents = forwardRef(function Documents({
       setSigningAgreement(true);
       setApiError("");
 
-      const response = await signAgreement({
+      await signAgreement({
         employeeId: isOnboardingMode ? undefined : entityIdForSignature,
         onboardingId: isOnboardingMode ? entityIdForSignature : undefined,
         agreementCode: agreement.agreementCode,
@@ -1705,8 +1795,6 @@ const Documents = forwardRef(function Documents({
         signedLocation: signedLocation.trim(),
         signatureImage
       });
-
-      const responseData = response?.data ?? {};
 
       if (!isMountedRef.current) {
         return;
@@ -1717,27 +1805,42 @@ const Documents = forwardRef(function Documents({
       setSignatureImage(null);
       setSuccessMsg("Agreement Signed Successfully");
       toastSuccess("Agreement Signed Successfully");
-      await loadAgreements({ silent: true });
+      const signedAgreementOverride = normalizeAgreement({
+        ...agreement,
+        status: "Signed",
+        signedEmployeeAgreementId:
+        agreement.signedEmployeeAgreementId ||
+        agreement.employeeAgreementId ||
+        agreement.agreementId ||
+        agreement.agreementCode ||
+        ""
+      });
 
-      const refreshedPending = await getPendingAgreementCount(entityIdForSignature);
-      const refreshedSigned = await getSignedAgreementCount(entityIdForSignature);
-
-      const signedAgreement = refreshedSigned.find(
-        (x) => x.agreementCode === agreement.agreementCode
+      setSelectedAgreement(signedAgreementOverride);
+      setAgreementList((currentList) =>
+        currentList.map((item) =>
+          hasSharedAgreementIdentity(item, signedAgreementOverride) ||
+          String(item.agreementCode || "").
+          trim().
+          toLowerCase() ===
+          String(signedAgreementOverride.agreementCode || "").
+          trim().
+          toLowerCase() ?
+          normalizeAgreement({
+            ...item,
+            ...signedAgreementOverride,
+            status: "Signed"
+          }) :
+          item
+        )
       );
-
-      if (signedAgreement) {
-        const updatedAgreement = normalizeAgreement({
-          ...agreement,
-          ...signedAgreement,
-          status: "Signed"
-        });
-
-        setSelectedAgreement(updatedAgreement);
-      }
-
-      setPendingAgreementCount(refreshedPending.length);
-      setSignedAgreementCount(refreshedSigned.length);
+      setPendingAgreementCount((currentCount) => Math.max(0, currentCount - 1));
+      setSignedAgreementCount((currentCount) => currentCount + 1);
+      await loadAgreements({
+        silent: true,
+        forceRefresh: true,
+        signedAgreementOverride
+      });
       await onRefresh?.();
     } catch (error) {
       if (!isMountedRef.current) {
@@ -2264,7 +2367,7 @@ const Documents = forwardRef(function Documents({
 
           <div>
                                 <div className="premium-upload-grid" style={{ textAlign: "left" }}>
-                                    <div className="premium-input-group">
+                                    <div className="premium-input-group premium-input-group--file">
                                         <label>Agreement Type</label>
                                         <select
                   className="premium-input"
@@ -2334,7 +2437,7 @@ const Documents = forwardRef(function Documents({
                                         <label>Status</label>
                                         <input
                   className="premium-input"
-                  value={selectedAgreementDetails?.status || ""}
+                  value={selectedAgreementStatus}
                   readOnly />
                 
                                     </div>
@@ -2353,7 +2456,7 @@ const Documents = forwardRef(function Documents({
                   !selectedAgreementDetails ||
                   isAgreementReadOnly ||
                   signingAgreement ||
-                  String(selectedAgreementDetails?.status).toLowerCase() === "signed"
+                  isAgreementSigned
                   }
                   placeholder="Signature Name" />
                 
@@ -2373,16 +2476,16 @@ const Documents = forwardRef(function Documents({
                   !selectedAgreementDetails ||
                   isAgreementReadOnly ||
                   signingAgreement ||
-                  String(selectedAgreementDetails?.status).toLowerCase() === "signed"
+                  isAgreementSigned
                   }
                   placeholder="Signed Location" />
                 
                                     </div>
 
-                                    <div className="premium-input-group">
-                                        <label>
-                                            Upload Signature Image <span className="required">*</span>
-                                        </label>
+                                    <div className="premium-input-group premium-input-group--file">
+                                        <label>
+                                            Upload Signature Image <span className="required">*</span>
+                                        </label>
 
                                         <input
                   ref={signatureImageInputRef}
@@ -2395,14 +2498,14 @@ const Documents = forwardRef(function Documents({
                   !selectedAgreementDetails ||
                   isAgreementReadOnly ||
                   signingAgreement ||
-                  String(selectedAgreementDetails?.status).toLowerCase() === "signed"
+                  isAgreementSigned
                   } />
                 
                                     </div>
                                 </div>
 
-                                {String(selectedAgreementDetails?.status).toLowerCase() === "signed" &&
-            <div className="documents-inline-message success-message">
+                                {isAgreementSigned &&
+            <div className="documents-inline-message success-message">
                                         Signed Badge
                                     </div>
             }

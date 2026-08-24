@@ -72,6 +72,8 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 
+builder.Services.AddScoped<LocationMismatchEmailJobService>();
+
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 
 builder.Services.AddScoped<IEmployeeLeaveService, EmployeeLeaveService>();

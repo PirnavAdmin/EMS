@@ -1,18 +1,26 @@
 import React, { useEffect, useState } from "react";
 import "./AddEmployee.css";
 import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
+import { API_ENDPOINTS, buildApiUrl } from "../../api/endpoints";
+import {
+  createEmployeePersonalInfo,
+  updateEmployeePersonalInfo
+} from "../../services/employeeService";
 import AppDatePicker from "../../components/AppDatePicker";
 import { extractCollection } from "../../utils/collections";
 import { formatEmployeeCode } from "../../utils/formatters";
 import { toIsoDateString } from "../../utils/date";
 import {
+  getStoredEmployeeId,
+  getStoredToken
+} from "../../utils/authStorage";
+import {
   normalizeWhitespace,
   sanitizeEmailInput,
   sanitizeLettersAndSpaces,
   sanitizePhoneInput,
+  sanitizeDigitsInput,
   validateEmailAddress,
-  validateEmployeeId,
   validateEmployeeName,
   validatePhoneNumber
 } from
@@ -45,7 +53,74 @@ const INITIAL_FORM_DATA = {
   pincode: ""
 };
 
-function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
+const DESIGNATION_OPTIONS = [
+  "Associate Software Engineer",
+  "Senior Software Engineer",
+  "Tech Lead",
+  "QA Analyst",
+  "QA Engineer",
+  "QA Automation Engineer",
+  "QA Lead",
+  "Manager",
+  "HR",
+  "HR Manager",
+  "HR Intern",
+  "HR Executive",
+  "Other"
+];
+
+const DESIGNATION_SET = new Set(DESIGNATION_OPTIONS);
+
+const MAX_EMPLOYEE_ID_LENGTH = 30;
+const MAX_CUSTOM_DESIGNATION_LENGTH = 60;
+
+const normalizeEmployeeId = (value) =>
+  String(value ?? "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toUpperCase();
+
+const normalizeApiString = (value) => {
+  const normalizedValue = normalizeWhitespace(value);
+  return normalizedValue ? normalizedValue : null;
+};
+
+const normalizeErrorField = (field) =>
+  String(field || "")
+    .replace(/[^A-Za-z_]/g, "")
+    .toLowerCase();
+
+const ERROR_FIELD_MAP = {
+  aadhaarnumber: "aadhaar",
+  bloodgroup: "bloodGroup",
+  city: "city",
+  country: "country",
+  dateofbirth: "dob",
+  department: "department",
+  designation: "designation",
+  district: "district",
+  email: "email",
+  employee_id: "employeeId",
+  firstname: "firstName",
+  gender: "gender",
+  houseno: "houseNo",
+  joiningdate: "joiningDate",
+  lastname: "lastName",
+  marital_status: "maritalStatus",
+  middlename: "middleName",
+  pannumber: "pan",
+  phonenumber: "phone",
+  pincode: "pincode",
+  state: "state",
+  street: "street",
+  workexperience: "workExperience",
+  customdesignation: "designation"
+};
+
+const getFormFieldName = (field) =>
+  ERROR_FIELD_MAP[normalizeErrorField(field)] || String(field || "");
+
+function PersonalInfo({ onNext, viewMode, data, employeeId = "", selfProfile = false }) {
   // Temporarily hidden until finalized
   const isWorkExperienceFieldHidden = true;
 
@@ -55,12 +130,13 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
   const [apiError, setApiError] = useState("");
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [knownEmployeeIds, setKnownEmployeeIds] = useState(null);
   useEffect(() => {
     setFormData((prev) => ({
       ...INITIAL_FORM_DATA,
 
       // Automatically get Employee ID from profile data or route/prop
-      employeeId: String(
+      employeeId: normalizeEmployeeId(
         data?.employee_Id ??
         data?.employeeId ??
         employeeId ??
@@ -81,7 +157,12 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
       aadhaar: String(data?.aadhaarNumber ?? ""),
       pan: String(data?.panNumber ?? ""),
       department: String(data?.department ?? ""),
-      designation: String(data?.designation ?? ""),
+      designation: DESIGNATION_SET.has(String(data?.designation ?? "").trim()) ?
+        String(data?.designation ?? "").trim() :
+        String(data?.designation ?? "").trim() ? "Other" : "",
+      customDesignation: DESIGNATION_SET.has(String(data?.designation ?? "").trim()) ?
+        "" :
+        String(data?.designation ?? "").trim(),
       joiningDate: data?.joiningDate ?
         data.joiningDate.split("T")[0] :
         "",
@@ -107,11 +188,48 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
         const response = await api.get(API_ENDPOINTS.departments.list);
         setDepartments(extractCollection(response.data));
       } catch (error) {
-
+        void error;
       }
     };
 
     fetchDepartments();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchEmployeeIds = async () => {
+      try {
+        const response = await api.get(API_ENDPOINTS.employees.list);
+        const employeeList = extractCollection(response.data);
+        const employeeIdSet = new Set(
+          employeeList.
+            map((employee) =>
+              normalizeEmployeeId(
+                employee?.employee_Id ??
+                employee?.employeeId ??
+                employee?.id ??
+                ""
+              )
+            ).
+            filter(Boolean)
+        );
+
+        if (!cancelled) {
+          setKnownEmployeeIds(employeeIdSet);
+        }
+      } catch {
+        if (!cancelled) {
+          setKnownEmployeeIds(null);
+        }
+      }
+    };
+
+    fetchEmployeeIds();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleChange = (event) => {
@@ -139,7 +257,7 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
     }
 
     if (name === "employeeId") {
-      nextValue = sanitizeAlphaNumericInput(formatEmployeeCode(value), 10);
+      nextValue = formatEmployeeCode(value).replace(/\s+/g, "").slice(0, MAX_EMPLOYEE_ID_LENGTH);
     }
 
     if (name === "houseNo") {
@@ -187,14 +305,28 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
 
   const validate = () => {
     const nextErrors = {};
+    const normalizedEmployeeId = normalizeEmployeeId(formData.employeeId);
 
-    const employeeIdError = validateEmployeeId(formData.employeeId, {
-      label: "Employee ID",
-      min: 3,
-      max: 10
-    });
-    if (employeeIdError) {
-      nextErrors.employeeId = employeeIdError;
+    if (!normalizedEmployeeId) {
+      nextErrors.employeeId = "Employee ID is required";
+    } else if (normalizedEmployeeId.length > MAX_EMPLOYEE_ID_LENGTH) {
+      nextErrors.employeeId = `Employee ID cannot exceed ${MAX_EMPLOYEE_ID_LENGTH} characters`;
+    } else if (
+      knownEmployeeIds &&
+      knownEmployeeIds.size > 0 &&
+      !knownEmployeeIds.has(normalizedEmployeeId)
+    ) {
+      nextErrors.employeeId = "Employee ID does not exist in employee records";
+    }
+
+    const signedInEmployeeId = normalizeEmployeeId(getStoredEmployeeId());
+    if (
+      selfProfile &&
+      signedInEmployeeId &&
+      normalizedEmployeeId &&
+      signedInEmployeeId !== normalizedEmployeeId
+    ) {
+      nextErrors.employeeId = "Employee ID must match the signed-in employee";
     }
 
     const firstNameError = validateEmployeeName(formData.firstName, {
@@ -262,6 +394,18 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
 
     if (!formData.department.trim()) {
       nextErrors.department = "Department is required";
+    } else if (
+      departments.length > 0 &&
+      !departments.some((department) =>
+        normalizeWhitespace(
+          department?.departmentName ??
+          department?.name ??
+          department?.department ??
+          ""
+        ) === normalizeWhitespace(formData.department)
+      )
+    ) {
+      nextErrors.department = "Selected department is not available";
     }
 
     if (!isWorkExperienceFieldHidden && formData.workExperience === "") {
@@ -270,6 +414,16 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
 
     if (!formData.designation.trim()) {
       nextErrors.designation = "Designation is required";
+    } else if (
+      formData.designation === "Other" &&
+      !normalizeWhitespace(formData.customDesignation)
+    ) {
+      nextErrors.designation = "Designation is required";
+    } else if (
+      formData.designation === "Other" &&
+      normalizeWhitespace(formData.customDesignation).length > MAX_CUSTOM_DESIGNATION_LENGTH
+    ) {
+      nextErrors.designation = `Designation cannot exceed ${MAX_CUSTOM_DESIGNATION_LENGTH} characters`;
     }
 
     if (!formData.joiningDate) {
@@ -344,81 +498,154 @@ function PersonalInfo({ onNext, viewMode, data, employeeId = "" }) {
       return;
     }
 
+    const token = getStoredToken();
+
+    if (!token) {
+      setApiError("Session expired. Please login again.");
+      return;
+    }
+
     setApiError("");
     setSuccessMsg("");
     setSaving(true);
 
+    const normalizedEmployeeId = normalizeEmployeeId(formData.employeeId);
+    const resolvedDesignation =
+      formData.designation === "Other" ?
+        normalizeWhitespace(formData.customDesignation) :
+        normalizeWhitespace(formData.designation);
     const resolvedWorkExperience =
       formData.workExperience === "" ?
         data?.workExperience ?? 0 :
         formData.workExperience;
 
     const payload = {
-      employee_Id: formData.employeeId.trim().toUpperCase(),
+      employee_Id: normalizedEmployeeId,
       firstName: normalizeWhitespace(formData.firstName),
-      middleName: normalizeWhitespace(formData.middleName),
+      middleName: normalizeApiString(formData.middleName),
       lastName: normalizeWhitespace(formData.lastName),
       dateOfBirth: toIsoDateString(formData.dob),
-      phoneNumber: formData.phone,
+      phoneNumber: sanitizePhoneInput(formData.phone),
       email: sanitizeEmailInput(formData.email, 60),
-      aadhaarNumber: formData.aadhaar,
-      panNumber: formData.pan,
-      bloodGroup: formData.bloodGroup,
-      marital_Status: formData.maritalStatus,
-      department: formData.department,
-      designation:
-        formData.designation === "Other"
-          ? formData.customDesignation
-          : formData.designation,
-      gender: formData.gender,
+      aadhaarNumber: sanitizeDigitsInput(formData.aadhaar, 12),
+      panNumber: String(formData.pan || "").trim().toUpperCase(),
+      bloodGroup: normalizeApiString(formData.bloodGroup),
+      marital_Status: normalizeApiString(formData.maritalStatus),
+      department: normalizeApiString(formData.department),
+      designation: normalizeApiString(resolvedDesignation),
+      gender: normalizeApiString(formData.gender),
       location: "India",
-      houseNo: formData.houseNo,
-      street: formData.street,
-      city: formData.city,
-      district: formData.district,
-      state: formData.state,
-      country: formData.country,
-      pincode: formData.pincode,
-      workExperience: String(resolvedWorkExperience ?? "0"),
+      houseNo: normalizeApiString(formData.houseNo),
+      street: normalizeApiString(formData.street),
+      city: normalizeApiString(formData.city),
+      district: normalizeApiString(formData.district),
+      state: normalizeApiString(formData.state),
+      country: normalizeApiString(formData.country),
+      pincode: sanitizeDigitsInput(formData.pincode, 6),
+      workExperience: String(resolvedWorkExperience ?? "0").trim() || "0",
       joiningDate: toIsoDateString(formData.joiningDate)
     };
 
     try {
-      const response = data ?
-        await api.put(
-          API_ENDPOINTS.employeePersonalInfo.byEmployeeId(formData.employeeId),
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        ) :
-        await api.post(
-          API_ENDPOINTS.employeePersonalInfo.list,
-          payload,
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
+      const requestUrl = data
+        ? buildApiUrl(API_ENDPOINTS.employeePersonalInfo.byEmployeeId(normalizedEmployeeId))
+        : buildApiUrl(API_ENDPOINTS.employeePersonalInfo.list);
+      const requestMethod = data ? "PUT" : "POST";
+      const requestConfig = {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      };
+
+      console.log("[PersonalInfo] Save request", {
+        method: requestMethod,
+        url: requestUrl,
+        payload
+      });
+
+      let response;
+      if (data) {
+        response = await updateEmployeePersonalInfo(normalizedEmployeeId, payload, requestConfig);
+      } else {
+        response = await createEmployeePersonalInfo(payload, requestConfig);
+      }
+
+      console.log("[PersonalInfo] Save response", {
+        method: requestMethod,
+        url: requestUrl,
+        status: response?.status,
+        data: response?.data
+      });
 
       setSuccessMsg(data ? "Updated successfully!" : "Saved successfully!");
 
       setTimeout(() => {
-        onNext?.(formData.employeeId);
+        onNext?.(normalizedEmployeeId);
       }, 800);
     } catch (error) {
+      const requestUrl = data
+        ? buildApiUrl(API_ENDPOINTS.employeePersonalInfo.byEmployeeId(normalizedEmployeeId))
+        : buildApiUrl(API_ENDPOINTS.employeePersonalInfo.list);
+      const requestMethod = data ? "PUT" : "POST";
+      const status = error?.response?.status;
+      const responseData = error?.response?.data || {};
+      const validationErrors = responseData?.errors;
 
-      if (error.response?.data?.errors) {
-        Object.entries(error.response.data.errors).forEach(([field, messages]) => {
+      console.log("[PersonalInfo] Save error", {
+        method: requestMethod,
+        url: requestUrl,
+        status,
+        data: responseData,
+        message: error?.message
+      });
 
-        });
+      if (status === 400 && validationErrors && typeof validationErrors === "object") {
+        const mappedErrors = Object.entries(validationErrors).reduce((acc, [field, messages]) => {
+          const messageList = Array.isArray(messages) ? messages : [messages];
+          const message = messageList.
+            map((item) => String(item || "").trim()).
+            filter(Boolean).
+            join(" ");
+
+          if (message) {
+            acc[getFormFieldName(field)] = message;
+          }
+
+          return acc;
+        }, {});
+
+        if (Object.keys(mappedErrors).length > 0) {
+          setErrors((prev) => ({
+            ...prev,
+            ...mappedErrors
+          }));
+        }
+
+        setApiError(
+          responseData.message ||
+          responseData.title ||
+          "Please correct the highlighted fields and try again."
+        );
+        return;
+      }
+
+      if (
+        status === 500 &&
+        /No authentication handler is registered for the scheme/i.test(
+          String(responseData || error?.message || "")
+        )
+      ) {
+        setApiError("Session expired or authorization failed. Please login again.");
+        return;
       }
 
       setApiError(
-        error.response?.data?.message || "Failed to save personal information."
+        responseData.message ||
+        responseData.error ||
+        responseData.title ||
+        responseData.detail ||
+        error?.message ||
+        "Failed to save personal information."
       );
     } finally {
       setSaving(false);

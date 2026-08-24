@@ -225,6 +225,7 @@ namespace EmployeeManagementSystem.Controllers
 
                 Directory.GetCurrentDirectory(),
 
+                "wwwroot",
 
                 "GeneratedPayslips",
 
@@ -261,6 +262,7 @@ namespace EmployeeManagementSystem.Controllers
 
                 Directory.GetCurrentDirectory(),
 
+                "wwwroot",
 
                 "GeneratedPayslips",
 

@@ -62,9 +62,27 @@ function AddEmployee() {
           }
         };
 
+        const requestUrl = id
+          ? buildApiUrl(API_ENDPOINTS.employeeFullDetail.byId(id))
+          : buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails);
+        const requestMethod = "GET";
+
+        console.log("[AddEmployee] Fetch employee details request", {
+          method: requestMethod,
+          url: requestUrl,
+          payload: null
+        });
+
         const response = id ?
         await api.get(API_ENDPOINTS.employeeFullDetail.byId(id), config) :
         await api.get(API_ENDPOINTS.employeeFullDetail.myDetails, config);
+
+        console.log("[AddEmployee] Fetch employee details response", {
+          method: requestMethod,
+          url: requestUrl,
+          status: response?.status,
+          data: response?.data
+        });
 
         const employee = response.data || {};
 
@@ -97,6 +115,17 @@ function AddEmployee() {
 
         return employee;
       } catch (error) {
+        const requestUrl = id
+          ? buildApiUrl(API_ENDPOINTS.employeeFullDetail.byId(id))
+          : buildApiUrl(API_ENDPOINTS.employeeFullDetail.myDetails);
+
+        console.log("[AddEmployee] Fetch employee details error", {
+          method: "GET",
+          url: requestUrl,
+          status: error?.response?.status,
+          data: error?.response?.data,
+          message: error?.message
+        });
 
         const role = localStorage.getItem("role");
 
@@ -126,8 +155,10 @@ function AddEmployee() {
     }
   }, [viewMode]);
 
-  const goToStep = async (nextStep) => {
-    await fetchEmployeeDetails({ showLoader: false });
+  const goToStep = async (nextStep, { refreshEmployeeDetails = true } = {}) => {
+    if (refreshEmployeeDetails) {
+      await fetchEmployeeDetails({ showLoader: false });
+    }
     setStep(nextStep);
     setMaxStep((prev) => Math.max(prev, nextStep));
   };
@@ -136,7 +167,7 @@ function AddEmployee() {
     setEmployeeId(empId);
     setReviewSuccess("");
     setReviewError("");
-    await goToStep(2);
+    await goToStep(2, { refreshEmployeeDetails: false });
   };
 
   const nextFromBank = async () => {

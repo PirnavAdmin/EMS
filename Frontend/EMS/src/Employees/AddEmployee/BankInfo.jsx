@@ -1,6 +1,6 @@
-import React, { forwardRef, useImperativeHandle, useState, useEffect } from "react";
+import React, { forwardRef, useCallback, useImperativeHandle, useState, useEffect } from "react";
 import api from "../../api/axiosInstance";
-import { API_ENDPOINTS } from "../../api/endpoints";
+import { API_ENDPOINTS, buildApiUrl } from "../../api/endpoints";
 
 const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref) => {
   const [bankName, setBankName] = useState("");
@@ -43,23 +43,30 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     setPf(data.pF_Account_Number || "");
   }, [data]);
 
-  useEffect(() => {
-    if (!employeeId) return;
-    loadSalary();
-  }, [employeeId]);
+  const loadSalary = useCallback(async () => {
+    const requestUrl = buildApiUrl(
+      API_ENDPOINTS.employeeSalaryStructure.byEmployeeId(employeeId)
+    );
 
-  useImperativeHandle(ref, () => ({
-    validate() {
-      return true;
-    },
-  }));
+    console.log("[BankInfo] Salary lookup request", {
+      method: "GET",
+      url: requestUrl,
+      payload: null
+    });
 
-  const loadSalary = async () => {
     try {
       const res = await api.get(
         API_ENDPOINTS.employeeSalaryStructure.byEmployeeId(employeeId)
       );
       const s = res.data;
+
+      console.log("[BankInfo] Salary lookup response", {
+        method: "GET",
+        url: requestUrl,
+        status: res?.status,
+        data: res?.data
+      });
+
       setSalaryExists(true);
       setAnnualCTC(s.annualCTC || "");
       setBasicSalary(s.basicSalary || "");
@@ -73,10 +80,35 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
       setTds(s.tds || "");
       setOtherDeduction(s.otherDeduction || "");
     }
-    catch {
+    catch (error) {
+      console.log("[BankInfo] Salary lookup error", {
+        method: "GET",
+        url: requestUrl,
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message
+      });
       setSalaryExists(false);
     }
-  };
+  }, [employeeId]);
+
+  useEffect(() => {
+    if (!employeeId) return;
+    if (!data) {
+      console.log("[BankInfo] Skipping salary lookup because no existing bank data is loaded yet.", {
+        employeeId
+      });
+      return;
+    }
+
+    loadSalary();
+  }, [employeeId, data, loadSalary]);
+
+  useImperativeHandle(ref, () => ({
+    validate() {
+      return true;
+    },
+  }));
 
   const handleSalaryInput = (field, value, setter) => {
     // Remove spaces
@@ -118,19 +150,42 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
       isActive: true
     };
 
+    const requestUrl = salaryExists
+      ? buildApiUrl(API_ENDPOINTS.employeeSalaryStructure.update(employeeId))
+      : buildApiUrl(API_ENDPOINTS.employeeSalaryStructure.list);
+    const requestMethod = salaryExists ? "PUT" : "POST";
+
+    console.log("[BankInfo] Salary save request", {
+      method: requestMethod,
+      url: requestUrl,
+      payload
+    });
+
     if (salaryExists) {
-      await api.put(
+      const response = await api.put(
         API_ENDPOINTS.employeeSalaryStructure.update(employeeId),
         payload
       );
+      console.log("[BankInfo] Salary save response", {
+        method: requestMethod,
+        url: requestUrl,
+        status: response?.status,
+        data: response?.data
+      });
       return;
     }
 
     try {
-      await api.post(
+      const response = await api.post(
         API_ENDPOINTS.employeeSalaryStructure.list,
         payload
       );
+      console.log("[BankInfo] Salary save response", {
+        method: requestMethod,
+        url: requestUrl,
+        status: response?.status,
+        data: response?.data
+      });
       setSalaryExists(true);
     } catch (error) {
       const status = error?.response?.status;
@@ -142,13 +197,37 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
       ).toLowerCase();
 
       if (status === 400 && message.includes("already")) {
-        await api.put(
+        const fallbackUrl = buildApiUrl(
+          API_ENDPOINTS.employeeSalaryStructure.update(employeeId)
+        );
+
+        console.log("[BankInfo] Salary save fallback request", {
+          method: "PUT",
+          url: fallbackUrl,
+          payload
+        });
+
+        const response = await api.put(
           API_ENDPOINTS.employeeSalaryStructure.update(employeeId),
           payload
         );
+        console.log("[BankInfo] Salary save fallback response", {
+          method: "PUT",
+          url: fallbackUrl,
+          status: response?.status,
+          data: response?.data
+        });
         setSalaryExists(true);
         return;
       }
+
+      console.log("[BankInfo] Salary save error", {
+        method: requestMethod,
+        url: requestUrl,
+        status,
+        data: error?.response?.data,
+        message: error?.message
+      });
 
       throw error;
     }
@@ -176,6 +255,17 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
         pF_Account_Number: pf,
       };
 
+      const requestUrl = data
+        ? buildApiUrl(API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId))
+        : buildApiUrl(API_ENDPOINTS.employeeBankDetails.list);
+      const requestMethod = data ? "PUT" : "POST";
+
+      console.log("[BankInfo] Bank save request", {
+        method: requestMethod,
+        url: requestUrl,
+        payload
+      });
+
       const response = data
         ? await api.put(
             API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId),
@@ -195,6 +285,13 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               },
             }
           );
+
+      console.log("[BankInfo] Bank save response", {
+        method: requestMethod,
+        url: requestUrl,
+        status: response?.status,
+        data: response?.data
+      });
 
       // Save Bank Details + Salary Structure with this single button.
       await saveSalary();

@@ -77,12 +77,6 @@ const requestAgreementBlob = async ({
     agreementOrId,
     preferredFields
   );
-  const startedAt =
-  typeof performance !== "undefined" &&
-  typeof performance.now === "function" ?
-  performance.now() :
-  Date.now();
-
   let lastError = null;
 
   for (const candidate of candidates) {
@@ -94,24 +88,12 @@ const requestAgreementBlob = async ({
         dedupe: false
       });
 
-      const finishedAt =
-      typeof performance !== "undefined" &&
-      typeof performance.now === "function" ?
-      performance.now() :
-      Date.now();
-
       return response;
     } catch (error) {
       lastError = error;
 
     }
   }
-
-  const finishedAt =
-  typeof performance !== "undefined" &&
-  typeof performance.now === "function" ?
-  performance.now() :
-  Date.now();
 
   throw lastError || new Error(`${label} request failed`);
 };
@@ -151,9 +133,11 @@ api.post(API_ENDPOINTS.agreements.upload, formData, {
   }
 });
 
-export const getAgreementTemplates = async () => {
-
-  const response = await api.get(API_ENDPOINTS.agreements.getAll);
+export const getAgreementTemplates = async (requestConfig = {}) => {
+  const response = await api.get(
+    API_ENDPOINTS.agreements.getAll,
+    requestConfig
+  );
 
   return getCollection(response.data);
 };
@@ -161,13 +145,25 @@ export const getAgreementTemplates = async () => {
 export const getAgreementStatus = getAgreementTemplates;
 export const getAgreementTypes = getAgreementTemplates;
 
-export const getPendingAgreementCount = async (employeeId) => {
-  const response = await api.get(API_ENDPOINTS.agreements.pending(employeeId));
+export const getPendingAgreementCount = async (
+  employeeId,
+  requestConfig = {}
+) => {
+  const response = await api.get(
+    API_ENDPOINTS.agreements.pending(employeeId),
+    requestConfig
+  );
   return getCollection(response.data);
 };
 
-export const getSignedAgreementCount = async (employeeId) => {
-  const response = await api.get(API_ENDPOINTS.agreements.signed(employeeId));
+export const getSignedAgreementCount = async (
+  employeeId,
+  requestConfig = {}
+) => {
+  const response = await api.get(
+    API_ENDPOINTS.agreements.signed(employeeId),
+    requestConfig
+  );
   return getCollection(response.data);
 };
 
@@ -249,8 +245,11 @@ export const signAgreement = ({
 };
 
 export const getAdminAgreements = getAgreementTemplates;
-export const getMyAgreements = async () => {
-  const response = await api.get(API_ENDPOINTS.agreements.myAgreements);
+export const getMyAgreements = async (requestConfig = {}) => {
+  const response = await api.get(
+    API_ENDPOINTS.agreements.myAgreements,
+    requestConfig
+  );
   return getCollection(response.data);
 };
 

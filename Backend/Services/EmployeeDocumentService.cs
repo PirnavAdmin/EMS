@@ -26,17 +26,27 @@ namespace EmployeeManagementSystem.Services
                 return "Please select document type";
             var allowedDocumentTypes = new List<string>
 {
+    // Education Documents
     "10th Certificate",
     "Intermediate / 12th Certificate",
     "Degree Certificate",
-    "Post Graduation Certificate",
+    "Post-Graduation Certificate",
+
+    // Identity Documents
     "Aadhaar Card",
     "PAN Card",
     "Passport",
-    "Passport Size Photo",
-    "Offer Letter",
-    "Appointment Letter",
-    "Relieving Letter",
+    "Passport-size Photo",
+
+    // Current Company
+    "Signed Offer Letter",
+
+    // Previous Experience / Internship
+    "Previous Offer Letter",
+    "Previous Appointment Letter",
+    "Previous Relieving Letter",
+
+    // Last 3 Months Payslips
     "Payslip Month 1",
     "Payslip Month 2",
     "Payslip Month 3"
@@ -79,12 +89,14 @@ namespace EmployeeManagementSystem.Services
 
             foreach (var file in dto.Files!)
             {
-                var extension =
-                    Path.GetExtension(file.FileName)
-                        .ToLower();
+                var extension = Path.GetExtension(file.FileName);
 
-                if (!allowedExtensions.Contains(extension))
+                if (!allowedExtensions.Contains(
+                        extension,
+                        StringComparer.OrdinalIgnoreCase))
+                {
                     return "Only PDF, JPG, JPEG and PNG files are allowed";
+                }
 
                 var employeeFolder =
                     Path.Combine(
@@ -274,21 +286,32 @@ namespace EmployeeManagementSystem.Services
     GetChecklist(string employeeId)
         {
             var requiredDocuments = new List<string>
-    {
-        "10th Certificate",
-        "Intermediate / 12th Certificate",
-        "Degree Certificate",
-        "Post Graduation Certificate",
-        "Aadhaar Card",
-        "PAN Card",
-        "Passport Size Photo",
-        "Offer Letter",
-        "Appointment Letter",
-        "Relieving Letter",
-        "Payslip Month 1",
-        "Payslip Month 2",
-        "Payslip Month 3"
-    };
+{
+    // Education Documents
+    "10th Certificate",
+    "Intermediate / 12th Certificate",
+    "Degree Certificate",
+    "Post-Graduation Certificate",
+
+    // Identity Documents
+    "Aadhaar Card",
+    "PAN Card",
+    "Passport",
+    "Passport-size Photo",
+
+    // Current Company
+    "Signed Offer Letter",
+
+    // Previous Experience / Internship
+    "Previous Offer Letter",
+    "Previous Appointment Letter",
+    "Previous Relieving Letter",
+
+    // Last 3 Months Payslips
+    "Payslip Month 1",
+    "Payslip Month 2",
+    "Payslip Month 3"
+};
 
             var uploadedDocuments = await _context.EmployeeDocuments
                 .Where(x => x.Employee_Id == employeeId)
@@ -318,3 +341,4 @@ namespace EmployeeManagementSystem.Services
         }
     }
 }
+

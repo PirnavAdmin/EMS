@@ -14302,6 +14302,14 @@
             "type": "string",
             "nullable": true
           },
+          "employeeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
           "title": {
             "type": "string",
             "nullable": true
@@ -14310,29 +14318,14 @@
             "type": "string",
             "nullable": true
           },
-          "resignationDate": {
+          "joiningDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
           },
           "relievingDate": {
             "type": "string",
             "format": "date-time"
-          },
-          "noticePeriodStatus": {
-            "type": "string",
-            "nullable": true
-          },
-          "fullFinalSettlement": {
-            "type": "string",
-            "nullable": true
-          },
-          "authorizedSignatory": {
-            "type": "string",
-            "nullable": true
-          },
-          "authorizedSignatoryDesignation": {
-            "type": "string",
-            "nullable": true
           }
         },
         "additionalProperties": false

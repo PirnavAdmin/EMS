@@ -46,7 +46,7 @@ import BrandingSettings from "./BrandingSettings";
 import NotificationSettings from "./NotificationSettings";
 import PolicySettings from "./PolicySettings";
 import AgreementSettings from "./AgreementSettings";
-import HrmsSettingsPage, { TemplateSettingsPage } from "./HrmsSettingsPage";
+// import HrmsSettingsPage, { TemplateSettingsPage } from "./HrmsSettingsPage";
 import {
   validateEmailSettings,
   validateAttendanceSettings,
@@ -128,19 +128,19 @@ const BASE_TAB_DEFINITIONS = [
   successMessage: "Settings updated successfully.",
   loadErrorMessage: "We could not load the notification configuration."
 },
-{
-  key: "policy",
-  label: "Policies",
-  description: "Policy catalog and editable policy details",
-  icon: FaFileAlt,
-  component: PolicySettings,
-  fetchSettings: fetchPoliciesSettings,
-  saveSettings: savePolicySettings,
-  validateSettings: validatePolicySettings,
-  defaults: { ...POLICY_SETTINGS_DEFAULTS, __policyOptions: [] },
-  successMessage: "Settings updated successfully.",
-  loadErrorMessage: "We could not load the policy configuration."
-},
+// {
+//   key: "policy",
+//   label: "Policies",
+//   description: "Policy catalog and editable policy details",
+//   icon: FaFileAlt,
+//   component: PolicySettings,
+//   fetchSettings: fetchPoliciesSettings,
+//   saveSettings: savePolicySettings,
+//   validateSettings: validatePolicySettings,
+//   defaults: { ...POLICY_SETTINGS_DEFAULTS, __policyOptions: [] },
+//   successMessage: "Settings updated successfully.",
+//   loadErrorMessage: "We could not load the policy configuration."
+// },
 {
   key: "agreements",
   label: "Agreement Settings",
@@ -157,13 +157,13 @@ const BASE_TAB_DEFINITIONS = [
 }];
 
 const HRMS_SETTINGS_MODULES = [
-{
-  key: "templates",
-  label: "Templates",
-  description: "Document and communication templates",
-  icon: FaFileSignature,
-  component: TemplateSettingsPage
-},
+// {
+//   key: "templates",
+//   label: "Templates",
+//   description: "Document and communication templates",
+//   icon: FaFileSignature,
+//   component: TemplateSettingsPage
+// },
 {
   key: "resignation",
   label: "Resignation",
@@ -218,9 +218,10 @@ const SETTINGS_GROUPS = [
   "leave",
   "brand",
   "notification",
-  "policy",
+  // "policy",
   "agreements",
-  "templates"]
+  // "templates"
+]
 
 },
 
@@ -724,75 +725,133 @@ function SettingsPage() {
 
   if (pageLoading) {
     return (
-      <div className="settings-page">
-        <div className="settings-hero settings-hero-skeleton app-surface">
-          <div className="settings-skeleton-line settings-skeleton-kicker" />
-          <div className="settings-skeleton-line settings-skeleton-title" />
-          <div className="settings-skeleton-line settings-skeleton-subtitle" />
-          <div className="settings-skeleton-pills">
-            <div className="settings-skeleton-pill" />
-            <div className="settings-skeleton-pill" />
-            <div className="settings-skeleton-pill" />
-          </div>
-        </div>
-
-        <div className="settings-layout">
-          <CardSkeleton count={1} variant="panel" className="settings-nav-skeleton" />
-          <PageSkeleton variant="form" formFields={7} formColumns={2} />
-        </div>
+      <div className="settings-page">
+
+        <div className="settings-hero settings-hero-skeleton app-surface">
+
+          <div className="settings-skeleton-line settings-skeleton-kicker" />
+
+          <div className="settings-skeleton-line settings-skeleton-title" />
+
+          <div className="settings-skeleton-line settings-skeleton-subtitle" />
+
+          <div className="settings-skeleton-pills">
+
+            <div className="settings-skeleton-pill" />
+
+            <div className="settings-skeleton-pill" />
+
+            <div className="settings-skeleton-pill" />
+
+          </div>
+
+        </div>
+
+
+
+        <div className="settings-layout">
+
+          <CardSkeleton count={1} variant="panel" className="settings-nav-skeleton" />
+
+          <PageSkeleton variant="form" formFields={7} formColumns={2} />
+
+        </div>
+
       </div>);
 
   }
 
   return (
-    <div className="settings-page">
-      {/* <div className="settings-hero app-surface">
-         <div className="settings-hero-copy">
-           <div className="settings-hero-kicker">
-             <FaShieldAlt />
-             <span>Admin only control plane</span>
-           </div>
-             <h1 className="settings-title">Settings Workspace</h1>
-           <p className="settings-subtitle">
-             Manage EMS HRMS configuration from one enterprise workspace.
-             Settings modules render here without route changes or page refreshes.
-           </p>
-         </div>
-           <div className="settings-hero-stats">
-           <SettingsStatPill label="Total Modules" value={`${tabDefinitions.length}`} tone="info" />
-           <SettingsStatPill label="Active Module" value={activeDefinition.label} tone="info" />
-           <SettingsStatPill label="Last Updated" value={lastUpdatedDisplay} tone="info" />
-           <SettingsStatPill label="Environment" value={environmentDisplay} tone="info" />
-           <SettingsStatPill
-             label="Unsaved Changes"
-             value={hasUnsavedChanges ? `${dirtyTabs.length} pending` : "Synced"}
-             tone={hasUnsavedChanges ? "warning" : "success"}
-           />
-           <SettingsStatPill
-             label="Access Level"
-             value="Admin"
-             tone="info"
-           />
-         </div>
+    <div className="settings-page">
+
+      {/* <div className="settings-hero app-surface">
+
+         <div className="settings-hero-copy">
+
+           <div className="settings-hero-kicker">
+
+             <FaShieldAlt />
+
+             <span>Admin only control plane</span>
+
+           </div>
+
+             <h1 className="settings-title">Settings Workspace</h1>
+
+           <p className="settings-subtitle">
+
+             Manage EMS HRMS configuration from one enterprise workspace.
+
+             Settings modules render here without route changes or page refreshes.
+
+           </p>
+
+         </div>
+
+           <div className="settings-hero-stats">
+
+           <SettingsStatPill label="Total Modules" value={`${tabDefinitions.length}`} tone="info" />
+
+           <SettingsStatPill label="Active Module" value={activeDefinition.label} tone="info" />
+
+           <SettingsStatPill label="Last Updated" value={lastUpdatedDisplay} tone="info" />
+
+           <SettingsStatPill label="Environment" value={environmentDisplay} tone="info" />
+
+           <SettingsStatPill
+
+             label="Unsaved Changes"
+
+             value={hasUnsavedChanges ? `${dirtyTabs.length} pending` : "Synced"}
+
+             tone={hasUnsavedChanges ? "warning" : "success"}
+
+           />
+
+           <SettingsStatPill
+
+             label="Access Level"
+
+             value="Admin"
+
+             tone="info"
+
+           />
+
+         </div>
+
         </div> */
 
-      }
-
-      <div className="settings-layout">
-        <aside className="settings-nav app-surface">
-          <div className="settings-nav-head">
-            <span className="settings-nav-eyebrow">Modules</span>
-            <h2>Settings Navigation</h2>
-            <p>Select the module you want to configure.</p>
-          </div>
-
-          <div className="settings-nav-list" role="tablist" aria-label="Settings tabs">
+      }
+
+
+
+      <div className="settings-layout">
+
+        <aside className="settings-nav app-surface">
+
+          <div className="settings-nav-head">
+
+            <span className="settings-nav-eyebrow">Modules</span>
+
+            <h2>Settings Navigation</h2>
+
+            <p>Select the module you want to configure.</p>
+
+          </div>
+
+
+
+          <div className="settings-nav-list" role="tablist" aria-label="Settings tabs">
+
             {SETTINGS_GROUPS.map((group) => {
               const isExpanded = expandedGroup === group.key;
 
               return (
-                <div key={group.key} className="settings-group">
-
+                <div key={group.key} className="settings-group">
+
+
+
                   <button
                     type="button"
                     className="settings-group-header"
@@ -801,17 +860,27 @@ function SettingsPage() {
                       isExpanded ? "" : group.key
                     )
                     }>
-                    
-                    <span>{group.title}</span>
-
-                    <span>
-                      {isExpanded ? "▼" : "▶"}
-                    </span>
-                  </button>
-
+                    
+
+                    <span>{group.title}</span>
+
+
+
+                    <span>
+
+                      {isExpanded ? "▼" : "▶"}
+
+                    </span>
+
+                  </button>
+
+
+
                   {isExpanded &&
-                  <div className="settings-group-body">
-
+                  <div className="settings-group-body">
+
+
+
                       {group.tabs.map((tabKey) => {
 
                       const definition =
@@ -843,40 +912,61 @@ function SettingsPage() {
                           onClick={() =>
                           setActiveTab(definition.key)
                           }>
-                          
-                            <span className="settings-sidebar-icon settings-nav-icon">
-                              <Icon />
-                            </span>
-
-                            <span className="settings-nav-copy">
-                              <strong>{definition.label}</strong>
-                              <span>{definition.description}</span>
-                            </span>
-
+                          
+
+                            <span className="settings-sidebar-icon settings-nav-icon">
+
+                              <Icon />
+
+                            </span>
+
+
+
+                            <span className="settings-nav-copy">
+
+                              <strong>{definition.label}</strong>
+
+                              <span>{definition.description}</span>
+
+                            </span>
+
+
+
                             {section.loadError &&
                           <span
                             className="settings-nav-badge"
                             title="Loaded with warnings">
-                            
-                                !
+                            
+
+                                !
+
                               </span>
-                          }
+                          }
+
                           </button>);
 
-                    })}
-
+                    })}
+
+
+
                     </div>
-                  }
+                  }
+
                 </div>);
 
-            })}
-          </div>
-        </aside>
-
+            })}
+
+          </div>
+
+        </aside>
+
+
+
         <section
           className="settings-content"
           style={{ marginTop: 0, paddingTop: 0 }}>
-          
+          
+
           <ActiveTabComponent
             values={activeSection.values}
             errors={activeSection.errors}
@@ -887,22 +977,35 @@ function SettingsPage() {
             loadError={activeSection.loadError}
             loading={currentSectionLoading}
             disabled={currentSectionSaving || currentSectionLoading} />
-          
-
+          
+
+
+
           {!activeDefinition.hideFooter &&
-          <div className="settings-footer app-surface">
-              <div className="settings-footer-copy">
-                <strong>
-                  {currentSectionDirty ? "Unsaved changes in this tab" : "No pending changes"}
-                </strong>
-                <span>
+          <div className="settings-footer app-surface">
+
+              <div className="settings-footer-copy">
+
+                <strong>
+
+                  {currentSectionDirty ? "Unsaved changes in this tab" : "No pending changes"}
+
+                </strong>
+
+                <span>
+
                   {currentSectionDirty ?
                 "Save before moving to another page or refreshing." :
-                "Your latest changes are already stored."}
-                </span>
-              </div>
-
-              <div className="settings-footer-actions">
+                "Your latest changes are already stored."}
+
+                </span>
+
+              </div>
+
+
+
+              <div className="settings-footer-actions">
+
                 <button
                 type="button"
                 className="app-button-ghost settings-reset-btn"
@@ -912,25 +1015,38 @@ function SettingsPage() {
                 currentSectionSaving ||
                 currentSectionLoading
                 }>
-                
-                  <FaRedo />
-                  Reset
-                </button>
-
+                
+
+                  <FaRedo />
+
+                  Reset
+
+                </button>
+
+
+
                 <button
                 type="button"
                 className="app-button-primary settings-save-btn"
                 onClick={handleSaveCurrentTab}
                 disabled={currentSectionSaving || currentSectionLoading}>
-                
-                  <FaSave />
-                  {currentSectionSaving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
+                
+
+                  <FaSave />
+
+                  {currentSectionSaving ? "Saving..." : "Save Changes"}
+
+                </button>
+
+              </div>
+
             </div>
-          }
-        </section>
-      </div>
+          }
+
+        </section>
+
+      </div>
+
     </div>);
 
 }

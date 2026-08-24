@@ -27,7 +27,13 @@ namespace EmployeeManagementSystem.Models
 
         public int SentCount { get; set; } = 0;
         public DateTime CreatedAt { get; set; }
+        public string? EmployeeName { get; set; }
 
+        public string? Email { get; set; }
+
+        public string? Designation { get; set; }
+
+        public DateTime? JoiningDate { get; set; }
 
         [ForeignKey(nameof(EmployeeId))]
         public virtual Employee? Employee { get; set; }

@@ -10,6 +10,59 @@ import {
   TEAM_ENGAGEMENT_OPTIONS } from
 "./teamsData";
 
+const normalizeSelectionId = (value) =>
+  String(value ?? "").trim();
+
+const normalizeProjectId = (value) => {
+  const trimmedValue = normalizeSelectionId(value);
+
+  if (!trimmedValue) {
+    return "";
+  }
+
+  const numericValue = Number(trimmedValue);
+  return Number.isNaN(numericValue) ? trimmedValue : numericValue;
+};
+
+const getEmployeeId = (employee) =>
+  normalizeSelectionId(
+    employee?.employee_Id ??
+    employee?.employeeId ??
+    employee?.id
+  );
+
+const getEmployeeName = (employee) =>
+  employee?.employeeName ||
+  employee?.name ||
+  employee?.fullName ||
+  "";
+
+const getManagerId = (manager) =>
+  normalizeSelectionId(
+    manager?.employee_Id ??
+    manager?.employeeId ??
+    manager?.id
+  );
+
+const getManagerName = (manager) =>
+  manager?.employeeName ||
+  manager?.name ||
+  manager?.fullName ||
+  "";
+
+const getProjectId = (project) =>
+  normalizeSelectionId(
+    project?.project_Id ??
+    project?.projectId ??
+    project?.id
+  );
+
+const getProjectName = (project) =>
+  project?.project_Name ||
+  project?.projectName ||
+  project?.name ||
+  "";
+
 const createInitialForm = (defaultTeamNumber = "") => ({
   teamNumber: defaultTeamNumber,
   teamName: "",
@@ -34,13 +87,19 @@ function AddTeamModal({
   const [projects, setProjects] = useState([]);
   const [memberSearch, setMemberSearch] = useState("");
 
-  const selectableEmployees = employees;
+  const selectedMemberIds = useMemo(() => {
+    return new Set(
+      form.memberIds.
+      map((id) => normalizeSelectionId(id)).
+      filter((id) => id !== "")
+    );
+  }, [form.memberIds]);
 
   const selectedMembers = useMemo(() => {
     return employees.filter((employee) =>
-    form.memberIds.includes(employee.employee_Id)
+    selectedMemberIds.has(getEmployeeId(employee))
     );
-  }, [employees, form.memberIds]);
+  }, [employees, selectedMemberIds]);
 
   const filteredEmployees = useMemo(() => {
     const search = memberSearch.trim().toLowerCase();
@@ -48,10 +107,10 @@ function AddTeamModal({
     if (!search) return employees;
 
     return employees.filter((employee) =>
-    (employee.name || "").
+    (getEmployeeName(employee) || "").
     toLowerCase().
     includes(search) ||
-    String(employee.employee_Id || "").
+    String(getEmployeeId(employee) || "").
     toLowerCase().
     includes(search)
     );
@@ -181,11 +240,22 @@ function AddTeamModal({
   };
 
   const toggleMember = (employeeId) => {
+    const normalizedEmployeeId = normalizeSelectionId(employeeId);
+
+    if (!normalizedEmployeeId) {
+      return;
+    }
+
     setForm((current) => {
-      const isSelected = current.memberIds.includes(employeeId);
+      const isSelected = current.memberIds.
+      map((id) => normalizeSelectionId(id)).
+      includes(normalizedEmployeeId);
+
       const nextMemberIds = isSelected ?
-      current.memberIds.filter((id) => id !== employeeId) :
-      [...current.memberIds, employeeId];
+      current.memberIds.filter((id) =>
+      normalizeSelectionId(id) !== normalizedEmployeeId
+      ) :
+      [...current.memberIds, normalizedEmployeeId];
 
       return {
         ...current,
@@ -195,9 +265,13 @@ function AddTeamModal({
   };
 
   const removeMember = (employeeId) => {
+    const normalizedEmployeeId = normalizeSelectionId(employeeId);
+
     setForm((current) => ({
       ...current,
-      memberIds: current.memberIds.filter((id) => id !== employeeId)
+      memberIds: current.memberIds.filter((id) =>
+      normalizeSelectionId(id) !== normalizedEmployeeId
+      )
     }));
   };
 
@@ -236,15 +310,20 @@ function AddTeamModal({
     const sanitizedPayload = {
       teamNumber: form.teamNumber.trim().toUpperCase(),
       teamName: form.teamName.trim(),
-      reportingManager: form.reportingManager.trim(),
+      reportingManagerId: normalizeSelectionId(form.reportingManager),
       engagementType: form.engagementType,
-      projectName: form.projectName.trim(),
+      projectId: normalizeProjectId(form.projectName),
       reportingDays:
       form.reportingDays.length > 0 ?
-      form.reportingDays :
+      [...form.reportingDays] :
       [...TEAM_DAY_OPTIONS],
-      memberIds: [...form.memberIds]
+      employeeIds:
+      form.memberIds.
+      map((id) => normalizeSelectionId(id)).
+      filter((id) => id !== "")
     };
+
+    console.log("[Teams] create payload", sanitizedPayload);
 
     const createdTeam = await onCreate?.(sanitizedPayload);
 
@@ -268,7 +347,7 @@ function AddTeamModal({
           onClose?.();
         }
       }}>
-      
+
       <div className="team-modal" role="dialog" aria-modal="true" aria-labelledby="add-team-title">
         <div className="team-modal-header">
           <div>
@@ -285,7 +364,7 @@ function AddTeamModal({
             className="team-modal-close"
             onClick={onClose}
             aria-label="Close add team modal">
-            
+
             <FaTimes />
           </button>
         </div>
@@ -305,7 +384,7 @@ function AddTeamModal({
                 )
                 }
                 placeholder="TM-04" />
-              
+
               {errors.teamNumber ?
               <span className="team-form-error">{errors.teamNumber}</span> :
               null}
@@ -319,7 +398,7 @@ function AddTeamModal({
                 value={form.teamName}
                 onChange={(event) => updateField("teamName", event.target.value)}
                 placeholder="Enter team name" />
-              
+
               {errors.teamName ?
               <span className="team-form-error">{errors.teamName}</span> :
               null}
@@ -332,19 +411,21 @@ function AddTeamModal({
                 className="team-form-select"
                 value={form.reportingManager}
                 onChange={(e) => updateField("reportingManager", e.target.value)}>
-                
+
                 <option value="">Select Manager</option>
 
-                {managers.map((manager) =>
-                <option
-                  key={manager.employee_Id}
-                  value={manager.employee_Id}>
-                  
-                    {manager.employeeName ||
-                  manager.name ||
-                  manager.fullName}
-                  </option>
-                )}
+                {managers.map((manager, index) => {
+                  const managerId = getManagerId(manager);
+
+                  return (
+                    <option
+                      key={`${managerId || "manager"}-${index}`}
+                      value={managerId}>
+
+                      {getManagerName(manager) || String(managerId || "")}
+                    </option>
+                  );
+                })}
               </select>
               {errors.reportingManager ?
               <span className="team-form-error">{errors.reportingManager}</span> :
@@ -360,7 +441,7 @@ function AddTeamModal({
                 onChange={(event) =>
                 updateField("engagementType", event.target.value)
                 }>
-                
+
                 {TEAM_ENGAGEMENT_OPTIONS.map((option) =>
                 <option key={option} value={option}>
                     {option}
@@ -376,20 +457,24 @@ function AddTeamModal({
                 className="team-form-select"
                 value={form.projectName}
                 onChange={(e) => updateField("projectName", e.target.value)}>
-                
+
 
                 <option value="">
                   Select Project
                 </option>
 
-                {projects.map((project) =>
-                <option
-                  key={project.project_Id}
-                  value={project.project_Id}>
-                  
-                    {project.project_Name}
-                  </option>
-                )}
+                {projects.map((project, index) => {
+                  const projectId = getProjectId(project);
+
+                  return (
+                    <option
+                      key={`${projectId || "project"}-${index}`}
+                      value={projectId}>
+
+                      {getProjectName(project) || String(projectId || "")}
+                    </option>
+                  );
+                })}
 
               </select>
               {errors.projectName ?
@@ -409,7 +494,7 @@ function AddTeamModal({
                       type="button"
                       className={`team-day-button ${isSelected ? "is-active" : ""}`}
                       onClick={() => toggleDay(day)}>
-                      
+
                       {day}
                     </button>);
 
@@ -423,7 +508,7 @@ function AddTeamModal({
                 type="button"
                 className="team-multiselect-trigger"
                 onClick={() => setMembersOpen((current) => !current)}>
-                
+
                 <span>
                   {selectedMembers.length > 0 ?
                   `${selectedMembers.length} member${selectedMembers.length > 1 ? "s" : ""} selected` :
@@ -444,27 +529,31 @@ function AddTeamModal({
                     value={memberSearch}
                     onChange={(e) => setMemberSearch(e.target.value)}
                     className="team-member-search-input" />
-                  
-                  </div>
-                  {filteredEmployees.map((employee) =>
-                <label
-                  key={employee.employee_Id}
-                  className="team-member-option">
-                  
-                      <input
-                    type="checkbox"
-                    checked={form.memberIds.includes(employee.employee_Id)}
-                    onChange={() => toggleMember(employee.employee_Id)} />
-                  
 
-                      <div className="team-member-info">
-                        <strong>{employee.name}</strong>
-                        <small>
-                          Employee ID: {employee.employee_Id}
-                        </small>
-                      </div>
-                    </label>
-                )}
+                  </div>
+                  {filteredEmployees.map((employee, index) => {
+                    const employeeId = getEmployeeId(employee);
+
+                    return (
+                      <label
+                        key={`${employeeId || "employee"}-${index}`}
+                        className="team-member-option">
+
+                        <input
+                          type="checkbox"
+                          checked={selectedMemberIds.has(employeeId)}
+                          onChange={() => toggleMember(employeeId)} />
+
+
+                        <div className="team-member-info">
+                          <strong>{getEmployeeName(employee) || String(employeeId || "")}</strong>
+                          <small>
+                            Employee ID: {employeeId}
+                          </small>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               }
 
@@ -475,8 +564,8 @@ function AddTeamModal({
               {selectedMembers.length > 0 &&
               <div className="team-selected-members">
                   {selectedMembers.map((member) => {
-                  const id = member.employee_Id;
-                  const name = member.name;
+                  const id = getEmployeeId(member);
+                  const name = getEmployeeName(member) || String(id || "");
 
                   return (
                     <span key={id} className="team-selected-chip">
@@ -486,7 +575,7 @@ function AddTeamModal({
                         type="button"
                         onClick={() => removeMember(id)}
                         aria-label={`Remove ${name}`}>
-                        
+
                           <FaTimes />
                         </button>
                       </span>);

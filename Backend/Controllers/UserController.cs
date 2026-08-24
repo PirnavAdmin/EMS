@@ -5,8 +5,6 @@ using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
 {

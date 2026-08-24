@@ -53,7 +53,8 @@ namespace EmployeeManagementSystem.Services
             var absentToday = totalEmployees - (presentToday + leaveToday);
 
             // Tasks
-            var totalTasks = await _context.TaskManagement
+            // Tickets
+            var totalTickets = await _context.Tickets
                 .AsNoTracking()
                 .CountAsync();
 
@@ -69,18 +70,26 @@ namespace EmployeeManagementSystem.Services
 
             // Salary
             // Salary for current payroll month
-            var currentMonth = DateTime.Now.Month;
-            var currentYear = DateTime.Now.Year;
+            // Salary Report
+            // Get the latest month/year for which payslips have actually been generated
 
-            var selectedMonth = new DateTime(currentYear, currentMonth, 1)
-                .ToString("MMMM");
-
-            var totalSalaryPaid = await _context.PaySlips
+            var latestPayslip = await _context.PaySlips
                 .AsNoTracking()
-                .Where(p =>
-                    p.Month == selectedMonth &&
-                    p.Year == currentYear)
-                .SumAsync(p => (decimal?)p.NetSalary) ?? 0;
+                .OrderByDescending(p => p.Year)
+                .ThenByDescending(p => p.Generated_On)
+                .FirstOrDefaultAsync();
+
+            decimal totalSalaryPaid = 0;
+
+            if (latestPayslip != null)
+            {
+                totalSalaryPaid = await _context.PaySlips
+                    .AsNoTracking()
+                    .Where(p =>
+                        p.Month == latestPayslip.Month &&
+                        p.Year == latestPayslip.Year)
+                    .SumAsync(p => (decimal?)p.NetSalary) ?? 0;
+            }
 
             // Clients
             var totalClients = await _context.Clients
@@ -93,7 +102,7 @@ namespace EmployeeManagementSystem.Services
                 TotalDepartments = totalDepartments,
                 PresentToday = presentToday,
                 AbsentToday = absentToday,
-                TotalTasks = totalTasks,
+                TotalTickets = totalTickets,
                 TotalProjects = totalProjects,
                 TotalLeaves = totalLeaves,
                 TotalSalaryPaid = totalSalaryPaid,

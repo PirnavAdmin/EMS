@@ -10,10 +10,81 @@ import AddTeamModal from "./AddTeamModal";
 import TeamCard from "./TeamCard";
 import { createTeam, getTeams } from "../services/teamService";
 import { hasModulePermission, isEmployee } from "../utils/authorization";
-import { TEAM_DAY_OPTIONS } from "./teamsData";
 
-const TEAM_ACCENTS = ["teal", "blue", "amber", "violet"];
 const PAGE_SIZE = 6;
+
+const pickTeamApiMessage = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const message = pickTeamApiMessage(item);
+      if (message) {
+        return message;
+      }
+    }
+
+    return "";
+  }
+
+  if (typeof value !== "object") {
+    return "";
+  }
+
+  const directMessage =
+  value.message ||
+  value.Message ||
+  value.error ||
+  value.Error ||
+  value.title ||
+  value.Title ||
+  value.detail ||
+  value.Detail ||
+  value.exceptionMessage ||
+  "";
+
+  if (directMessage) {
+    return String(directMessage).trim();
+  }
+
+  const validationErrors = value.errors || value.Errors;
+
+  if (validationErrors && typeof validationErrors === "object") {
+    for (const item of Object.values(validationErrors)) {
+      const message = pickTeamApiMessage(item);
+      if (message) {
+        return message;
+      }
+    }
+  }
+
+  return "";
+};
+
+const getCreateTeamErrorMessage = (error) => {
+  const status = error?.response?.status;
+  const responseMessage = pickTeamApiMessage(error?.response?.data);
+
+  if (responseMessage) {
+    return responseMessage;
+  }
+
+  if (status === 400) {
+    return "Please review the team details and try again.";
+  }
+
+  if (typeof status === "number" && status >= 500) {
+    return "Internal Server Error. Please try again later.";
+  }
+
+  return error?.message || "Unable to create team";
+};
 
 const getNextTeamNumber = (teams = []) => {
   const highestNumber = teams.reduce((max, team) => {
@@ -118,12 +189,12 @@ function Teams() {
 
       toastSuccess("Team Created");
 
-      await fetchTeams();
+      await fetchTeams().catch(() => {});
 
       return response.data;
     } catch (err) {
-
-      toastError("Unable to create team");
+      toastError(getCreateTeamErrorMessage(err));
+      return null;
     }
   };
 
@@ -172,7 +243,7 @@ function Teams() {
           <button
             className="teams-add-btn"
             onClick={() => setIsAddTeamOpen(true)}>
-            
+
               <FaPlus />
               Add Team
             </button>
@@ -191,7 +262,7 @@ function Teams() {
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search teams, manager, project or members" />
-          
+
         </label>
 
         <div className="teams-toolbar-note">
@@ -229,7 +300,7 @@ function Teams() {
           pageSize={PAGE_SIZE}
           onPageChange={setCurrentPage}
           itemLabel="teams" />
-        
+
         </>
       }
 
@@ -238,7 +309,7 @@ function Teams() {
         defaultTeamNumber={nextTeamNumber}
         onClose={() => setIsAddTeamOpen(false)}
         onCreate={handleCreateTeam} />
-      
+
     </div>);
 
 }

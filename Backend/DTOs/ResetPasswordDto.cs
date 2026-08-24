@@ -13,5 +13,7 @@ namespace EmployeeManagementSystem.DTOs
         [Required]
         [Compare("Password", ErrorMessage = "Passwords do not match")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+
     }
 }

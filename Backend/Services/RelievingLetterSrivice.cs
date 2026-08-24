@@ -6,12 +6,8 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -64,23 +60,88 @@ namespace EmployeeManagementSystem.Services
 
             return $"{day}{suffix} {date:MMM yyyy}";
         }
-        public async Task<object> GenerateRelievingLetterAsync(RelievingLetterRequestDto dto)
+        public async Task<object> GenerateRelievingLetterAsync(
+      RelievingLetterRequestDto dto)
         {
+            // =====================================================
+            // VALIDATE BASIC INPUT
+            // =====================================================
+
+            if (string.IsNullOrWhiteSpace(dto.EmployeeId))
+                throw new Exception("Employee ID is required.");
+
+            if (string.IsNullOrWhiteSpace(dto.EmployeeName))
+            {
+                // If employee exists, name can come from Employees.
+                // So don't reject it here.
+            }
+
+            // =====================================================
+            // CHECK WHETHER EMPLOYEE EXISTS
+            // =====================================================
+
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Employee_Id == dto.EmployeeId);
+                .FirstOrDefaultAsync(x =>
+                    x.Employee_Id == dto.EmployeeId);
 
-            if (employee == null)
-                throw new Exception("Employee not found.");
+            // =====================================================
+            // CHECK PERSONAL INFO ONLY IF EMPLOYEE EXISTS
+            // =====================================================
 
-            var personalInfo = await _context.EmployeePersonalInfos
-                .FirstOrDefaultAsync(x => x.Employee_Id == dto.EmployeeId);
+            var personalInfo = employee == null
+                ? null
+                : await _context.EmployeePersonalInfos
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == dto.EmployeeId);
 
-            if (personalInfo == null)
-                throw new Exception("Employee Personal Info not found.");
+            // =====================================================
+            // RESOLVE DETAILS
+            // EXISTING EMPLOYEE → DATABASE
+            // NON-EMPLOYEE → DTO
+            // =====================================================
 
-            // =====================================
-            // Template
-            // =====================================
+            var employeeName =
+                !string.IsNullOrWhiteSpace(employee?.Name)
+                    ? employee.Name
+                    : dto.EmployeeName;
+
+            var employeeId =
+                !string.IsNullOrWhiteSpace(employee?.Employee_Id)
+                    ? employee.Employee_Id
+                    : dto.EmployeeId;
+
+            var email =
+                !string.IsNullOrWhiteSpace(employee?.Email)
+                    ? employee.Email
+                    : dto.Email;
+
+            var joiningDate =
+                personalInfo?.JoiningDate
+                ?? dto.JoiningDate;
+
+            var designation =
+                !string.IsNullOrWhiteSpace(dto.Designation)
+                    ? dto.Designation
+                    : personalInfo?.Designation
+                      ?? employee?.RoleName
+                      ?? string.Empty;
+
+            // =====================================================
+            // VALIDATION
+            // =====================================================
+
+            if (string.IsNullOrWhiteSpace(employeeName))
+                throw new Exception("Employee name is required.");
+
+            if (string.IsNullOrWhiteSpace(email))
+                throw new Exception("Email is required.");
+
+            if (dto.RelievingDate == default)
+                throw new Exception("Relieving date is required.");
+
+            // =====================================================
+            // TEMPLATE
+            // =====================================================
 
             var templatePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -88,74 +149,97 @@ namespace EmployeeManagementSystem.Services
                 "RelivingLetter.docx");
 
             if (!File.Exists(templatePath))
-                throw new Exception("RelievingLetter.docx not found.");
+                throw new Exception(
+                    "RelievingLetter.docx not found.");
 
-            // =====================================
-            // Create Folder
-            // wwwroot/RelievingLetters/P259
-            // =====================================
+            // =====================================================
+            // OUTPUT FOLDER
+            // =====================================================
 
             var outputFolder = Path.Combine(
                 _environment.WebRootPath,
                 "RelievingLetters",
-                dto.EmployeeId);
+                employeeId);
 
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
 
+            // =====================================================
+            // FILE NAME
+            // =====================================================
+
             var fileName =
-                $"RelievingLetter_{dto.EmployeeId}_{DateTime.Now:yyyyMMddHHmmss}.docx";
+                $"RelievingLetter_{employeeId}_{DateTime.Now:yyyyMMddHHmmss}.docx";
 
-            var outputPath = Path.Combine(outputFolder, fileName);
+            var outputPath = Path.Combine(
+                outputFolder,
+                fileName);
 
-            File.Copy(templatePath, outputPath, true);
+            File.Copy(
+                templatePath,
+                outputPath,
+                true);
 
-            // =====================================
-            // Replace Bookmarks
-            // =====================================
+            // =====================================================
+            // REPLACE WORD BOOKMARKS
+            // =====================================================
 
             using (WordprocessingDocument wordDoc =
                 WordprocessingDocument.Open(outputPath, true))
             {
-                ReplaceBookmark(wordDoc, "GenerationDate",
-    GetOrdinalDate(DateTime.Now));
+                ReplaceBookmark(
+                    wordDoc,
+                    "GenerationDate",
+                    GetOrdinalDate(DateTime.Now));
 
-                ReplaceBookmark(wordDoc, "Title",
+                ReplaceBookmark(
+                    wordDoc,
+                    "Title",
                     dto.Title);
 
-                ReplaceBookmark(wordDoc, "EmployeeName",
-                    employee.Name);
+                ReplaceBookmark(
+                    wordDoc,
+                    "EmployeeName",
+                    employeeName);
 
-                ReplaceBookmark(wordDoc, "EmployeeId",
-                    employee.Employee_Id);
+                ReplaceBookmark(
+                    wordDoc,
+                    "EmployeeId",
+                    employeeId);
 
-                ReplaceBookmark(wordDoc, "JoiningDate",
-      personalInfo.JoiningDate.HasValue
-          ? GetOrdinalDate(personalInfo.JoiningDate.Value)
-          : "");
+                ReplaceBookmark(
+                    wordDoc,
+                    "JoiningDate",
+                    joiningDate.HasValue
+                        ? GetOrdinalDate(joiningDate.Value)
+                        : "");
 
-                ReplaceBookmark(wordDoc, "RelievingDate",
-     GetOrdinalDate(dto.RelievingDate));
+                ReplaceBookmark(
+                    wordDoc,
+                    "RelievingDate",
+                    GetOrdinalDate(dto.RelievingDate));
 
-                var designation = string.IsNullOrWhiteSpace(dto.Designation)
-    ? (personalInfo.Designation ?? "")
-    : dto.Designation;
-
-                ReplaceBookmark(wordDoc, "Designation", designation);
+                ReplaceBookmark(
+                    wordDoc,
+                    "Designation",
+                    designation);
             }
 
-            // =====================================
-            // Convert DOCX -> PDF
-            // =====================================
+            // =====================================================
+            // CONVERT DOCX TO PDF
+            // =====================================================
 
-            var pdfPath = Path.ChangeExtension(outputPath, ".pdf");
+            var pdfPath =
+                Path.ChangeExtension(
+                    outputPath,
+                    ".pdf");
 
-            var process = new Process();
+            using var process = new Process();
 
             var sofficePath =
                 RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? @"C:\Program Files\LibreOffice\program\soffice.exe"
-                : "/usr/bin/soffice";
+                    ? @"C:\Program Files\LibreOffice\program\soffice.exe"
+                    : "/usr/bin/soffice";
 
             process.StartInfo.FileName = sofficePath;
 
@@ -172,64 +256,118 @@ namespace EmployeeManagementSystem.Services
 
             process.Start();
 
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
+            var output =
+                await process.StandardOutput.ReadToEndAsync();
 
-            process.WaitForExit();
+            var error =
+                await process.StandardError.ReadToEndAsync();
+
+            await process.WaitForExitAsync();
 
             if (process.ExitCode != 0)
             {
                 throw new Exception(
-                    $"LibreOffice failed.\nOutput:{output}\nError:{error}");
+                    $"LibreOffice failed. " +
+                    $"Output: {output} " +
+                    $"Error: {error}");
             }
 
             if (!File.Exists(pdfPath))
-                throw new Exception("PDF generation failed.");
+                throw new Exception(
+                    "PDF generation failed.");
 
-            // =====================================
-            // Delete DOCX
-            // =====================================
+            // =====================================================
+            // DELETE DOCX AFTER PDF GENERATION
+            // =====================================================
 
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
 
-            // =====================================
-            // Save Relative Paths
-            // =====================================
+            // =====================================================
+            // RELATIVE PDF PATH
+            // =====================================================
 
-            var relativePdfPath = Path.Combine(
-                "RelievingLetters",
-                dto.EmployeeId,
-                Path.GetFileName(pdfPath))
+            var relativePdfPath =
+                Path.Combine(
+                    "RelievingLetters",
+                    employeeId,
+                    Path.GetFileName(pdfPath))
                 .Replace("\\", "/");
+
+            // =====================================================
+            // SAVE DATABASE RECORD
+            // =====================================================
 
             var relievingLetter = new RelievingLetter
             {
-                EmployeeId = dto.EmployeeId,
+                EmployeeId = employeeId,
+
+                EmployeeName = employeeName,
+
+                Email = email,
+
+                Designation = designation,
+
+                JoiningDate = joiningDate,
+
                 Title = dto.Title,
+
                 RelievingDate = dto.RelievingDate,
+
                 GeneratedDate = DateTime.Now,
+
                 DocxPath = null,
+
                 PdfPath = relativePdfPath,
+
                 Status = "Draft",
+
                 SentOn = null,
+
                 IsSent = false,
+
                 SentCount = 0
             };
 
-            _context.RelievingLetters.Add(relievingLetter);
+            _context.RelievingLetters.Add(
+                relievingLetter);
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                var dbError = ex.InnerException?.InnerException?.Message
+                              ?? ex.InnerException?.Message
+                              ?? ex.Message;
 
-            await _context.SaveChangesAsync();
+                throw new Exception($"Database save failed: {dbError}");
+            }
 
             return new
             {
-                Message = "Relieving Letter Generated Successfully.",
-                relievingLetter.Id,
-                relievingLetter.EmployeeId,
-                relievingLetter.GeneratedDate
+                Message =
+                    "Relieving Letter Generated Successfully.",
+
+                RelievingLetterId =
+                    relievingLetter.Id,
+
+                EmployeeId =
+                    relievingLetter.EmployeeId,
+
+                EmployeeName =
+                    relievingLetter.EmployeeName,
+
+                Email =
+                    relievingLetter.Email,
+
+                PdfPath =
+                    relievingLetter.PdfPath,
+
+                IsExistingEmployee =
+                    employee != null
             };
         }
-
         private static string GetOrdinal(int day)
         {
             if (day >= 11 && day <= 13)
@@ -269,12 +407,14 @@ namespace EmployeeManagementSystem.Services
             }
 
             var run = new Run(
-     new DocumentFormat.OpenXml.Wordprocessing.Text(text ?? string.Empty)
-     {
-         Space = SpaceProcessingModeValues.Preserve
-     });
-        }
+                new Text(text ?? string.Empty)
+                {
+                    Space = SpaceProcessingModeValues.Preserve
+                });
 
+            bookmark.Parent?.InsertAfter(run, bookmark);
+        }
+       
 
         public async Task<RelievingLetterDownloadDto?> DownloadRelievingLetterAsync(int id)
         {
@@ -304,47 +444,69 @@ namespace EmployeeManagementSystem.Services
         public async Task<object> GetAllRelievingLettersAsync()
         {
             var letters = await _context.RelievingLetters
-                .Join(
-                    _context.Employees,
-                    rl => rl.EmployeeId,
-                    e => e.Employee_Id,
-                    (rl, e) => new
-                    {
-                        rl.Id,
-                        rl.EmployeeId,
-                        EmployeeName = e.Name,
-                        rl.Title,
-                        rl.RelievingDate,
-                        rl.GeneratedDate,
-                        rl.PdfPath
-                    })
                 .OrderByDescending(x => x.GeneratedDate)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.EmployeeId,
+
+                    EmployeeName =
+                        x.EmployeeName
+                        ?? _context.Employees
+                            .Where(e =>
+                                e.Employee_Id == x.EmployeeId)
+                            .Select(e => e.Name)
+                            .FirstOrDefault()
+                        ?? x.EmployeeId,
+
+                    x.Email,
+                    x.Designation,
+                    x.Title,
+                    x.RelievingDate,
+                    x.GeneratedDate,
+                    x.PdfPath,
+                    x.Status,
+                    x.SentOn,
+                    x.IsSent,
+                    x.SentCount
+                })
                 .ToListAsync();
 
             return letters;
         }
 
         public async Task SendRelievingLetterAsync(
-    SendRelievingLetterDto dto)
+      SendRelievingLetterDto dto)
         {
             var letter = await _context.RelievingLetters
-                .FirstOrDefaultAsync(x => x.Id == dto.RelievingLetterId);
+                .FirstOrDefaultAsync(
+                    x => x.Id == dto.RelievingLetterId);
 
             if (letter == null)
-                throw new Exception("Relieving Letter not found.");
+                throw new Exception(
+                    "Relieving Letter not found.");
 
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Employee_Id == letter.EmployeeId);
+            if (string.IsNullOrWhiteSpace(letter.Email))
+                throw new Exception(
+                    "Email address not available.");
 
-            if (employee == null)
-                throw new Exception("Employee not found.");
+            if (string.IsNullOrWhiteSpace(letter.PdfPath))
+                throw new Exception(
+                    "PDF path not available.");
 
             var fullPath = Path.Combine(
                 _environment.WebRootPath,
-                letter.PdfPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                letter.PdfPath
+                    .Replace(
+                        "/",
+                        Path.DirectorySeparatorChar.ToString()));
+
+            if (!File.Exists(fullPath))
+                throw new Exception(
+                    "Relieving Letter PDF not found.");
 
             await _emailService.SendEmailWithAttachment(
-                employee.Email,
+                letter.Email,
                 dto.Subject,
                 dto.Body,
                 fullPath);
@@ -356,25 +518,32 @@ namespace EmployeeManagementSystem.Services
 
             await _context.SaveChangesAsync();
         }
-        public async Task<RelievingLetterSendStatusDto> GetSendStatusAsync(int id)
+        public async Task<RelievingLetterSendStatusDto>
+         GetSendStatusAsync(int id)
         {
             var letter = await _context.RelievingLetters
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (letter == null)
-                throw new Exception("Relieving Letter not found.");
-
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Employee_Id == letter.EmployeeId);
+                throw new Exception(
+                    "Relieving Letter not found.");
 
             return new RelievingLetterSendStatusDto
             {
                 RelievingLetterId = letter.Id,
+
                 EmployeeId = letter.EmployeeId,
-                EmployeeName = employee?.Name ?? "",
+
+                EmployeeName =
+                    letter.EmployeeName
+                    ?? letter.EmployeeId,
+
                 IsSent = letter.IsSent,
+
                 SentCount = letter.SentCount,
+
                 Status = letter.Status,
+
                 SentOn = letter.SentOn
             };
         }
