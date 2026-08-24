@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { resolveAuthRole } from "../../utils/authorization";
-import { verifyOtpByRole } from "../../services/authService";
+import { verifyUserOtp } from "../../services/authService";
 
 const OTP_LENGTH = 6;
 
@@ -10,7 +9,7 @@ export default function OtpLeft() {
   const location = useLocation();
   const inputRefs = useRef([]);
   const email = location.state?.email;
-  const role = resolveAuthRole(location.state?.role, "");
+  const role = "user";
 
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const [error, setError] = useState("");
@@ -100,8 +99,7 @@ export default function OtpLeft() {
     setLoading(true);
 
     try {
-      await verifyOtpByRole(
-        role,
+      await verifyUserOtp(
         {
           email,
           otp: otpValue,

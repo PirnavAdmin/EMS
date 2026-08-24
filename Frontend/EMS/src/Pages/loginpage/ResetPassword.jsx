@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
-import { resolveAuthRole } from "../../utils/authorization";
 import AuthField from "./AuthField";
 import AuthLayout from "./AuthLayout";
 import LoginRight from "./LoginRight";
@@ -11,14 +10,14 @@ import {
   getPasswordStrength,
   getPasswordValidationMessage,
 } from "./authUtils";
-import { resetPasswordByRole } from "../../services/authService";
+import { resetUserPassword } from "../../services/authService";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email;
   const otp = location.state?.otp;
-  const role = resolveAuthRole(location.state?.role, "");
+  const role = "user";
 
   const [formData, setFormData] = useState({
     password: "",
@@ -86,8 +85,7 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      await resetPasswordByRole(
-        role,
+      await resetUserPassword(
         {
           email,
           otp: parseInt(otp, 10),

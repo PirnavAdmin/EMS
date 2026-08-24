@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { FaEnvelope } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { resolveAuthRole } from "../../utils/authorization";
-import { getStoredRole } from "../../utils/authStorage";
 import AuthField from "./AuthField";
 import { isValidEmail } from "./authUtils";
-import { forgotPasswordByRole } from "../../services/authService";
+import { forgotUserPassword } from "../../services/authService";
 
 export default function ForgotLeft() {
   const navigate = useNavigate();
@@ -22,32 +20,13 @@ export default function ForgotLeft() {
     },
   };
 
-  const recoveryRole = (() => {
-    const lowered = String(location.state?.role || getStoredRole() || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[\s_-]+/g, "");
-
-    if (lowered === "employee" || lowered === "user") {
-      return "user";
-    }
-
-    return "admin";
-  })();
-
   const requestOtp = async () => {
     const payload = { email };
-    const response = await forgotPasswordByRole(recoveryRole, payload, authRequestOptions);
+    const response = await forgotUserPassword(payload, authRequestOptions);
 
     return {
       response,
-      role:
-        resolveAuthRole(
-          response.data?.role ||
-            response.data?.roleName ||
-            recoveryRole,
-          recoveryRole
-        ) || recoveryRole,
+      role: "user",
     };
   };
 

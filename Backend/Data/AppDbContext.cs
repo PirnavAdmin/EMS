@@ -333,6 +333,8 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<TicketTimer>().ToTable("tickettimer");
             modelBuilder.Entity<TicketHistory>().ToTable("tickethistory");
             modelBuilder.Entity<TicketWorkLog>().ToTable("ticketworklogs");
+            modelBuilder.Entity<TicketAssignment>().ToTable("ticketassignments");
+            modelBuilder.Entity<TicketAssignment>().ToTable("ticketassignments");
 
             modelBuilder.Entity<SchedulerLog>().ToTable("schedulerlog");
             modelBuilder.Entity<SchedulerSetting>().ToTable("schedulersettings");
