@@ -15,5 +15,7 @@
         public DateTime? JoiningDate { get; set; }
 
         public DateTime RelievingDate { get; set; }
+
+        public DateTime GeneratedDate { get; set; }
     }
 }

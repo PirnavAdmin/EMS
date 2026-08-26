@@ -96,6 +96,21 @@ namespace EmployeeManagementSystem.Services
             var personalInfo = await _context.EmployeePersonalInfos
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Employee_Id == employeeId);
+            var fullEmployeeName = string.Join(
+    " ",
+    new[]
+    {
+        personalInfo?.FirstName,
+        personalInfo?.MiddleName,
+        personalInfo?.LastName
+    }
+    .Where(x => !string.IsNullOrWhiteSpace(x))
+).Trim();
+
+            if (string.IsNullOrWhiteSpace(fullEmployeeName))
+            {
+                fullEmployeeName = employee.Name ?? employee.Employee_Id;
+            }
 
             //--------------------------------
             // MONTH
@@ -119,21 +134,21 @@ namespace EmployeeManagementSystem.Services
             // CHECK DUPLICATE PAYSLIP
             //--------------------------------
 
-      //      bool alreadyExists = await _context.PaySlips
-      //.AsNoTracking()
-      //.AnyAsync(x =>
-      //    x.EmployeeId == employeeId &&
-      //    x.Year == yearValue &&
-      //    x.Month == month);
+            //      bool alreadyExists = await _context.PaySlips
+            //.AsNoTracking()
+            //.AnyAsync(x =>
+            //    x.EmployeeId == employeeId &&
+            //    x.Year == yearValue &&
+            //    x.Month == month);
 
-      //      if (alreadyExists)
-      //      {
-      //          Console.WriteLine(
-      //              $"Payslip already exists. Skipping: " +
-      //              $"{employeeId} - {month} {yearValue}");
+            //      if (alreadyExists)
+            //      {
+            //          Console.WriteLine(
+            //              $"Payslip already exists. Skipping: " +
+            //              $"{employeeId} - {month} {yearValue}");
 
-      //          return string.Empty;
-      //      }
+            //          return string.Empty;
+            //      }
 
             //--------------------------------
             // SALARY STRUCTURE
@@ -370,11 +385,11 @@ namespace EmployeeManagementSystem.Services
             // PROFESSIONAL TAX
             //--------------------------------
 
-           decimal professionalTax =
-    RoundSalary(salaryStructure.ProfessionalTax);
+            decimal professionalTax =
+     RoundSalary(salaryStructure.ProfessionalTax);
 
-decimal tdsAmount =
-    RoundSalary(salaryStructure.TDS);
+            decimal tdsAmount =
+                RoundSalary(salaryStructure.TDS);
 
             //--------------------------------
             // OTHER DEDUCTIONS
@@ -496,9 +511,7 @@ decimal tdsAmount =
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
 
-            var employeeNameForFile = personalInfo == null
-     ? employee.Name
-     : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+            var employeeNameForFile = fullEmployeeName;
 
             if (string.IsNullOrWhiteSpace(employeeNameForFile))
             {
@@ -530,12 +543,9 @@ decimal tdsAmount =
             using (WordprocessingDocument wordDoc =
                 WordprocessingDocument.Open(outputPath, true))
             {
-                var candidateName = personalInfo == null
+                var candidateName = string.IsNullOrWhiteSpace(fullEmployeeName)
     ? "-"
-    : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
-
-                if (string.IsNullOrWhiteSpace(candidateName))
-                    candidateName = "-";
+    : fullEmployeeName;
 
                 ReplaceBookmark(
                     wordDoc,
@@ -807,28 +817,45 @@ decimal tdsAmount =
 
                 process.Start();
 
-                await process.WaitForExitAsync();
+                var processTask = process.WaitForExitAsync();
 
+                var timeoutTask = Task.Delay(TimeSpan.FromMinutes(3));
+
+                var completedTask = await Task.WhenAny(
+                    processTask,
+                    timeoutTask);
+
+                if (completedTask != processTask)
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            process.Kill(entireProcessTree: true);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore errors while killing LibreOffice
+                    }
+
+                    throw new TimeoutException(
+                        $"LibreOffice PDF conversion timed out after 3 minutes.");
+                }
 
                 if (process.ExitCode != 0)
                 {
-                    string error =
-                        await process.StandardError
-                            .ReadToEndAsync();
+                    var error = await process.StandardError.ReadToEndAsync();
 
                     throw new Exception(
-                        $"PDF generation failed. {error}");
+                        $"LibreOffice PDF conversion failed. ExitCode: {process.ExitCode}. Error: {error}");
                 }
 
 
                 if (!File.Exists(pdfPath))
                 {
-                    string error =
-                        await process.StandardError
-                            .ReadToEndAsync();
-
                     throw new Exception(
-                        $"PDF file was not generated. {error}");
+                        $"PDF file was not generated: {pdfPath}");
                 }
             }
             finally
@@ -900,12 +927,7 @@ decimal tdsAmount =
                 throw;
             }
 
-            var employeeName = personalInfo == null
-
-                 ? employee.Name
-
-                 : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
-
+         var employeeName = fullEmployeeName;
             // Notification Settings Check
 
             //var notification = await _context.NotificationSettings
@@ -1146,23 +1168,65 @@ decimal tdsAmount =
                     continue;
                 }
 
+
                 // ========================================================
                 // 10. PRELOAD EMPLOYEES
                 // ========================================================
 
                 var employees =
-                    await _context.Employees
-                        .AsNoTracking()
-                        .Include(e => e.BankDetails)
-                        .Where(e =>
-                            employeesToGenerate.Contains(
-                                e.Employee_Id))
-                        .ToListAsync();
+     await _context.Employees
+         .AsNoTracking()
+         .AsSplitQuery()
+         .Include(e => e.BankDetails)
+         .Where(e =>
+             employeesToGenerate.Contains(
+                 e.Employee_Id))
+         .ToListAsync();
+
+                Console.WriteLine(
+    $"Requested employees       : {requestedEmployeeIds.Count}");
+
+                Console.WriteLine(
+                    $"Already generated         : {existingEmployeeIds.Count}");
+
+                Console.WriteLine(
+                    $"Employees to generate     : {employeesToGenerate.Count}");
+
+                Console.WriteLine(
+                    $"Employees found in DB     : {employees.Count}");
+
+                if (employees.Count != employeesToGenerate.Count)
+                {
+                    var foundEmployeeIds =
+                        employees
+                            .Select(e => e.Employee_Id)
+                            .ToHashSet(
+                                StringComparer.OrdinalIgnoreCase);
+
+                    var missingEmployeeIds =
+                        employeesToGenerate
+                            .Where(id => !foundEmployeeIds.Contains(id))
+                            .ToList();
+
+                    Console.WriteLine(
+                        $"MISSING EMPLOYEES: {missingEmployeeIds.Count}");
+
+                    foreach (var missingId in missingEmployeeIds)
+                    {
+                        Console.WriteLine(
+                            $"Employee not found in DB: {missingId}");
+                    }
+                }
 
                 var employeeDictionary =
-                    employees.ToDictionary(
-                        e => e.Employee_Id,
-                        StringComparer.OrdinalIgnoreCase);
+      employees
+          .GroupBy(
+              e => e.Employee_Id,
+              StringComparer.OrdinalIgnoreCase)
+          .ToDictionary(
+              g => g.Key,
+              g => g.First(),
+              StringComparer.OrdinalIgnoreCase);
 
                 // ========================================================
                 // 11. CHECK EMPLOYEES NOT FOUND
@@ -1197,13 +1261,14 @@ decimal tdsAmount =
                 var parallelOptions =
                     new ParallelOptions
                     {
-                        MaxDegreeOfParallelism = 4
+                        MaxDegreeOfParallelism = 1
                     };
 
                 // ========================================================
                 // 14. GENERATE PAYSLIPS
                 // ========================================================
-
+                int totalEmployees = employeesToGenerate.Count;
+                int processedEmployees = 0;
                 await Parallel.ForEachAsync(
                     employeesToGenerate,
                     parallelOptions,
@@ -1217,9 +1282,12 @@ decimal tdsAmount =
 
                         try
                         {
+                            int currentEmployee =
+    Interlocked.Increment(ref processedEmployees);
+
                             Console.WriteLine(
-                                $"START: {employeeId} - " +
-                                $"{month} {year}");
+                                $"START [{currentEmployee}/{totalEmployees}]: " +
+                                $"{employeeId} - {month} {year}");
 
                             // IMPORTANT:
                             // Separate scope / DbContext
@@ -1253,14 +1321,16 @@ decimal tdsAmount =
                                 generatedEmployees.Add(employeeId);
 
                                 Console.WriteLine(
-                                    $"SUCCESS: {employeeId}");
+     $"SUCCESS [{currentEmployee}/{totalEmployees}]: " +
+     $"{employeeId}");
                             }
                             else
                             {
                                 skippedEmployees.Add(employeeId);
 
                                 Console.WriteLine(
-                                    $"SKIPPED: {employeeId}");
+     $"FAILED [{currentEmployee}/{totalEmployees}]: " +
+     $"{employeeId}");
                             }
                         }
                         catch (DbUpdateException ex)
@@ -1326,9 +1396,9 @@ decimal tdsAmount =
                             // =================================================
                             // GENERAL ERROR
                             // =================================================
-
                             failedEmployees.Add(
-                                $"{employeeId} => {ex.Message}");
+                                $"{employeeId} => " +
+                                $"{ex.InnerException?.Message ?? ex.Message}"); ;
 
                             Console.WriteLine(
                                 $"FAILED: {employeeId}");

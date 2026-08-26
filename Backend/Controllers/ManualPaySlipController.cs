@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/manual-payslip")]
     [ApiController]
     [EnableCors("AllowAll")]
@@ -24,7 +24,7 @@ namespace EmployeeManagementSystem.Controllers
         //--------------------------------
         // 🔥 GENERATE MANUAL PAYSLIP
         //--------------------------------
-        [Permission(ModuleIds.Payroll, PermissionAction.Add)]
+        //[Permission(ModuleIds.Payroll, PermissionAction.Add)]
         [HttpPost("generate")]
         public async Task<IActionResult> GenerateManualPaySlip([FromBody] ManualPaySlipDto dto)
         {

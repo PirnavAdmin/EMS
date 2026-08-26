@@ -139,6 +139,9 @@ namespace EmployeeManagementSystem.Services
             if (dto.RelievingDate == default)
                 throw new Exception("Relieving date is required.");
 
+            if (dto.GeneratedDate == default)
+                throw new Exception("Generated date is required.");
+
             // =====================================================
             // TEMPLATE
             // =====================================================
@@ -169,7 +172,7 @@ namespace EmployeeManagementSystem.Services
             // =====================================================
 
             var fileName =
-                $"RelievingLetter_{employeeId}_{DateTime.Now:yyyyMMddHHmmss}.docx";
+     $"RelievingLetter_{employeeId}_{dto.GeneratedDate:yyyyMMddHHmmss}.docx";
 
             var outputPath = Path.Combine(
                 outputFolder,
@@ -188,9 +191,9 @@ namespace EmployeeManagementSystem.Services
                 WordprocessingDocument.Open(outputPath, true))
             {
                 ReplaceBookmark(
-                    wordDoc,
-                    "GenerationDate",
-                    GetOrdinalDate(DateTime.Now));
+      wordDoc,
+      "GenerationDate",
+      GetOrdinalDate(dto.GeneratedDate));
 
                 ReplaceBookmark(
                     wordDoc,
@@ -314,7 +317,7 @@ namespace EmployeeManagementSystem.Services
 
                 RelievingDate = dto.RelievingDate,
 
-                GeneratedDate = DateTime.Now,
+                GeneratedDate = dto.GeneratedDate,
 
                 DocxPath = null,
 

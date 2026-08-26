@@ -142,8 +142,8 @@ namespace EmployeeManagementSystem.Services
                 OnboardingCandidate? candidate = null;
                 string? onboardingId = null;
 
-                
-                
+
+
 
                 if (!string.IsNullOrWhiteSpace(dto.OnboardingId))
                 {
@@ -337,7 +337,7 @@ namespace EmployeeManagementSystem.Services
 
                 await _context.SaveChangesAsync();
 
-              
+
 
                 // Send email (don't stop employee creation if email fails)
                 try
@@ -451,7 +451,10 @@ namespace EmployeeManagementSystem.Services
             // 🔥 STORE OLD DEPARTMENT
             var oldDepartment = employee.Department;
 
-            // 🔥 Convert RoleName → RoleId
+            // STORE OLD ROLE BEFORE CHANGING IT
+            var oldRoleId = employee.RoleId;
+
+            // Convert RoleName → RoleId
             var role = await _context.Roles
                 .FirstOrDefaultAsync(r => r.Name == dto.RoleName);
 
@@ -492,6 +495,23 @@ namespace EmployeeManagementSystem.Services
             if (existingUser != null)
             {
                 existingUser.RoleId = role.RoleId;
+            }
+
+            // ============================================================
+            // ROLE CHANGED?
+            // REMOVE OLD USER-SPECIFIC PERMISSIONS
+            // ============================================================
+
+            if (oldRoleId != role.RoleId)
+            {
+                var userPermissions = await _context.UserPermissions
+                    .Where(p => p.EmployeeId == employee.Employee_Id)
+                    .ToListAsync();
+
+                if (userPermissions.Any())
+                {
+                    _context.UserPermissions.RemoveRange(userPermissions);
+                }
             }
 
             // 🔥 Activity log

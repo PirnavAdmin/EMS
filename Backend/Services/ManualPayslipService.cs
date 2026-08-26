@@ -56,6 +56,22 @@ namespace EmployeeManagementSystem.Services
             var personalInfo = await _context.EmployeePersonalInfos
                 .FirstOrDefaultAsync(p => p.Employee_Id == dto.EmployeeId);
 
+            var fullEmployeeName = string.Join(
+    " ",
+    new[]
+    {
+        personalInfo?.FirstName,
+        personalInfo?.MiddleName,
+        personalInfo?.LastName
+    }
+    .Where(x => !string.IsNullOrWhiteSpace(x))
+).Trim();
+
+            if (string.IsNullOrWhiteSpace(fullEmployeeName))
+            {
+                fullEmployeeName = employee.Name ?? employee.Employee_Id;
+            }
+
 
             //--------------------------------
             // MANUAL INPUTS (FROM DTO)
@@ -347,7 +363,10 @@ namespace EmployeeManagementSystem.Services
             using (WordprocessingDocument wordDoc =
                 WordprocessingDocument.Open(outputPath, true))
             {
-                ReplaceBookmark(wordDoc, "CandidateName", employee.Name);
+                ReplaceBookmark(
+    wordDoc,
+    "CandidateName",
+    fullEmployeeName);
                 ReplaceBookmark(wordDoc, "EmployeeID", employee.Employee_Id);
 
                 ReplaceBookmark(wordDoc, "Department", employee.Department);
@@ -515,12 +534,7 @@ namespace EmployeeManagementSystem.Services
             //vishnu change
 
             await _context.SaveChangesAsync();
-
-            var employeeName = personalInfo == null
-
-                 ? employee.Name
-
-                 : $"{personalInfo.FirstName} {personalInfo.LastName}".Trim();
+            var employeeName = fullEmployeeName;
 
             // Notification Settings Check
 

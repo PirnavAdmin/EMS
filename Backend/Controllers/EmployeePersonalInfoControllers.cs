@@ -129,7 +129,7 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
         // 🔹 UPDATE (FIXED ✅)
-        [HttpPut("{*employeeId}")]
+        [HttpPut("{employeeId}")]
         public async Task<IActionResult> Update(string employeeId, EmployeePersonalInfoDto dto)
         {
             employeeId = Uri.UnescapeDataString(employeeId).Trim();
@@ -224,7 +224,7 @@ namespace EmployeeManagementSystem.Controllers
 
         // 🔹 GET BY EMPLOYEE ID
 
-        [HttpGet("{*employeeId}")]
+        [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetByEmployeeId(string employeeId)
         {
             employeeId = Uri.UnescapeDataString(employeeId).Trim();

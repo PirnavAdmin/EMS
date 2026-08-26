@@ -6,7 +6,7 @@ body {
 }
  
 .offer-container {
-  padding: 20px;
+  padding: 18px;
   background: var(--bg-muted);
   min-height: 100vh;
   box-sizing: border-box;
@@ -48,31 +48,36 @@ body {
 /* ================= CARD ================= */
 .offer-card {
   background: var(--bg-page);
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 12px 14px;
+  border-radius: 16px;
   margin-top: 0;
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-sm);
 }
- 
+
 .offer-card h3 {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
+.offer-letter-card h3 {
+  margin-bottom: 8px;
+}
+
 .offer-container .premium-input-group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 
 .offer-container .premium-input-group label {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-body);
+  line-height: 1.2;
 }
 
 .offer-container .premium-input {
@@ -123,44 +128,62 @@ body {
 .letter-type-field {
   width: 320px;
   max-width: min(360px, 100%);
-  margin-top: 8px;
-  margin-bottom: 14px;
+  margin-top: 5px;
+  margin-bottom: 6px;
+}
+
+.offer-letter-card .offer-letter-type-field {
+  gap: 7px;
+  margin-bottom: 8px;
 }
  
 /* ================= FORM ================= */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  column-gap: 16px;
+  column-gap: 14px;
   row-gap: 10px;
+  align-items: start;
+  grid-auto-flow: row dense;
 }
 
 .offer-letter-form-grid {
   align-items: start;
-  column-gap: 18px;
-  row-gap: 10px;
+  column-gap: 14px;
+  row-gap: 7px;
+  grid-auto-flow: row dense;
 }
 
-.offer-card .relieving-letter-form-grid {
+.offer-letter-card .offer-letter-form-grid {
   align-items: start;
   column-gap: 14px;
-  row-gap: 8px;
+  row-gap: 7px;
   margin-top: 0;
+  grid-auto-flow: row dense;
 }
 
-.offer-card .relieving-letter-form-grid .form-group {
-  gap: 2px;
+.offer-letter-card .offer-letter-form-grid .form-group {
+  gap: 7px;
 }
 
 .offer-card .relieving-letter-form-grid .full-width {
   grid-column: 1 / -1;
+}
+
+.offer-card .relieving-letter-actions {
+  margin-top: 5px;
+}
+
+.offer-letter-card .offer-letter-actions {
+  margin-top: 7px;
 }
  
 .form-group {
   display: flex;
   flex-direction: column;
   position: relative;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
 }
  
 /* LABEL WITH ICON */
@@ -198,7 +221,23 @@ body {
   color: var(--text-body);
   box-sizing: border-box;
 }
- 
+
+.offer-container .app-date-input {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 2.75rem 0 12px;
+  box-sizing: border-box;
+  border-radius: 10px;
+}
+
+.offer-container .app-date-input-control {
+  min-height: 40px;
+}
+
+.offer-container .app-date-input-control .app-date-input {
+  height: 40px;
+}
+
 .form-group textarea {
   resize: vertical;
   height: auto;
@@ -208,13 +247,13 @@ body {
 
 .offer-letter-form-grid .form-group input,
 .offer-letter-form-grid .form-group select {
-  min-height: 38px;
-  height: 38px;
+  min-height: 40px;
+  height: 40px;
 }
 
 .offer-letter-form-grid .form-group textarea {
-  min-height: 92px;
-  height: 92px;
+  min-height: 90px;
+  height: 90px;
   padding: 8px 12px;
 }
 
@@ -486,10 +525,11 @@ body {
  
 /* ================= BUTTONS ================= */
 .offer-buttons {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: flex-start;
 }
  
 .btn-primary {
@@ -1293,7 +1333,7 @@ body {
   }
  
   .offer-card {
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-radius: 16px;
   }
 
@@ -1362,8 +1402,8 @@ body {
   }
 
   .letter-type-field {
-    margin-top: 6px;
-    margin-bottom: 12px;
+    margin-top: 5px;
+    margin-bottom: 6px;
   }
 }
 
@@ -1381,7 +1421,7 @@ body {
   .offer-letter-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 16px;
-    row-gap: 8px;
+    row-gap: 7px;
   }
 
   .offer-letter-form-grid .full-width {
@@ -1391,7 +1431,7 @@ body {
   .relieving-letter-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 14px;
-    row-gap: 8px;
+    row-gap: 5px;
   }
 
   .relieving-letter-form-grid .full-width {
@@ -1403,7 +1443,7 @@ body {
   .offer-letter-form-grid {
     grid-template-columns: 1fr;
     column-gap: 12px;
-    row-gap: 8px;
+    row-gap: 7px;
   }
 
   .offer-letter-form-grid .full-width {
@@ -1418,7 +1458,7 @@ body {
   .relieving-letter-form-grid {
     grid-template-columns: 1fr;
     column-gap: 12px;
-    row-gap: 8px;
+    row-gap: 5px;
   }
 
   .relieving-letter-form-grid .full-width {
@@ -1457,18 +1497,18 @@ input[type="number"] {
 }
  
 /* ================= COMPENSATION CONTAINER ================= */
- 
+
 .compensation-container {
-  margin-top: 2px;
+  margin-top: 0;
 }
- 
+
 .compensation-title {
   font-size: 17px;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
- 
+
 .compensation-box {
   border: 1px solid var(--border-soft);
   border-radius: 12px;
@@ -1478,37 +1518,37 @@ input[type="number"] {
  
 .comp-row {
   display: grid;
-  grid-template-columns: minmax(220px, 250px) 1fr;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
   border-bottom: none;
 }
- 
+
 .comp-row:last-child {
   border-bottom: none;
 }
- 
+
 .comp-label {
   background: var(--input-bg);
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 7px 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
   align-items: center;
 }
- 
+
 .comp-input {
-  padding: 4px 8px;
+  padding: 3px 6px;
   background: var(--input-bg);
 }
- 
+
 .comp-input input {
   width: 100%;
   border: 1px solid var(--border-soft);
   border-radius: 8px;
-  min-height: 36px;
-  height: 36px;
+  min-height: 40px;
+  height: 40px;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: 14px;
   transition: 0.2s ease;
 }
  
@@ -1624,7 +1664,7 @@ html[data-theme-mode="dark"] .candidate-name-wrapper input.candidate-name-input 
 .offer-letter-form-grid .candidate-name-wrapper,
 .offer-letter-form-grid .candidate-title-select,
 .offer-letter-form-grid .candidate-name-input {
-  min-height: 38px;
+  min-height: 40px;
 }
 
 .offer-letter-form-grid .candidate-name-wrapper {
@@ -1632,11 +1672,11 @@ html[data-theme-mode="dark"] .candidate-name-wrapper input.candidate-name-input 
 }
 
 .offer-letter-form-grid .candidate-title-select {
-  height: 38px;
+  height: 40px;
 }
 
 .offer-letter-form-grid .candidate-name-input {
-  height: 38px;
+  height: 40px;
 }
 
 .pagination-dots {

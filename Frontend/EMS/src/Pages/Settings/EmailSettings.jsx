@@ -93,7 +93,7 @@ function EmailSettings({
               name="smtpHost"
               value={values?.smtpHost || ""}
               onChange={onChange}
-              placeholder="smtp.gmail.com"
+              placeholder="smtp.hostinger.com"
               disabled={disabled}
               aria-invalid={Boolean(errors?.smtpHost)}
             />

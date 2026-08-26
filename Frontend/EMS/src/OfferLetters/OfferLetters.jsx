@@ -38,7 +38,11 @@ import SendAgainModal from "../components/documentSendStatus/SendAgainModal";
 import useDocumentSendStatus from "../hooks/useDocumentSendStatus";
 import { getEmployees } from "../services/employeeService";
 import { sortByNewestIdFirst } from "../utils/collections";
-import { formatDate, getInputDateValue } from "../utils/date";
+import {
+  formatDate,
+  getInputDateValue,
+  toIsoDateString
+} from "../utils/date";
 import { extractDownloadFileName } from "../utils/downloadUtils";
 import {
   sanitizeEmailInput,
@@ -232,7 +236,7 @@ const EMPTY_RELIEVING_FORM = {
   email: "",
   designation: "",
   title: "",
-  resignationDate: "",
+  joiningDate: "",
   relievingDate: ""
 };
 
@@ -240,7 +244,7 @@ const normalizeRelievingLetterText = (value) =>
 String(value ?? "").trim();
 
 const normalizeRelievingLetterDate = (value) =>
-getInputDateValue(value) ||
+toIsoDateString(value) ||
 normalizeRelievingLetterText(value);
 
 const buildRelievingLetterPayload = (
@@ -259,22 +263,17 @@ const buildRelievingLetterPayload = (
   normalizeRelievingTitle(form?.title) ||
   normalizeRelievingLetterText(form?.title);
   const email = normalizeRelievingLetterText(form?.email);
-  const resignationDate = normalizeRelievingLetterDate(form?.resignationDate);
+  const joiningDate = normalizeRelievingLetterDate(form?.joiningDate);
   const relievingDate = normalizeRelievingLetterDate(form?.relievingDate);
 
   return {
     employeeId,
-    employee_Id: employeeId,
     employeeName,
-    employee_Name: employeeName,
     ...(email ? { email } : {}),
     designation,
     title,
-    resignationDate,
-    resignation_Date: resignationDate,
-    lastWorkingDate: relievingDate,
+    joiningDate,
     relievingDate,
-    relieving_Date: relievingDate
   };
 };
 
@@ -505,7 +504,8 @@ function OfferLetters() {
           employeeName: "",
           email: "",
           designation: "",
-          title: ""
+          title: "",
+          joiningDate: ""
         };
       }
 
@@ -520,13 +520,23 @@ function OfferLetters() {
       ).trim();
       const designation = getRelievingEmployeeDesignation(employee);
       const title = getRelievingEmployeeTitle(employee);
+      const joiningDate = getInputDateValue(
+        employee?.joiningDate ||
+        employee?.joining_Date ||
+        employee?.joiningdate ||
+        employee?.joined ||
+        employee?.dateOfJoining ||
+        employee?.doj ||
+        ""
+      );
 
       return {
         employeeId,
         employeeName,
         email,
         designation,
-        title
+        title,
+        joiningDate
       };
     },
     []
@@ -1015,14 +1025,12 @@ HR Team`
       return false;
     }
 
-    // Email
-    if (
-    !/^[A-Za-z][A-Za-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(
-      formData.email
-    ))
-    {
-      newErrors.email =
-      "Email must be like demo@gmail.com";
+    const emailError = validateEmailAddress(formData.email, {
+      label: "Email",
+      max: 60
+    });
+    if (emailError) {
+      newErrors.email = emailError;
 
       setErrors(newErrors);
       scrollToField("email");
@@ -1817,7 +1825,8 @@ HR Team`
       employeeId: "",
       employeeName: "",
       designation: "",
-      title: ""
+      title: "",
+      joiningDate: ""
     }));
 
     setEmployeeRelievingForm((prev) => ({
@@ -1826,7 +1835,8 @@ HR Team`
       ...(selectedEmployee ? resolveRelievingEmployeeDetails(selectedEmployee) : {
         employeeName: "",
         designation: "",
-        title: ""
+        title: "",
+        joiningDate: ""
       })
     }));
   }, [employees, resolveRelievingEmployeeDetails]);
@@ -1853,23 +1863,12 @@ HR Team`
       newErrors.designation = "Designation is required";
     }
 
-    if (!isEmployeeRelievingLetter) {
-      const emailError = validateEmailAddress(currentRelievingForm.email, {
-        label: "Email",
-        max: 60
-      });
-
-      if (emailError) {
-        newErrors.email = emailError;
-      }
-    }
-
     if (!currentRelievingForm.title.trim()) {
       newErrors.title = "Title is required";
     }
 
-    if (!currentRelievingForm.resignationDate) {
-      newErrors.resignationDate = "Resignation date is required";
+    if (!currentRelievingForm.joiningDate) {
+      newErrors.joiningDate = "Joining date is required";
     }
 
     if (!currentRelievingForm.relievingDate) {
@@ -1877,12 +1876,12 @@ HR Team`
     }
 
     if (
-      currentRelievingForm.resignationDate &&
+      currentRelievingForm.joiningDate &&
       currentRelievingForm.relievingDate &&
-      currentRelievingForm.resignationDate > currentRelievingForm.relievingDate
+      currentRelievingForm.joiningDate > currentRelievingForm.relievingDate
     ) {
       newErrors.relievingDate =
-      "Relieving date must be on or after the resignation date";
+      "Relieving date must be on or after the joining date";
     }
 
     setRelievingErrors(newErrors);
@@ -1918,10 +1917,6 @@ HR Team`
         currentRelievingForm,
         resolvedEmployeeDetails
       );
-
-      if (!isEmployeeRelievingLetter) {
-        payload.email = normalizeRelievingLetterText(currentRelievingForm.email);
-      }
 
       console.log("[OfferLetters] relieving letter payload", payload);
 
@@ -2275,7 +2270,7 @@ HR Team`
               Generate offer letters for new hires
             </p>
 
-            <div className="premium-input-group letter-type-field">
+            <div className="premium-input-group letter-type-field offer-letter-type-field">
               <label>Letter Type</label>
 
               <select
@@ -2289,7 +2284,7 @@ HR Team`
             </div>
           </div>
 
-          <div className="offer-card">
+          <div className="offer-card offer-letter-card">
             <h3>Generate New Offer Letter</h3>
 
             <div className="form-grid offer-letter-form-grid">
@@ -2424,7 +2419,7 @@ HR Team`
               </div>
 
               {/* Joining Date */}
-              <div className="form-group" ref={fieldRefs.joining_Date}>
+              <div className="form-group full-width" ref={fieldRefs.joining_Date}>
                 <label>
                   <FaCalendarAlt /> Joining Date
                 </label>
@@ -2728,7 +2723,7 @@ HR Team`
               </div>
             </div>
 
-            <div className="offer-buttons">
+            <div className="offer-buttons offer-letter-actions">
               <button
               className="btn-primary"
               onClick={handleGenerate}
@@ -3094,7 +3089,7 @@ HR Team`
 
             <div className="form-grid relieving-letter-form-grid">
               {isEmployeeRelievingLetter ? (
-                <div className="form-group">
+                <div className="form-group full-width">
                   <label>
                     <FaUser /> Employee
                   </label>
@@ -3161,7 +3156,7 @@ HR Team`
               {!isEmployeeRelievingLetter && (
                 <div className="form-group full-width">
                   <label>
-                    <FaEnvelope /> Email<span className="required">*</span>
+                    <FaEnvelope /> Email
                   </label>
 
                   <input
@@ -3178,7 +3173,7 @@ HR Team`
                 </div>
               )}
 
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>
                   <FaBriefcase /> Title
                 </label>
@@ -3202,18 +3197,18 @@ HR Team`
 
               <div className="form-group">
                 <label>
-                  <FaCalendarAlt /> Resignation Date
+                  <FaCalendarAlt /> Joining Date
                 </label>
 
                 <AppDatePicker
-                  name="resignationDate"
-                  value={activeRelievingForm.resignationDate}
+                  name="joiningDate"
+                  value={activeRelievingForm.joiningDate}
                   onChange={handleRelievingChange}
                 />
 
-                {relievingErrors.resignationDate && (
+                {relievingErrors.joiningDate && (
                   <p className="field-error">
-                    {relievingErrors.resignationDate}
+                    {relievingErrors.joiningDate}
                   </p>
                 )}
               </div>
@@ -3236,7 +3231,7 @@ HR Team`
                 )}
               </div>
 
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>
                   <FaBriefcase /> Designation
                 </label>
@@ -3257,7 +3252,7 @@ HR Team`
               </div>
             </div>
 
-            <div className="offer-buttons">
+            <div className="offer-buttons relieving-letter-actions">
               <button
                 className="btn-primary"
                 onClick={handleGenerateRelievingLetter}
