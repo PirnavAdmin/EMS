@@ -1,11 +1,11 @@
 services:
  
   backend:
-
+ 
     build:
-
+ 
       context: ./Backend
-
+ 
       dockerfile: Dockerfile
  
     image: ems-pirnav-backend:${IMAGE_TAG:-latest}
@@ -13,46 +13,49 @@ services:
     restart: unless-stopped
  
     env_file:
-
+ 
       - ./.env
  
     environment:
-
+ 
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-
+ 
       ASPNETCORE_URLS: http://+:8080
  
     extra_hosts:
-
+ 
       - "host.docker.internal:host-gateway"
  
     ports:
-
+ 
       - "${BACKEND_PORT:-5007}:8080"
  
     volumes:
-
+ 
       - /home/ubuntu/ems-storage/GeneratedLetters:/app/GeneratedLetters
-
+ 
       - /home/ubuntu/ems-storage/GeneratedPayslips:/app/GeneratedPayslips
-
-     - /home/ubuntu/ems-storage/uploads/employee-documents:/app/wwwroot/uploads/employee-documents
-     
-
+ 
+      - /home/ubuntu/ems-storage/GeneratedPayslips:/app/wwwroot/GeneratedPayslips
+ 
+#     - /home/ubuntu/ems-storage/uploads:/app/wwwroot/uploads/employee-documents
+ 
+      - /home/ubuntu/ems-storage/uploads/employee-documents:/app/wwwroot/uploads/employee-documents
+ 
       - /home/ubuntu/ems-storage/Agreements:/app/wwwroot/Agreements
-
+ 
       - ./Backend/Templates:/app/Templates
  
   frontend:
-
+ 
     build:
-
+ 
       context: ./Frontend/EMS
-
+ 
       dockerfile: Dockerfile
-
+ 
       args:
-
+ 
         VITE_API_ORIGIN: ${VITE_API_ORIGIN:-https://hrms.pirnav.com}
  
     image: ems-pirnav-frontend:${IMAGE_TAG:-latest}
@@ -60,11 +63,11 @@ services:
     restart: unless-stopped
  
     depends_on:
-
+ 
       - backend
  
     ports:
-
+ 
       - "${FRONTEND_PORT:-3000}:8080"
 
  
