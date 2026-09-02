@@ -564,19 +564,23 @@ namespace EmployeeManagementSystem.Services
         {
             var today = DateTime.Today;
 
-            var birthdays = await
-            (
-                from emp in _context.Employees.AsNoTracking()
-                join personal in _context.EmployeePersonalInfos.AsNoTracking()
-                    on emp.Employee_Id equals personal.Employee_Id
-                where personal.DateOfBirth != DateTime.MinValue
-                select new
-                {
-                    emp.Employee_Id,
-                    emp.Name,
-                    personal.DateOfBirth
-                }
-            ).ToListAsync();
+            var birthdays =
+                await
+                (
+                    from emp in _context.Employees.AsNoTracking()
+                    join personal in _context.EmployeePersonalInfos.AsNoTracking()
+                        on emp.Employee_Id equals personal.Employee_Id
+
+                    where emp.Status == "Active"
+                          && personal.DateOfBirth != DateTime.MinValue
+
+                    select new
+                    {
+                        emp.Employee_Id,
+                        emp.Name,
+                        personal.DateOfBirth
+                    }
+                ).ToListAsync();
 
             var result = birthdays
                 .Select(x =>
@@ -586,7 +590,9 @@ namespace EmployeeManagementSystem.Services
                     int year = today.Year;
 
                     // Handle 29-Feb birthdays in non-leap years
-                    if (month == 2 && day == 29 && !DateTime.IsLeapYear(year))
+                    if (month == 2 &&
+                        day == 29 &&
+                        !DateTime.IsLeapYear(year))
                     {
                         day = 28;
                     }
@@ -599,7 +605,9 @@ namespace EmployeeManagementSystem.Services
 
                         day = x.DateOfBirth.Day;
 
-                        if (month == 2 && day == 29 && !DateTime.IsLeapYear(year))
+                        if (month == 2 &&
+                            day == 29 &&
+                            !DateTime.IsLeapYear(year))
                         {
                             day = 28;
                         }

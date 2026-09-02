@@ -41,5 +41,14 @@ namespace EmployeeManagementSystem.Models
         public string? ApprovalToken { get; set; }
 
         public DateTime? AppliedOn { get; set; }
+
+        public string? RequestedType { get; set; }
+
+        // What the approver finally approved
+        // Example: Leave / WFH
+        public string? ApprovedType { get; set; }
+
+        // Reason/comment given by approver
+        public string? ApprovalRemarks { get; set; }
     }
 }

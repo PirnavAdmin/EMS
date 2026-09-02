@@ -102,6 +102,8 @@ function TeamMembersTable({
 
                 const isCrossTeam =
                   member.crossTeam === true ||
+                  member.differentProject === true ||
+                  member.isCrossMapped === true ||
                   member.overrideProjectId != null;
 
                 return (
@@ -112,6 +114,9 @@ function TeamMembersTable({
                         <span>{member.role || member.designation || "-"}</span>
                         {isCrossTeam ? (
                           <span className="team-cross-team-badge">cross-team</span>
+                        ) : null}
+                        {member.customReportingDays ? (
+                          <span className="team-cross-team-badge">custom days</span>
                         ) : null}
                       </div>
                     </td>

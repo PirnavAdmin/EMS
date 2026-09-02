@@ -283,6 +283,11 @@ const MODULE_PERMISSION_ALIASES = new Map([
   ["offerletters", "offerletters"],
   ["offerletter", "offerletters"],
   ["viewpurpose", "offerletters"],
+  ["addemployee", "employeedetails"],
+  ["adddetails", "employeedetails"],
+  ["employeedetails", "employeedetails"],
+  ["employeefulldetail", "employeedetails"],
+  ["employeefulldetails", "employeedetails"],
 ]);
 
 const normalizeModulePermissionName = (value) => {

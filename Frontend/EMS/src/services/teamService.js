@@ -36,3 +36,6 @@ export const getTeamManagers = (config = {}) =>
 
 export const getTeamProjects = (config = {}) =>
   api.get(API_ENDPOINTS.team.projects.list, config);
+
+export const getMyTeam = (config = {}) =>
+  api.get(API_ENDPOINTS.team.myTeam, config);

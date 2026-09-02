@@ -1,89 +1,100 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaPlus, FaSearch, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { toastSuccess, toastError } from "@/components/common/toast/toastService";
+import { toastError, toastSuccess } from "@/components/common/toast/toastService";
 import "./Teams.css";
 import AppPagination from "../components/AppPagination";
 import EmptyState from "../components/EmptyState";
 import { CardSkeleton } from "../components/Skeletons";
 import AddTeamModal from "./AddTeamModal";
 import TeamCard from "./TeamCard";
-import { createTeam, getTeams } from "../services/teamService";
-import { hasModulePermission, isEmployee } from "../utils/authorization";
+import { BASE_URL } from "../api/config";
+import { API_ENDPOINTS } from "../api/endpoints";
+import { createTeam, getTeamById, getTeams } from "../services/teamService";
+import { hasAddPermission } from "../utils/authorization";
+import {
+  buildCreateTeamPayload,
+  extractApiErrorMessage,
+  normalizeCollection,
+  normalizeTeamRecord
+} from "./teamUtils";
 
 const PAGE_SIZE = 6;
 
-const pickTeamApiMessage = (value) => {
-  if (!value) {
-    return "";
+const logCreateTeamDebug = (...args) => {
+  if (import.meta.env.DEV) {
+    console.log(...args);
   }
-
-  if (typeof value === "string") {
-    return value.trim();
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const message = pickTeamApiMessage(item);
-      if (message) {
-        return message;
-      }
-    }
-
-    return "";
-  }
-
-  if (typeof value !== "object") {
-    return "";
-  }
-
-  const directMessage =
-  value.message ||
-  value.Message ||
-  value.error ||
-  value.Error ||
-  value.title ||
-  value.Title ||
-  value.detail ||
-  value.Detail ||
-  value.exceptionMessage ||
-  "";
-
-  if (directMessage) {
-    return String(directMessage).trim();
-  }
-
-  const validationErrors = value.errors || value.Errors;
-
-  if (validationErrors && typeof validationErrors === "object") {
-    for (const item of Object.values(validationErrors)) {
-      const message = pickTeamApiMessage(item);
-      if (message) {
-        return message;
-      }
-    }
-  }
-
-  return "";
 };
 
-const getCreateTeamErrorMessage = (error) => {
-  const status = error?.response?.status;
-  const responseMessage = pickTeamApiMessage(error?.response?.data);
+const logTeamMemberCountDebug = (...args) => {
+  if (import.meta.env.DEV) {
+    console.log(...args);
+  }
+};
 
-  if (responseMessage) {
-    return responseMessage;
+const getTeamIdValue = (team = {}) =>
+  String(team?.teamId ?? team?.id ?? "").trim();
+
+const normalizeMemberCount = (team = {}) =>
+  Number(team?.memberCount || team?.membersCount || team?.members?.length || 0) || 0;
+
+const enrichTeamMemberCount = async (team, signal) => {
+  const teamId = getTeamIdValue(team);
+  const fallbackMemberCount = normalizeMemberCount(team);
+
+  logTeamMemberCountDebug("teamId:", teamId);
+
+  if (!teamId) {
+    logTeamMemberCountDebug("/api/Team/{teamId} response:", null);
+    logTeamMemberCountDebug("extracted member count:", fallbackMemberCount);
+    logTeamMemberCountDebug("final member count displayed:", fallbackMemberCount);
+
+    return {
+      ...team,
+      memberCount: fallbackMemberCount,
+      membersCount: fallbackMemberCount
+    };
   }
 
-  if (status === 400) {
-    return "Please review the team details and try again.";
-  }
+  try {
+    const response = await getTeamById(teamId, {
+      signal,
+      cacheTTL: 60 * 1000
+    });
 
-  if (typeof status === "number" && status >= 500) {
-    return "Internal Server Error. Please try again later.";
-  }
+    logTeamMemberCountDebug("/api/Team/{teamId} response:", response.data);
 
-  return error?.message || "Unable to create team";
+    const detailedTeam = normalizeTeamRecord(response.data);
+    const extractedMemberCount = normalizeMemberCount(detailedTeam);
+    const finalMemberCount = extractedMemberCount || fallbackMemberCount;
+
+    logTeamMemberCountDebug("extracted member count:", extractedMemberCount);
+    logTeamMemberCountDebug("final member count displayed:", finalMemberCount);
+
+    return {
+      ...team,
+      ...detailedTeam,
+      members: detailedTeam?.members ?? team.members ?? [],
+      memberCount: finalMemberCount,
+      membersCount: finalMemberCount,
+      raw: detailedTeam?.raw ?? team.raw ?? response.data
+    };
+  } catch (error) {
+    if (error?.code === "ERR_CANCELED") {
+      throw error;
+    }
+
+    logTeamMemberCountDebug("/api/Team/{teamId} response:", error?.response?.data ?? error);
+    logTeamMemberCountDebug("extracted member count:", fallbackMemberCount);
+    logTeamMemberCountDebug("final member count displayed:", fallbackMemberCount);
+
+    return {
+      ...team,
+      memberCount: fallbackMemberCount,
+      membersCount: fallbackMemberCount
+    };
+  }
 };
 
 const getNextTeamNumber = (teams = []) => {
@@ -107,24 +118,36 @@ function Teams() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
-  const canManageTeams = !isEmployee() && hasModulePermission("Teams");
+  const [isSavingTeam, setIsSavingTeam] = useState(false);
+  const canAddTeam = hasAddPermission("Teams");
 
   const fetchTeams = useCallback(async (signal) => {
-    try {
-      setIsLoading(true);
+    setIsLoading(true);
 
+    try {
       const res = await getTeams({
         signal,
         cacheTTL: 60 * 1000
       });
 
-      setTeams(res.data || []);
+      const normalizedTeams = normalizeCollection(res.data)
+        .map((team) => normalizeTeamRecord(team))
+        .filter(Boolean);
 
-      return res.data || [];
-    } catch (err) {
-      if (err?.code === "ERR_CANCELED") {
+      const enrichedTeams = await Promise.all(
+        normalizedTeams.map((team) => enrichTeamMemberCount(team, signal))
+      );
+
+      setTeams(enrichedTeams);
+      return enrichedTeams;
+    } catch (error) {
+      if (error?.code === "ERR_CANCELED") {
         return [];
       }
+
+      setTeams([]);
+      toastError(extractApiErrorMessage(error, "Failed to load teams"));
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +155,7 @@ function Teams() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchTeams(controller.signal);
+    void fetchTeams(controller.signal);
 
     return () => controller.abort();
   }, [fetchTeams]);
@@ -150,20 +173,21 @@ function Teams() {
 
     return teams.filter((team) => {
       const memberNames = (team.members || []).map((member) =>
-      String(member.employeeName || "").toLowerCase()
+        String(member.employeeName || member.name || "").toLowerCase()
       );
 
       return [
-      team.teamNumber,
-      team.teamName,
-      team.reportingManager,
-      team.projectName,
-      team.engagementType,
-      ...(team.reportingDays || []),
-      ...memberNames].
-
-      filter(Boolean).
-      some((value) => String(value).toLowerCase().includes(query));
+        team.teamNumber,
+        team.teamName,
+        team.reportingManagerName,
+        team.reportingManager,
+        team.projectName,
+        team.engagementType,
+        ...(team.reportingDays || []),
+        ...memberNames
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [searchTerm, teams]);
 
@@ -184,24 +208,48 @@ function Teams() {
   const nextTeamNumber = useMemo(() => getNextTeamNumber(teams), [teams]);
 
   const handleCreateTeam = async (payload) => {
+    const requestPayload = buildCreateTeamPayload(payload);
+    const createTeamApiUrl = `${BASE_URL}${API_ENDPOINTS.team.create}`;
+
+    logCreateTeamDebug("CREATE TEAM PAYLOAD:", requestPayload);
+    logCreateTeamDebug("TEAM NUMBER:", requestPayload.teamNumber);
+    logCreateTeamDebug("TEAM NAME:", requestPayload.teamName);
+    logCreateTeamDebug(
+      "REPORTING MANAGER:",
+      payload?.reportingManagerName || requestPayload.reportingManagerId
+    );
+    logCreateTeamDebug("REPORTING MANAGER ID:", requestPayload.reportingManagerId);
+    logCreateTeamDebug("ENGAGEMENT TYPE:", requestPayload.engagementType);
+    logCreateTeamDebug("PROJECT ID:", requestPayload.projectId);
+    logCreateTeamDebug("DEFAULT REPORTING DAYS:", requestPayload.reportingDays);
+    logCreateTeamDebug("TEAM MEMBERS:", requestPayload.employeeIds);
+    logCreateTeamDebug("CREATE TEAM API URL:", createTeamApiUrl);
+    logCreateTeamDebug("CREATE TEAM API METHOD:", "POST");
+
+    setIsSavingTeam(true);
+
     try {
-      const response = await createTeam(payload);
+      const response = await createTeam(requestPayload);
 
-      toastSuccess("Team Created");
+      logCreateTeamDebug("CREATE TEAM API RESPONSE:", response?.data ?? response);
 
+      toastSuccess("Team created successfully");
       await fetchTeams().catch(() => {});
 
       return response.data;
-    } catch (err) {
-      toastError(getCreateTeamErrorMessage(err));
+    } catch (error) {
+      logCreateTeamDebug("CREATE TEAM API ERROR:", error?.response?.data ?? error);
+      toastError(extractApiErrorMessage(error, "Unable to create team"));
       return null;
+    } finally {
+      setIsSavingTeam(false);
     }
   };
 
   if (isLoading) {
     return (
       <div className="teams-page">
-<div className="teams-header">
+        <div className="teams-header">
           <div className="teams-header-copy">
             <div className="teams-skeleton-title" />
             <div className="teams-skeleton-subtitle" />
@@ -219,17 +267,17 @@ function Teams() {
         </div>
 
         <CardSkeleton count={3} variant="panel" />
-      </div>);
-
+      </div>
+    );
   }
 
   return (
     <div className="teams-page">
-<div className="teams-header">
+      <div className="teams-header">
         <div className="teams-header-copy">
           <h2 className="teams-title">Teams</h2>
           <p className="teams-subtitle">
-            Click a team to view members, projects and reporting days.
+            Click a team to view members, project details and reporting days.
           </p>
         </div>
 
@@ -239,15 +287,16 @@ function Teams() {
             {teams.length} {teams.length === 1 ? "Team" : "Teams"}
           </span>
 
-          {canManageTeams &&
-          <button
-            className="teams-add-btn"
-            onClick={() => setIsAddTeamOpen(true)}>
-
+          {canAddTeam && (
+            <button
+              type="button"
+              className="teams-add-btn"
+              onClick={() => setIsAddTeamOpen(true)}
+            >
               <FaPlus />
               Add Team
             </button>
-          }
+          )}
         </div>
       </div>
 
@@ -261,8 +310,8 @@ function Teams() {
             type="search"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search teams, manager, project or members" />
-
+            placeholder="Search teams, manager, project or members"
+          />
         </label>
 
         <div className="teams-toolbar-note">
@@ -270,48 +319,59 @@ function Teams() {
         </div>
       </div>
 
-      {filteredTeams.length === 0 ?
-      <EmptyState
-        className="teams-empty-state"
-        message={
-        searchTerm.trim() ?
-        "No teams match your search." :
-        "No teams available."
-        } /> :
-
-      <>
+      {filteredTeams.length === 0 ? (
+        <EmptyState
+          className="teams-empty-state"
+          message={
+            searchTerm.trim() ? "No teams match your search." : "No teams available."
+          }
+        />
+      ) : (
+        <>
           <div className="teams-grid">
-            {paginatedTeams.map((team) =>
-          <TeamCard
-            key={team.id || team.teamId}
-            team={team}
-            onClick={() =>
-            navigate(`/teams/${team.teamId}`, {
-              state: { team }
-            })
-            } />
+            {paginatedTeams.map((team) => (
+              <TeamCard
+                key={team.teamId || team.id}
+                team={team}
+                onClick={() => {
+                  const teamRouteId = team.teamId ?? team.id;
+                  if (!teamRouteId) {
+                    return;
+                  }
 
-          )}
+                  navigate(`/teams/${teamRouteId}`, {
+                    state: { team }
+                  });
+                }}
+              />
+            ))}
           </div>
 
           <AppPagination
-          totalItems={filteredTeams.length}
-          currentPage={safeCurrentPage}
-          pageSize={PAGE_SIZE}
-          onPageChange={setCurrentPage}
-          itemLabel="teams" />
-
+            totalItems={filteredTeams.length}
+            currentPage={safeCurrentPage}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="teams"
+          />
         </>
-      }
+      )}
 
       <AddTeamModal
         open={isAddTeamOpen}
         defaultTeamNumber={nextTeamNumber}
         onClose={() => setIsAddTeamOpen(false)}
-        onCreate={handleCreateTeam} />
-
-    </div>);
-
+        onCreate={handleCreateTeam}
+        onOpenExistingTeam={(teamId) => {
+          setIsAddTeamOpen(false);
+          if (teamId) {
+            navigate(`/teams/${teamId}`);
+          }
+        }}
+        saving={isSavingTeam}
+      />
+    </div>
+  );
 }
 
 export default Teams;

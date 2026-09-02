@@ -8,6 +8,10 @@ import {
 "react-icons/fa";
 import "./ChangePasswordModal.css";
 import { changePasswordByRole } from "../services/authService";
+import {
+  getAuthenticatedUserSnapshot,
+  getStoredAuthValue } from
+"../utils/authStorage";
 
 const INITIAL_FORM = {
   currentPassword: "",
@@ -32,6 +36,21 @@ const PASSWORD_RULES = [
   test: (value) => /[^A-Za-z0-9]/.test(value),
   message: "Include at least one special character."
 }];
+
+const resolveFirstValue = (...values) => {
+  for (const value of values) {
+    const normalizedValue = String(value ?? "").trim();
+
+    if (
+      normalizedValue &&
+      normalizedValue.toLowerCase() !== "no email"
+    ) {
+      return normalizedValue;
+    }
+  }
+
+  return "";
+};
 
 const getPasswordStrength = (password) => {
   if (!password) {
@@ -126,6 +145,7 @@ const getErrorMessage = (error) => {
 };
 
 function ChangePasswordModal({ open, onClose, role, email }) {
+  const authSnapshot = getAuthenticatedUserSnapshot();
   const closeTimerRef = useRef(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState({});
@@ -139,6 +159,28 @@ function ChangePasswordModal({ open, onClose, role, email }) {
     tone: "",
     message: ""
   });
+  const resolvedRole = resolveFirstValue(
+    authSnapshot.loginType,
+    role,
+    authSnapshot.role,
+    authSnapshot.roleName,
+    "user"
+  );
+  const resolvedEmail = resolveFirstValue(
+    authSnapshot.email,
+    authSnapshot.user?.email,
+    authSnapshot.user?.Email,
+    authSnapshot.user?.userEmail,
+    authSnapshot.user?.employeeEmail,
+    authSnapshot.user?.adminEmail,
+    authSnapshot.payload?.email,
+    authSnapshot.payload?.Email,
+    getStoredAuthValue("email"),
+    getStoredAuthValue("userEmail"),
+    getStoredAuthValue("employeeEmail"),
+    getStoredAuthValue("adminEmail"),
+    email
+  );
 
   const errors = useMemo(() => validateForm(form), [form]);
   const strength = useMemo(
@@ -217,23 +259,32 @@ function ChangePasswordModal({ open, onClose, role, email }) {
       return;
     }
 
+    if (!resolvedEmail) {
+      setStatus({
+        tone: "error",
+        message:
+        "Unable to determine the signed-in account email. Please sign in again."
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       await changePasswordByRole(
-        role,
-      {
-        email: email,
-        oldPassword: form.currentPassword,
-        newPassword: form.newPassword,
-        confirmPassword: form.confirmPassword
-      },
-      {
-        skipAuth: true,
-        headers: {
-          "Content-Type": "application/json"
+        resolvedRole,
+        {
+          email: resolvedEmail,
+          oldPassword: form.currentPassword,
+          newPassword: form.newPassword,
+          confirmPassword: form.confirmPassword
+        },
+        {
+          skipAuth: true,
+          headers: {
+            "Content-Type": "application/json"
+          }
         }
-      }
       );
 
       setStatus({
@@ -254,13 +305,9 @@ function ChangePasswordModal({ open, onClose, role, email }) {
         onClose();
       }, 3000);
     } catch (error) {
-
       setStatus({
         tone: "error",
-        message:
-        error.response?.data?.message ||
-        JSON.stringify(error.response?.data) ||
-        "Password update failed"
+        message: getErrorMessage(error)
       });
     } finally {
       setIsSubmitting(false);

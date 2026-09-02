@@ -46,7 +46,7 @@ import BrandingSettings from "./BrandingSettings";
 import NotificationSettings from "./NotificationSettings";
 import PolicySettings from "./PolicySettings";
 import AgreementSettings from "./AgreementSettings";
-// import HrmsSettingsPage, { TemplateSettingsPage } from "./HrmsSettingsPage";
+import HrmsSettingsPage from "./HrmsSettingsPage";
 import {
   validateEmailSettings,
   validateAttendanceSettings,

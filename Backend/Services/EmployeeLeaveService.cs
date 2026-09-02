@@ -155,6 +155,10 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
             LeaveType = dto.LeaveType,
 
+            RequestedType = "Leave",
+            ApprovedType = null,
+            ApprovalRemarks = null,
+
             FromDate = fromDate,
 
             ToDate = toDate,
@@ -207,8 +211,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
-
+        string baseUrl = "https://localhost:7191";
         var notification = GetNotificationSettings();
 
         if (!notification.EnableEmailNotifications ||
@@ -326,97 +329,99 @@ Pirnav Software Solutions Pvt. Ltd.<br/>
         }
 
         if (externalEmails != null && externalEmails.Any())
-
         {
-
             foreach (var externalEmail in externalEmails)
-
             {
+                // ============================================================
+                // APPROVE AS LEAVE URL
+                // ============================================================
 
-                var approveLink = $"{baseUrl}/api/EmployeeLeave/mail-action?leaveId={leave.Id}&action=approve&token={approvalToken}&approverEmail={externalEmail}";
+                var approveAsLeaveLink =
+      $"{baseUrl}/api/EmployeeLeave/mail-action?leaveId={leave.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
 
-                var rejectLink = $"{baseUrl}/api/EmployeeLeave/mail-action?leaveId={leave.Id}&action=reject&token={approvalToken}&approverEmail={externalEmail}";
+                var approveAsWFHLink =
+                    $"{baseUrl}/api/EmployeeLeave/mail-action?leaveId={leave.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
+
+                var rejectLink =
+                    $"{baseUrl}/api/EmployeeLeave/mail-action?leaveId={leave.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
 
                 await _emailService.SendEmailAsync(
 
-    externalEmail,
+                    externalEmail,
 
-   $"Leave Approval Required - {employee.Name} - Leave #{leave.Id}",
+                    $"Leave Approval Required - {employee.Name} - Leave #{leave.Id}",
 
-    $@"
+                    $@"
 <html>
-<body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
- 
-<p>Hi Team,</p>
- 
-<p>Hope you are doing well!!</p>
- 
-<p>
 
+<body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
+
+<p>Hi Team,</p>
+
+<p>Hope you are doing well!!</p>
+
+<p>
 With reference to the above subject, employee
 <b>{employee.Name} ({employee.Employee_Id})</b>
-
 has applied for <b>{dto.LeaveType}</b> from
 <b>{fromDate:dd-MMM-yyyy}</b> to
 <b>{toDate:dd-MMM-yyyy}</b>.
 </p>
- 
+
 <p>
 <b>Applied On:</b>
-
 {leave.CreatedAt.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
 </p>
- 
+
 <p>
 <b>Reason:</b> {dto.Reason}
 </p>
- 
+
 <p>
-
-We kindly request you to review the leave application and provide your approval/rejection.
+We kindly request you to review the leave application
+and provide your approval/rejection.
 </p>
- 
+
 <br/>
- 
-<a href='{approveLink}'
 
-style='background-color:green;color:white;padding:12px 25px;text-decoration:none;border-radius:5px;margin-right:10px;display:inline-block;'>
+<!-- ========================================================= -->
+<!-- APPROVE AS LEAVE -->
+<!-- ========================================================= -->
 
-Approve
+<a href='{approveAsLeaveLink}'
+style='background-color:green;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;margin-right:10px;display:inline-block;'>
+Approve as Leave
 </a>
- 
+
+<a href='{approveAsWFHLink}'
+style='background-color:#007bff;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;margin-right:10px;display:inline-block;'>
+Approve as WFH
+</a>
+
 <a href='{rejectLink}'
-
-style='background-color:red;color:white;padding:12px 25px;text-decoration:none;border-radius:5px;display:inline-block;'>
-
+style='background-color:red;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;display:inline-block;'>
 Reject
 </a>
- 
-<br/><br/>
- 
-<p>Thank you,</p>
- 
-<p>
+<br/>
+<br/>
 
+<p>Thank you,</p>
+
+<p>
 Regards,<br/>
 <b>PIRNAV EMS</b><br/>
-
 Employee Management System
 </p>
- 
+
 </body>
+
 </html>"
-
-);
-
+                );
             }
-
         }
 
         _context.AdminNotifications.Add(new AdminNotification
-
         {
-
             Title = "Leave Request",
 
             Message = $"{employee.Name} applied for leave",
@@ -426,19 +431,14 @@ Employee Management System
             IsRead = false,
 
             CreatedAt = DateTime.UtcNow
-
         });
 
         await _context.SaveChangesAsync();
 
         return new OkObjectResult(new
-
         {
-
             message = "Leave applied successfully"
-
         });
-
     }
 
 
@@ -501,36 +501,87 @@ Employee Management System
 
         await _context.SaveChangesAsync();
     }
-    public async Task<IActionResult> UpdateStatus(
-    int id,
-    string status,
-    ClaimsPrincipal user)
+
+    private async Task UpdateAttendanceForApprovedWFH(
+    EmployeeLeave leave)
     {
-        var leave = await _context.EmployeeLeaves.FindAsync(id);
+        var currentDate = leave.FromDate.Date;
+
+        while (currentDate <= leave.ToDate.Date)
+        {
+            // Skip Saturday and Sunday
+            if (currentDate.DayOfWeek == DayOfWeek.Saturday ||
+                currentDate.DayOfWeek == DayOfWeek.Sunday)
+            {
+                currentDate = currentDate.AddDays(1);
+                continue;
+            }
+
+            // Skip holidays
+            var isHoliday = await _context.Holidays
+                .AnyAsync(h => h.Holiday_Date.Date == currentDate);
+
+            if (isHoliday)
+            {
+                currentDate = currentDate.AddDays(1);
+                continue;
+            }
+
+            var attendance = await _context.Attendance
+                .FirstOrDefaultAsync(a =>
+                    a.Employee_Id == leave.EmployeeId &&
+                    a.Attendance_Date.Date == currentDate);
+
+            if (attendance == null)
+            {
+                attendance = new Attendance
+                {
+                    Employee_Id = leave.EmployeeId,
+                    Attendance_Date = currentDate
+                };
+
+                _context.Attendance.Add(attendance);
+            }
+
+            // Final approved type is WFH
+            attendance.Status = "WFH";
+
+            currentDate = currentDate.AddDays(1);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<IActionResult> UpdateStatus(
+     LeaveApprovalDto dto,
+     ClaimsPrincipal user)
+    {
+        var leave = await _context.EmployeeLeaves
+    .FirstOrDefaultAsync(x => x.Id == dto.RequestId);
 
         if (leave == null)
             return new NotFoundObjectResult("Leave not found");
 
         if (leave.Status != null &&
-            leave.Status.StartsWith("Approved") &&
-            status == "Approved")
+            leave.Status.StartsWith("Approved"))
         {
             return new BadRequestObjectResult("Already approved");
         }
 
-        //var balance = await _context.EmployeeLeaveBalances
-        //    .FirstOrDefaultAsync(b => b.Employee_Id == leave.EmployeeId);
+        if (leave.Status == "Rejected")
+        {
+            return new BadRequestObjectResult("Already rejected");
+        }
 
-        //if (balance == null)
-        //{
-        //    balance = new EmployeeLeaveBalance
-        //    {
-        //        Employee_Id = leave.EmployeeId
-        //    };
+        if (dto.Decision != "ApproveAsLeave" &&
+            dto.Decision != "ApproveAsWFH" &&
+            dto.Decision != "Reject")
+        {
+            return new BadRequestObjectResult(
+                "Invalid approval decision.");
+        }
 
-        //    _context.EmployeeLeaveBalances.Add(balance);
-        //    await _context.SaveChangesAsync();
-        //}
+        // Existing approver identification continues below...
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
         string approverName = "";
@@ -585,11 +636,11 @@ Employee Management System
 
         //// Save approver details
 
+
         leave.ApprovedBy = approverName;
         leave.ApprovedOn = DateTime.UtcNow;
 
-        leave.ManagerStatus = status;
-        leave.HRStatus = status;
+        leave.ApprovalRemarks = dto.ApprovalRemarks;
         //if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
         //{
         //    leave.ManagerStatus = status;
@@ -601,10 +652,11 @@ Employee Management System
         //}
         var employee = await _context.Employees
     .FirstOrDefaultAsync(x => x.Employee_Id == leave.EmployeeId);
-        if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+        if (dto.Decision == "ApproveAsLeave")
         {
             leave.Status = $"Approved By {approverName}";
-
+            leave.ApprovedType = "Leave";
+            leave.LeaveType = leave.ApprovedType;
             if (employee == null)
             {
                 return new BadRequestObjectResult(
@@ -827,18 +879,36 @@ Employee Management System
 
             return new OkObjectResult($"Leave approved by {approverName}");
         }
-        else
+        else if (dto.Decision == "ApproveAsWFH")
         {
-            leave.Status = $"Rejected By {approverName}";
+            leave.Status = $"Approved As WFH By {approverName}";
+            leave.ApprovedType = "WFH";
+            leave.LeaveType = leave.ApprovedType;
+
+            await UpdateAttendanceForApprovedWFH(leave);
 
             _context.UserNotifications.Add(new UserNotification
             {
                 Employee_Id = leave.EmployeeId,
-                Title = "Leave Rejected",
-                Message = $"Your leave request has been rejected by {approverName}.",
+                Title = "Work From Home Approved",
+                Message = $"Your request has been approved as Work From Home by {approverName}.",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });
+
+            await _context.SaveChangesAsync();
+
+            return new OkObjectResult(
+                $"Request approved as Work From Home by {approverName}");
+        }
+        else
+        {
+            // ============================================================
+            // 3. REJECT LEAVE
+            // ============================================================
+
+            leave.Status = $"Rejected By {approverName}";
+            leave.ApprovedType = null;
 
             await _context.SaveChangesAsync();
 
@@ -851,11 +921,11 @@ Employee Management System
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList() ?? new List<string>();
 
-            // Fetch all HR, HRAdmin and Manager emails from database
+            // Fetch all HR, HRAdmin and Manager emails
             var approvalRoles = leaveSettings.ApprovalRoles
-    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-    .Select(x => x.Trim().ToLower())
-    .ToList();
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim().ToLower())
+                .ToList();
 
             var roleEmails = await _context.Employees
                 .Where(x =>
@@ -865,16 +935,15 @@ Employee Management System
                 .Select(x => x.Email)
                 .ToListAsync();
 
-            // Add role emails
             emailList.AddRange(roleEmails);
 
             // Add employee email
-            if (employee != null && !string.IsNullOrWhiteSpace(employee.Email))
+            if (employee != null &&
+                !string.IsNullOrWhiteSpace(employee.Email))
             {
                 emailList.Add(employee.Email);
             }
 
-            // Remove duplicate email IDs
             emailList = emailList
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -886,46 +955,57 @@ Employee Management System
 
 <p>The following leave request has been rejected.</p>
 
-<table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse;'>
-    <tr>
-        <td><b>Employee Name</b></td>
-        <td>{leave.EmployeeName}</td>
-    </tr>
-    <tr>
-        <td><b>Employee ID</b></td>
-        <td>{leave.EmployeeId}</td>
-    </tr>
-    <tr>
-        <td><b>Leave Type</b></td>
-        <td>{leave.LeaveType}</td>
-    </tr>
-    <tr>
-        <td><b>From Date</b></td>
-        <td>{leave.FromDate:dd-MMM-yyyy}</td>
-    </tr>
-    <tr>
-        <td><b>To Date</b></td>
-        <td>{leave.ToDate:dd-MMM-yyyy}</td>
-    </tr>
-    <tr>
-        <td><b>Reason</b></td>
-        <td>{leave.Reason}</td>
-    </tr>
-    <tr>
-        <td><b>Rejected By</b></td>
-        <td>{approverName}</td>
-    </tr>
-    <tr>
-        <td><b>Rejected On</b></td>
-        <td>{DateTime.Now:dd-MMM-yyyy hh:mm tt}</td>
-    </tr>
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'
+       style='border-collapse:collapse;'>
+
+<tr>
+<td><b>Employee Name</b></td>
+<td>{leave.EmployeeName}</td>
+</tr>
+
+<tr>
+<td><b>Employee ID</b></td>
+<td>{leave.EmployeeId}</td>
+</tr>
+
+<tr>
+<td><b>Leave Type</b></td>
+<td>{leave.LeaveType}</td>
+</tr>
+
+<tr>
+<td><b>From Date</b></td>
+<td>{leave.FromDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+<td><b>To Date</b></td>
+<td>{leave.ToDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+<td><b>Reason</b></td>
+<td>{leave.Reason}</td>
+</tr>
+
+<tr>
+<td><b>Rejected By</b></td>
+<td>{approverName}</td>
+</tr>
+
+<tr>
+<td><b>Rejected On</b></td>
+<td>{DateTime.Now:dd-MMM-yyyy hh:mm tt}</td>
+</tr>
+
 </table>
 
 <br/>
 
 <p>Regards,<br/>EMS Team</p>";
 
-            // Send email to everyone
             var notification = GetNotificationSettings();
 
             if (notification.EnableEmailNotifications &&
@@ -942,15 +1022,16 @@ Employee Management System
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
+                        Console.WriteLine(
+                            $"Failed to send email to {mail}: {ex.Message}");
                     }
                 }
             }
 
-            return new OkObjectResult($"Leave rejected by {approverName}");
+            return new OkObjectResult(
+                $"Leave rejected by {approverName}");
         }
     }
-
     private async Task<int> CalculateLeaveDaysForProbation(
     DateTime fromDate,
     DateTime toDate)
@@ -1668,7 +1749,7 @@ Employee Management System
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://localhost:7191";
 
         var notification = GetNotificationSettings();
 
@@ -1780,16 +1861,27 @@ Employee Management System
 
         foreach (var externalEmail in externalEmails)
         {
-            var approveLink =
-                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=approve&token={approvalToken}&approverEmail={externalEmail}";
+            // ============================================================
+            // APPROVE AS WFH
+            // ============================================================
+
+            var approveAsWFHLink =
+     $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
+
+            var approveAsLeaveLink =
+                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
 
             var rejectLink =
-                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=reject&token={approvalToken}&approverEmail={externalEmail}";
+                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
+
 
             await _emailService.SendEmailAsync(
+
                 externalEmail,
+
                 $"WFH Approval Required - {employee.Name} - Request #{wfh.Id}",
-    $@"
+
+                $@"
 <html>
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
 
@@ -1810,33 +1902,37 @@ to
 
 <p>
 <b>Applied On:</b>
-{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}</p>
+{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
+</p>
 
 <p>
 <b>Reason:</b> {dto.Reason}
 </p>
 
 <p>
-Kindly review the Work From Home request.
+Kindly review the Work From Home request and select the appropriate action.
 </p>
 
 <br/>
 
-<a href='{approveLink}'
-style='background-color:green;color:white;padding:12px 25px;text-decoration:none;border-radius:5px;margin-right:10px;display:inline-block;'>
-Approve
+<a href='{approveAsWFHLink}'
+style='background-color:green;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;margin-right:10px;display:inline-block;'>
+Approve as WFH
+</a>
+
+<a href='{approveAsLeaveLink}'
+style='background-color:#007bff;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;margin-right:10px;display:inline-block;'>
+Approve as Leave
 </a>
 
 <a href='{rejectLink}'
-style='background-color:red;color:white;padding:12px 25px;text-decoration:none;border-radius:5px;display:inline-block;'>
+style='background-color:red;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;display:inline-block;'>
 Reject
 </a>
 
 <br/><br/>
 
-<p>
-Thank you,
-</p>
+<p>Thank you,</p>
 
 <p>
 Regards,<br/>
@@ -1845,19 +1941,25 @@ Employee Management System
 </p>
 
 </body>
-</html>");
+</html>"
+            );
         }
 
-        //==========================================================
+
+        // ==========================================================
         // Admin Notification
-        //==========================================================
+        // ==========================================================
 
         _context.AdminNotifications.Add(new AdminNotification
         {
             Title = "WFH Request",
+
             Message = $"{employee.Name} applied for Work From Home",
+
             UserRole = "Manager",
+
             IsRead = false,
+
             CreatedAt = DateTime.UtcNow
         });
 
@@ -1945,9 +2047,9 @@ Employee Management System
         return new OkObjectResult(requests);
     }
     public async Task<IActionResult> UpdateWFHStatus(
-      int id,
-      string status,
-      ClaimsPrincipal user)
+        int id,
+        string status,
+        ClaimsPrincipal user)
     {
         var request = await _context.WorkFromHomeRequests
             .FirstOrDefaultAsync(x => x.Id == id);
@@ -1955,12 +2057,6 @@ Employee Management System
         if (request == null)
             return new NotFoundObjectResult("WFH request not found");
 
-        if (request.Status != null &&
-            request.Status.StartsWith("Approved") &&
-            status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
-        {
-            return new BadRequestObjectResult("Already approved");
-        }
 
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
@@ -1995,34 +2091,7 @@ Employee Management System
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .FirstOrDefault() ?? approverName;
         }
-        //var role = loggedInUser.RoleName?.Trim();
-
-        ////if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) &&
-        ////    !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase) &&
-        ////    !!string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
-
-        ////{
-        ////    return new BadRequestObjectResult(
-        ////        "Only Manager or HR can approve WFH");
-        ////}
-
-        //request.ApprovedBy = approverName;
-        //request.ApprovedOn = DateTime.UtcNow;
-
-        //if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
-        //{
-        //    request.ManagerStatus = status;
-        //}
-
-        //if (string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
-        //{
-        //    request.HRStatus = status;
-        //}
-        //if (string.Equals(role, "HRAdmin", StringComparison.OrdinalIgnoreCase))
-
-        //{
-        //    request.HRStatus = status;
-        //}
+       
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
 
@@ -2058,19 +2127,29 @@ Employee Management System
         emailList = emailList
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+        if (request.Status != null &&
+    request.Status.StartsWith("Approved", StringComparison.OrdinalIgnoreCase))
         {
-            request.Status = $"Approved By {approverName}";
+            return new BadRequestObjectResult("Already approved");
+        }
+        if (status.Equals("ApproveAsWFH", StringComparison.OrdinalIgnoreCase))
+        {
+            request.Status = $"Approved As WFH By {approverName}";
+
+            request.ApprovedBy = approverName;
+            request.ApprovedOn = DateTime.UtcNow;
+
+            await UpdateAttendanceForApprovedWFHRequest(request);
 
             _context.UserNotifications.Add(new UserNotification
             {
                 Employee_Id = request.EmployeeId,
                 Title = "WFH Approved",
-                Message = $"Your Work From Home request has been approved by {approverName}.",
+                Message = $"Your Work From Home request has been approved as WFH by {approverName}.",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });
+
 
             await _context.SaveChangesAsync();
 
@@ -2156,6 +2235,99 @@ style='border-collapse:collapse;'>
 
             return new OkObjectResult(
                 $"Work From Home approved by {approverName}");
+        }
+        else if (status.Equals("ApproveAsLeave",
+      StringComparison.OrdinalIgnoreCase))
+        {
+            // Approve WFH request as Leave
+
+            if (employee == null)
+            {
+                return new BadRequestObjectResult(
+                    "Employee not found.");
+            }
+
+            var existingLeave = await _context.EmployeeLeaves
+                .FirstOrDefaultAsync(x =>
+                    x.EmployeeId == request.EmployeeId &&
+                    x.FromDate.Date == request.FromDate.Date &&
+                    x.ToDate.Date == request.ToDate.Date &&
+                    x.Status != "Rejected" &&
+                    x.Status != "Cancelled");
+
+            if (existingLeave != null)
+            {
+                return new BadRequestObjectResult(
+                    "Leave already exists for these dates.");
+            }
+
+            var leave = new EmployeeLeave
+            {
+                EmployeeId = request.EmployeeId,
+                EmployeeName = request.EmployeeName,
+
+                LeaveType = "Leave",
+
+                FromDate = request.FromDate,
+                ToDate = request.ToDate,
+
+                Reason = request.Reason,
+
+                Status = "Approved",
+                ManagerStatus = "Approved",
+                HRStatus = "Approved",
+
+                ApprovedBy = approverName,
+                ApprovedOn = DateTime.UtcNow,
+
+                AppliedDate = DateOnly.FromDateTime(
+    request.AppliedOn ?? DateTime.UtcNow),
+
+                ApprovalToken = request.ApprovalToken,
+
+                CreatedAt = DateTime.UtcNow,
+
+                PaidLeaveDays = 0,
+                LOPDays = 0
+            };
+
+            var result =
+                await _leaveBalanceService.ApproveLeaveAsync(leave);
+
+            leave.PaidLeaveDays = result.PaidLeaves;
+            leave.LOPDays = result.LopDays;
+
+            await _context.EmployeeLeaves.AddAsync(leave);
+
+            request.Status =
+                $"Approved As Leave By {approverName}";
+
+            request.ApprovedBy = approverName;
+            request.ApprovedOn = DateTime.UtcNow;
+
+            await UpdateAttendanceForApprovedLeave(
+                leave,
+                result.PaidLeaves,
+                result.LopDays);
+
+            _context.UserNotifications.Add(new UserNotification
+            {
+                Employee_Id = request.EmployeeId,
+
+                Title = "WFH Request Approved As Leave",
+
+                Message =
+                    $"Your Work From Home request has been approved as Leave by {approverName}.",
+
+                IsRead = false,
+
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            return new OkObjectResult(
+                $"WFH request approved as Leave by {approverName}");
         }
         else
         {
@@ -2299,238 +2471,556 @@ style='border-collapse:collapse;'>
 
     }
 
-    public async Task<IActionResult> MailAction(
-
-     int leaveId,
-
-     string action,
-
-     string token,
-
-     string approverEmail)
-
+    private async Task UpdateAttendanceForApprovedWFHRequest(
+    WorkFromHomeRequest request)
     {
+        for (var date = request.FromDate.Date;
+             date <= request.ToDate.Date;
+             date = date.AddDays(1))
+        {
+            // Skip Saturday and Sunday
+            if (date.DayOfWeek == DayOfWeek.Saturday ||
+                date.DayOfWeek == DayOfWeek.Sunday)
+            {
+                continue;
+            }
 
+            var attendance = await _context.Attendance
+                .FirstOrDefaultAsync(a =>
+                    a.Employee_Id == request.EmployeeId &&
+                    a.Attendance_Date.Date == date);
+
+            if (attendance == null)
+            {
+                attendance = new Attendance
+                {
+                    Employee_Id = request.EmployeeId,
+                    Attendance_Date = date,
+                    Status = "WFH",
+                    WorkingMinutes = 0,
+                    TotalBreakMinutes = 0
+                };
+
+                _context.Attendance.Add(attendance);
+            }
+            else
+            {
+                attendance.Status = "WFH";
+            }
+        }
+    }
+
+    public async Task<IActionResult> MailAction(
+      int leaveId,
+      string action,
+      string token,
+      string approverEmail)
+    {
         var leave = await _context.EmployeeLeaves
-
             .FirstOrDefaultAsync(x => x.Id == leaveId);
 
         if (leave == null)
-
             return new NotFoundObjectResult("Leave not found");
 
-        if (leave.ApprovalToken != token)
+        // ============================================================
+        // TOKEN VALIDATION
+        // ============================================================
 
-            return new BadRequestObjectResult("Invalid token");
-
-        if (leave.Status != "Pending")
-
-            return new BadRequestObjectResult("Leave already processed");
-
-        if (action.ToLower() == "approve")
-
+        if (string.IsNullOrWhiteSpace(token) ||
+            leave.ApprovalToken != token)
         {
+            return new UnauthorizedObjectResult(
+                "Invalid or expired approval token.");
+        }
 
+        // ============================================================
+        // ALREADY PROCESSED
+        // ============================================================
+
+        if (!string.Equals(
+            leave.Status,
+            "Pending",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            return new BadRequestObjectResult(
+                "Leave already processed");
+        }
+
+        // ============================================================
+        // VALIDATE ACTION
+        // ============================================================
+
+        if (!action.Equals(
+                "ApproveAsLeave",
+                StringComparison.OrdinalIgnoreCase)
+            &&
+            !action.Equals(
+                "ApproveAsWFH",
+                StringComparison.OrdinalIgnoreCase)
+            &&
+            !action.Equals(
+                "Reject",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return new BadRequestObjectResult(
+                "Invalid action. Use ApproveAsLeave, ApproveAsWFH or Reject.");
+        }
+
+        // ============================================================
+        // APPROVE AS LEAVE
+        // ============================================================
+
+        if (action.Equals(
+            "ApproveAsLeave",
+            StringComparison.OrdinalIgnoreCase))
+        {
             leave.Status = "Approved";
 
-            var result = await _leaveBalanceService.ApproveLeaveAsync(leave);
+            // Keep this only if ApprovedType exists in your model
+            leave.ApprovedType = "Leave";
 
-            leave.PaidLeaveDays = result.PaidLeaves;
-            leave.LOPDays = result.LopDays;
+            var result =
+                await _leaveBalanceService
+                    .ApproveLeaveAsync(leave);
 
+            leave.PaidLeaveDays =
+                result.PaidLeaves;
+
+            leave.LOPDays =
+                result.LopDays;
         }
 
-        else if (action.ToLower() == "reject")
+        // ============================================================
+        // APPROVE AS WFH
+        // ============================================================
 
+        else if (action.Equals(
+            "ApproveAsWFH",
+            StringComparison.OrdinalIgnoreCase))
         {
+            leave.Status =
+                $"Approved As WFH By {approverEmail}";
 
-            leave.Status = "Rejected";
+            // Keep this only if ApprovedType exists
+            leave.ApprovedType = "WFH";
+            leave.LeaveType = "WFH";
 
+            await UpdateAttendanceForApprovedWFH(leave);
         }
 
-        else
+        // ============================================================
+        // REJECT
+        // ============================================================
 
+        else if (action.Equals(
+            "Reject",
+            StringComparison.OrdinalIgnoreCase))
         {
-
-            return new BadRequestObjectResult("Invalid action");
-
+            leave.Status =
+                $"Rejected By {approverEmail}";
         }
+
+        // ============================================================
+        // COMMON APPROVAL INFORMATION
+        // ============================================================
 
         leave.ApprovedBy = approverEmail;
-
         leave.ApprovedOn = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 
-        var employee = await _context.Employees
+        // ============================================================
+        // RESULT TEXT
+        // ============================================================
 
-    .FirstOrDefaultAsync(x => x.Employee_Id == leave.EmployeeId);
+        string resultText;
 
-        if (employee != null && !string.IsNullOrWhiteSpace(employee.Email))
-
+        if (action.Equals(
+            "ApproveAsWFH",
+            StringComparison.OrdinalIgnoreCase))
         {
+            resultText = "Approved as Work From Home";
+        }
+        else if (action.Equals(
+            "ApproveAsLeave",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            resultText = "Approved as Leave";
+        }
+        else
+        {
+            resultText = "Rejected";
+        }
 
-            await _emailService.SendEmailAsync(
+        // ============================================================
+        // GET EMPLOYEE
+        // ============================================================
 
-    employee.Email,
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(x =>
+                x.Employee_Id == leave.EmployeeId);
 
-    $"Leave Request {leave.Status} | #{leave.Id} | {DateTime.Now:yyyyMMddHHmmssfff}",
+        // ============================================================
+        // SEND RESULT EMAIL TO EMPLOYEE
+        // ============================================================
 
-    $@"
-<h3>Leave Request {leave.Status}</h3>
- 
-    <p>Dear {employee.Name},</p>
- 
-    <p>Your leave request has been <b>{leave.Status}</b> by External Approver.</p>
- 
-    <table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse;'>
+        if (employee != null &&
+            !string.IsNullOrWhiteSpace(employee.Email))
+        {
+            string employeeMailBody = $@"
+<h3>Leave Request {resultText}</h3>
+
+<p>Dear {employee.Name},</p>
+
+<p>
+Your leave request has been
+<b>{resultText}</b>
+by the approver.
+</p>
+
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'
+       style='border-collapse:collapse;'>
+
+<tr>
+<td><b>Employee Name</b></td>
+<td>{leave.EmployeeName}</td>
+</tr>
+
+<tr>
+<td><b>Employee ID</b></td>
+<td>{leave.EmployeeId}</td>
+</tr>
+
 <tr>
 <td><b>Leave Type</b></td>
 <td>{leave.LeaveType}</td>
 </tr>
+
 <tr>
 <td><b>From Date</b></td>
 <td>{leave.FromDate:dd-MMM-yyyy}</td>
 </tr>
+
 <tr>
 <td><b>To Date</b></td>
 <td>{leave.ToDate:dd-MMM-yyyy}</td>
 </tr>
+
 <tr>
 <td><b>Reason</b></td>
 <td>{leave.Reason}</td>
 </tr>
+
 <tr>
-<td><b>Status</b></td>
-<td>{leave.Status}</td>
+<td><b>Decision</b></td>
+<td>{resultText}</td>
 </tr>
+
 <tr>
 <td><b>Approved By</b></td>
 <td>{leave.ApprovedBy}</td>
 </tr>
+
+<tr>
+<td><b>Approved On</b></td>
+<td>{leave.ApprovedOn:dd-MMM-yyyy hh:mm tt}</td>
+</tr>
+
 </table>
- 
-    <br/>
- 
-    <p>Regards,<br/>EMS Team</p>"
 
-);
+<br/>
 
+<p>Regards,<br/>EMS Team</p>
+";
+
+            await _emailService.SendEmailAsync(
+                employee.Email,
+                $"Leave Request {resultText} | #{leave.Id} | {DateTime.Now:yyyyMMddHHmmssfff}",
+                employeeMailBody);
         }
 
-        return new OkObjectResult($"Leave {leave.Status} Successfully");
-
+        return new OkObjectResult(
+            $"Leave request {resultText} successfully");
     }
-
     public async Task<IActionResult> WFHMailAction(
-        int requestId,
-        string action,
-        string token,
-        string approverEmail)
+       int requestId,
+       string action,
+       string token,
+       string approverEmail)
     {
         var request = await _context.WorkFromHomeRequests
             .FirstOrDefaultAsync(x => x.Id == requestId);
 
         if (request == null)
-            return new NotFoundObjectResult("WFH request not found");
+            return new NotFoundObjectResult(
+                "WFH request not found");
 
-        if (request.ApprovalToken != token)
-            return new BadRequestObjectResult("Invalid token");
+        // ============================================================
+        // TOKEN VALIDATION
+        // ============================================================
 
-        if (request.Status != "Pending")
-            return new BadRequestObjectResult("WFH request already processed");
-
-        // Update Status
-        if (action.Equals("approve", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(token) ||
+            request.ApprovalToken != token)
         {
-            request.Status = $"Approved By {approverEmail}";
-            request.ManagerStatus = "Approved";
-            request.HRStatus = "Approved";
-        }
-        else if (action.Equals("reject", StringComparison.OrdinalIgnoreCase))
-        {
-            request.Status = $"Rejected By {approverEmail}";
-            request.ManagerStatus = "Rejected";
-            request.HRStatus = "Rejected";
-        }
-        else
-        {
-            return new BadRequestObjectResult("Invalid action");
+            return new UnauthorizedObjectResult(
+                "Invalid or expired approval token.");
         }
 
-        request.ApprovedBy = approverEmail;
-        request.ApprovedOn = DateTime.UtcNow;
+        // ============================================================
+        // ALREADY PROCESSED
+        // ============================================================
 
-        _context.UserNotifications.Add(new UserNotification
+        if (!string.Equals(
+            request.Status,
+            "Pending",
+            StringComparison.OrdinalIgnoreCase))
         {
-            Employee_Id = request.EmployeeId,
-            Title = action.Equals("approve", StringComparison.OrdinalIgnoreCase)
-                ? "Work From Home Approved"
-                : "Work From Home Rejected",
+            return new BadRequestObjectResult(
+                "WFH request already processed");
+        }
 
-            Message = action.Equals("approve", StringComparison.OrdinalIgnoreCase)
-                ? $"Your Work From Home request has been approved by {approverEmail}."
-                : $"Your Work From Home request has been rejected by {approverEmail}.",
+        // ============================================================
+        // VALIDATE ACTION
+        // ============================================================
 
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+        if (!action.Equals(
+                "ApproveAsWFH",
+                StringComparison.OrdinalIgnoreCase)
+            &&
+            !action.Equals(
+                "ApproveAsLeave",
+                StringComparison.OrdinalIgnoreCase)
+            &&
+            !action.Equals(
+                "Reject",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return new BadRequestObjectResult(
+                "Invalid action. Use ApproveAsWFH, ApproveAsLeave or Reject.");
+        }
+
+        // ============================================================
+        // APPROVE AS WFH
+        // ============================================================
+
+        if (action.Equals(
+            "ApproveAsWFH",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            request.Status =
+                $"Approved As WFH By {approverEmail}";
+
+            request.ApprovedType = "WFH";
+            request.LeaveType = "WFH";
+
+            request.ApprovedBy =
+                approverEmail;
+
+            request.ApprovedOn =
+                DateTime.UtcNow;
+
+            // Create/update attendance as WFH
+            await UpdateAttendanceForApprovedWFHRequest(request);
+
+            _context.UserNotifications.Add(
+                new UserNotification
+                {
+                    Employee_Id = request.EmployeeId,
+
+                    Title = "WFH Approved",
+
+                    Message =
+                        $"Your Work From Home request has been approved as WFH by {approverEmail}.",
+
+                    IsRead = false,
+
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        // ============================================================
+        // APPROVE WFH AS LEAVE
+        // ============================================================
+
+        else if (action.Equals(
+            "ApproveAsLeave",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            var leave = new EmployeeLeave
+            {
+                EmployeeId =
+        request.EmployeeId,
+
+                EmployeeName =
+        request.EmployeeName,
+
+                FromDate =
+        request.FromDate,
+
+                ToDate =
+        request.ToDate,
+
+                Reason =
+        request.Reason,
+
+                LeaveType =
+        "Leave",
+
+                ApprovedType =
+        "Leave",
+
+                Status =
+        "Approved",
+
+                ApprovedBy =
+        approverEmail,
+
+                ApprovedOn =
+        DateTime.UtcNow,
+
+                AppliedDate = request.AppliedOn.HasValue
+        ? DateOnly.FromDateTime(request.AppliedOn.Value)
+        : DateOnly.FromDateTime(DateTime.UtcNow),
+
+                CreatedAt = request.AppliedOn ?? DateTime.UtcNow
+            };// Calculate leave balance
+            var result =
+                await _leaveBalanceService
+                    .ApproveLeaveAsync(leave);
+
+            leave.PaidLeaveDays =
+                result.PaidLeaves;
+
+            leave.LOPDays =
+                result.LopDays;
+
+            _context.EmployeeLeaves.Add(leave);
+
+            // Update original WFH request
+            request.Status =
+                $"Approved As Leave By {approverEmail}";
+            request.LeaveType = "Leave";
+            request.ApprovedType = "Leave";
+
+            request.ApprovedBy =
+                approverEmail;
+
+            request.ApprovedOn =
+                DateTime.UtcNow;
+
+            _context.UserNotifications.Add(
+                new UserNotification
+                {
+                    Employee_Id =
+                        request.EmployeeId,
+
+                    Title =
+                        "WFH Request Approved as Leave",
+
+                    Message =
+                        $"Your Work From Home request has been approved as Leave by {approverEmail}.",
+
+                    IsRead = false,
+
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        // ============================================================
+        // REJECT
+        // ============================================================
+
+        else if (action.Equals(
+            "Reject",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            request.Status =
+                $"Rejected By {approverEmail}";
+
+            request.ApprovedBy =
+                approverEmail;
+
+            request.ApprovedOn =
+                DateTime.UtcNow;
+
+            _context.UserNotifications.Add(
+                new UserNotification
+                {
+                    Employee_Id =
+                        request.EmployeeId,
+
+                    Title =
+                        "WFH Rejected",
+
+                    Message =
+                        $"Your Work From Home request has been rejected by {approverEmail}.",
+
+                    IsRead = false,
+
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
 
         await _context.SaveChangesAsync();
 
+        // ============================================================
+        // RESULT TEXT
+        // ============================================================
+
+        string resultText;
+
+        if (action.Equals(
+            "ApproveAsWFH",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            resultText =
+                "Approved as Work From Home";
+        }
+        else if (action.Equals(
+            "ApproveAsLeave",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            resultText =
+                "Approved as Leave";
+        }
+        else
+        {
+            resultText =
+                "Rejected";
+        }
+
+        // ============================================================
+        // GET EMPLOYEE
+        // ============================================================
+
         var employee = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
+            .FirstOrDefaultAsync(x =>
+                x.Employee_Id == request.EmployeeId);
 
-        var leaveSettings = GetLeaveSettings();
-
-        var emailList = leaveSettings.ExternalEmails?
-            .Split(';', StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList()
-            ?? new List<string>();
-
-        var approvalRoles = leaveSettings.ApprovalRoles
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim().ToLower())
-            .ToList();
-
-        var roleEmails = await _context.Employees
-            .Where(x =>
-                !string.IsNullOrWhiteSpace(x.Email) &&
-                !string.IsNullOrWhiteSpace(x.RoleName) &&
-                approvalRoles.Contains(x.RoleName.ToLower()))
-            .Select(x => x.Email)
-            .ToListAsync();
-
-        emailList.AddRange(roleEmails);
+        // ============================================================
+        // SEND RESULT EMAIL TO EMPLOYEE
+        // ============================================================
 
         if (employee != null &&
             !string.IsNullOrWhiteSpace(employee.Email))
         {
-            emailList.Add(employee.Email);
-        }
+            string employeeMailBody = $@"
+<h3>Work From Home Request {resultText}</h3>
 
-        emailList = emailList
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+<p>Dear {employee.Name},</p>
 
-        var notification = GetNotificationSettings();
+<p>
+Your Work From Home request has been
+<b>{resultText}</b>
+by the approver.
+</p>
 
-        if (notification.EnableEmailNotifications &&
-            notification.EnableWFHEmails)
-        {
-            string body = $@"
-<html>
-<body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
-
-<h3>Work From Home Request {request.Status}</h3>
-
-<p>Dear Team,</p>
-
-<p>The following Work From Home request has been processed.</p>
-
-<table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse;'>
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'
+       style='border-collapse:collapse;'>
 
 <tr>
 <td><b>Employee Name</b></td>
@@ -2563,8 +3053,8 @@ style='border-collapse:collapse;'>
 </tr>
 
 <tr>
-<td><b>Status</b></td>
-<td>{request.Status}</td>
+<td><b>Decision</b></td>
+<td>{resultText}</td>
 </tr>
 
 <tr>
@@ -2573,7 +3063,7 @@ style='border-collapse:collapse;'>
 </tr>
 
 <tr>
-<td><b>Processed On</b></td>
+<td><b>Approved On</b></td>
 <td>{request.ApprovedOn:dd-MMM-yyyy hh:mm tt}</td>
 </tr>
 
@@ -2581,33 +3071,18 @@ style='border-collapse:collapse;'>
 
 <br/>
 
-<p>Regards,<br/>
-<b>PIRNAV EMS</b><br/>
-Employee Management System
-</p>
+<p>Regards,<br/>EMS Team</p>
+";
 
-</body>
-</html>";
-
-            foreach (var mail in emailList)
-            {
-                try
-                {
-                    await _emailService.SendEmailAsync(
-                        mail,
-                        $"Work From Home {request.Status}",
-                        body);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to send email to {mail}: {ex.Message}");
-                }
-            }
+            await _emailService.SendEmailAsync(
+                employee.Email,
+                $"WFH Request {resultText} | #{request.Id} | {DateTime.Now:yyyyMMddHHmmssfff}",
+                employeeMailBody);
         }
 
-        return new OkObjectResult($"Work From Home {request.Status} Successfully"); 
+        return new OkObjectResult(
+            $"WFH request {resultText} successfully");
     }
-
 
 
 

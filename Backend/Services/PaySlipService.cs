@@ -85,13 +85,28 @@ namespace EmployeeManagementSystem.Services
 
         {
 
+            //var employee = await _context.Employees
+            //    .AsNoTracking()
+            //    .Include(e => e.BankDetails)
+            //    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+
+            //if (employee == null)
+            //    throw new Exception("Employee not found");
+
             var employee = await _context.Employees
-                .AsNoTracking()
-                .Include(e => e.BankDetails)
-                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+
+.Include(e => e.BankDetails)
+
+.FirstOrDefaultAsync(e =>
+
+e.Employee_Id == employeeId &&
+
+e.Status == "Active");
 
             if (employee == null)
-                throw new Exception("Employee not found");
+
+                throw new Exception("Employee is inactive or not found");
+
 
             var personalInfo = await _context.EmployeePersonalInfos
                 .AsNoTracking()
@@ -129,6 +144,61 @@ namespace EmployeeManagementSystem.Services
             int yearValue = year;
 
 
+            // =====================================================
+            // PAYSLIP MONTH VALIDATION
+            // =====================================================
+
+            // Employee joining month
+            var joiningDate = employee.JoiningDate.Date;
+
+            var joiningMonthStart = new DateTime(
+                joiningDate.Year,
+                joiningDate.Month,
+                1);
+
+            // Selected payslip month
+            var selectedMonthStart = new DateTime(
+                yearValue,
+                monthNumber,
+                1);
+
+            if (selectedMonthStart < joiningMonthStart)
+            {
+                throw new Exception(
+                    $"Payslip cannot be generated for {month} {yearValue}. " +
+                    $"Employee joined on {joiningDate:dd/MM/yyyy}.");
+            }
+
+            // Current month
+            var currentDate = GetIndianTime();
+
+            var currentMonthStart = new DateTime(
+                currentDate.Year,
+                currentDate.Month,
+                1);
+
+            // -----------------------------------------------------
+            // 1. BLOCK BEFORE JOINING MONTH
+            // -----------------------------------------------------
+            if (selectedMonthStart < joiningMonthStart)
+            {
+                throw new Exception(
+                    $"Payslip cannot be generated for {month} {yearValue}. " +
+                    $"Employee joined on {joiningDate:dd/MM/yyyy}.");
+            }
+
+            // -----------------------------------------------------
+            // 2. BLOCK CURRENT MONTH
+            // -----------------------------------------------------
+            if (selectedMonthStart >= currentMonthStart)
+            {
+                throw new Exception(
+                    $"Payslip cannot be generated for the current month " +
+                    $"{month} {yearValue}. Payslips can only be generated " +
+                    $"for completed months.");
+            }
+
+
 
             //--------------------------------
             // CHECK DUPLICATE PAYSLIP
@@ -154,16 +224,29 @@ namespace EmployeeManagementSystem.Services
             // SALARY STRUCTURE
             //--------------------------------
 
+            var monthStart = new DateTime(
+    yearValue,
+    monthNumber,
+    1);
 
+            var monthEnd = monthStart
+                .AddMonths(1)
+                .AddDays(-1);
+
+            var calculationFromDate =
+                joiningDate > monthStart
+                    ? joiningDate
+                    : monthStart;
 
             //--------------------------------
             // ATTENDANCE
             //--------------------------------
-            var summary = await _attendanceService
-                .GetMonthlyAttendanceSummary(
-                    employee.Employee_Id,
-                    monthNumber,
-                    yearValue);
+            var summary =
+       await _attendanceService.GetMonthlyAttendanceSummary(
+           employee.Employee_Id,
+           monthNumber,
+           yearValue,
+           calculationFromDate);
 
             int absentDays = summary.AbsentDays;
 
@@ -1229,18 +1312,102 @@ namespace EmployeeManagementSystem.Services
               StringComparer.OrdinalIgnoreCase);
 
                 // ========================================================
-                // 11. CHECK EMPLOYEES NOT FOUND
+                // VALIDATE JOINING DATE + CURRENT MONTH
                 // ========================================================
+
+                var currentDate = GetIndianTime();
+
+                var currentMonthStart = new DateTime(
+                    currentDate.Year,
+                    currentDate.Month,
+                    1);
+
+                var selectedMonthNumber = DateTime.ParseExact(
+                    month,
+                    "MMMM",
+                    CultureInfo.InvariantCulture).Month;
+
+                var selectedMonthStart = new DateTime(
+                    year,
+                    selectedMonthNumber,
+                    1);
+
+                var validEmployeesToGenerate = new List<string>();
 
                 foreach (var employeeId in employeesToGenerate)
                 {
-                    if (!employeeDictionary.ContainsKey(employeeId))
+                    if (!employeeDictionary.TryGetValue(
+                            employeeId,
+                            out var employee))
                     {
                         result.FailedEmployees.Add(
                             $"{employeeId} => Employee not found");
+
+                        continue;
                     }
+
+                    if (!string.Equals(
+
+employee.Status,
+
+"Active",
+
+StringComparison.OrdinalIgnoreCase))
+
+                    {
+
+                        result.SkippedEmployees.Add(
+
+                            $"{employeeId} => Employee is inactive");
+
+                        continue;
+                    }
+
+                        var joiningDate = employee.JoiningDate.Date;
+
+                    var joiningMonthStart = new DateTime(
+                        joiningDate.Year,
+                        joiningDate.Month,
+                        1);
+
+                    // ==========================================
+                    // BEFORE JOINING MONTH
+                    // ==========================================
+
+                    if (selectedMonthStart < joiningMonthStart)
+                    {
+                        result.SkippedEmployees.Add(
+                            $"{employeeId} => Payslip cannot be generated for " +
+                            $"{month} {year}. Employee joined on " +
+                            $"{joiningDate:dd/MM/yyyy}.");
+
+                        continue;
+                    }
+
+                    // ==========================================
+                    // CURRENT / FUTURE MONTH
+                    // ==========================================
+
+                    if (selectedMonthStart >= currentMonthStart)
+                    {
+                        result.SkippedEmployees.Add(
+                            $"{employeeId} => Payslip cannot be generated for " +
+                            $"{month} {year}. Current/future month.");
+
+                        continue;
+                    }
+
+                    // ==========================================
+                    // VALID
+                    // ==========================================
+
+                    validEmployeesToGenerate.Add(employeeId);
                 }
 
+                employeesToGenerate = validEmployeesToGenerate;
+
+                result.SkippedCount =
+                    result.SkippedEmployees.Count;
                 // ========================================================
                 // 12. THREAD-SAFE COLLECTIONS
                 // ========================================================

@@ -24,7 +24,16 @@ import { API_ENDPOINTS } from "../../api/endpoints";
 import { SERVER_URL } from "../../api/config";
 import CompactSearchableDropdown from "../../components/CompactSearchableDropdown";
 import DocumentPreviewModal from "./DocumentPreviewModal";
-import { getStoredEmployeeId } from "../../utils/authStorage";
+import {
+  getStoredEmployeeId,
+  getStoredToken
+} from "../../utils/authStorage";
+
+import {
+  downloadBinaryFile,
+  getDownloadErrorMessage,
+  extractDownloadFileName
+} from "../../utils/downloadUtils";
 import {
   extractDocumentRecords,
   areDocumentRecordsEquivalent,
@@ -48,10 +57,7 @@ import {
   viewAgreement,
   viewSignedAgreement } from
 "../../services/agreementService";
-import {
-  extractDownloadFileName,
-  getDownloadErrorMessage } from
-"../../utils/downloadUtils";
+
 import {
   resolveDocumentMimeType,
   isSafeWebUrl } from
@@ -1557,29 +1563,13 @@ const Documents = forwardRef(function Documents({
     setPreviewDocument(doc);
   };
 
-  const handleDownload = (doc) => {
+  const handleDownload = async (doc) => {
     if (!doc) {
       return;
     }
 
     if (doc.blob instanceof Blob) {
       downloadBlob(doc.blob, doc.fileName);
-      return;
-    }
-
-    const safeDocumentUrl = isSafeWebUrl(doc.fileUrl) ?
-    doc.fileUrl :
-    isSafeWebUrl(doc.downloadUrl) ?
-    doc.downloadUrl :
-    "";
-
-    if (safeDocumentUrl) {
-      const anchor = window.document.createElement("a");
-      anchor.href = safeDocumentUrl;
-      anchor.download = doc.fileName || "document";
-      window.document.body.appendChild(anchor);
-      anchor.click();
-      window.document.body.removeChild(anchor);
       return;
     }
 
@@ -1590,13 +1580,33 @@ const Documents = forwardRef(function Documents({
       return;
     }
 
-    const anchor = window.document.createElement("a");
-    anchor.href = isOnboardingMode ?
-    `${SERVER_URL}/api${documentEndpoints.download(serverId)}` :
-    `${SERVER_URL}/api/EmployeeDocuments/download/${serverId}`;
-    window.document.body.appendChild(anchor);
-    anchor.click();
-    window.document.body.removeChild(anchor);
+    const token = getStoredToken();
+
+    if (!token) {
+      toastError("Session expired. Please login again.");
+      return;
+    }
+
+    try {
+      await downloadBinaryFile({
+        endpoint: isOnboardingMode
+          ? documentEndpoints.download(serverId)
+          : `/EmployeeDocuments/download/${serverId}`,
+        token,
+        fallbackFileName: doc.fileName || `Document_${serverId}`,
+        accept:
+          "application/pdf, image/jpeg, image/png, image/jpg, application/octet-stream;q=0.9, */*;q=0.1"
+      });
+
+      toastSuccess("Document downloaded successfully.");
+    } catch (error) {
+      const message = getDownloadErrorMessage(
+        error,
+        "Failed to download document."
+      );
+
+      toastError(message);
+    }
   };
 
   useImperativeHandle(ref, () => ({
@@ -1923,24 +1933,39 @@ const Documents = forwardRef(function Documents({
   "Save & Next";
 
   return (
-    <div className="documents-wrapper">
-            <div className="documents-page-header">
-                <div>
+    <div className="documents-wrapper">
+
+            <div className="documents-page-header">
+
+                <div>
+
                                 <h5>{entityLabel}</h5>
-                    <p>Upload employee files, keep them searchable, and continue without losing progress.</p>
-                </div>
-
-                <div className="documents-header-count">
+                    <p>Upload employee files, keep them searchable, and continue without losing progress.</p>
+
+                </div>
+
+
+
+                <div className="documents-header-count">
+
                     {isAgreementCategory ?
           `Agreements (${normalizedAgreementList.length})` :
-          `Uploaded Documents (${documentCount})`}
-                </div>
-            </div>
-
-            <div className="documents-card premium-upload-card">
-                <div className="premium-upload-grid">
-                    <div className="premium-input-group">
-                        <label>Category</label>
+          `Uploaded Documents (${documentCount})`}
+
+                </div>
+
+            </div>
+
+
+
+            <div className="documents-card premium-upload-card">
+
+                <div className="premium-upload-grid">
+
+                    <div className="premium-input-group">
+
+                        <label>Category</label>
+
                         <select
               className="premium-input"
               value={agreementCategory}
@@ -1949,83 +1974,138 @@ const Documents = forwardRef(function Documents({
                 setApiError("");
                 setLoadError("");
               }}>
-              
+
+
                             <option value="documents">{entityLabel}</option>
                             <option value="agreements">Employee Agreements</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
+                        </select>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
             {successMsg &&
-      <div className="success-message documents-inline-message">
-                    {successMsg}
+      <div className="success-message documents-inline-message">
+
+                    {successMsg}
+
                 </div>
-      }
-
+      }
+
+
+
             {apiError &&
-      <div className="error-message documents-inline-message">
-                    {apiError}
+      <div className="error-message documents-inline-message">
+
+                    {apiError}
+
                 </div>
-      }
-
+      }
+
+
+
             {loadError && (isAgreementCategory || documentCount > 0) &&
-      <div className="documents-retry-banner">
-                    <div className="documents-retry-copy">
-                        <strong>Document refresh issue</strong>
-                        <span>{loadError}</span>
-                    </div>
-
+      <div className="documents-retry-banner">
+
+                    <div className="documents-retry-copy">
+
+                        <strong>Document refresh issue</strong>
+
+                        <span>{loadError}</span>
+
+                    </div>
+
+
+
                     <button
           type="button"
           className="documents-retry-btn"
           onClick={handleRetry}>
-          
-                        <FaRedo aria-hidden="true" />
-                        Retry
-                    </button>
+
+
+                        <FaRedo aria-hidden="true" />
+
+                        Retry
+
+                    </button>
+
                 </div>
-      }
-
+      }
+
+
+
             {agreementCategory === "documents" &&
-      <>
-                    <div className="documents-card documents-progress-card">
-                        <div className="documents-progress-header">
-                            <div>
-                                <h4>Document Progress Tracker</h4>
-                                <p>
-                                    Auto-updated completion summary based on the visible,
-                                    deduplicated employee files.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="documents-progress-grid">
+      <>
+
+                    <div className="documents-card documents-progress-card">
+
+                        <div className="documents-progress-header">
+
+                            <div>
+
+                                <h4>Document Progress Tracker</h4>
+
+                                <p>
+
+                                    Auto-updated completion summary based on the visible,
+
+                                    deduplicated employee files.
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <div className="documents-progress-grid">
+
                             {documentProgressGroups.map((group) =>
             <div
               className="documents-progress-category"
               key={group.label}>
-              
-                                    <div className="documents-progress-category-header">
-                                        <div>
-                                            <h5>{group.label}</h5>
-                                            <p>
-                                                {group.uploadedCount} of {group.totalCount} uploaded
-                                            </p>
-                                        </div>
-
-                                    </div>
-
-                                    <div className="documents-progress-category-bar">
+
+
+                                    <div className="documents-progress-category-header">
+
+                                        <div>
+
+                                            <h5>{group.label}</h5>
+
+                                            <p>
+
+                                                {group.uploadedCount} of {group.totalCount} uploaded
+
+                                            </p>
+
+                                        </div>
+
+
+
+                                    </div>
+
+
+
+                                    <div className="documents-progress-category-bar">
+
                                         <div
                   className="documents-progress-category-fill"
                   style={{
                     width: `${group.completionPercent}%`
                   }} />
-                
-                                    </div>
-
-                                    <div className="documents-progress-type-list">
+
+
+                                    </div>
+
+
+
+                                    <div className="documents-progress-type-list">
+
                                         {group.options.map((option) =>
                 <div
                   key={option.key}
@@ -2033,36 +2113,61 @@ const Documents = forwardRef(function Documents({
                   "is-uploaded" :
                   "is-pending"}`
                   }>
-                  
-                                                <span>{option.label}</span>
-                                                <small>
+
+
+                                                <span>{option.label}</span>
+
+                                                <small>
+
                                                     {option.isUploaded ?
                     "Uploaded" :
-                    "Pending"}
-                                                </small>
+                    "Pending"}
+
+                                                </small>
+
                                             </div>
-                )}
-                                    </div>
+                )}
+
+                                    </div>
+
                                 </div>
-            )}
-                        </div>
-                    </div>
-
+            )}
+
+                        </div>
+
+                    </div>
+
+
+
                     {!viewMode &&
-        <div className="documents-card premium-upload-card">
-                            <div className="premium-upload-top">
-                                <div>
-                                    <h4 className="upload-title">Upload Employee Documents</h4>
-                                    <p className="upload-subtitle">
-                                        Upload Aadhaar, PAN, certificates, resumes, passports, and more.
-                                    </p>
-                                </div>
-
-                                {/* <div className="upload-badge">
-              Uploaded Documents ({documentCount})
-              </div> */}
-                            </div>
-
+        <div className="documents-card premium-upload-card">
+
+                            <div className="premium-upload-top">
+
+                                <div>
+
+                                    <h4 className="upload-title">Upload Employee Documents</h4>
+
+                                    <p className="upload-subtitle">
+
+                                        Upload Aadhaar, PAN, certificates, resumes, passports, and more.
+
+                                    </p>
+
+                                </div>
+
+
+
+                                {/* <div className="upload-badge">
+
+              Uploaded Documents ({documentCount})
+
+              </div> */}
+
+                            </div>
+
+
+
                             <div className="premium-upload-grid premium-upload-grid--documents">
                                 <div className="premium-input-group">
                                     <CompactSearchableDropdown
@@ -2080,9 +2185,12 @@ const Documents = forwardRef(function Documents({
                 disabled={uploading}
                 error={selectedDocumentTypeError}
                 menuMaxHeight={180} />
-              
-                                </div>
-
+
+
+                                </div>
+
+
+
                                 <div className="premium-input-group premium-input-group--file">
                                     <label>Choose File</label>
                                     <input
@@ -2092,7 +2200,7 @@ const Documents = forwardRef(function Documents({
                 onChange={handleFileChange}
                 disabled={uploading}
                 aria-invalid={Boolean(fileValidationError)} />
-              
+
                                     <div className="premium-field-hint">
                                         Maximum file size: {formatFileSize(MAX_DOCUMENT_FILE_SIZE_BYTES)}
                                     </div>
@@ -2102,36 +2210,60 @@ const Documents = forwardRef(function Documents({
                                         </div>
               }
                                 </div>
-                            </div>
-
+                            </div>
+
+
+
                             {selectedFile &&
-          <div className="selected-file-preview">
-                                    <div className="selected-file-left">
-                                        <span className="document-icon">
-                                            <FaFileAlt aria-hidden="true" />
-
+          <div className="selected-file-preview">
+
+                                    <div className="selected-file-left">
+
+                                        <span className="document-icon">
+
+                                            <FaFileAlt aria-hidden="true" />
+
+
+
                                             <span
                   className="document-remove-icon"
                   onClick={clearSelectedFile}>
-                  
-                                                ×
-                                            </span>
-                                        </span>
-
-                                        <div className="selected-file-body">
-                                            <div className="selected-file-title">{selectedFile.name}</div>
-
-                                            <div className="selected-file-meta">
-                                                <span>{selectedDocumentType || "Document type not selected"}</span>
-                                                <span>{getFileExtension(selectedFile.name) || selectedFile.type || "File"}</span>
-                                                <span>{formatDocumentSize(selectedFile.size)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
+
+                                                ×
+
+                                            </span>
+
+                                        </span>
+
+
+
+                                        <div className="selected-file-body">
+
+                                            <div className="selected-file-title">{selectedFile.name}</div>
+
+
+
+                                            <div className="selected-file-meta">
+
+                                                <span>{selectedDocumentType || "Document type not selected"}</span>
+
+                                                <span>{getFileExtension(selectedFile.name) || selectedFile.type || "File"}</span>
+
+                                                <span>{formatDocumentSize(selectedFile.size)}</span>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
                                 </div>
-          }
-
-                            <div className="premium-upload-actions">
+          }
+
+
+
+                            <div className="premium-upload-actions">
+
                                 <button
               type="button"
               className="premium-upload-btn"
@@ -2142,83 +2274,138 @@ const Documents = forwardRef(function Documents({
               !selectedDocumentType ||
               selectedDocumentTypeIsUploaded
               }>
-              
+
+
                                     {uploading ?
-              <>
-                                            <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-                                            Uploading...
+              <>
+
+                                            <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+
+                                            Uploading...
+
                                         </> :
 
-              <>
-                                            <FaCloudUploadAlt aria-hidden="true" />
-                                            Upload Document
+              <>
+
+                                            <FaCloudUploadAlt aria-hidden="true" />
+
+                                            Upload Document
+
                                         </>
-              }
-                                </button>
-                            </div>
+              }
+
+                                </button>
+
+                            </div>
+
                         </div>
-        }
-
-                    <div className="documents-card documents-summary-card">
-                        <div className="documents-summary-header">
-                            <h4>Uploaded Documents ({documentCount})</h4>
-                            <div className="documents-summary-pill">
-                                {documentCount} {documentCount === 1 ? "file" : "files"} saved
-                            </div>
-                        </div>
-
+        }
+
+
+
+                    <div className="documents-card documents-summary-card">
+
+                        <div className="documents-summary-header">
+
+                            <h4>Uploaded Documents ({documentCount})</h4>
+
+                            <div className="documents-summary-pill">
+
+                                {documentCount} {documentCount === 1 ? "file" : "files"} saved
+
+                            </div>
+
+                        </div>
+
+
+
                         {loading && documentCount === 0 ?
-          <div className="documents-skeleton-list" aria-busy="true">
+          <div className="documents-skeleton-list" aria-busy="true">
+
                                 {[1, 2, 3].map((item) =>
-            <div className="documents-skeleton-row" key={item}>
-                                        <div className="documents-skeleton-icon" />
-                                        <div className="documents-skeleton-body">
-                                            <div className="documents-skeleton-line short" />
-                                            <div className="documents-skeleton-line" />
-                                        </div>
-                                        <div className="documents-skeleton-actions">
-                                            <div className="documents-skeleton-chip" />
-                                            <div className="documents-skeleton-chip" />
-                                            <div className="documents-skeleton-chip" />
-                                        </div>
+            <div className="documents-skeleton-row" key={item}>
+
+                                        <div className="documents-skeleton-icon" />
+
+                                        <div className="documents-skeleton-body">
+
+                                            <div className="documents-skeleton-line short" />
+
+                                            <div className="documents-skeleton-line" />
+
+                                        </div>
+
+                                        <div className="documents-skeleton-actions">
+
+                                            <div className="documents-skeleton-chip" />
+
+                                            <div className="documents-skeleton-chip" />
+
+                                            <div className="documents-skeleton-chip" />
+
+                                        </div>
+
                                     </div>
-            )}
+            )}
+
                             </div> :
           loadError && documentCount === 0 ?
-          <div className="documents-error-state">
-                                <div className="documents-empty-icon error">
-                                    <FaRedo aria-hidden="true" />
-                                </div>
-
-                                <h5>{loadError}</h5>
-                                <p>We could not refresh documents from the server. Try again or continue with the cached copy if available.</p>
-
+          <div className="documents-error-state">
+
+                                <div className="documents-empty-icon error">
+
+                                    <FaRedo aria-hidden="true" />
+
+                                </div>
+
+
+
+                                <h5>{loadError}</h5>
+
+                                <p>We could not refresh documents from the server. Try again or continue with the cached copy if available.</p>
+
+
+
                                 <button
               type="button"
               className="documents-retry-btn"
               onClick={handleRetry}>
-              
-                                    <FaRedo aria-hidden="true" />
-                                    Retry
-                                </button>
+
+
+                                    <FaRedo aria-hidden="true" />
+
+                                    Retry
+
+                                </button>
+
                             </div> :
           documentCount === 0 ?
-          <div className="documents-empty-state">
-                                <div className="documents-empty-icon">
-                                    <FaFolderOpen aria-hidden="true" />
-                                </div>
-
-                                <h5>No documents uploaded yet</h5>
-                                <p>Upload documents to continue</p>
+          <div className="documents-empty-state">
+
+                                <div className="documents-empty-icon">
+
+                                    <FaFolderOpen aria-hidden="true" />
+
+                                </div>
+
+
+
+                                <h5>No documents uploaded yet</h5>
+
+                                <p>Upload documents to continue</p>
+
                             </div> :
 
-          <div className="uploaded-documents-list">
+          <div className="uploaded-documents-list">
+
                                 {visibleDocuments.map((document, index) =>
             <div
               key={document.cacheKey || getDocumentServerId(document) || index}
               className="uploaded-document-item">
-              
-                                        <div className="uploaded-document-left">
+
+
+                                        <div className="uploaded-document-left">
+
                                             <span
                   className="document-icon"
                   style={{
@@ -2226,16 +2413,21 @@ const Documents = forwardRef(function Documents({
                     alignItems: "center",
                     justifyContent: "center"
                   }}>
-                  
+
+
                                                 <FaFileAlt
                     aria-hidden="true"
                     style={{
                       display: "block"
                     }} />
-                  
-                                            </span>
-
-                                            <div className="uploaded-document-body">
+
+
+                                            </span>
+
+
+
+                                            <div className="uploaded-document-body">
+
                                                 <div className="document-title">
                                                     {document.fileName || "Uploaded file"}
                                                 </div>
@@ -2253,38 +2445,55 @@ const Documents = forwardRef(function Documents({
                                                     </span>
                                                     {(document.fileSize || document.size) > 0 &&
                     <span className="document-meta-chip">
-                                                            {formatDocumentSize(document.fileSize || document.size)}
+                                                            {formatDocumentSize(document.fileSize || document.size)}
+
                                                         </span>
-                    }
-
+                    }
+
+
+
                                                     {document.uploadedAt &&
                     <span className="document-meta-chip">
                                                             Uploaded: {formatDateTime(document.uploadedAt)}
                                                         </span>
                     }
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="uploaded-document-actions">
+                                            </div>
+
+                                        </div>
+
+
+
+                                        <div className="uploaded-document-actions">
+
                                             <button
                   type="button"
                   className="document-action-btn view-btn"
                   onClick={() => handleView(document)}>
-                  
-                                                <FaEye aria-hidden="true" />
-                                                View
-                                            </button>
-
+
+
+                                                <FaEye aria-hidden="true" />
+
+                                                View
+
+                                            </button>
+
+
+
                                             <button
                   type="button"
                   className="document-action-btn download-btn"
                   onClick={() => handleDownload(document)}>
-                  
-                                                <FaDownload aria-hidden="true" />
-                                                Download
-                                            </button>
-
+
+
+                                                <FaDownload aria-hidden="true" />
+
+                                                Download
+
+                                            </button>
+
+
+
                                             <button
                   type="button"
                   className="document-action-btn delete-btn"
@@ -2292,83 +2501,142 @@ const Documents = forwardRef(function Documents({
                     setSelectedDeleteDocument(document);
                     setShowDeleteModal(true);
                   }}>
-                  
-                                                <FaTrash aria-hidden="true" />
-                                                Delete
-                                            </button>
-                                        </div>
+
+
+                                                <FaTrash aria-hidden="true" />
+
+                                                Delete
+
+                                            </button>
+
+                                        </div>
+
                                     </div>
-            )}
+            )}
+
                             </div>
-          }
-                    </div>
+          }
+
+                    </div>
+
                 </>
-      }
-
+      }
+
+
+
             {isAgreementCategory &&
-      <>
-                    <div className="documents-card documents-summary-card">
-                        <div className="documents-summary-header">
-                            <div>
-                                <h4>Employee Agreements</h4>
-                                <p>Review and Sign Company Agreements assigned to you.</p>
-                            </div>
-                            <div className="uploaded-document-actions">
-                                <div className="documents-summary-pill">
-                                    Pending Agreements: {pendingAgreementCount}
-                                </div>
-                                <div className="documents-summary-pill">
-                                    Signed Agreements: {signedAgreementCount}
-                                </div>
-                            </div>
-                        </div>
-
+      <>
+
+                    <div className="documents-card documents-summary-card">
+
+                        <div className="documents-summary-header">
+
+                            <div>
+
+                                <h4>Employee Agreements</h4>
+
+                                <p>Review and Sign Company Agreements assigned to you.</p>
+
+                            </div>
+
+                            <div className="uploaded-document-actions">
+
+                                <div className="documents-summary-pill">
+
+                                    Pending Agreements: {pendingAgreementCount}
+
+                                </div>
+
+                                <div className="documents-summary-pill">
+
+                                    Signed Agreements: {signedAgreementCount}
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+
                         {agreementLoading ?
-          <div className="documents-skeleton-list" aria-busy="true">
+          <div className="documents-skeleton-list" aria-busy="true">
+
                                 {[1, 2, 3].map((item) =>
-            <div className="documents-skeleton-row" key={item}>
-                                        <div className="documents-skeleton-icon" />
-                                        <div className="documents-skeleton-body">
-                                            <div className="documents-skeleton-line short" />
-                                            <div className="documents-skeleton-line" />
-                                        </div>
-                                        <div className="documents-skeleton-actions">
-                                            <div className="documents-skeleton-chip" />
-                                            <div className="documents-skeleton-chip" />
-                                            <div className="documents-skeleton-chip" />
-                                        </div>
+            <div className="documents-skeleton-row" key={item}>
+
+                                        <div className="documents-skeleton-icon" />
+
+                                        <div className="documents-skeleton-body">
+
+                                            <div className="documents-skeleton-line short" />
+
+                                            <div className="documents-skeleton-line" />
+
+                                        </div>
+
+                                        <div className="documents-skeleton-actions">
+
+                                            <div className="documents-skeleton-chip" />
+
+                                            <div className="documents-skeleton-chip" />
+
+                                            <div className="documents-skeleton-chip" />
+
+                                        </div>
+
                                     </div>
-            )}
+            )}
+
                             </div> :
           loadError && normalizedAgreementList.length === 0 ?
-          <div className="documents-error-state">
-                                <div className="documents-empty-icon error">
-                                    <FaRedo aria-hidden="true" />
-                                </div>
-                                <h5>{loadError}</h5>
-                                <p>We could not refresh agreements from the server.</p>
+          <div className="documents-error-state">
+
+                                <div className="documents-empty-icon error">
+
+                                    <FaRedo aria-hidden="true" />
+
+                                </div>
+
+                                <h5>{loadError}</h5>
+
+                                <p>We could not refresh agreements from the server.</p>
+
                                 <button
               type="button"
               className="documents-retry-btn"
               onClick={handleRetry}>
-              
-                                    <FaRedo aria-hidden="true" />
-                                    Retry
-                                </button>
+
+
+                                    <FaRedo aria-hidden="true" />
+
+                                    Retry
+
+                                </button>
+
                             </div> :
           normalizedAgreementList.length === 0 ?
-          <div className="documents-empty-state">
-                                <div className="documents-empty-icon">
-                                    <FaFolderOpen aria-hidden="true" />
-                                </div>
-                                <h5>No agreements found</h5>
-                                <p>Assigned agreements will appear here.</p>
+          <div className="documents-empty-state">
+
+                                <div className="documents-empty-icon">
+
+                                    <FaFolderOpen aria-hidden="true" />
+
+                                </div>
+
+                                <h5>No agreements found</h5>
+
+                                <p>Assigned agreements will appear here.</p>
+
                             </div> :
 
-          <div>
-                                <div className="premium-upload-grid" style={{ textAlign: "left" }}>
+          <div>
+
+                                <div className="premium-upload-grid" style={{ textAlign: "left" }}>
+
                                     <div className="premium-input-group premium-input-group--file">
-                                        <label>Agreement Type</label>
+                                        <label>Agreement Type</label>
+
                                         <select
                   className="premium-input"
                   value={selectedAgreementDetails?.agreementId || ""}
@@ -2392,61 +2660,94 @@ const Documents = forwardRef(function Documents({
                     setApiError("");
                   }}
                   disabled={agreementLoading || signingAgreement}>
-                  
-                                            <option value="">Select Agreement</option>
-
+
+
+                                            <option value="">Select Agreement</option>
+
+
+
                                             {normalizedAgreementList.map((agreement) =>
                   <option
                     key={agreement.agreementId}
                     value={agreement.agreementId}>
-                    
-                                                    {agreement.agreementName}
+
+
+                                                    {agreement.agreementName}
+
                                                 </option>
-                  )}
-                                        </select>
-                                    </div>
-
-                                    <div className="premium-input-group">
-                                        <label>Agreement Name</label>
+                  )}
+
+                                        </select>
+
+                                    </div>
+
+
+
+                                    <div className="premium-input-group">
+
+                                        <label>Agreement Name</label>
+
                                         <input
                   className="premium-input"
                   value={selectedAgreementDetails?.agreementName || ""}
                   readOnly />
-                
-                                    </div>
-
-                                    <div className="premium-input-group">
+
+
+                                    </div>
+
+
+
+                                    <div className="premium-input-group">
+
                                         <label>{entityIdLabel}</label>
                                         <input
                   className="premium-input"
                   value={employeeKey || storedEmployeeId || ""}
                   readOnly />
-                
-                                    </div>
-
-                                    <div className="premium-input-group">
-                                        <label>Agreement Code</label>
+
+
+                                    </div>
+
+
+
+                                    <div className="premium-input-group">
+
+                                        <label>Agreement Code</label>
+
                                         <input
                   className="premium-input"
                   value={selectedAgreementDetails?.agreementCode || ""}
                   readOnly />
-                
-                                    </div>
-
-                                    <div className="premium-input-group">
-                                        <label>Status</label>
+
+
+                                    </div>
+
+
+
+                                    <div className="premium-input-group">
+
+                                        <label>Status</label>
+
                                         <input
                   className="premium-input"
                   value={selectedAgreementStatus}
                   readOnly />
-                
-                                    </div>
-
-                                    <div className="premium-input-group">
-                                        <label>
-                                            Signature Name <span className="required">*</span>
-                                        </label>
-
+
+
+                                    </div>
+
+
+
+                                    <div className="premium-input-group">
+
+                                        <label>
+
+                                            Signature Name <span className="required">*</span>
+
+                                        </label>
+
+
+
                                         <input
                   className="premium-input"
                   value={signatureName}
@@ -2459,14 +2760,22 @@ const Documents = forwardRef(function Documents({
                   isAgreementSigned
                   }
                   placeholder="Signature Name" />
-                
-                                    </div>
-
-                                    <div className="premium-input-group">
-                                        <label>
-                                            Signed Location <span className="required">*</span>
-                                        </label>
-
+
+
+                                    </div>
+
+
+
+                                    <div className="premium-input-group">
+
+                                        <label>
+
+                                            Signed Location <span className="required">*</span>
+
+                                        </label>
+
+
+
                                         <input
                   className="premium-input"
                   value={signedLocation}
@@ -2479,14 +2788,18 @@ const Documents = forwardRef(function Documents({
                   isAgreementSigned
                   }
                   placeholder="Signed Location" />
-                
-                                    </div>
-
+
+
+                                    </div>
+
+
+
                                     <div className="premium-input-group premium-input-group--file">
                                         <label>
                                             Upload Signature Image <span className="required">*</span>
                                         </label>
-
+
+
                                         <input
                   ref={signatureImageInputRef}
                   type="file"
@@ -2500,102 +2813,151 @@ const Documents = forwardRef(function Documents({
                   signingAgreement ||
                   isAgreementSigned
                   } />
-                
-                                    </div>
-                                </div>
-
+
+
+                                    </div>
+
+                                </div>
+
+
+
                                 {isAgreementSigned &&
             <div className="documents-inline-message success-message">
-                                        Signed Badge
+                                        Signed Badge
+
                                     </div>
-            }
-
+            }
+
+
+
                                 {signatureImage &&
-            <p>
-                                        {signatureImage.name} ({formatDocumentSize(signatureImage.size)})
+            <p>
+
+                                        {signatureImage.name} ({formatDocumentSize(signatureImage.size)})
+
                                     </p>
-            }
-
-                                <div className="uploaded-document-actions">
+            }
+
+
+
+                                <div className="uploaded-document-actions">
+
                                     <button
                 type="button"
                 className="document-action-btn view-btn"
                 disabled={!canViewAgreement}
                 onClick={() => handleViewAgreement(selectedAgreementDetails)}>
-                
+
+
                                         {agreementActionLoading === `view-${selectedAgreementDetails?.agreementId}` ?
                 <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
 
                 <FaEye aria-hidden="true" />
-                }
-                                        View Agreement
-                                    </button>
-
+                }
+
+                                        View Agreement
+
+                                    </button>
+
+
+
                                     <button
                 type="button"
                 className="document-action-btn view-btn"
                 disabled={!canViewSigned}
                 onClick={() => handleViewSignedAgreement(selectedAgreementDetails)}>
-                
+
+
                                         {agreementActionLoading === `signed-${selectedAgreementDetails?.agreementId}` ?
                 <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
 
                 <FaEye aria-hidden="true" />
-                }
-                                        View Signed
-                                    </button>
-
+                }
+
+                                        View Signed
+
+                                    </button>
+
+
+
                                     <button
                 type="button"
                 className="document-action-btn download-btn"
                 disabled={!canDownloadSigned}
                 onClick={() => handleDownloadSignedAgreement(selectedAgreementDetails)}>
-                
+
+
                                         {agreementDownloadLoading === selectedAgreementDetails?.agreementId ?
                 <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
 
                 <FaDownload aria-hidden="true" />
-                }
-                                        Download Signed
-                                    </button>
-
+                }
+
+                                        Download Signed
+
+                                    </button>
+
+
+
                                     <button
                 type="button"
                 className="document-action-btn download-btn"
                 disabled={!canSubmitAgreement || signingAgreement}
                 onClick={handleSubmitSignature}>
 
-                
+
+
                                         {signingAgreement ?
-                <>
-                                                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-                                                Submitting...
+                <>
+
+                                                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+
+                                                Submitting...
+
                                             </> :
 
-                <>
-                                                <FaFileAlt aria-hidden="true" />
-                                                Submit Agreement
+                <>
+
+                                                <FaFileAlt aria-hidden="true" />
+
+                                                Submit Agreement
+
                                             </>
-                }
-                                    </button>
-                                </div>
+                }
+
+                                    </button>
+
+                                </div>
+
                             </div>
-          }
-                    </div>
+          }
+
+                    </div>
+
                 </>
 
-      }
-
+      }
+
+
+
             {
       showDeleteModal && selectedDeleteDocument &&
-      <div className="delete-modal-overlay">
-                        <div className="delete-modal">
-                            <h3>Confirm Delete</h3>
-                            <p>
-                                Are you sure you want to delete this document?
-                            </p>
-
-                            <div className="delete-modal-actions">
+      <div className="delete-modal-overlay">
+
+                        <div className="delete-modal">
+
+                            <h3>Confirm Delete</h3>
+
+                            <p>
+
+                                Are you sure you want to delete this document?
+
+                            </p>
+
+
+
+                            <div className="delete-modal-actions">
+
                                 <button
               type="button"
               className="delete-cancel-btn"
@@ -2604,49 +2966,72 @@ const Documents = forwardRef(function Documents({
                 setSelectedDeleteDocument(null);
               }}
               disabled={Boolean(deletingId)}>
-              
-                                    Cancel
-                                </button>
-
+
+
+                                    Cancel
+
+                                </button>
+
+
+
                                 <button
               type="button"
               className="delete-confirm-btn"
               onClick={() => handleDelete(selectedDeleteDocument)}
               disabled={Boolean(deletingId)}>
-              
+
+
                                     {deletingId ?
-              <>
-                                            <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-                                            Deleting...
+              <>
+
+                                            <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+
+                                            Deleting...
+
                                         </> :
 
               "Yes, Delete"
-              }
-                                </button>
-                            </div>
-                        </div>
+              }
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
                     </div>
 
-      }
-
+      }
+
+
+
             <DocumentPreviewModal
         open={Boolean(previewDocument)}
         document={previewDocument}
         onClose={() => setPreviewDocument(null)} />
-      
-
-            <div className="documents-footer">
+
+
+
+
+            <div className="documents-footer">
+
                 <div className="progress-info">
                     {isAgreementCategory ?
           `${isOnboardingMode ? "Employee Agreements" : "Employee Agreements"} (${normalizedAgreementList.length})` :
           `Uploaded Documents (${documentCount})`}
                 </div>
-
-                <div className="footer-actions">
-                    <button type="button" className="secondary-btn" onClick={onBack}>
-                        Back
-                    </button>
-
+
+
+                <div className="footer-actions">
+
+                    <button type="button" className="secondary-btn" onClick={onBack}>
+
+                        Back
+
+                    </button>
+
+
+
                     <button
             type="button"
             className="submit-document-btn"
@@ -2659,18 +3044,26 @@ const Documents = forwardRef(function Documents({
             signingAgreement ||
             savingNext
             }>
-            
+
+
                         {savingNext ?
-            <>
-                                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-                                {primaryActionLabel}
+            <>
+
+                                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+
+                                {primaryActionLabel}
+
                             </> :
 
             primaryActionLabel
-            }
-                    </button>
-                </div>
-            </div>
+            }
+
+                    </button>
+
+                </div>
+
+            </div>
+
         </div>);
 
 });

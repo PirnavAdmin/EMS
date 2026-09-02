@@ -35,4 +35,4 @@ export const changePasswordByRole = (role = "admin", payload, config = {}) =>
   api.post(API_ENDPOINTS.auth.changePasswordByRole(role), payload, config);
 
 export const changeUserPassword = (payload, config = {}) =>
-  api.post(API_ENDPOINTS.USER.CHANGE_PASSWORD, payload, config);
+  api.post(API_ENDPOINTS.auth.employeeChangePassword, payload, config);

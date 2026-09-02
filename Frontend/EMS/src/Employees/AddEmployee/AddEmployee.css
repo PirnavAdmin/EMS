@@ -1917,7 +1917,7 @@
 
 .add-employee .stepper {
   display: grid;
-  grid-template-columns: repeat(6, minmax(132px, 1fr));
+  grid-template-columns: repeat(6, minmax(124px, 1fr));
   gap: 4px;
   padding: 4px;
   margin-bottom: 12px;
@@ -1940,9 +1940,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 6px 10px;
+  gap: 6px;
+  min-height: 40px;
+  padding: 5px 8px;
   border: 1px solid transparent;
   border-radius: 14px;
   background: transparent;
@@ -1964,16 +1964,16 @@
 
 .add-employee .step::before {
   content: attr(data-step);
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   background: var(--text-muted);
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -1981,6 +1981,13 @@
   background: var(--bg-soft);
   color: var(--text-primary);
   transform: translateY(-1px);
+}
+
+.add-employee .step:hover::before {
+  content: attr(data-step) !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
 .add-employee .step.active {
@@ -3851,14 +3858,14 @@ html[data-theme-mode="dark"] .add-employee .compact-dropdown-search input {
   }
 
   .add-employee .stepper {
-    grid-template-columns: repeat(6, minmax(132px, 1fr));
+    grid-template-columns: repeat(6, minmax(124px, 1fr));
     gap: 4px;
     padding: 4px;
   }
 
   .add-employee .step {
-    min-height: 44px;
-    padding: 6px 8px;
+    min-height: 40px;
+    padding: 5px 8px;
     font-size: 12.5px;
   }
 

@@ -739,10 +739,18 @@ namespace EmployeeManagementSystem.Services
 
             date = date.Date;
 
+            //        var employees = await _context.Employees
+            //.AsNoTracking()
+            //.OrderBy(e => e.Employee_Id)
+            //.ToListAsync();
+
             var employees = await _context.Employees
-    .AsNoTracking()
-    .OrderBy(e => e.Employee_Id)
-    .ToListAsync();
+     .AsNoTracking()
+     .Where(e => e.Status != null &&
+                 e.Status.Trim().ToLower() == "active")
+     .OrderBy(e => e.Employee_Id)
+     .ToListAsync();
+
 
             var attendanceList = await _context.Attendance
                 .AsNoTracking()
@@ -761,20 +769,30 @@ namespace EmployeeManagementSystem.Services
             {
                 var att = attendanceList
                     .FirstOrDefault(x => x.Employee_Id == emp.Employee_Id);
-                bool isOnLeave = leaves.Any(l =>
-                    l.EmployeeId == emp.Employee_Id &&
-                    date >= l.FromDate.Date &&
-                    date <= l.ToDate.Date);
+                var approvedRequest = leaves.FirstOrDefault(l =>
+     l.EmployeeId == emp.Employee_Id &&
+     date >= l.FromDate.Date &&
+     date <= l.ToDate.Date);
 
                 string finalStatus;
 
-                if (att != null)
+                if (approvedRequest != null)
+                {
+                    if (string.Equals(
+                        approvedRequest.ApprovedType,
+                        "WFH",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        finalStatus = "WFH";
+                    }
+                    else
+                    {
+                        finalStatus = "On Leave";
+                    }
+                }
+                else if (att != null)
                 {
                     finalStatus = MapStatus(att.Status);
-                }
-                else if (isOnLeave)
-                {
-                    finalStatus = "On Leave";   // or "OL" if that's what your UI expects
                 }
                 else
                 {
@@ -881,10 +899,18 @@ namespace EmployeeManagementSystem.Services
         {
             await CheckMissingCheckouts();
 
+            //var employees = await _context.Employees
+            //    .AsNoTracking()
+            //    .OrderBy(e => e.Employee_Id)
+            //    .ToListAsync();
+
             var employees = await _context.Employees
-                .AsNoTracking()
-                .OrderBy(e => e.Employee_Id)
-                .ToListAsync();
+    .AsNoTracking()
+    .Where(e => e.Status != null &&
+                e.Status.Trim().ToLower() == "active")
+    .OrderBy(e => e.Employee_Id)
+    .ToListAsync();
+
 
             var attendanceData = await _context.Attendance
                 .AsNoTracking()
@@ -1016,28 +1042,28 @@ namespace EmployeeManagementSystem.Services
                         continue;
                     }
 
-                    // Attendance
                     // =====================================================
                     // APPROVED LEAVE - CHECK BEFORE ATTENDANCE
                     // =====================================================
-                    //var leave = leaves.FirstOrDefault(l =>
-                    //    l.EmployeeId == emp.Employee_Id &&
-                    //    date.Date >= l.FromDate.Date &&
-                    //    date.Date <= l.ToDate.Date);
 
-                    //if (leave != null)
-                    //{
-                    //    days.Add(new AdminAttendanceDayDto
-                    //    {
-                    //        Day = d,
-                    //        Status = "OL",
-                    //        CheckIn = null,
-                    //        CheckOut = null,
-                    //        WorkingMinutes = 0
-                    //    });
+                    var leave = leaves.FirstOrDefault(l =>
+                        l.EmployeeId == emp.Employee_Id &&
+                        date.Date >= l.FromDate.Date &&
+                        date.Date <= l.ToDate.Date);
 
-                    //    continue;
-                    //}
+                    if (leave != null)
+                    {
+                        days.Add(new AdminAttendanceDayDto
+                        {
+                            Day = d,
+                            Status = "OL",
+                            CheckIn = null,
+                            CheckOut = null,
+                            WorkingMinutes = 0
+                        });
+
+                        continue;
+                    }
 
 
 
@@ -1911,7 +1937,12 @@ namespace EmployeeManagementSystem.Services
 
             var today = DateTime.UtcNow.Date;
 
-            var totalEmployees = await _context.Employees.CountAsync();
+            //var totalEmployees = await _context.Employees.CountAsync();
+
+            var totalEmployees = await _context.Employees
+
+.CountAsync(e => e.Status == "Active");
+
 
             var todayAttendance = await _context.Attendance
                 .Where(a => a.Attendance_Date.Date == today)
@@ -2079,7 +2110,11 @@ namespace EmployeeManagementSystem.Services
                 var lateCount = attendance.Count(a => a.Status == "Late");
 
                 // Optional: you can calculate absent based on employee count
-                var totalEmployees = await _context.Employees.CountAsync();
+                //var totalEmployees = await _context.Employees.CountAsync();
+                var totalEmployees = await _context.Employees
+
+.CountAsync(e => e.Status == "Active");
+
                 var workingDays = DateTime.DaysInMonth(year, month);
 
                 var totalExpected = totalEmployees * workingDays;
@@ -2237,11 +2272,16 @@ namespace EmployeeManagementSystem.Services
         //ATTENDANCE SUMMARY
 
         public async Task<AttendanceSummaryDto> GetMonthlyAttendanceSummary(
-          string employeeId,
-          int month,
-          int year)
+     string employeeId,
+     int month,
+     int year,
+     DateTime? calculationFromDate = null)
         {
-            var start = new DateTime(
+            // ==========================================
+            // MONTH RANGE
+            // ==========================================
+
+            var monthStart = new DateTime(
                 year,
                 month,
                 1,
@@ -2250,8 +2290,34 @@ namespace EmployeeManagementSystem.Services
                 0,
                 DateTimeKind.Utc);
 
-            var end = start.AddMonths(1);
+            var monthEnd = monthStart.AddMonths(1);
 
+            // ==========================================
+            // CALCULATION START DATE
+            // ==========================================
+
+            var start = monthStart;
+
+            if (calculationFromDate.HasValue)
+            {
+                var joiningDate =
+                    calculationFromDate.Value.Date;
+
+                if (joiningDate > monthStart.Date &&
+                    joiningDate < monthEnd.Date)
+                {
+                    start = new DateTime(
+                        joiningDate.Year,
+                        joiningDate.Month,
+                        joiningDate.Day,
+                        0,
+                        0,
+                        0,
+                        DateTimeKind.Utc);
+                }
+            }
+
+            var end = monthEnd;
 
             // ==========================================
             // ATTENDANCE
@@ -2270,28 +2336,26 @@ namespace EmployeeManagementSystem.Services
                 })
                 .ToListAsync();
 
-
             var attendanceLookup = attendances
                 .GroupBy(a => a.Attendance_Date.Date)
                 .ToDictionary(
                     g => g.Key,
                     g => g.First());
 
-
             // ==========================================
             // HOLIDAYS
             // ==========================================
 
-            var holidaySet = (
-                await _context.Holidays
-                    .AsNoTracking()
-                    .Where(h =>
-                        h.Holiday_Date >= start &&
-                        h.Holiday_Date < end)
-                    .Select(h => h.Holiday_Date.Date)
-                    .ToListAsync())
-                .ToHashSet();
-
+            var holidaySet =
+                (
+                    await _context.Holidays
+                        .AsNoTracking()
+                        .Where(h =>
+                            h.Holiday_Date >= start &&
+                            h.Holiday_Date < end)
+                        .Select(h => h.Holiday_Date.Date)
+                        .ToListAsync()
+                ).ToHashSet();
 
             // ==========================================
             // COUNTERS
@@ -2306,44 +2370,50 @@ namespace EmployeeManagementSystem.Services
             int weekendDays = 0;
             int holidayDays = 0;
 
-
             // ==========================================
-            // TOTAL DAYS
+            // CALCULATION DATE RANGE
             // ==========================================
 
-            int totalDays =
-                DateTime.DaysInMonth(year, month);
+            var calculationStartDate =
+                start.Date;
 
-            var today = DateTime.UtcNow.Date;
+            var calculationEndDate =
+                end.Date.AddDays(-1);
 
+            var today =
+                DateTime.UtcNow.Date;
 
-            // Current month → calculate only up to today
+            // Current month
+            // Calculate only up to today
             if (month == today.Month &&
-                year == today.Year)
+                year == today.Year &&
+                today < calculationEndDate)
             {
-                totalDays = today.Day;
+                calculationEndDate = today;
             }
 
+            int totalDays =
+                (calculationEndDate -
+                 calculationStartDate).Days + 1;
+
+            if (totalDays < 0)
+            {
+                totalDays = 0;
+            }
 
             // ==========================================
             // CALCULATE ATTENDANCE
             // ==========================================
 
-            for (int day = 1;
-                 day <= totalDays;
-                 day++)
+            for (
+                var date = calculationStartDate;
+                date <= calculationEndDate;
+                date = date.AddDays(1))
             {
-                var date = new DateTime(
-                    year,
-                    month,
-                    day,
-                    0,
-                    0,
-                    0,
-                    DateTimeKind.Utc);
+                // ==========================================
+                // WEEKEND
+                // ==========================================
 
-
-                // Weekend
                 if (date.DayOfWeek == DayOfWeek.Saturday ||
                     date.DayOfWeek == DayOfWeek.Sunday)
                 {
@@ -2351,36 +2421,41 @@ namespace EmployeeManagementSystem.Services
                     continue;
                 }
 
+                // ==========================================
+                // HOLIDAY
+                // ==========================================
 
-                // Holiday
                 if (holidaySet.Contains(date.Date))
                 {
                     holidayDays++;
                     continue;
                 }
 
+                // ==========================================
+                // ATTENDANCE
+                // ==========================================
 
-                // Attendance
                 if (attendanceLookup.TryGetValue(
-                    date.Date,
-                    out var att))
+                        date.Date,
+                        out var att))
                 {
                     switch (att.Status)
                     {
                         case "Present":
                         case "P":
                         case "Late":
+
                             present++;
                             break;
 
-
                         case "OL":
+
                             present++;
                             paidLeaveDays++;
                             break;
 
-
                         case "Half Day":
+
                             present += 0.5m;
                             halfDays += 0.5m;
 
@@ -2388,7 +2463,6 @@ namespace EmployeeManagementSystem.Services
                             lopDays++;
 
                             break;
-
 
                         case "LOP":
                         case "Absent":
@@ -2400,7 +2474,6 @@ namespace EmployeeManagementSystem.Services
                             lopDays++;
 
                             break;
-
 
                         default:
 
@@ -2416,7 +2489,6 @@ namespace EmployeeManagementSystem.Services
                     lopDays++;
                 }
             }
-
 
             // ==========================================
             // RESULT
@@ -3336,9 +3408,18 @@ namespace EmployeeManagementSystem.Services
             await CheckMissingCheckouts();
             date = date.Date;
 
+            //var employees = await _context.Employees
+            //    .AsNoTracking()
+            //    .ToListAsync();
+
             var employees = await _context.Employees
-                .AsNoTracking()
-                .ToListAsync();
+
+.AsNoTracking()
+
+.Where(e => e.Status == "Active")
+
+.ToListAsync();
+
 
             var attendance = await _context.Attendance
                 .AsNoTracking()
@@ -3399,9 +3480,18 @@ namespace EmployeeManagementSystem.Services
     .ThenBy(a => a.Employee_Id)
     .ToList();
 
+            //var employees = await _context.Employees
+            //    .AsNoTracking()
+            //    .ToDictionaryAsync(e => e.Employee_Id);
+
             var employees = await _context.Employees
-                .AsNoTracking()
-                .ToDictionaryAsync(e => e.Employee_Id);
+
+.AsNoTracking()
+
+.Where(e => e.Status == "Active")
+
+.ToDictionaryAsync(e => e.Employee_Id);
+
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Present & Late");
@@ -3453,9 +3543,18 @@ namespace EmployeeManagementSystem.Services
             var monday = DateTime.SpecifyKind(weekStartDate.Date, DateTimeKind.Utc);
             var weekEnd = monday.AddDays(7);
 
+            //var employees = await _context.Employees
+            //    .AsNoTracking()
+            //    .ToListAsync();
+
             var employees = await _context.Employees
-                .AsNoTracking()
-                .ToListAsync();
+
+.AsNoTracking()
+
+.Where(e => e.Status == "Active")
+
+.ToListAsync();
+
 
             var attendanceData = await _context.Attendance
                 .AsNoTracking()
@@ -3607,9 +3706,18 @@ namespace EmployeeManagementSystem.Services
             await CheckMissingCheckouts();
             date = date.Date;
 
+            //var employees = await _context.Employees
+            //    .AsNoTracking()
+            //    .ToListAsync();
+
             var employees = await _context.Employees
-                .AsNoTracking()
-                .ToListAsync();
+
+.AsNoTracking()
+
+.Where(e => e.Status == "Active")
+
+.ToListAsync();
+
 
             var attendanceData = await _context.Attendance
                 .AsNoTracking()
@@ -4339,7 +4447,11 @@ namespace EmployeeManagementSystem.Services
 
             var today = DateTime.UtcNow.Date;
 
-            var totalEmployees = await _context.Employees.CountAsync();
+            //var totalEmployees = await _context.Employees.CountAsync();
+            var totalEmployees = await _context.Employees
+
+.CountAsync(e => e.Status == "Active");
+
 
             var attendance = await _context.Attendance
                 .Where(a => a.Attendance_Date.Date == today)

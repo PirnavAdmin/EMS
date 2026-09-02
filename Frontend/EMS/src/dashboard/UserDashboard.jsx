@@ -206,6 +206,20 @@ const normalizeBirthday = (record = {}) => {
   };
 };
 
+const formatBirthdayDisplayDate = (value, fallback = "-") => {
+  const parsedDate = parseDate(value);
+
+  if (!parsedDate) {
+    return fallback;
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric"
+  });
+};
+
+
 const getWeekLabel = (item, index) => {
   if (!item || typeof item !== "object") {
     return DEFAULT_WEEK_LABELS[index] || `Day ${index + 1}`;
@@ -657,11 +671,15 @@ function BirthdaysListItem({ birthday, compact = false }) {
           {birthday.employeeId}
         </span>
 
-        <small>{formatDate(birthday.birthday)}</small>
+        <small>{formatBirthdayDisplayDate(birthday.birthday)}</small>
       </div>
 
       <span className={`udb-birthday-badge ${isToday ? "is-today" : ""}`}>
-        {isToday ? "Today" : `${birthday.daysRemaining} days left`}
+        {isToday
+          ? "Today"
+          : birthday.daysRemaining === 1
+            ? "1 day left"
+            : `${birthday.daysRemaining} days left`}
       </span>
     </div>);
 
@@ -991,7 +1009,7 @@ function UserDashboard() {
         <div>
           <h2 className="udb-title">Employee Dashboard</h2>
           <p className="udb-subtitle">
-            Track attendance, celebrate birthdays, and keep an eye on today&apos;s work rhythm.
+            Track attendance, celebrate birthdays, and stay updated on your work activities.
           </p>
         </div>
 

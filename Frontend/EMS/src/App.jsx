@@ -119,6 +119,7 @@ const LeaveManagement = lazyRoute("leave-management", () => import("./LeaveManag
 const UserLeaveManagement = lazyRoute("user-leave-management", () => import("./LeaveManagement/UserLeaveManagement"));
 const Teams = lazyRoute("teams", () => import("./Teams/Teams"));
 const TeamDetails = lazyRoute("team-details", () => import("./Teams/TeamDetails"));
+const MyTeam = lazyRoute("my-team", () => import("./Teams/MyTeam"));
 
 const TicketManagement = lazyRoute("ticket-management", () => import("./TicketManagement/TicketManagement"));
 const MyTickets = lazyRoute("my-tickets", () => import("./TicketManagement/MyTickets"));
@@ -564,6 +565,10 @@ function App() {
                   <TeamDetails />
                 </PermissionRoute>
               }
+            />
+            <Route
+              path="/my-team"
+              element={<MyTeam />}
             />
 
             {/* LEAVE */}

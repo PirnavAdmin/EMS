@@ -19,5 +19,8 @@ namespace EmployeeManagementSystem.Interfaces
         Task<IActionResult> GetAvailableEmployees();
 
         Task<IActionResult> GetManagers();
+        Task<IActionResult> GetProjectTeams();
+
+        Task<IActionResult> GetMyTeam();
     }
 }

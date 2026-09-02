@@ -10,7 +10,7 @@ import {
 "react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
-import { formatDate, isDateRangeValid } from "../utils/date";
+import { formatDate, isDateRangeValid, toIsoDateString } from "../utils/date";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import {
   CardSkeleton,
@@ -99,6 +99,16 @@ const normalizeLeaveBalanceCards = (payload) => {
   });
 };
 
+const truncateText = (text, maxLength = 15) => {
+  const value = String(text ?? "");
+
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}...`;
+};
+
 const resolveEndpoint = (endpoint, label) => {
   const resolved = typeof endpoint === "string" ?
   endpoint.trim() :
@@ -143,6 +153,15 @@ function UserLeaveManagement() {
   const [wfhData, setWfhData] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState([]);
   const [balanceError, setBalanceError] = useState("");
+  const [textDetails, setTextDetails] = useState(null);
+
+  const showTextDetails = (label, value) => {
+    const text = String(value ?? "");
+
+    if (text.length > 15) {
+      setTextDetails({ label, text });
+    }
+  };
 
   const handleChange = (e) => {
     setForm({
@@ -316,6 +335,11 @@ function UserLeaveManagement() {
   };
 
   const handleSubmit = async () => {
+    if (!form.leaveType || form.leaveType === "Select") {
+      toast.error("Please select a leave type");
+      return;
+    }
+
     if (!form.fromDate || !form.toDate || !form.reason.trim()) {
       toast.error("Please fill all fields");
       return;
@@ -337,10 +361,18 @@ function UserLeaveManagement() {
     }
 
     // ✅ safer date formatting for backend
+    const fromDate = toIsoDateString(form.fromDate);
+    const toDate = toIsoDateString(form.toDate);
+
+    if (!fromDate || !toDate) {
+      toast.error("Invalid date selection");
+      return;
+    }
+
     const payload = {
-      leaveType: form.leaveType,
-      fromDate: form.fromDate,
-      toDate: form.toDate,
+      leaveType: form.leaveType.trim(),
+      fromDate,
+      toDate,
       reason: form.reason.trim()
     };
 
@@ -354,10 +386,11 @@ function UserLeaveManagement() {
         }
       };
 
-      const res =
-      form.leaveType === "Work From Home" ?
-      await applyWfh(payload, requestConfig) :
-      await createLeaveRequest(payload, requestConfig);
+      if (form.leaveType === "Work From Home") {
+        await applyWfh(payload, requestConfig);
+      } else {
+        await createLeaveRequest(payload, requestConfig);
+      }
 
       toast.success("Leave applied successfully ✅");
 
@@ -514,7 +547,7 @@ function UserLeaveManagement() {
         <h2
         className="leave-main-title"
         style={{
-          marginTop: "0px",
+          marginTop: "8px",
           marginBottom: "18px"
         }}>
         
@@ -553,7 +586,7 @@ function UserLeaveManagement() {
         <h2
         className="leave-main-title"
         style={{
-          marginTop: "0px",
+          marginTop: "8px",
           marginBottom: "18px"
         }}>
         
@@ -717,30 +750,45 @@ function UserLeaveManagement() {
 
               combinedHistory.map((leave) =>
               <tr key={`${leave.requestType}-${leave.id}`}>
-                      <td>{leave.requestType}</td>
-                      <td>{formatLeaveType(leave.leaveType)}</td>
+                      <td
+                  onClick={() => showTextDetails("Type", leave.requestType)}>
+                        {truncateText(leave.requestType)}
+                      </td>
+                      {(() => {
+                        const leaveType = formatLeaveType(leave.leaveType);
+
+                        return (
+                      <td
+                  onClick={() => showTextDetails("Leave Type", leaveType)}>
+                        {truncateText(leaveType)}
+                      </td>
+                        );
+                      })()}
                       <td>{formatDate(leave.fromDate)}</td>
                       <td>{formatDate(leave.toDate)}</td>
                       <td
                   className="leave-reason-cell"
-                  title={leave.reason || "No reason provided"}>
+                  onClick={() => showTextDetails("Reason", leave.reason)}>
                   
-                        {leave.reason ?
-                  leave.reason.length > 20 ?
-                  `${leave.reason.substring(0, 20)}...` :
-                  leave.reason :
-                  "-"}
+                        {leave.reason ? truncateText(leave.reason) : "-"}
                       </td>
-
-                      <td>
+
+                      <td>
+                        {(() => {
+                          const statusText = String(leave.status ?? "").trim() || "Pending";
+
+                          return (
                         <span
-                    className={`status ${leave.status?.toLowerCase()} leave-status-badge`}>
-                    
-                          {leave.status}
-                        </span>
-                      </td>
-
-                      <td>
+                    className={`status ${statusText.toLowerCase()} leave-status-badge`}
+                    onClick={() => showTextDetails("Status", statusText)}>
+                    
+                          {truncateText(statusText)}
+                        </span>
+                          );
+                        })()}
+                      </td>
+
+                      <td>
                         {leave.status === "Pending" &&
                   <button
                     className="icon-delete-btn leave-action-btn"
@@ -761,6 +809,28 @@ function UserLeaveManagement() {
             </table>
           </div>
         </div>
+        {textDetails &&
+        <div
+          className="leave-text-details-overlay"
+          role="presentation"
+          onClick={() => setTextDetails(null)}>
+          <div
+            className="leave-text-details-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leave-text-details-title"
+            onClick={(event) => event.stopPropagation()}>
+            <h3 id="leave-text-details-title">{textDetails.label}</h3>
+            <p>{textDetails.text}</p>
+            <button
+              type="button"
+              className="leave-text-details-close"
+              onClick={() => setTextDetails(null)}>
+              Close
+            </button>
+          </div>
+        </div>}
+
       </div>);
 
 }

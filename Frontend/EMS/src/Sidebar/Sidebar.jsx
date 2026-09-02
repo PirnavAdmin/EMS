@@ -24,6 +24,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import pirnavLogo from "../assets/pirnav.png";
 import { useBrandingLogo } from "../utils/brandingLogo";
+import { getStoredPermissions } from "../utils/authStorage";
 import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, isSuperAdmin } from "../utils/authorization";
 
 const SUPER_ADMIN_EXPANDABLE_MENUS = [];
@@ -249,6 +250,13 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
   permission: "Teams"
 },
 {
+  to: "/my-team",
+  icon: FaProjectDiagram,
+  label: "My Teams",
+  permission: "My Teams",
+  permissionId: 77
+},
+{
   to: "/leave-management",
   icon: FaCalendarMinus,
   label: "Leave",
@@ -295,6 +303,43 @@ const getSubmenuLinkClassName = ({ isActive }) =>
 
 const hasPermission = (module) => hasModulePermission(module);
 
+const getPermissionRecordId = (permission = {}) =>
+String(
+permission.permissionId ??
+permission.PermissionId ??
+permission.id ??
+permission.Id ??
+"")
+  .trim();
+
+const isSidebarPermissionVisible = (item, permissions = []) => {
+  const moduleVisible = !item.permission || hasPermission(item.permission);
+  const requiredPermissionId = item.permissionId ?? null;
+
+  if (requiredPermissionId === null || requiredPermissionId === undefined) {
+    return moduleVisible;
+  }
+
+  const permissionIdVisible = Array.isArray(permissions)
+    ? permissions.some((permission) => {
+        if (getPermissionRecordId(permission) !== String(requiredPermissionId)) {
+          return false;
+        }
+
+        const canAccess =
+        permission.canAccess ??
+        permission.CanAccess ??
+        permission.canView ??
+        permission.CanView ??
+        true;
+
+        return canAccess === true;
+      })
+    : false;
+
+  return moduleVisible && permissionIdVisible;
+};
+
 function SidebarLink({ to, icon, label, compact, onClick }) {
   return (
     <NavLink
@@ -329,6 +374,7 @@ function SubmenuLink({ to, icon, label, onClick }) {
 function Sidebar({ collapsed }) {
   const location = useLocation();
   const roleName = getUserRole();
+  const loadedPermissions = getStoredPermissions(roleName);
   const superAdminUser = isSuperAdmin();
   const resolvedLogo = useBrandingLogo("sidebarLogo");
   const logoSrc = resolvedLogo || pirnavLogo;
@@ -346,6 +392,28 @@ function Sidebar({ collapsed }) {
   menuState.interactionPath === location.pathname ?
   menuState.active :
   routeMenu;
+
+  useEffect(() => {
+    const permissionControlledItems = [
+      ...STATIC_MENUS_BEFORE_DROPDOWNS,
+      ...STATIC_MENUS_AFTER_DROPDOWNS,
+      ...EXPANDABLE_MENUS.flatMap((menu) => menu.items)
+    ].filter((item) => item.permission || item.permissionId !== undefined);
+
+    console.log("SIDEBAR LOGGED-IN ROLE", roleName);
+    console.log("SIDEBAR LOADED PERMISSIONS", loadedPermissions);
+
+    permissionControlledItems.forEach((item) => {
+      const visible = isSidebarPermissionVisible(item, loadedPermissions);
+
+      console.log("SIDEBAR ITEM VISIBILITY", {
+        label: item.label,
+        permission: item.permission ?? null,
+        permissionId: item.permissionId ?? null,
+        visible
+      });
+    });
+  }, [loadedPermissions, roleName, location.pathname]);
 
   const setMenuButtonRef = (menuKey) => (node) => {
     if (node) {
@@ -485,6 +553,10 @@ function Sidebar({ collapsed }) {
       return null;
     }
 
+    if (item.userOnly && (isAdmin() || isSuperAdmin())) {
+      return null;
+    }
+
     if (isAdmin() && adminHiddenMenus.includes(item.label)) {
       return null;
     }
@@ -495,6 +567,10 @@ function Sidebar({ collapsed }) {
 
     const targetPath =
     typeof item.getTo === "function" ? item.getTo(roleName) : item.to;
+
+    if (!isSidebarPermissionVisible(item, loadedPermissions)) {
+      return null;
+    }
 
     return (
       <SidebarLink
@@ -532,7 +608,7 @@ function Sidebar({ collapsed }) {
         return false;
       }
 
-      return !item.permission || hasPermission(item.permission);
+      return isSidebarPermissionVisible(item, loadedPermissions);
     });
 
     if (visibleItems.length === 0) {

@@ -3,15 +3,19 @@ import { FaChevronDown, FaTimes } from "react-icons/fa";
 import {
   getAvailableTeamEmployees,
   getTeamManagers,
-  getTeamProjects,
+  getTeamProjects
 } from "../services/teamService";
 import {
   TEAM_DAY_OPTIONS,
-  TEAM_ENGAGEMENT_OPTIONS } from
-"./teamsData";
+  TEAM_ENGAGEMENT_OPTIONS
+} from "./teamsData";
+import {
+  normalizeCollection,
+  normalizeEmployeeRecord,
+  normalizeProjectTeamRecord
+} from "./teamUtils";
 
-const normalizeSelectionId = (value) =>
-  String(value ?? "").trim();
+const normalizeSelectionId = (value) => String(value ?? "").trim();
 
 const normalizeProjectId = (value) => {
   const trimmedValue = normalizeSelectionId(value);
@@ -25,169 +29,175 @@ const normalizeProjectId = (value) => {
 };
 
 const getEmployeeId = (employee) =>
-  normalizeSelectionId(
-    employee?.employee_Id ??
-    employee?.employeeId ??
-    employee?.id
-  );
+  normalizeSelectionId(employee?.employeeId ?? employee?.employee_Id ?? employee?.id);
 
 const getEmployeeName = (employee) =>
-  employee?.employeeName ||
-  employee?.name ||
-  employee?.fullName ||
-  "";
+  employee?.employeeName || employee?.name || employee?.fullName || "";
 
 const getManagerId = (manager) =>
-  normalizeSelectionId(
-    manager?.employee_Id ??
-    manager?.employeeId ??
-    manager?.id
-  );
+  normalizeSelectionId(manager?.employeeId ?? manager?.employee_Id ?? manager?.id);
 
 const getManagerName = (manager) =>
-  manager?.employeeName ||
-  manager?.name ||
-  manager?.fullName ||
-  "";
+  manager?.name || manager?.employeeName || manager?.fullName || "";
 
 const getProjectId = (project) =>
-  normalizeSelectionId(
-    project?.project_Id ??
-    project?.projectId ??
-    project?.id
-  );
+  normalizeSelectionId(project?.projectId ?? project?.project_Id ?? project?.id);
 
 const getProjectName = (project) =>
-  project?.project_Name ||
-  project?.projectName ||
-  project?.name ||
-  "";
+  project?.projectName || project?.project_Name || project?.name || "";
 
 const createInitialForm = (defaultTeamNumber = "") => ({
   teamNumber: defaultTeamNumber,
   teamName: "",
-  reportingManager: "",
+  reportingManagerId: "",
   engagementType: "Project",
-  projectName: "",
-  reportingDays: [...TEAM_DAY_OPTIONS],
-  memberIds: []
+  projectId: "",
+  reportingDays: [],
+  employeeIds: []
 });
+
+const logAddTeamDebug = (...args) => {
+  if (import.meta.env.DEV) {
+    console.log(...args);
+  }
+};
 
 function AddTeamModal({
   open,
   onClose,
   onCreate,
-  defaultTeamNumber = "TM-04"
+  onOpenExistingTeam,
+  defaultTeamNumber = "TM-04",
+  saving = false
 }) {
   const [form, setForm] = useState(createInitialForm(defaultTeamNumber));
   const [errors, setErrors] = useState({});
   const [employees, setEmployees] = useState([]);
   const [managers, setManagers] = useState([]);
-  const [membersOpen, setMembersOpen] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
 
-  const selectedMemberIds = useMemo(() => {
-    return new Set(
-      form.memberIds.
-      map((id) => normalizeSelectionId(id)).
-      filter((id) => id !== "")
-    );
-  }, [form.memberIds]);
+  const selectedProject = useMemo(
+    () => {
+      const normalizedProjectId = normalizeSelectionId(form.projectId);
+
+      return projects.find((project) =>
+        normalizeSelectionId(project.projectId ?? project.id) === normalizedProjectId
+      );
+    },
+    [form.projectId, projects]
+  );
+
+  const hasExistingTeam = Boolean(selectedProject?.teamExists);
+  const canOpenExistingTeam = Boolean(selectedProject?.teamId != null);
+
+  const selectedMemberIds = useMemo(
+    () =>
+      new Set(
+        form.employeeIds
+          .map((id) => normalizeSelectionId(id))
+          .filter((id) => id !== "")
+      ),
+    [form.employeeIds]
+  );
 
   const selectedMembers = useMemo(() => {
     return employees.filter((employee) =>
-    selectedMemberIds.has(getEmployeeId(employee))
+      selectedMemberIds.has(getEmployeeId(employee))
     );
   }, [employees, selectedMemberIds]);
 
   const filteredEmployees = useMemo(() => {
     const search = memberSearch.trim().toLowerCase();
 
-    if (!search) return employees;
+    if (!search) {
+      return employees;
+    }
 
-    return employees.filter((employee) =>
-    (getEmployeeName(employee) || "").
-    toLowerCase().
-    includes(search) ||
-    String(getEmployeeId(employee) || "").
-    toLowerCase().
-    includes(search)
-    );
+    return employees.filter((employee) => {
+      const employeeName = String(getEmployeeName(employee) || "").toLowerCase();
+      const employeeId = String(getEmployeeId(employee) || "").toLowerCase();
+
+      return employeeName.includes(search) || employeeId.includes(search);
+    });
   }, [employees, memberSearch]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const controller = new AbortController();
-
-    const fetchDropdowns = async () => {
-      try {
-        const [
-        employeeRes,
-        managerRes,
-        projectRes] =
-        await Promise.all([
-        getAvailableTeamEmployees({
-          signal: controller.signal,
-          cacheTTL: 60 * 1000
-        }),
-        getTeamManagers({
-          signal: controller.signal,
-          cacheTTL: 60 * 1000
-        }),
-        getTeamProjects({
-          signal: controller.signal,
-          cacheTTL: 60 * 1000
-        })]
-        );
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        const employees =
-        employeeRes.data?.data ||
-        employeeRes.data?.list ||
-        employeeRes.data ||
-        [];
-
-        const managers =
-        managerRes.data?.data ||
-        managerRes.data?.list ||
-        managerRes.data ||
-        [];
-
-        const projects =
-        projectRes.data?.data ||
-        projectRes.data?.list ||
-        projectRes.data ||
-        [];
-
-        setEmployees(Array.isArray(employees) ? employees : []);
-        setManagers(Array.isArray(managers) ? managers : []);
-        setProjects(Array.isArray(projects) ? projects : []);
-
-      } catch (error) {
-        if (error?.code === "ERR_CANCELED") {
-          return;
-        }
-      }
-    };
-
-    fetchDropdowns();
-    return () => controller.abort();
-
-  }, [open]);
 
   useEffect(() => {
     if (!open) {
       return undefined;
     }
 
+    const controller = new AbortController();
+
     setForm(createInitialForm(defaultTeamNumber));
     setErrors({});
     setMembersOpen(false);
+    setMemberSearch("");
+
+    const fetchDropdowns = async () => {
+      try {
+        const [employeeRes, managerRes, projectRes] = await Promise.all([
+          getAvailableTeamEmployees({
+            signal: controller.signal,
+            cacheTTL: 60 * 1000
+          }),
+          getTeamManagers({
+            signal: controller.signal,
+            cacheTTL: 60 * 1000
+          }),
+          getTeamProjects({
+            signal: controller.signal,
+            cacheTTL: 60 * 1000
+          })
+        ]);
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const managerSource = Array.isArray(managerRes.data?.managers)
+          ? managerRes.data.managers
+          : Array.isArray(managerRes.data?.data?.managers)
+            ? managerRes.data.data.managers
+            : normalizeCollection(managerRes.data);
+
+        const employeeList = normalizeCollection(employeeRes.data).map((item) =>
+          normalizeEmployeeRecord(item)
+        );
+        const managerList = managerSource.map((item) =>
+          normalizeEmployeeRecord(item)
+        );
+        const projectList = normalizeCollection(projectRes.data).map((item) =>
+          normalizeProjectTeamRecord(item)
+        );
+
+        const normalizedManagers = managerList.filter(Boolean);
+        const managerDropdownOptions = normalizedManagers.map((manager) => ({
+          label: getManagerName(manager) || getManagerId(manager),
+          value: getManagerId(manager),
+          employeeId: getManagerId(manager)
+        }));
+
+        logAddTeamDebug("MANAGERS API RESPONSE:", managerRes.data);
+        logAddTeamDebug("MANAGERS ARRAY:", managerSource);
+        logAddTeamDebug("MANAGER DROPDOWN OPTIONS:", managerDropdownOptions);
+
+        setEmployees(employeeList.filter(Boolean));
+        setManagers(normalizedManagers);
+        setProjects(projectList.filter(Boolean));
+      } catch (error) {
+        if (error?.code === "ERR_CANCELED") {
+          return;
+        }
+
+        setEmployees([]);
+        setManagers([]);
+        setProjects([]);
+      }
+    };
+
+    fetchDropdowns();
 
     const handleEscape = (event) => {
       if (event.key === "Escape") {
@@ -196,7 +206,10 @@ function AddTeamModal({
     };
 
     window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
+    return () => {
+      controller.abort();
+      window.removeEventListener("keydown", handleEscape);
+    };
   }, [defaultTeamNumber, onClose, open]);
 
   useEffect(() => {
@@ -228,9 +241,9 @@ function AddTeamModal({
   const toggleDay = (day) => {
     setForm((current) => {
       const isSelected = current.reportingDays.includes(day);
-      const nextDays = isSelected ?
-      current.reportingDays.filter((item) => item !== day) :
-      [...current.reportingDays, day];
+      const nextDays = isSelected
+        ? current.reportingDays.filter((item) => item !== day)
+        : [...current.reportingDays, day];
 
       return {
         ...current,
@@ -247,19 +260,19 @@ function AddTeamModal({
     }
 
     setForm((current) => {
-      const isSelected = current.memberIds.
-      map((id) => normalizeSelectionId(id)).
-      includes(normalizedEmployeeId);
+      const isSelected = current.employeeIds
+        .map((id) => normalizeSelectionId(id))
+        .includes(normalizedEmployeeId);
 
-      const nextMemberIds = isSelected ?
-      current.memberIds.filter((id) =>
-      normalizeSelectionId(id) !== normalizedEmployeeId
-      ) :
-      [...current.memberIds, normalizedEmployeeId];
+      const nextMemberIds = isSelected
+        ? current.employeeIds.filter(
+            (id) => normalizeSelectionId(id) !== normalizedEmployeeId
+          )
+        : [...current.employeeIds, normalizedEmployeeId];
 
       return {
         ...current,
-        memberIds: nextMemberIds
+        employeeIds: nextMemberIds
       };
     });
   };
@@ -269,14 +282,20 @@ function AddTeamModal({
 
     setForm((current) => ({
       ...current,
-      memberIds: current.memberIds.filter((id) =>
-      normalizeSelectionId(id) !== normalizedEmployeeId
+      employeeIds: current.employeeIds.filter(
+        (id) => normalizeSelectionId(id) !== normalizedEmployeeId
       )
     }));
   };
 
   const validate = () => {
     const nextErrors = {};
+
+    if (hasExistingTeam) {
+      nextErrors.projectId = "This project already has a team";
+      setErrors(nextErrors);
+      return false;
+    }
 
     if (!form.teamNumber.trim()) {
       nextErrors.teamNumber = "Team Number is required";
@@ -286,46 +305,62 @@ function AddTeamModal({
       nextErrors.teamName = "Team Name is required";
     }
 
-    if (!form.reportingManager.trim()) {
-      nextErrors.reportingManager = "Reporting Manager is required";
+    if (!form.reportingManagerId.trim()) {
+      nextErrors.reportingManagerId = "Reporting Manager is required";
     }
 
-    if (!form.projectName.trim()) {
-      nextErrors.projectName = "Project Name is required";
-    }
-
-    if (form.memberIds.length === 0) {
-      nextErrors.memberIds = "Select at least one member";
+    if (!form.projectId.trim()) {
+      nextErrors.projectId = "Project is required";
     }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handlePrimaryAction = async () => {
+    if (hasExistingTeam) {
+      if (canOpenExistingTeam) {
+        onOpenExistingTeam?.(selectedProject.teamId);
+        return;
+      }
+
+      setErrors((current) => ({
+        ...current,
+        projectId: "This project already has a team"
+      }));
+      return;
+    }
+
     if (!validate()) {
       return;
     }
 
-    const sanitizedPayload = {
+    const selectedManager = managers.find(
+      (manager) =>
+        normalizeSelectionId(getManagerId(manager)) ===
+        normalizeSelectionId(form.reportingManagerId)
+    );
+
+    logAddTeamDebug("SELECTED MANAGER:", selectedManager);
+    logAddTeamDebug(
+      "SELECTED MANAGER EMPLOYEE ID:",
+      getManagerId(selectedManager) || normalizeSelectionId(form.reportingManagerId)
+    );
+
+    const createdTeam = await onCreate?.({
+      reportingManagerName:
+        getManagerName(selectedManager) || normalizeSelectionId(form.reportingManagerId),
       teamNumber: form.teamNumber.trim().toUpperCase(),
       teamName: form.teamName.trim(),
-      reportingManagerId: normalizeSelectionId(form.reportingManager),
+      reportingManagerId: normalizeSelectionId(form.reportingManagerId),
       engagementType: form.engagementType,
-      projectId: normalizeProjectId(form.projectName),
+      projectId: normalizeProjectId(form.projectId),
       reportingDays:
-      form.reportingDays.length > 0 ?
-      [...form.reportingDays] :
-      [...TEAM_DAY_OPTIONS],
-      employeeIds:
-      form.memberIds.
-      map((id) => normalizeSelectionId(id)).
-      filter((id) => id !== "")
-    };
-
-    console.log("[Teams] create payload", sanitizedPayload);
-
-    const createdTeam = await onCreate?.(sanitizedPayload);
+        form.reportingDays.length > 0 ? [...form.reportingDays] : [...TEAM_DAY_OPTIONS],
+      employeeIds: form.employeeIds
+        .map((id) => normalizeSelectionId(id))
+        .filter((id) => id !== "")
+    });
 
     if (createdTeam) {
       setForm(createInitialForm(defaultTeamNumber));
@@ -339,6 +374,14 @@ function AddTeamModal({
     return null;
   }
 
+  const primaryLabel = hasExistingTeam
+    ? canOpenExistingTeam
+      ? "Open Existing Team"
+      : "Team Already Exists"
+    : saving
+      ? "Creating..."
+      : "Create Team";
+
   return (
     <div
       className="team-modal-overlay"
@@ -346,8 +389,8 @@ function AddTeamModal({
         if (event.target === event.currentTarget) {
           onClose?.();
         }
-      }}>
-
+      }}
+    >
       <div className="team-modal" role="dialog" aria-modal="true" aria-labelledby="add-team-title">
         <div className="team-modal-header">
           <div>
@@ -363,8 +406,8 @@ function AddTeamModal({
             type="button"
             className="team-modal-close"
             onClick={onClose}
-            aria-label="Close add team modal">
-
+            aria-label="Close add team modal"
+          >
             <FaTimes />
           </button>
         </div>
@@ -378,16 +421,17 @@ function AddTeamModal({
                 className="team-form-input"
                 value={form.teamNumber}
                 onChange={(event) =>
-                updateField(
-                  "teamNumber",
-                  event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
-                )
+                  updateField(
+                    "teamNumber",
+                    event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+                  )
                 }
-                placeholder="TM-04" />
+                placeholder="TM-04"
+              />
 
-              {errors.teamNumber ?
-              <span className="team-form-error">{errors.teamNumber}</span> :
-              null}
+              {errors.teamNumber ? (
+                <span className="team-form-error">{errors.teamNumber}</span>
+              ) : null}
             </div>
 
             <div className="team-form-field">
@@ -397,11 +441,12 @@ function AddTeamModal({
                 className="team-form-input"
                 value={form.teamName}
                 onChange={(event) => updateField("teamName", event.target.value)}
-                placeholder="Enter team name" />
+                placeholder="Enter team name"
+              />
 
-              {errors.teamName ?
-              <span className="team-form-error">{errors.teamName}</span> :
-              null}
+              {errors.teamName ? (
+                <span className="team-form-error">{errors.teamName}</span>
+              ) : null}
             </div>
 
             <div className="team-form-field">
@@ -409,27 +454,27 @@ function AddTeamModal({
               <select
                 id="team-manager"
                 className="team-form-select"
-                value={form.reportingManager}
-                onChange={(e) => updateField("reportingManager", e.target.value)}>
-
+                value={form.reportingManagerId}
+                onChange={(e) => updateField("reportingManagerId", e.target.value)}
+              >
                 <option value="">Select Manager</option>
-
                 {managers.map((manager, index) => {
                   const managerId = getManagerId(manager);
 
                   return (
                     <option
                       key={`${managerId || "manager"}-${index}`}
-                      value={managerId}>
-
+                      value={managerId}
+                    >
                       {getManagerName(manager) || String(managerId || "")}
                     </option>
                   );
                 })}
               </select>
-              {errors.reportingManager ?
-              <span className="team-form-error">{errors.reportingManager}</span> :
-              null}
+
+              {errors.reportingManagerId ? (
+                <span className="team-form-error">{errors.reportingManagerId}</span>
+              ) : null}
             </div>
 
             <div className="team-form-field">
@@ -438,15 +483,13 @@ function AddTeamModal({
                 id="team-engagement"
                 className="team-form-select"
                 value={form.engagementType}
-                onChange={(event) =>
-                updateField("engagementType", event.target.value)
-                }>
-
-                {TEAM_ENGAGEMENT_OPTIONS.map((option) =>
-                <option key={option} value={option}>
+                onChange={(event) => updateField("engagementType", event.target.value)}
+              >
+                {TEAM_ENGAGEMENT_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
                     {option}
                   </option>
-                )}
+                ))}
               </select>
             </div>
 
@@ -455,31 +498,56 @@ function AddTeamModal({
               <select
                 id="team-project"
                 className="team-form-select"
-                value={form.projectName}
-                onChange={(e) => updateField("projectName", e.target.value)}>
-
-
-                <option value="">
-                  Select Project
-                </option>
+                value={form.projectId}
+                onChange={(e) => updateField("projectId", e.target.value)}
+              >
+                <option value="">Select Project</option>
 
                 {projects.map((project, index) => {
                   const projectId = getProjectId(project);
+                  const projectLabel = project.teamExists
+                    ? `${getProjectName(project) || String(projectId || "")} - Team Exists`
+                    : `${getProjectName(project) || String(projectId || "")} - No Team Yet`;
 
                   return (
                     <option
                       key={`${projectId || "project"}-${index}`}
-                      value={projectId}>
-
-                      {getProjectName(project) || String(projectId || "")}
+                      value={projectId}
+                    >
+                      {projectLabel}
                     </option>
                   );
                 })}
-
               </select>
-              {errors.projectName ?
-              <span className="team-form-error">{errors.projectName}</span> :
-              null}
+
+              {errors.projectId ? (
+                <span className="team-form-error">{errors.projectId}</span>
+              ) : null}
+
+              {selectedProject ? (
+                <div
+                  className={`team-project-summary ${
+                    hasExistingTeam ? "is-existing" : "is-available"
+                  }`}
+                >
+                  <strong>{selectedProject.projectName || "Selected project"}</strong>
+                  <span>
+                    {hasExistingTeam
+                      ? `Team ${selectedProject.teamNumber || selectedProject.teamName || selectedProject.teamId} already exists`
+                      : "No team exists yet for this project"}
+                  </span>
+
+                  {canOpenExistingTeam && onOpenExistingTeam ? (
+                    <button
+                      type="button"
+                      className="team-action-btn secondary team-project-open-btn"
+                      onClick={() => onOpenExistingTeam(selectedProject.teamId)}
+                    >
+                      Open Existing Team
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <div className="team-form-field team-form-field-wide">
@@ -493,11 +561,11 @@ function AddTeamModal({
                       key={day}
                       type="button"
                       className={`team-day-button ${isSelected ? "is-active" : ""}`}
-                      onClick={() => toggleDay(day)}>
-
+                      onClick={() => toggleDay(day)}
+                    >
                       {day}
-                    </button>);
-
+                    </button>
+                  );
                 })}
               </div>
             </div>
@@ -507,82 +575,77 @@ function AddTeamModal({
               <button
                 type="button"
                 className="team-multiselect-trigger"
-                onClick={() => setMembersOpen((current) => !current)}>
-
+                onClick={() => setMembersOpen((current) => !current)}
+              >
                 <span>
-                  {selectedMembers.length > 0 ?
-                  `${selectedMembers.length} member${selectedMembers.length > 1 ? "s" : ""} selected` :
-
-                  "Select team members"}
+                  {selectedMembers.length > 0
+                    ? `${selectedMembers.length} member${
+                        selectedMembers.length > 1 ? "s" : ""
+                      } selected`
+                    : "Select team members"}
                 </span>
 
                 <FaChevronDown className={membersOpen ? "is-open" : ""} />
               </button>
 
-              {membersOpen &&
-              <div className="team-multiselect-menu">
-
+              {membersOpen ? (
+                <div className="team-multiselect-menu">
                   <div className="team-member-search">
                     <input
-                    type="text"
-                    placeholder="Search employee..."
-                    value={memberSearch}
-                    onChange={(e) => setMemberSearch(e.target.value)}
-                    className="team-member-search-input" />
-
+                      type="text"
+                      placeholder="Search employee..."
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      className="team-member-search-input"
+                    />
                   </div>
+
                   {filteredEmployees.map((employee, index) => {
                     const employeeId = getEmployeeId(employee);
 
                     return (
                       <label
                         key={`${employeeId || "employee"}-${index}`}
-                        className="team-member-option">
-
+                        className="team-member-option"
+                      >
                         <input
                           type="checkbox"
                           checked={selectedMemberIds.has(employeeId)}
-                          onChange={() => toggleMember(employeeId)} />
-
+                          onChange={() => toggleMember(employeeId)}
+                        />
 
                         <div className="team-member-info">
                           <strong>{getEmployeeName(employee) || String(employeeId || "")}</strong>
-                          <small>
-                            Employee ID: {employeeId}
-                          </small>
+                          <small>Employee ID: {employeeId}</small>
                         </div>
                       </label>
                     );
                   })}
                 </div>
-              }
+              ) : null}
 
-              {errors.memberIds ?
-              <span className="team-form-error">{errors.memberIds}</span> :
-              null}
-
-              {selectedMembers.length > 0 &&
-              <div className="team-selected-members">
+              {selectedMembers.length > 0 ? (
+                <div className="team-selected-members">
                   {selectedMembers.map((member) => {
-                  const id = getEmployeeId(member);
-                  const name = getEmployeeName(member) || String(id || "");
+                    const id = getEmployeeId(member);
+                    const name = getEmployeeName(member) || String(id || "");
 
-                  return (
-                    <span key={id} className="team-selected-chip">
+                    return (
+                      <span key={id} className="team-selected-chip">
                         <span>{name}</span>
 
                         <button
-                        type="button"
-                        onClick={() => removeMember(id)}
-                        aria-label={`Remove ${name}`}>
-
+                          type="button"
+                          onClick={() => removeMember(id)}
+                          aria-label={`Remove ${name}`}
+                        >
                           <FaTimes />
                         </button>
-                      </span>);
-
-                })}
+                      </span>
+                    );
+                  })}
                 </div>
-              }
+              ) : null}
             </div>
           </div>
         </div>
@@ -592,13 +655,18 @@ function AddTeamModal({
             Cancel
           </button>
 
-          <button type="button" className="team-action-btn" onClick={handleSubmit}>
-            Create Team
+          <button
+            type="button"
+            className="team-action-btn"
+            onClick={handlePrimaryAction}
+            disabled={saving || (hasExistingTeam && !canOpenExistingTeam)}
+          >
+            {primaryLabel}
           </button>
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }
 
 export default AddTeamModal;

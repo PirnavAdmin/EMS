@@ -491,19 +491,6 @@ function UserAttendance() {
   };
   // ---------------------------------------------------------
 
-  const currentTime = new Date();
-  const isBefore855 =
-  currentTime.getHours() < 8 ||
-
-  currentTime.getHours() === 8 &&
-  currentTime.getMinutes() < 55;
-
-  // const isAfter615 =
-  //   currentTime.getHours() > 18 ||
-  //   (
-  //     currentTime.getHours() === 18 &&
-  //     currentTime.getMinutes() >= 15
-  //   );
   const getStatusClass = (status) => {
     const value = normalizeStatus(status).toLowerCase().replace(/\s+/g, "");
 
@@ -621,19 +608,11 @@ function UserAttendance() {
               disabled={
               checkedIn ||
               checkInLoading ||
-              checkOutLoading ||
-              isBefore855
-              }
-              title={
-              isBefore855 ?
-              "Check-in opens at 8:55 AM" :
-              ""
+              checkOutLoading
               }>
               
               <FaSignInAlt />
 
-              {/* {isBefore855
-                 ? "Check In Opens 8:55 AM" :*/}
               {checkInLoading ?
               "Processing..." :
               "Check In"}

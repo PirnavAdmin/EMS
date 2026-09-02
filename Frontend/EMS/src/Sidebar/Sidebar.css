@@ -154,7 +154,11 @@
   border-radius: 12px;
   font-size: clamp(13px, 0.9vw, 14px) !important;
 }
- 
+
+.menu-item[data-title="Employee Letters"] {
+  gap: 11px;
+}
+
 .sidebar.collapsed .menu-item {
   position: relative;
 }

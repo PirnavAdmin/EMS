@@ -29,6 +29,15 @@ const isUnsafeLocalPath = (value) => {
 
   return false;
 };
+
+const isAdminChangePasswordRole = (role = "") => {
+  const normalizedRole = String(role ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+  return normalizedRole === "admin" || normalizedRole === "superadmin";
+};
 export const API = {
   // ================= AUTH =================
   AUTH: {
@@ -46,7 +55,9 @@ export const API = {
       FORGOT_PASSWORD: "/User/forgot-password",
       VERIFY_OTP: "/User/verify-otp",
       RESET_PASSWORD: "/User/reset-password",
-      CHANGE_PASSWORD: "/User/change-password",
+    },
+    EMPLOYEES: {
+      CHANGE_PASSWORD: "/Employees/change-password",
     },
   },
 
@@ -549,8 +560,15 @@ export const API = {
       `/Team/${teamId}/member/${employeeId}`,
     UPDATE_REPORTING_DAYS: "/Team/update-reporting-days",
     MEMBER_OVERRIDE: "/Team/member-override",
+    AVAILABLE_EMPLOYEES: "/Team/available-employees",
     AVAILABLEEMPLOYEES: "/Team/available-employees",
     MANAGERS: "/Team/managers",
+    PROJECT_TEAMS: "/Team/project-teams",
+    MY_TEAM: "/Team/my-team",
+    // Keep the nested alias pointing at the Team-specific project selector contract.
+    projects: {
+      list: "/Team/project-teams",
+    },
   },
 
   // ================= HOLIDAYS =================
@@ -702,7 +720,7 @@ export const API_ENDPOINTS = {
     userForgotPassword: API.AUTH.USER.FORGOT_PASSWORD,
     userVerifyOtp: API.AUTH.USER.VERIFY_OTP,
     userResetPassword: API.AUTH.USER.RESET_PASSWORD,
-    userChangePassword: API.AUTH.USER.CHANGE_PASSWORD,
+    employeeChangePassword: API.AUTH.EMPLOYEES.CHANGE_PASSWORD,
     // Backward-compatible aliases used by current screens.
     forgotPassword: API.AUTH.ADMIN.FORGOT_PASSWORD,
     verifyOtp: API.AUTH.ADMIN.VERIFY_OTP,
@@ -720,15 +738,14 @@ export const API_ENDPOINTS = {
         ? API.AUTH.USER.RESET_PASSWORD
         : API.AUTH.ADMIN.RESET_PASSWORD,
     changePasswordByRole: (role = "admin") =>
-      String(role).toLowerCase() === "user"
-        ? API.AUTH.USER.CHANGE_PASSWORD
-        : API.AUTH.ADMIN.CHANGE_PASSWORD,
+      isAdminChangePasswordRole(role)
+        ? API.AUTH.ADMIN.CHANGE_PASSWORD
+        : API.AUTH.EMPLOYEES.CHANGE_PASSWORD,
   },
   USER: {
     FORGOT_PASSWORD: API.AUTH.USER.FORGOT_PASSWORD,
     VERIFY_OTP: API.AUTH.USER.VERIFY_OTP,
     RESET_PASSWORD: API.AUTH.USER.RESET_PASSWORD,
-    CHANGE_PASSWORD: API.AUTH.USER.CHANGE_PASSWORD,
   },
   rolePermission: {
     allowedModules: API.ROLE_PERMISSION.MODULES,
@@ -1138,11 +1155,12 @@ brandingUpload: API.SETTINGS.BRANDING_UPLOAD,
     removeMember: API.TEAM.REMOVE_MEMBER,
     updateReportingDays: API.TEAM.UPDATE_REPORTING_DAYS,
     memberOverride: API.TEAM.MEMBER_OVERRIDE,
-    availableEmployees: API.TEAM.AVAILABLEEMPLOYEES,
+    availableEmployees: API.TEAM.AVAILABLE_EMPLOYEES,
     managers: API.TEAM.MANAGERS,
     projects: {
-      list: API.PROJECTS.LIST,
-    }
+      list: API.TEAM.PROJECT_TEAMS,
+    },
+    myTeam: API.TEAM.MY_TEAM,
 
   },
   tickets: {

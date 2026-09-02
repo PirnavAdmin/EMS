@@ -600,7 +600,7 @@ function Roles() {
               onChange={handleRolesChange}
               aria-invalid={Boolean(errors.roleName)}
               className={errors.roleName ? "has-error" : ""}
-              maxLength={15}
+              maxLength={50}
               autoComplete="off" />
             
               {errors.roleName && <p className="roles-error">{errors.roleName}</p>}

@@ -46,12 +46,27 @@ namespace EmployeeManagementSystem.Services
             //--------------------------------
             // FETCH EMPLOYEE
             //--------------------------------
+            //var employee = await _context.Employees
+            //    .Include(e => e.BankDetails)
+            //    .FirstOrDefaultAsync(e => e.Employee_Id == dto.EmployeeId);
+
+            //if (employee == null)
+            //    throw new Exception("Employee not found");
+
             var employee = await _context.Employees
-                .Include(e => e.BankDetails)
-                .FirstOrDefaultAsync(e => e.Employee_Id == dto.EmployeeId);
+
+.Include(e => e.BankDetails)
+
+.FirstOrDefaultAsync(e =>
+
+e.Employee_Id == dto.EmployeeId &&
+
+e.Status == "Active");
 
             if (employee == null)
-                throw new Exception("Employee not found");
+
+                throw new Exception("Employee is inactive or not found");
+
 
             var personalInfo = await _context.EmployeePersonalInfos
                 .FirstOrDefaultAsync(p => p.Employee_Id == dto.EmployeeId);

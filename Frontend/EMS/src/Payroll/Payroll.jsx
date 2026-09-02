@@ -349,6 +349,79 @@ const toNonNegativeNumber = (...values) => {
   return null;
 };
 
+const toOptionalNumber = (value) => {
+  if (value === "" || value === null || value === undefined) {
+    return undefined;
+  }
+
+  const normalizedValue = Number(value);
+
+  return Number.isFinite(normalizedValue) ? normalizedValue : undefined;
+};
+
+const isManualPayslipGenerationSuccess = (responseData, expectedEmployeeId) => {
+  const source =
+  responseData && typeof responseData === "object" && !Array.isArray(responseData) ?
+  responseData :
+  {};
+  const nestedSource =
+  source.data && typeof source.data === "object" && !Array.isArray(source.data) ?
+  source.data :
+  {};
+  const summarySource = { ...nestedSource, ...source };
+  const normalizedExpectedEmployeeId = normalizeEmployeeIdentifier(expectedEmployeeId);
+
+  if (
+    summarySource.success === true ||
+    summarySource.isSuccess === true ||
+    summarySource.ok === true
+  ) {
+    return true;
+  }
+
+  const generatedCount = toNonNegativeNumber(
+    summarySource.generatedCount,
+    summarySource.generated,
+    summarySource.successCount,
+    summarySource.createdCount,
+    summarySource.processedCount,
+    summarySource.data?.generatedCount,
+    summarySource.data?.generated,
+    summarySource.data?.successCount,
+    summarySource.data?.createdCount,
+    summarySource.data?.processedCount
+  );
+
+  if ((generatedCount ?? 0) > 0) {
+    return true;
+  }
+
+  const payslipId =
+  getPayslipId(summarySource) ??
+  getPayslipId(summarySource.data);
+
+  if (payslipId == null) {
+    return false;
+  }
+
+  if (!normalizedExpectedEmployeeId) {
+    return true;
+  }
+
+  const responseEmployeeId = normalizeEmployeeIdentifier(
+    summarySource.employeeId ??
+    summarySource.employee_Id ??
+    summarySource.employeeID ??
+    summarySource.employee_id ??
+    summarySource.data?.employeeId ??
+    summarySource.data?.employee_Id ??
+    summarySource.data?.employeeID ??
+    summarySource.data?.employee_id
+  );
+
+  return !responseEmployeeId || responseEmployeeId === normalizedExpectedEmployeeId;
+};
+
 const extractBulkGenerationSummary = (responseData, batch = []) => {
   const source =
   responseData && typeof responseData === "object" && !Array.isArray(responseData) ?
@@ -1369,12 +1442,22 @@ function Payroll() {
       return;
     }
 
+    const manualTotalWorkingDays = toOptionalNumber(manualForm.totalWorkingDays);
+    const manualLopDays = toOptionalNumber(manualForm.lopDays);
+    const manualOtherDeductions = toOptionalNumber(manualForm.otherDeductions);
+
     const manualPayloadBase = {
       month: normalizedMonth,
       year: normalizedYear,
-      totalWorkingDays: Number(manualForm.totalWorkingDays) || 0,
-      lopDays: Number(manualForm.lopDays) || 0,
-      otherDeductions: Number(manualForm.otherDeductions) || 0
+      ...(manualTotalWorkingDays !== undefined ?
+      { totalWorkingDays: manualTotalWorkingDays } :
+      {}),
+      ...(manualLopDays !== undefined ?
+      { lopDays: manualLopDays } :
+      {}),
+      ...(manualOtherDeductions !== undefined ?
+      { otherDeductions: manualOtherDeductions } :
+      {})
     };
 
     try {
@@ -1409,7 +1492,34 @@ function Payroll() {
             ...manualPayloadBase
           };
 
-          await generateManualPayslip(payload);
+          const response = await generateManualPayslip(payload, {
+            validateStatus: (status) =>
+            (status >= 200 && status < 300) || status === 400
+          });
+
+          if (
+          Number(response?.status) === 400 &&
+          !isManualPayslipGenerationSuccess(response?.data, employeeId))
+          {
+            const apiError = new Error(
+              getPayrollApiErrorMessage(
+                {
+                  response: {
+                    status: response?.status ?? 400,
+                    data: response?.data
+                  }
+                },
+                "Failed to generate payslip."
+              )
+            );
+
+            apiError.response = {
+              status: response?.status ?? 400,
+              data: response?.data
+            };
+
+            throw apiError;
+          }
 
           logPayrollTiming("[Payroll] Manual payslip request", {
             employeeId,

@@ -149,6 +149,10 @@
   gap: 14px;
 }
 
+.ticket-metric-grid.ticket-metric-grid--summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .ticket-metric-card {
   display: flex;
   justify-content: space-between;
@@ -1565,6 +1569,7 @@
 
 @media (max-width: 1200px) {
 
+  .ticket-metric-grid.ticket-metric-grid--summary,
   .ticket-metric-grid,
   .ticket-upload-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1650,6 +1655,7 @@
   }
 
   .ticket-metric-grid,
+  .ticket-metric-grid.ticket-metric-grid--summary,
   .ticket-upload-summary,
   .ticket-mobile-meta {
     grid-template-columns: 1fr;

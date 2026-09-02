@@ -6,7 +6,7 @@ import { toastError } from "@/components/common/toast/toastService";
 import { buildServerUrl } from "../api/endpoints";
 import { PageSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByRecency } from "../utils/collections";
-import { formatDate } from "../utils/date";
+import { parseDate } from "../utils/date";
 import {
   endPerformanceTimer,
   logPerformanceError,
@@ -112,6 +112,19 @@ const normalizeBirthday = (record = {}) => {
   };
 };
 
+const formatBirthdayDisplayDate = (value, fallback = "-") => {
+  const parsedDate = parseDate(value);
+
+  if (!parsedDate) {
+    return fallback;
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric"
+  });
+};
+
 const formatDaysRemaining = (daysRemaining) => {
   if (daysRemaining === 0) {
     return "Today";
@@ -196,7 +209,7 @@ function AdminBirthdaysCard({ birthdays = [], loading = false, error = "", onRet
                   {birthday.employeeId}
                 </span>
 
-                <small>{formatDate(birthday.birthday)}</small>
+                <small>{formatBirthdayDisplayDate(birthday.birthday)}</small>
               </div>
 
               <span className="birthday-badge">

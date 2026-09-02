@@ -36,7 +36,7 @@ services:
 
       - /home/ubuntu/ems-storage/GeneratedPayslips:/app/GeneratedPayslips
 
-      - /home/ubuntu/ems-storage/uploads:/app/wwwroot/uploads/employee-documents
+     - /home/ubuntu/ems-storage/uploads/employee-documents:/app/wwwroot/uploads/employee-documents
      
 
       - /home/ubuntu/ems-storage/Agreements:/app/wwwroot/Agreements

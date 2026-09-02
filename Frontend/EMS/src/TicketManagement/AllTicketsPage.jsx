@@ -1664,7 +1664,6 @@ function AllTicketsPage({ scope = "admin" }) {
 
   const summaryCards = useMemo(() => {
     const total = filteredTickets.length;
-    const open = filteredTickets.filter((ticket) => ticket.status === "Open").length;
     const inProgress = filteredTickets.filter(
       (ticket) => ticket.status === "In Progress"
     ).length;
@@ -1674,7 +1673,6 @@ function AllTicketsPage({ scope = "admin" }) {
 
     return [
     { label: "Total Tickets", value: total, tone: "total" },
-    { label: "Open", value: open, tone: "open" },
     { label: "In Progress", value: inProgress, tone: "progress" },
     { label: "Completed", value: completed, tone: "resolved" }];
 
@@ -1994,7 +1992,7 @@ function AllTicketsPage({ scope = "admin" }) {
         </div>
       </div>
 
-      <div className="ticket-metric-grid">
+      <div className="ticket-metric-grid ticket-metric-grid--summary">
         {summaryCards.map((card) =>
         <div className={`ticket-metric-card tone-${card.tone}`} key={card.label}>
             <div>

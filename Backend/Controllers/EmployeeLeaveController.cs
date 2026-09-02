@@ -74,10 +74,16 @@ public class EmployeeLeaveController : ControllerBase
     //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpPut("approve-reject/{id}")]
     public async Task<IActionResult> ApproveOrRejectLeave(
-       int id,
-       [FromQuery] string status)
+      int id,
+      [FromQuery] string status)
     {
-        return await _service.UpdateStatus(id, status, User);
+        var dto = new LeaveApprovalDto
+        {
+            RequestId = id,
+            Decision = status
+        };
+
+        return await _service.UpdateStatus(dto, User);
     }
 
     // Employee leave balance
@@ -98,10 +104,16 @@ public class EmployeeLeaveController : ControllerBase
     //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpPut("update-status/{id}")]
     public async Task<IActionResult> UpdateStatus(
-    int id,
-    [FromQuery] string status)
+      int id,
+      [FromQuery] string status)
     {
-        return await _service.UpdateStatus(id, status, User);
+        var dto = new LeaveApprovalDto
+        {
+            RequestId = id,
+            Decision = status
+        };
+
+        return await _service.UpdateStatus(dto, User);
     }
 
     // Delete leave
@@ -241,9 +253,10 @@ string approverEmail)
             approverEmail);
     }
 
-//    [Authorize]
-//[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
+    //    [Authorize]
+    //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpGet("wfh-mail-action")]
+    [HttpGet("~/api/WorkFromHome/mail-action")]
     public async Task<IActionResult> WFHMailAction(
         int requestId,
         string action,

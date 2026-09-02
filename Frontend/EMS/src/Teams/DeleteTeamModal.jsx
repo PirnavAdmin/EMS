@@ -6,6 +6,7 @@ function DeleteTeamModal({
   team,
   onClose,
   onDelete,
+  saving = false,
 }) {
   if (!open) return null;
 
@@ -67,8 +68,9 @@ function DeleteTeamModal({
             type="button"
             className="team-action-btn danger"
             onClick={onDelete}
+            disabled={saving}
           >
-            Delete Team
+            {saving ? "Deleting..." : "Delete Team"}
           </button>
 
         </div>

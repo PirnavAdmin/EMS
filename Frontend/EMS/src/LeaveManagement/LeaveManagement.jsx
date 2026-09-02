@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./LeaveManagement.css";
+import api from "../api/axiosInstance";
+import { API_ENDPOINTS, buildApiUrl } from "../api/endpoints";
 import AppPagination from "../components/AppPagination";
+import { toast } from "../components/common/Toast/toastService";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { formatDate, isDateRangeValid, parseDate } from "../utils/date";
 import { FaChevronDown, FaFilter } from "react-icons/fa";
 import {
   getAllLeaveRequests,
-  getEmployeeLeaveDetails,
-  getLeaveBalanceByEmployee,
   getWfhRequests,
   updateLeaveStatus,
   updateWfhStatus,
@@ -17,6 +18,7 @@ import {
 function LeaveManagement() {
   const [filter, setFilter] = useState("All");
   const [selectedLeave, setSelectedLeave] = useState(null);
+  const [pendingApproval, setPendingApproval] = useState(null);
   const [leaveData, setLeaveData] = useState([]);
   const [actionLoading, setActionLoading] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,6 +46,223 @@ function LeaveManagement() {
 
   const getValue = (record, keys) =>
   firstDefined(...keys.map((key) => record?.[key]));
+
+  const normalizeStatusToken = (value) =>
+  String(value ?? "")
+  .trim()
+  .toLowerCase()
+  .replace(/[\s_-]+/g, "");
+
+  const isPendingStatus = (status) =>
+  normalizeStatusToken(status) === "pending";
+
+  const isApprovedStatus = (status) => {
+    const normalized = normalizeStatusToken(status);
+
+    return (
+      normalized.startsWith("approved") ||
+      normalized.startsWith("approveas")
+    );
+  };
+
+  const isRejectedStatus = (status) => {
+    const normalized = normalizeStatusToken(status);
+
+    return (
+      normalized.startsWith("rejected") ||
+      normalized.startsWith("reject")
+    );
+  };
+
+  const isCancelledStatus = (status) => {
+    const normalized = normalizeStatusToken(status);
+
+    return (
+      normalized.startsWith("cancelled") ||
+      normalized.startsWith("canceled") ||
+      normalized.startsWith("cancel")
+    );
+  };
+
+  const getStatusGroup = (status) => {
+    if (isPendingStatus(status)) {
+      return "pending";
+    }
+
+    if (isApprovedStatus(status)) {
+      return "approved";
+    }
+
+    if (isRejectedStatus(status)) {
+      return "rejected";
+    }
+
+    if (isCancelledStatus(status)) {
+      return "cancelled";
+    }
+
+    return normalizeStatusToken(status);
+  };
+
+  const formatStatusLabel = (status) => {
+    const rawValue = String(status ?? "").trim();
+    const normalized = normalizeStatusToken(status);
+
+    if (!normalized) {
+      return "Pending";
+    }
+
+    if (isApprovedStatus(status)) {
+      const approverMatch = rawValue.match(/\bby\s+(.+)$/i);
+      const approver = approverMatch?.[1]?.trim();
+      const isWfhApproval =
+      normalized.includes("wfh") ||
+      /\bwfh\b/i.test(rawValue);
+
+      if (approver) {
+        return isWfhApproval ?
+        `Approved As WFH By ${approver}` :
+        `Approved By ${approver}`;
+      }
+
+      if (isWfhApproval) {
+        return "Approved As WFH";
+      }
+
+      return "Approved";
+    }
+
+    if (isRejectedStatus(status)) {
+      const approverMatch = rawValue.match(/\bby\s+(.+)$/i);
+      const approver = approverMatch?.[1]?.trim();
+
+      if (approver) {
+        return `Rejected By ${approver}`;
+      }
+
+      return "Rejected";
+    }
+
+    if (isCancelledStatus(status)) {
+      return "Cancelled";
+    }
+
+    if (isPendingStatus(status)) {
+      return "Pending";
+    }
+
+    return rawValue || "Pending";
+  };
+
+  const isFinalApprovalStatus = (status) => {
+    return !isPendingStatus(status);
+  };
+
+  const normalizeLeaveBalanceCards = (payload) => {
+    const data = payload?.data || payload || {};
+    const types = [
+      ["Annual Leave", ["annualLeave", "AnnualLeave", "annual"]],
+      ["Casual Leave", ["casualLeave", "CasualLeave", "casual"]],
+      ["Medical Leave", ["medicalLeave", "MedicalLeave", "medical"]],
+      ["Sick Leave", ["sickLeave", "SickLeave", "sick"]],
+      ["Comp Off", ["compOff", "CompOff", "compensatoryOff"]],
+      ["LOP", ["lop", "LOP", "lossOfPay"]],
+      ["Remaining Leave", ["remainingLeave", "RemainingLeave", "remaining"]],
+      ["Total Leave", ["totalLeave", "TotalLeave", "total"]],
+      ["Consumed Leave", ["consumedLeave", "ConsumedLeave", "used"]]
+    ];
+
+    return types.map(([label, keys]) => {
+      const value = firstDefined(...keys.map((key) => data[key]), 0);
+      const displayValue =
+        typeof value === "object"
+          ? firstDefined(
+              value.remaining,
+              value.Remaining,
+              value.balance,
+              value.Balance,
+              value.total,
+              value.Total,
+              0
+            )
+          : value;
+
+      return { label, value: displayValue };
+    });
+  };
+
+  const resolveEmployeeLookupCandidates = (leave = {}) => {
+    const candidates = [
+      leave.employeeId,
+      leave.EmployeeId,
+      leave.employeeCode,
+      leave.EmployeeCode,
+      leave.employee_Id,
+      leave.employee_id,
+      leave.userId,
+      leave.user_Id,
+      leave.employee?.userId,
+      leave.employee?.user_Id,
+      leave.employee?.employeeId,
+      leave.employee?.EmployeeId,
+      leave.employee?.employeeCode,
+      leave.employee?.EmployeeCode,
+      leave.employee?.employee_Id,
+      leave.employee?.employee_id,
+      leave.employee?.id,
+      leave.id
+    ];
+
+    return [...new Set(candidates.map((value) => String(value ?? "").trim()).filter(Boolean))];
+  };
+
+  const logLeaveRequest = (label, endpoint, employeeId) => {
+    console.log(`${label} API URL`, buildApiUrl(endpoint));
+    console.log(`${label} API METHOD`, "GET");
+    console.log(`${label} EMPLOYEE ID`, employeeId);
+  };
+
+  const fetchLeaveResourceWithFallback = async ({
+    label,
+    candidates,
+    endpointForCandidate,
+    config
+  }) => {
+    let lastError = null;
+
+    for (const candidate of candidates) {
+      const endpoint = endpointForCandidate(candidate);
+
+      logLeaveRequest(label, endpoint, candidate);
+
+      try {
+        const response = await api.get(endpoint, config);
+
+        console.log(`${label} API RESPONSE`, {
+          status: response.status,
+          data: response.data
+        });
+
+        return {
+          candidate,
+          response
+        };
+      } catch (error) {
+        console.log(`${label} API ERROR`, {
+          status: error?.response?.status,
+          data: error?.response?.data
+        });
+
+        lastError = error;
+
+        if (error?.response?.status !== 404) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError || new Error(`${label} request failed`);
+  };
 
   const normalizeText = (value) =>
   String(value ?? "").trim().toLowerCase();
@@ -146,50 +365,70 @@ function LeaveManagement() {
   const openEmployeeHistory = async (leave) => {
     try {
       setEmployeeHistoryLoading(true);
-      setEmployeeBalanceLoading(String(leave.employeeId));
+      const displayEmployeeId = String(leave.employeeId || "").trim();
+      const employeeCandidates = resolveEmployeeLookupCandidates(leave);
+      const authConfig = {
+        headers: {
+          Authorization: `Bearer ${getToken()}`
+        }
+      };
 
-      let leaveBalance = employeeBalanceCache[leave.employeeId];
+      setEmployeeBalanceLoading(displayEmployeeId);
+
+      let leaveBalance = employeeBalanceCache[displayEmployeeId];
 
       if (!leaveBalance) {
         try {
-          const balanceResponse = await getLeaveBalanceByEmployee(
-            leave.employeeId,
-            {
-              headers: {
-                Authorization: `Bearer ${getToken()}`
-              }
-            }
-          );
+          const balanceResult = await fetchLeaveResourceWithFallback({
+            label: "LEAVE BALANCE",
+            candidates: employeeCandidates,
+            endpointForCandidate: (candidate) =>
+              API_ENDPOINTS.leaveBalance.byEmployee(candidate),
+            config: authConfig
+          });
 
-          leaveBalance = normalizeLeaveBalanceCards(balanceResponse.data);
+          leaveBalance = normalizeLeaveBalanceCards(balanceResult.response.data);
+
           setEmployeeBalanceCache((current) => ({
             ...current,
-            [leave.employeeId]: leaveBalance
+            [displayEmployeeId]: leaveBalance
           }));
         } catch (balanceError) {
-
-          leaveBalance = [];
+          leaveBalance = employeeBalanceCache[displayEmployeeId] || [];
         }
       }
 
-      const response = await getEmployeeLeaveDetails(
-        leave.employeeId,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
+      let apiData = null;
+      let history = [];
+      try {
+        const detailsResult = await fetchLeaveResourceWithFallback({
+          label: "LEAVE DETAILS",
+          candidates: employeeCandidates,
+          endpointForCandidate: (candidate) =>
+            API_ENDPOINTS.leave.employeeLeaveDetails(candidate),
+          config: authConfig
+        });
 
-      const apiData = response.data;
+        apiData = detailsResult.response.data;
+        history = apiData.leaveHistory || apiData.history || [];
+      } catch (detailsError) {
+        const normalizedDisplayEmployeeId = normalizeText(displayEmployeeId);
+        history = combinedData.filter((item) =>
+          normalizeText(item.employeeId) === normalizedDisplayEmployeeId
+        );
+        apiData = {
+          totalLeavesApplied: history.length,
+          leaveHistory: history
+        };
+      }
 
       setSelectedEmployee({
-        employeeId: leave.employeeId,
+        employeeId: displayEmployeeId,
         employeeName: leave.employeeName,
         leaveBalance,
 
         totalLeavesApplied:
-        apiData.totalLeavesApplied || 0,
+        apiData?.totalLeavesApplied || history.length || 0,
 
         // leaveBalances: {
         //   casual:
@@ -208,16 +447,15 @@ function LeaveManagement() {
         //     {}
         // },
 
-        history:
-        apiData.leaveHistory || []
+        history
       });
 
     } catch (error) {
 
       setSelectedEmployee({
-        employeeId: leave.employeeId,
+        employeeId: String(leave.employeeId || "").trim(),
         employeeName: leave.employeeName,
-        leaveBalance: employeeBalanceCache[leave.employeeId] || [],
+        leaveBalance: employeeBalanceCache[String(leave.employeeId || "").trim()] || [],
         history: []
       });
 
@@ -233,10 +471,12 @@ function LeaveManagement() {
   status) =>
   {
 
+    const requestStatus = String(status ?? "").trim();
+
     try {
 
       setActionLoading(
-        `${leaveId}-${status}`
+        `${leaveId}-${requestStatus}`
       );
 
       await updateLeaveStatus(
@@ -250,7 +490,10 @@ function LeaveManagement() {
         }
       );
 
-      await fetchLeaves();
+      await Promise.all([
+        fetchLeaves(),
+        fetchWFH()
+      ]);
 
       if (
       selectedLeave?.id === leaveId)
@@ -258,12 +501,28 @@ function LeaveManagement() {
 
         setSelectedLeave((prev) => ({
           ...prev,
-          status
+          status: requestStatus
         }));
 
       }
 
+      toast.success(
+        requestStatus === "Reject" ?
+        "Leave request rejected successfully." :
+        "Leave request updated successfully."
+      );
+
+      return true;
+
     } catch (error) {
+
+      toast.error(
+        error?.response?.data?.message ||
+        error?.response?.data ||
+        "Unable to update leave request."
+      );
+
+      return false;
 
     } finally {
 
@@ -277,29 +536,78 @@ function LeaveManagement() {
   status) =>
   {
 
+    const requestStatus = String(status ?? "").trim();
+
     try {
 
-      setActionLoading(`${id}-${status}`);
+      setActionLoading(`${id}-${requestStatus}`);
 
       await updateWfhStatus(
         id,
         null,
         {
-          params: { status },
+          params: { status: requestStatus },
           headers: {
             Authorization: `Bearer ${getToken()}`
           }
         }
       );
 
-      await fetchWFH();
+      await Promise.all([
+        fetchLeaves(),
+        fetchWFH()
+      ]);
+
+      toast.success(
+        requestStatus === "Reject" ?
+        "Work From Home request rejected successfully." :
+        "Work From Home request updated successfully."
+      );
+
+      return true;
 
     } catch (err) {
+
+      toast.error(
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        "Unable to update Work From Home request."
+      );
+
+      return false;
 
     } finally {
 
       setActionLoading("");
 
+    }
+  };
+
+  const getApprovalOptions = (requestType) =>
+  requestType === "WFH" ?
+  [
+    { label: "Approve as Work From Home", status: "ApproveAsWFH" },
+    { label: "Approve as Leave", status: "ApproveAsLeave" },
+    { label: "Reject", status: "Reject" }
+  ] :
+  [
+    { label: "Approve as Leave", status: "ApproveAsLeave" },
+    { label: "Approve as Work From Home", status: "ApproveAsWFH" },
+    { label: "Reject", status: "Reject" }
+  ];
+
+  const handleApprovalAction = async (request, status) => {
+    if (!request?.id || !status || isFinalApprovalStatus(request.status)) {
+      return;
+    }
+
+    const result =
+    request.requestType === "WFH" ?
+    await updateWFHStatus(request.id, status) :
+    await updateStatus(request.id, status);
+
+    if (result) {
+      setPendingApproval(null);
     }
   };
 
@@ -314,10 +622,20 @@ function LeaveManagement() {
     return Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
   };
 
-  // ✅ NEW: Short reason for table
-  const truncateReason = (text, maxLength = 15) => {
-    if (!text) return "-";
-    return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+  const truncateStatus = (text, maxLength = 20) => {
+    const value = String(text ?? "Pending");
+
+    if (value.length <= maxLength) {
+      return {
+        display: value,
+        title: value
+      };
+    }
+
+    return {
+      display: `${value.slice(0, maxLength)}...`,
+      title: value
+    };
   };
 
   const combinedData = [
@@ -330,7 +648,7 @@ function LeaveManagement() {
   )];
 
   const filteredLeaves = combinedData.filter((item) => {
-    const itemStatus = normalizeText(item.status);
+    const itemStatus = normalizeStatusToken(item.status);
     const itemLeaveType = normalizeLeaveType(item.leaveType);
 
     let matchesFilter = true;
@@ -342,9 +660,12 @@ function LeaveManagement() {
     } else if (filter === "Pending") {
       matchesFilter = itemStatus === "pending";
     } else if (filter === "Approved") {
-      matchesFilter = itemStatus.includes("approved");
+      matchesFilter =
+      itemStatus.includes("approved") ||
+      itemStatus.startsWith("approveas");
     } else if (filter === "Rejected") {
-      matchesFilter = itemStatus.includes("rejected");
+      matchesFilter =
+      itemStatus.includes("reject");
     }
 
     if (!matchesFilter) {
@@ -362,7 +683,7 @@ function LeaveManagement() {
     item.employeeId,
     item.leaveType,
     item.reason,
-    item.status,
+    formatStatusLabel(item.status),
     item.requestType].
     some((value) => normalizeText(value).includes(normalizedSearch));
   });
@@ -479,7 +800,6 @@ function LeaveManagement() {
           <table>
             <thead>
               <tr>
-                <th>EMP ID</th>
                 <th>EMPLOYEE</th>
                 <th>LEAVE TYPE</th>
                 <th>DURATION</th>
@@ -493,28 +813,36 @@ function LeaveManagement() {
             <tbody>
               {filteredLeaves.length === 0 ?
               <tr>
-                  <td colSpan="8" style={{ textAlign: "center", padding: "20px" }}>
+                  <td colSpan="7" style={{ textAlign: "center", padding: "20px" }}>
                     {searchQuery ? "No matching records found" : "No leave records found"}
                   </td>
                 </tr> :
 
               paginatedLeaves.map((leave) => {
                 const days = calculateDays(leave.fromDate, leave.toDate);
+                const isFinalRequest = isFinalApprovalStatus(leave.status);
+                const isRowActionLoading = actionLoading.startsWith(`${leave.id}-`);
+                const isRowActionDisabled = isFinalRequest || isRowActionLoading;
+                const reasonText = String(leave.reason ?? "").trim();
+                const reasonTitle = reasonText || "No reason provided";
 
                 return (
                   <tr
                     key={`${leave.requestType}-${leave.id}`}>
                     
-                      <td>{leave.employeeId || "-"}</td>
 
-                      <td>
-                        <span
-                        className="employee-name-link"
-                        onClick={() => openEmployeeHistory(leave)}>
-                        
-                          {leave.employeeName || "-"}
-                        </span>
-                      </td>
+                      <td className="leave-employee-cell">
+                        <div className="leave-employee-content">
+                          <span
+                            className="employee-name-link leave-employee-name"
+                            onClick={() => openEmployeeHistory(leave)}>
+                            {leave.employeeName || "-"}
+                          </span>
+                          <span className="leave-employee-id">
+                            {leave.employeeId || "-"}
+                          </span>
+                        </div>
+                      </td>
 
                       <td>{leave.leaveType || "-"}</td>
 
@@ -528,15 +856,28 @@ function LeaveManagement() {
                       <td
                       className="leave-reason-cell"
                       onClick={() => setSelectedLeave(leave)}
-                      title="View Leave Details">
-                      
-                        {truncateReason(leave.reason, 15)}
-                      </td>
+                      title={reasonTitle}>
+                        <span className="leave-reason-text">
+                          {reasonText || "-"}
+                        </span>
+                      </td>
 
                       <td>
-                        <span className={`status ${leave.status?.toLowerCase()}`}>
-                          {leave.status || "Pending"}
-                        </span>
+                          {(() => {
+                            const statusValue = leave.status || "Pending";
+                            const { display, title } = truncateStatus(
+                              formatStatusLabel(statusValue),
+                              20
+                            );
+
+                            return (
+                              <span
+                                className={`status ${getStatusGroup(statusValue)}`}
+                                title={title}>
+                                {display}
+                              </span>
+                            );
+                          })()}
                       </td>
 
                       <td
@@ -545,50 +886,34 @@ function LeaveManagement() {
                       
                         <button
                         className="approve-btn"
-                        onClick={() =>
-                        leave.requestType === "WFH" ?
-                        updateWFHStatus(
-                          leave.id,
-                          "Approved"
-                        ) :
-                        updateStatus(
-                          leave.id,
-                          "Approved"
-                        )
-                        }
-                        disabled={
-                        actionLoading ===
-                        `${leave.id}-Approved`
-                        }>
+                        onClick={() => !isRowActionDisabled && setPendingApproval(leave)}
+                        disabled={isRowActionDisabled}>
                         
-                          {actionLoading ===
-                        `${leave.id}-Approved` ?
-                        "Approving..." :
-                        "Approve"}
-                        </button>
+                          {isRowActionLoading ?
+                        "Processing..." :
+                        "Approve"}
+                        </button>
 
                         <button
                         className="reject-btn"
                         onClick={() =>
-                        leave.requestType === "WFH" ?
+                        !isRowActionDisabled &&
+                        (leave.requestType === "WFH" ?
                         updateWFHStatus(
                           leave.id,
-                          "Rejected"
+                          "Reject"
                         ) :
                         updateStatus(
                           leave.id,
-                          "Rejected"
-                        )
+                          "Reject"
+                        ))
                         }
-                        disabled={
-                        actionLoading ===
-                        `${leave.id}-Rejected`
-                        }>
+                        disabled={isRowActionDisabled}>
                         
                           {actionLoading ===
-                        `${leave.id}-Rejected` ?
+                        `${leave.id}-Reject` ?
                         "Rejecting..." :
-                        "Reject"}
+                        "Reject"}
                         </button>
                       </td>
                     </tr>);
@@ -609,7 +934,88 @@ function LeaveManagement() {
         itemLabel="leave requests" />
       
 
-      {/* DETAILS MODAL */}
+      {/* APPROVAL MODAL */}
+
+      {pendingApproval &&
+      (() => {
+        const isProcessing = actionLoading.startsWith(`${pendingApproval.id}-`);
+        const isFinalRequest = isFinalApprovalStatus(pendingApproval.status);
+        const isActionDisabled = isProcessing || isFinalRequest;
+        const approvalOptions = getApprovalOptions(pendingApproval.requestType)
+        .filter((option) => option.status !== "Reject");
+
+        return (
+          <div className="leave-details-overlay" role="presentation">
+            <div className="leave-details-container leave-approval-container" role="dialog" aria-modal="true" aria-labelledby="leave-approval-title">
+              <button
+                type="button"
+                className="leave-details-close-icon"
+                onClick={() => !isProcessing && setPendingApproval(null)}
+                disabled={isProcessing}
+                aria-label="Close approval dialog">
+                ×
+              </button>
+
+              <h3 className="leave-details-title" id="leave-approval-title">
+                {pendingApproval.requestType === "WFH" ? "Work From Home Approval" : "Leave Approval"}
+              </h3>
+
+              <div className="leave-details-row">
+                <span className="leave-details-label">Employee</span>
+                <span className="leave-details-value">{pendingApproval.employeeName || "-"}</span>
+              </div>
+
+              <div className="leave-details-row">
+                <span className="leave-details-label">Employee ID</span>
+                <span className="leave-details-value">{pendingApproval.employeeId || "-"}</span>
+              </div>
+
+              <div className="leave-details-row">
+                <span className="leave-details-label">Request Type</span>
+                <span className="leave-details-value">
+                  {pendingApproval.requestType === "WFH" ? "Work From Home" : "Leave"}
+                </span>
+              </div>
+
+              <div className="leave-details-row">
+                <span className="leave-details-label">From Date</span>
+                <span className="leave-details-value">{formatDate(pendingApproval.fromDate)}</span>
+              </div>
+
+              <div className="leave-details-row">
+                <span className="leave-details-label">To Date</span>
+                <span className="leave-details-value">{formatDate(pendingApproval.toDate)}</span>
+              </div>
+
+              <div className="leave-details-reason">
+                <span className="leave-details-label">Reason</span>
+                <div className="leave-details-reason-text">
+                  {pendingApproval.reason || "-"}
+                </div>
+              </div>
+
+              <div className="leave-approval-actions">
+                {approvalOptions.map((option) => {
+                  const isCurrentOptionLoading = actionLoading === `${pendingApproval.id}-${option.status}`;
+
+                  return (
+                    <button
+                      key={option.status}
+                      type="button"
+                      className={option.status === "Reject" ? "reject-btn" : "approve-btn"}
+                      onClick={() => !isActionDisabled && handleApprovalAction(pendingApproval, option.status)}
+                      disabled={isActionDisabled}>
+                      {isCurrentOptionLoading ? "Processing..." : option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* DETAILS MODAL */}
       {selectedLeave &&
       <div className="leave-details-overlay">
           <div className="leave-details-container">
@@ -688,9 +1094,9 @@ function LeaveManagement() {
             <div className="leave-details-row">
               <span className="leave-details-label">Status</span>
               <span
-              className={`leave-details-value leave-status-${selectedLeave.status?.toLowerCase()}`}>
+              className={`leave-details-value leave-status-${getStatusGroup(selectedLeave.status)}`}>
               
-                {selectedLeave.status}
+                {formatStatusLabel(selectedLeave.status)}
               </span>
             </div>
 
@@ -819,25 +1225,7 @@ function LeaveManagement() {
 
           }
 
-            <div className="leave-balance-section">
-              <h4>LEAVE BALANCE</h4>
-              {employeeBalanceLoading === String(selectedEmployee.employeeId) ?
-            <div className="history-loading">Loading leave balance...</div> :
-
-            <div className="leave-balance-grid">
-                  {(selectedEmployee.leaveBalance || []).map((item) =>
-              <div className="balance-card" key={item.label}>
-                      <div className="balance-header">
-                        <span>{item.label}</span>
-                        <span>{item.value ?? 0}</span>
-                      </div>
-                    </div>
-              )}
-                </div>
-            }
-            </div>
-
-            {/* SUMMARY CARDS */}
+            {/* SUMMARY CARDS */}
             <div className="leave-summary-grid">
 
               <div className="summary-card applied">
@@ -849,7 +1237,7 @@ function LeaveManagement() {
                 <h2>
                   {
                 selectedEmployee.history.filter(
-                  (x) => x.status?.toLowerCase().includes("approved")
+                  (x) => getStatusGroup(x.status) === "approved"
                 ).length
                 }
                 </h2>
@@ -860,7 +1248,7 @@ function LeaveManagement() {
                 <h2>
                   {
                 selectedEmployee.history.filter(
-                  (x) => x.status?.toLowerCase().includes("rejected")
+                  (x) => getStatusGroup(x.status) === "rejected"
                 ).length
                 }
                 </h2>
@@ -871,7 +1259,7 @@ function LeaveManagement() {
                 <h2>
                   {
                 selectedEmployee.history.filter(
-                  (x) => x.status?.toLowerCase().includes("pending")
+                  (x) => getStatusGroup(x.status) === "pending"
                 ).length
                 }
                 </h2>
@@ -904,41 +1292,45 @@ function LeaveManagement() {
                     </tr>
                   </thead>
 
-                  <tbody>
-                    {selectedEmployee.history.map((item) =>
-                <tr key={`${item.requestType}-${item.id}`}>
-                        <td>{formatDate(item.createdAt)}</td>
-
-                        <td>{item.leaveType}</td>
+                  <tbody>
+                    {selectedEmployee.history.map((item) => {
+                      const reasonValue = String(item.reason ?? "");
+                      const reasonText = reasonValue.trim();
+
+                      return (
+                <tr key={`${item.requestType}-${item.id}`}>
+                        <td>{formatDate(item.createdAt)}</td>
+
+                        <td>{item.leaveType}</td>
 
                         <td>
                           {formatDate(item.fromDate)} — {formatDate(item.toDate)}
                         </td>
 
-                        <td>
+                        <td>
                           {calculateDays(
                       item.fromDate,
                       item.toDate
-                    )}
-                        </td>
-
-                        <td>{item.reason}</td>
-
-                        <td>
-                          <span
-                      className={`history-status ${item.status?.toLowerCase().includes("approved") ?
-                      "approved" :
-                      item.status?.toLowerCase().includes("rejected") ?
-                      "rejected" :
-                      "pending"}`
-                      }>
-                      
-                            {item.status}
-                          </span>
-                        </td>
+                    )}
+                        </td>
+
+                        <td
+                        className="history-reason-cell"
+                        title={reasonText ? reasonValue : undefined}>
+                          <span className="history-reason-text">
+                            {reasonText || "-"}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span className={`history-status ${getStatusGroup(item.status)}`}>
+                            {formatStatusLabel(item.status)}
+                          </span>
+                        </td>
                       </tr>
-                )}
-                  </tbody>
+                      );
+                    })}
+                  </tbody>
                 </table>
               </div>
           }
@@ -960,3 +1352,4 @@ function LeaveManagement() {
 }
 
 export default LeaveManagement;
+

@@ -60,7 +60,11 @@ namespace EmployeeManagementSystem.Interfaces
             DateTime date,
             DateTime? checkIn,
             DateTime? checkOut);
-        Task<AttendanceSummaryDto> GetMonthlyAttendanceSummary(string employeeId, int month, int year);
+        Task<AttendanceSummaryDto> GetMonthlyAttendanceSummary(
+     string employeeId,
+     int month,
+     int year,
+     DateTime? calculationFromDate = null);
 
         //---------------------------------------
 

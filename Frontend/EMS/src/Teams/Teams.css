@@ -161,6 +161,17 @@
   background: transparent;
   color: var(--input-text);
   font-size: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: none;
+}
+
+.teams-search-input::-webkit-search-decoration,
+.teams-search-input::-webkit-search-cancel-button,
+.teams-search-input::-webkit-search-results-button,
+.teams-search-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .teams-search-input::placeholder {
@@ -229,8 +240,17 @@
   gap: 12px;
 }
 
+.team-card-top-badges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .team-number-badge,
 .team-engagement-badge,
+.team-status-badge,
 .team-cross-team-badge,
 .team-user-id-pill,
 .team-project-badge {
@@ -249,6 +269,18 @@
   background: var(--team-accent-soft);
   color: var(--team-accent);
   border: 1px solid var(--team-accent-soft);
+}
+
+.team-status-badge.is-active {
+  background: var(--surface-success-soft);
+  color: var(--theme-success-strong);
+  border: 1px solid var(--surface-success-soft);
+}
+
+.team-status-badge.is-inactive {
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
+  border: 1px solid var(--surface-danger-soft);
 }
 
 .team-engagement-badge.project {
@@ -363,7 +395,37 @@
 }
 
 .team-day-button {
+  position: relative;
   min-width: 54px;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.team-day-button.is-active {
+  gap: 0.3rem;
+}
+
+.team-day-button.is-active::before {
+  content: "\2713";
+  position: static;
+  display: inline-block;
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.team-day-button:focus,
+.team-day-button:focus-visible,
+.team-day-button:active,
+.team-day-button.is-active:focus,
+.team-day-button.is-active:focus-visible,
+.team-day-button.is-active:active {
+  outline: none !important;
   box-shadow: none !important;
 }
 
@@ -388,6 +450,38 @@
   color: var(--text-strong);
   font-size: 13px;
   font-weight: 700;
+}
+
+.team-project-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-muted);
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.team-project-summary strong {
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.team-project-summary.is-existing {
+  border-color: var(--surface-warning-soft);
+  background: var(--surface-warning-soft);
+}
+
+.team-project-summary.is-existing strong {
+  color: var(--theme-warning-strong);
+}
+
+.team-project-open-btn {
+  justify-self: flex-start;
+  margin-top: 4px;
 }
 
 .accent-teal {

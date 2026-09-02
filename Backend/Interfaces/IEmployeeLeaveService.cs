@@ -17,10 +17,8 @@ public interface IEmployeeLeaveService
     Task<IActionResult> CancelLeave(int id, ClaimsPrincipal user);
 
     //Task<IActionResult> GetBalance(ClaimsPrincipal user);
-
     Task<IActionResult> UpdateStatus(
-        int id,
-        string status,
+        LeaveApprovalDto dto,
         ClaimsPrincipal user);
     Task<IActionResult> Delete(int id);
 

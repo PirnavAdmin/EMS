@@ -40,4 +40,13 @@ public class EmployeeLeave
     public int PaidLeaveDays { get; set; }
 
     public int LOPDays { get; set; }
+
+    public string? RequestedType { get; set; }
+
+    // What the approver finally approved
+    // Example: Leave / WFH
+    public string? ApprovedType { get; set; }
+
+    // Reason/comment given by approver
+    public string? ApprovalRemarks { get; set; }
 }

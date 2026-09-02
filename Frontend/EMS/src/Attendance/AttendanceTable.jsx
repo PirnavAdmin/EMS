@@ -945,33 +945,14 @@ function AttendanceTable({
   };
 
   const formatHoursWorked = (emp) => {
-    const attendanceDate =
-    getAttendanceRecordDate(emp);
-
-    if (
-    attendanceDate &&
-    attendanceDate > new Date())
-    {
-      return "--";
-    }
-
-    const employeeId =
-    getEmployeeId(emp);
-    const employeeName =
-    getEmployeeName(emp);
     const apiWorkingHours =
-    emp?.workingHours;
-
-    console.log("Attendance working hours API value:", {
-      employeeId,
-      employeeName,
-      workingHours: apiWorkingHours
-    });
+    emp?.hours;
 
     if (
     apiWorkingHours === null ||
     apiWorkingHours === undefined ||
-    apiWorkingHours === "")
+    (typeof apiWorkingHours === "string" &&
+    !apiWorkingHours.trim()))
     {
       return "--";
     }

@@ -3,9 +3,10 @@ import {
   FaArrowRight,
   FaProjectDiagram,
   FaUserTie,
-  FaUsers,
+  FaUsers
 } from "react-icons/fa";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
+import { getTeamMemberCount } from "./teamUtils";
 
 function TeamCard({ team, onClick }) {
   const accentClass = `accent-${team.accent || "teal"}`;
@@ -21,13 +22,15 @@ function TeamCard({ team, onClick }) {
         <div className="team-card-top">
           <span className="team-number-badge">{team.teamNumber}</span>
 
-          <span
-            className={`team-engagement-badge ${String(team.engagementType || "")
-              .toLowerCase()
-              .trim()}`}
-          >
-            {team.engagementType}
-          </span>
+          <div className="team-card-top-badges">
+            <span
+              className={`team-engagement-badge ${String(team.engagementType || "")
+                .toLowerCase()
+                .trim()}`}
+            >
+              {team.engagementType}
+            </span>
+          </div>
         </div>
 
         <div className="team-card-title-row">
@@ -48,7 +51,7 @@ function TeamCard({ team, onClick }) {
             <div>
               <span className="team-card-meta-label">Reporting Manager</span>
               <span className="team-card-meta-value">
-                {team.reportingManager || team.managerName || "-"}
+                {team.reportingManagerName || team.reportingManager || team.managerName || "-"}
               </span>
             </div>
           </div>
@@ -58,19 +61,19 @@ function TeamCard({ team, onClick }) {
 
             <div>
               <span className="team-card-meta-label">Project</span>
-              <span className="team-card-meta-value">{team.projectName}</span>
+              <span className="team-card-meta-value">{team.projectName || "-"}</span>
             </div>
           </div>
         </div>
 
         <div className="team-card-days">
           {TEAM_DAY_OPTIONS.map((day) => {
-            const isActive = (team.reportingDays || []).includes(day);
+            const isSelected = (team.reportingDays || []).includes(day);
 
             return (
               <span
                 key={`${team.teamId || team.id}-${day}`}
-                className={`team-day-chip ${isActive ? "is-active" : ""}`}
+                className={`team-day-chip ${isSelected ? "is-active" : ""}`}
               >
                 {day}
               </span>
@@ -83,10 +86,7 @@ function TeamCard({ team, onClick }) {
 
           <span className="team-members-count">
             <FaUsers />
-            {team.employeeNames?.length ??
-              team.members?.length ??
-              team.membersCount ??
-              0} members
+            {getTeamMemberCount(team)} members
           </span>
         </div>
       </button>

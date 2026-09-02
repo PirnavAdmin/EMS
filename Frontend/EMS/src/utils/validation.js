@@ -25,7 +25,7 @@ export const sanitizeLettersAndSpaces = (value, maxLength = 50) =>
     .replace(/\s{2,}/g, " ")
     .slice(0, maxLength);
 
-export const sanitizeRoleNameInput = (value, maxLength = 30) =>
+export const sanitizeRoleNameInput = (value, maxLength = 50) =>
   sanitizeLeadingWhitespace(value)
     .replace(/[^A-Za-z0-9&/ -]/g, "")
     .replace(/\s{2,}/g, " ")
@@ -201,7 +201,7 @@ export const validateTinNumber = (value, label = "TIN Number") => {
 
 export const validateRoleName = (
   value,
-  { label = "Role Name", min = 2, max = 30 } = {}
+  { label = "Role Name", min = 2, max = 50 } = {}
 ) => {
   const normalizedValue = normalizeWhitespace(value);
 

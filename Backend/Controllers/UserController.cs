@@ -515,16 +515,16 @@ namespace EmployeeManagementSystem.Controllers
                 // EMPLOYEE STATUS CHECK
                 // ====================================================
 
-                if (string.Equals(
-                    employee.Status,
-                    "Inactive",
-                    StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(
+     employee.Status?.Trim(),
+     "Active",
+     StringComparison.OrdinalIgnoreCase))
                 {
                     return Unauthorized(new
                     {
                         Status = false,
                         Message =
-                            "Your account is inactive. Please contact the administrator."
+                            "Your employee account is inactive. Please contact the HR administrator to activate your account."
                     });
                 }
 

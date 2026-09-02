@@ -508,12 +508,16 @@ export default function LoginLeft() {
       requestError.message ||
       "";
 
-      if (message.includes("Email does not exist")) {
+      if (requestError.response?.status === 401) {
+        setError(
+          requestError.response?.data?.message ||
+          message ||
+          "Invalid email or password."
+        );
+      } else if (message.includes("Email does not exist")) {
         setError("No employee record was found for this email address.");
       } else if (message.includes("company")) {
         setError("This account is not assigned to a company yet.");
-      } else if (requestError.response?.status === 401) {
-        setError("Invalid email or password.");
       } else if (requestError.response?.status === 403) {
         setError("Your account does not have permission to access this application.");
       } else {

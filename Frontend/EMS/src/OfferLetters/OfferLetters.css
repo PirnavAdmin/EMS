@@ -170,6 +170,10 @@ body {
   grid-column: 1 / -1;
 }
 
+.offer-card .letter-type-field {
+  gap: 6px;
+}
+
 .offer-card .relieving-letter-actions {
   margin-top: 5px;
 }
@@ -1431,7 +1435,7 @@ body {
   .relieving-letter-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 14px;
-    row-gap: 5px;
+    row-gap: 6px;
   }
 
   .relieving-letter-form-grid .full-width {

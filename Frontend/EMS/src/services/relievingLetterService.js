@@ -45,6 +45,38 @@ const readResponseText = async (value) => {
   return "";
 };
 
+const getValidationErrorsBlock = (data) =>
+  data?.errors ||
+  data?.Errors ||
+  data?.validationErrors ||
+  data?.ValidationErrors ||
+  null;
+
+const collectValidationMessages = (validationErrors) => {
+  if (!validationErrors || typeof validationErrors !== "object") {
+    return [];
+  }
+
+  const messages = [];
+  const addMessage = (value) => {
+    const message = getMeaningfulMessage(value);
+    if (message && !messages.includes(message)) {
+      messages.push(message);
+    }
+  };
+
+  for (const value of Object.values(validationErrors)) {
+    if (Array.isArray(value)) {
+      value.forEach(addMessage);
+      continue;
+    }
+
+    addMessage(value);
+  }
+
+  return messages;
+};
+
 const getMeaningfulMessage = (text) => {
   const normalizedText = String(text || "").trim();
 
@@ -54,6 +86,14 @@ const getMeaningfulMessage = (text) => {
 
   try {
     const parsed = JSON.parse(normalizedText);
+
+    const validationMessages = collectValidationMessages(
+      getValidationErrorsBlock(parsed)
+    );
+
+    if (validationMessages.length) {
+      return validationMessages.join(" ");
+    }
 
     return (
       parsed?.message ||
@@ -87,6 +127,14 @@ const extractNestedErrorMessage = (data) => {
     return "";
   }
 
+  const validationMessages = collectValidationMessages(
+    getValidationErrorsBlock(data)
+  );
+
+  if (validationMessages.length) {
+    return validationMessages.join(" ");
+  }
+
   const directMessage =
     data.message ||
     data.Message ||
@@ -102,32 +150,6 @@ const extractNestedErrorMessage = (data) => {
 
   if (directMessage) {
     return String(directMessage).trim();
-  }
-
-  const validationErrors =
-    data.errors ||
-    data.Errors ||
-    data.validationErrors ||
-    data.ValidationErrors ||
-    null;
-
-  if (validationErrors && typeof validationErrors === "object") {
-    for (const value of Object.values(validationErrors)) {
-      if (Array.isArray(value)) {
-        for (const entry of value) {
-          const message = getMeaningfulMessage(entry);
-          if (message) {
-            return message;
-          }
-        }
-        continue;
-      }
-
-      const message = getMeaningfulMessage(value);
-      if (message) {
-        return message;
-      }
-    }
   }
 
   return "";

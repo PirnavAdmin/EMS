@@ -6,6 +6,7 @@ function RemoveMemberModal({
   member,
   onClose,
   onRemove,
+  saving = false,
 }) {
   if (!open || !member) return null;
 
@@ -88,8 +89,9 @@ function RemoveMemberModal({
             type="button"
             className="team-action-btn danger"
             onClick={onRemove}
+            disabled={saving}
           >
-            Remove Member
+            {saving ? "Removing..." : "Remove Member"}
           </button>
 
         </div>

@@ -1,5 +1,6 @@
 ﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
@@ -79,6 +80,19 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> GetManagers()
         {
             return await _service.GetManagers();
+        }
+
+        [HttpGet("project-teams")]
+        public async Task<IActionResult> GetProjectTeams()
+        {
+            return await _service.GetProjectTeams();
+        }
+
+        [Authorize]
+        [HttpGet("my-team")]
+        public async Task<IActionResult> GetMyTeam()
+        {
+            return await _service.GetMyTeam();
         }
     }
 }
