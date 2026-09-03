@@ -144,13 +144,13 @@ namespace EmployeeManagementSystem.Controllers
                   ?? User.FindFirst("OnboardingId")?.Value;
 
             // Employee can edit only their own details
-            if (!string.IsNullOrWhiteSpace(currentUserId))
-            {
-                if (!string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase))
-                {
-                    return Forbid("You can edit only your own information.");
-                }
-            }
+            //if (!string.IsNullOrWhiteSpace(currentUserId))
+            //{
+            //    if (!string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase))
+            //    {
+            //        return Forbid("You can edit only your own information.");
+            //    }
+            //}
 
             // If EmployeeId is not present in JWT,
             // this request is coming from Admin / HR / Manager / Permission user,
