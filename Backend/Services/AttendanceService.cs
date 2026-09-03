@@ -769,26 +769,24 @@ namespace EmployeeManagementSystem.Services
             {
                 var att = attendanceList
                     .FirstOrDefault(x => x.Employee_Id == emp.Employee_Id);
-                var approvedRequest = leaves.FirstOrDefault(l =>
+                var approvedLeave = leaves.FirstOrDefault(l =>
      l.EmployeeId == emp.Employee_Id &&
      date >= l.FromDate.Date &&
      date <= l.ToDate.Date);
 
                 string finalStatus;
 
-                if (approvedRequest != null)
-                {
-                    if (string.Equals(
-                        approvedRequest.ApprovedType,
+                if (approvedLeave != null &&
+                    string.Equals(
+                        approvedLeave.ApprovedType,
                         "WFH",
                         StringComparison.OrdinalIgnoreCase))
-                    {
-                        finalStatus = "WFH";
-                    }
-                    else
-                    {
-                        finalStatus = "On Leave";
-                    }
+                {
+                    finalStatus = "WFH";
+                }
+                else if (approvedLeave != null)
+                {
+                    finalStatus = "On Leave";
                 }
                 else if (att != null)
                 {
@@ -1043,7 +1041,7 @@ namespace EmployeeManagementSystem.Services
                     }
 
                     // =====================================================
-                    // APPROVED LEAVE - CHECK BEFORE ATTENDANCE
+                    // APPROVED LEAVE / WFH
                     // =====================================================
 
                     var leave = leaves.FirstOrDefault(l =>
@@ -1053,10 +1051,18 @@ namespace EmployeeManagementSystem.Services
 
                     if (leave != null)
                     {
+                        string leaveStatus =
+                            string.Equals(
+                                leave.ApprovedType,
+                                "WFH",
+                                StringComparison.OrdinalIgnoreCase)
+                                ? "WFH"
+                                : "OL";
+
                         days.Add(new AdminAttendanceDayDto
                         {
                             Day = d,
-                            Status = "OL",
+                            Status = leaveStatus,
                             CheckIn = null,
                             CheckOut = null,
                             WorkingMinutes = 0
@@ -1065,11 +1071,10 @@ namespace EmployeeManagementSystem.Services
                         continue;
                     }
 
-
-
                     // =====================================================
                     // ATTENDANCE
                     // =====================================================
+
                     var att = attendanceData.FirstOrDefault(x =>
                         x.Employee_Id == emp.Employee_Id &&
                         x.Attendance_Date.Date == date.Date);
@@ -1086,9 +1091,10 @@ namespace EmployeeManagementSystem.Services
                             "On Leave" => "OL",
                             "OL" => "OL",
 
+                            "WFH" => "WFH",
+
                             "Weekend" => "W",
                             "Holiday" => "H",
-
                             "LOP" => "LOP",
                             "MC" => "MC",
                             "LMC" => "LMC",
@@ -1116,41 +1122,30 @@ namespace EmployeeManagementSystem.Services
                         });
 
                         continue;
-                    } // Absent / Future
-                    days.Add(new AdminAttendanceDayDto
-                    {
-                        Day = d,
-                        Status = date.Date > DateTime.UtcNow.Date
-                            ? "-"
-                            : "Absent",
-
-                        CheckIn = null,
-                        CheckOut = null,
-                        WorkingMinutes = 0
-                    });
+                    }
                 }
-                // =====================================================
-                // TOTAL WORKING DAYS
-                // Include: P, LT, MC, LMC, HD, OL, W, H
-                // Exclude: Absent/A, LOP and future "-"
-                // =====================================================
+                    // =====================================================
+                    // TOTAL WORKING DAYS
+                    // Include: P, LT, MC, LMC, HD, OL, W, H
+                    // Exclude: Absent/A, LOP and future "-"
+                    // =====================================================
 
-                // =====================================================
-                // TOTAL WORKING DAYS
-                //
-                // Start calculation ONLY from JoiningDate.
-                //
-                // Include:
-                // P, LT, MC, LMC, HD, OL, W, H
-                //
-                // Exclude:
-                // Before JoiningDate
-                // A / Absent
-                // LOP
-                // Future "-"
-                // =====================================================
+                    // =====================================================
+                    // TOTAL WORKING DAYS
+                    //
+                    // Start calculation ONLY from JoiningDate.
+                    //
+                    // Include:
+                    // P, LT, MC, LMC, HD, OL, W, H
+                    //
+                    // Exclude:
+                    // Before JoiningDate
+                    // A / Absent
+                    // LOP
+                    // Future "-"
+                    // =====================================================
 
-                int totalWorkingDays = days.Count(x =>
+                    int totalWorkingDays = days.Count(x =>
                 {
                     DateTime currentDate =
                         new DateTime(year, month, x.Day);
