@@ -2512,9 +2512,7 @@ style='border-collapse:collapse;'>
                 attendance.Status = "WFH";
             }
         }
-    }
-
-    public async Task<IActionResult> MailAction(
+    }    public async Task<IActionResult> MailAction(
       int leaveId,
       string action,
       string token,
@@ -2665,21 +2663,43 @@ style='border-collapse:collapse;'>
                 x.Employee_Id == leave.EmployeeId);
 
         // ============================================================
-        // SEND RESULT EMAIL TO EMPLOYEE
+        // SEND RESULT EMAIL TO EMPLOYEE + HR + MANAGER
         // ============================================================
 
+        // Get HR and Manager employees
+        var hrManagerEmails = await _context.Employees
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.Email) &&
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                (
+                    x.RoleName.ToLower() == "hr" ||
+                    x.RoleName.ToLower() == "manager"
+                ))
+            .Select(x => x.Email)
+            .ToListAsync();
+
+        // Add employee email
         if (employee != null &&
             !string.IsNullOrWhiteSpace(employee.Email))
         {
-            string employeeMailBody = $@"
+            hrManagerEmails.Add(employee.Email);
+        }
+
+        // Remove duplicate emails
+        var recipientEmails = hrManagerEmails
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        string employeeMailBody = $@"
 <h3>Leave Request {resultText}</h3>
 
-<p>Dear {employee.Name},</p>
+<p>Dear Team,</p>
 
 <p>
-Your leave request has been
+The following leave request has been
 <b>{resultText}</b>
-by the approver.
+by the external approver.
 </p>
 
 <table border='1'
@@ -2739,12 +2759,14 @@ by the approver.
 <p>Regards,<br/>EMS Team</p>
 ";
 
+        // Send email to employee + HR + Manager
+        foreach (var email in recipientEmails)
+        {
             await _emailService.SendEmailAsync(
-                employee.Email,
-                $"Leave Request {resultText} | #{leave.Id} | {DateTime.Now:yyyyMMddHHmmssfff}",
+                email,
+                $"Leave Request {resultText} | #{leave.Id}",
                 employeeMailBody);
         }
-
         return new OkObjectResult(
             $"Leave request {resultText} successfully");
     }
@@ -3004,21 +3026,43 @@ by the approver.
                 x.Employee_Id == request.EmployeeId);
 
         // ============================================================
-        // SEND RESULT EMAIL TO EMPLOYEE
+        // SEND RESULT EMAIL TO EMPLOYEE + HR + MANAGER
         // ============================================================
 
+        // Get HR and Manager emails
+        var hrManagerEmails = await _context.Employees
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.Email) &&
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                (
+                    x.RoleName.ToLower() == "hr" ||
+                    x.RoleName.ToLower() == "manager"
+                ))
+            .Select(x => x.Email)
+            .ToListAsync();
+
+        // Add employee email
         if (employee != null &&
             !string.IsNullOrWhiteSpace(employee.Email))
         {
-            string employeeMailBody = $@"
+            hrManagerEmails.Add(employee.Email);
+        }
+
+        // Remove duplicate emails
+        var recipientEmails = hrManagerEmails
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        string employeeMailBody = $@"
 <h3>Work From Home Request {resultText}</h3>
 
-<p>Dear {employee.Name},</p>
+<p>Dear Team,</p>
 
 <p>
-Your Work From Home request has been
+The following Work From Home request has been
 <b>{resultText}</b>
-by the approver.
+by the external approver.
 </p>
 
 <table border='1'
@@ -3078,15 +3122,19 @@ by the approver.
 <p>Regards,<br/>EMS Team</p>
 ";
 
+        // Send to Employee + HR + Manager
+        foreach (var email in recipientEmails)
+        {
             await _emailService.SendEmailAsync(
-                employee.Email,
-                $"WFH Request {resultText} | #{request.Id} | {DateTime.Now:yyyyMMddHHmmssfff}",
+                email,
+                $"Work From Home Request {resultText} | #{request.Id}",
                 employeeMailBody);
         }
-
         return new OkObjectResult(
             $"WFH request {resultText} successfully");
     }
+
+
 
 
 
