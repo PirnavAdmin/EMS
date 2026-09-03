@@ -1,76 +1,40 @@
 ﻿using EmployeeManagementSystem.Data;
-
 using EmployeeManagementSystem.DTOs;
-
 using EmployeeManagementSystem.Models;
-
 using Microsoft.AspNetCore.Mvc;
-
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Controllers
-
 {
-
     [ApiController]
-
     [Route("api/[controller]")]
-
     public class EmployeeEducationController : ControllerBase
-
     {
-
         private readonly AppDbContext _context;
 
         public EmployeeEducationController(AppDbContext context)
-
         {
-
             _context = context;
-
         }
 
-        private async Task<bool> IsAdminUser()
-        {
-            var email = User.FindFirst(ClaimTypes.Email)?.Value;
-
-            if (string.IsNullOrWhiteSpace(email))
-                return false;
-
-            return await _context.Admins
-                .AnyAsync(a => a.Email == email);
-        }
-
-        // ✅ CREATE (Add single education)
-
+        // =========================================================
+        // CREATE - Add single education
+        // =========================================================
         [HttpPost]
         public async Task<IActionResult> Create(EmployeeEducationDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            bool isAdmin = await IsAdminUser();
-
-            string employeeId;
-
-            if (isAdmin)
+            if (string.IsNullOrWhiteSpace(dto.Employee_Id))
             {
-                if (string.IsNullOrWhiteSpace(dto.Employee_Id))
-                    return BadRequest("Employee Id is required.");
-
-                employeeId = dto.Employee_Id;
+                return BadRequest(new
+                {
+                    message = "Employee Id is required."
+                });
             }
-            else
-            {
-                employeeId = User.FindFirst("EmployeeId")?.Value
-                          ?? User.FindFirst("OnboardingId")?.Value;
 
-                if (string.IsNullOrWhiteSpace(employeeId))
-                    return Unauthorized("Invalid user.");
-
-                dto.Employee_Id = employeeId;
-            }
+            string employeeId = dto.Employee_Id.Trim();
 
             var education = new EmployeeEducation
             {
@@ -95,24 +59,24 @@ namespace EmployeeManagementSystem.Controllers
         }
 
 
-
-        // ✅ GET BY EMPLOYEE ID (IMPORTANT)
-
+        // =========================================================
+        // GET BY EMPLOYEE ID
+        // =========================================================
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetByEmployee(string employeeId)
         {
-            bool isAdmin = await IsAdminUser();
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-            if (!isAdmin)
+            if (string.IsNullOrWhiteSpace(employeeId))
             {
-                var currentId = User.FindFirst("EmployeeId")?.Value
-                             ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (currentId != employeeId)
-                    return Forbid("You can view only your own education details.");
+                return BadRequest(new
+                {
+                    message = "Employee Id is required."
+                });
             }
 
             var data = await _context.EmployeeEducations
+                .AsNoTracking()
                 .Where(x => x.Employee_Id == employeeId)
                 .ToListAsync();
 
@@ -120,49 +84,58 @@ namespace EmployeeManagementSystem.Controllers
         }
 
 
+        // =========================================================
+        // GET ALL
+        // =========================================================
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            bool isAdmin = await IsAdminUser();
-
-            if (!isAdmin)
-                return Forbid("Only administrators can view all education records.");
-
             var data = await _context.EmployeeEducations
+                .AsNoTracking()
                 .OrderBy(x => x.Employee_Id)
                 .ToListAsync();
 
             return Ok(data);
         }
-        // ✅ UPDATE ALL (REPLACE LIST)
+
+
+        // =========================================================
+        // UPDATE ALL EDUCATION RECORDS FOR EMPLOYEE
+        // =========================================================
         [HttpPut("{employeeId}")]
-        public async Task<IActionResult> UpdateAll(string employeeId, List<EmployeeEducationDto> dtos)
+        public async Task<IActionResult> UpdateAll(
+            string employeeId,
+            List<EmployeeEducationDto> dtos)
         {
-            if (dtos == null || dtos.Count == 0)
-                return BadRequest("No education data provided.");
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-            bool isAdmin = await IsAdminUser();
-
-            if (!isAdmin)
+            if (string.IsNullOrWhiteSpace(employeeId))
             {
-                var currentId = User.FindFirst("EmployeeId")?.Value
-                             ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (string.IsNullOrWhiteSpace(currentId))
-                    return Unauthorized("Invalid user.");
-
-                if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new
                 {
-                    return Forbid("You can edit only your own education details.");
-                }
+                    message = "Employee Id is required."
+                });
+            }
+
+            if (dtos == null || dtos.Count == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "No education data provided."
+                });
             }
 
             var existing = await _context.EmployeeEducations
                 .Where(x => x.Employee_Id == employeeId)
                 .ToListAsync();
 
-            _context.EmployeeEducations.RemoveRange(existing);
+            // Remove old education records
+            if (existing.Any())
+            {
+                _context.EmployeeEducations.RemoveRange(existing);
+            }
 
+            // Create new education records
             var newList = dtos.Select(dto => new EmployeeEducation
             {
                 Employee_Id = employeeId,
@@ -185,25 +158,21 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
 
-        // ✅ DELETE ALL BY EMPLOYEE
 
+        // =========================================================
+        // DELETE ALL EDUCATION RECORDS BY EMPLOYEE
+        // =========================================================
         [HttpDelete("{employeeId}")]
         public async Task<IActionResult> Delete(string employeeId)
         {
-            bool isAdmin = await IsAdminUser();
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-            if (!isAdmin)
+            if (string.IsNullOrWhiteSpace(employeeId))
             {
-                var currentId = User.FindFirst("EmployeeId")?.Value
-                             ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (string.IsNullOrWhiteSpace(currentId))
-                    return Unauthorized("Invalid user.");
-
-                if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new
                 {
-                    return Forbid("You can delete only your own education details.");
-                }
+                    message = "Employee Id is required."
+                });
             }
 
             var records = await _context.EmployeeEducations
@@ -228,5 +197,4 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
     }
-
 }

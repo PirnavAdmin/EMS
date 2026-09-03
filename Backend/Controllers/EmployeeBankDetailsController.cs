@@ -15,16 +15,7 @@ public class EmployeeBankDetailsController : ControllerBase
     {
         _context = context;
     }
-    private async Task<bool> IsAdminUser()
-    {
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
-        if (string.IsNullOrWhiteSpace(email))
-            return false;
-
-        return await _context.Admins
-            .AnyAsync(a => a.Email == email);
-    }
 
     // ✅ CREATE
     [HttpPost]
@@ -33,26 +24,28 @@ public class EmployeeBankDetailsController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        bool isAdmin = await IsAdminUser();
+        // Get logged-in user's EmployeeId
+        var currentUserId = User.FindFirst("EmployeeId")?.Value
+                         ?? User.FindFirst("OnboardingId")?.Value;
 
         string employeeId;
 
-        if (isAdmin)
+        // If EmployeeId exists in token, use it.
+        // If not, allow the supplied Employee_Id
+        // for users such as HR/Admin/Manager.
+        if (!string.IsNullOrWhiteSpace(currentUserId))
         {
-            if (string.IsNullOrWhiteSpace(dto.Employee_Id))
-                return BadRequest("Employee Id is required.");
-
-            employeeId = dto.Employee_Id;
+            employeeId = currentUserId;
         }
         else
         {
-            employeeId = User.FindFirst("EmployeeId")?.Value
-                        ?? User.FindFirst("OnboardingId")?.Value;
+            if (string.IsNullOrWhiteSpace(dto.Employee_Id))
+                return BadRequest(new
+                {
+                    message = "Employee Id is required."
+                });
 
-            if (string.IsNullOrWhiteSpace(employeeId))
-                return Unauthorized("Invalid user.");
-
-            dto.Employee_Id = employeeId;
+            employeeId = dto.Employee_Id;
         }
 
         var exists = await _context.EmployeeBankDetails
@@ -92,18 +85,18 @@ public class EmployeeBankDetailsController : ControllerBase
     [HttpGet("{employeeId}")]
     public async Task<IActionResult> GetByEmployeeId(string employeeId)
     {
-        bool isAdmin = await IsAdminUser();
+        employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-        if (!isAdmin)
+        if (string.IsNullOrWhiteSpace(employeeId))
         {
-            var currentId = User.FindFirst("EmployeeId")?.Value
-                         ?? User.FindFirst("OnboardingId")?.Value;
-
-            if (currentId != employeeId)
-                return Forbid("You can view only your own bank details.");
+            return BadRequest(new
+            {
+                message = "Employee Id is required."
+            });
         }
 
         var bankDetail = await _context.EmployeeBankDetails
+            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
         if (bankDetail == null)
@@ -115,18 +108,13 @@ public class EmployeeBankDetailsController : ControllerBase
         }
 
         return Ok(bankDetail);
-    }
-
-    // ✅ GET ALL
+    }   // ✅ GET ALL
+    [HttpGet]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        bool isAdmin = await IsAdminUser();
-
-        if (!isAdmin)
-            return Forbid("Only administrators can view all bank details.");
-
         var data = await _context.EmployeeBankDetails
+            .AsNoTracking()
             .OrderBy(x => x.Employee_Id)
             .ToListAsync();
 
@@ -135,25 +123,21 @@ public class EmployeeBankDetailsController : ControllerBase
 
 
     [HttpPut("{employeeId}")]
-    public async Task<IActionResult> Update(string employeeId, EmployeeBankDetailDto dto)
+    public async Task<IActionResult> Update(
+       string employeeId,
+       EmployeeBankDetailDto dto)
     {
+        employeeId = Uri.UnescapeDataString(employeeId).Trim();
+
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        bool isAdmin = await IsAdminUser();
-
-        if (!isAdmin)
+        if (string.IsNullOrWhiteSpace(employeeId))
         {
-            var currentId = User.FindFirst("EmployeeId")?.Value
-                         ?? User.FindFirst("OnboardingId")?.Value;
-
-            if (string.IsNullOrWhiteSpace(currentId))
-                return Unauthorized("Invalid user.");
-
-            if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new
             {
-                return Forbid("You can edit only your own bank details.");
-            }
+                message = "Employee Id is required."
+            });
         }
 
         var bankDetail = await _context.EmployeeBankDetails
@@ -163,10 +147,11 @@ public class EmployeeBankDetailsController : ControllerBase
         {
             return NotFound(new
             {
-                message = "Bank details not found."
+                message = "Bank details not found for this employee."
             });
         }
 
+        // Update bank details
         bankDetail.Customer_Id = dto.Customer_Id;
         bankDetail.Bank_Name = dto.Bank_Name;
         bankDetail.Account_Holder_Name = dto.Account_Holder_Name;
@@ -183,15 +168,19 @@ public class EmployeeBankDetailsController : ControllerBase
             message = "Bank details updated successfully.",
             data = bankDetail
         });
-    }
-    // ✅ DELETE using Employee_Id
+    }   // ✅ DELETE using Employee_Id
     [HttpDelete("{employeeId}")]
     public async Task<IActionResult> Delete(string employeeId)
     {
-        bool isAdmin = await IsAdminUser();
+        employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-        if (!isAdmin)
-            return Forbid("Only administrators can delete bank details.");
+        if (string.IsNullOrWhiteSpace(employeeId))
+        {
+            return BadRequest(new
+            {
+                message = "Employee Id is required."
+            });
+        }
 
         var bankDetail = await _context.EmployeeBankDetails
             .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);

@@ -3,7 +3,6 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -18,44 +17,24 @@ namespace EmployeeManagementSystem.Controllers
             _context = context;
         }
 
-        private async Task<bool> IsAdminUser()
-        {
-            var email = User.FindFirst(ClaimTypes.Email)?.Value;
-
-            if (string.IsNullOrWhiteSpace(email))
-                return false;
-
-            return await _context.Admins
-                .AnyAsync(a => a.Email == email);
-        }
-        // ✅ POST - Add Experience
+        // =========================================================
+        // POST - Add Experience
+        // =========================================================
         [HttpPost]
         public async Task<IActionResult> AddExperience(EmployeeExperienceDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            bool isAdmin = await IsAdminUser();
-
-            string employeeId;
-
-            if (isAdmin)
+            if (string.IsNullOrWhiteSpace(dto.Employee_Id))
             {
-                if (string.IsNullOrWhiteSpace(dto.Employee_Id))
-                    return BadRequest("Employee Id is required.");
-
-                employeeId = dto.Employee_Id;
+                return BadRequest(new
+                {
+                    message = "Employee Id is required."
+                });
             }
-            else
-            {
-                employeeId = User.FindFirst("EmployeeId")?.Value
-                            ?? User.FindFirst("OnboardingId")?.Value;
 
-                if (string.IsNullOrWhiteSpace(employeeId))
-                    return Unauthorized("Invalid user.");
-
-                dto.Employee_Id = employeeId;
-            }
+            string employeeId = dto.Employee_Id.Trim();
 
             var experience = new EmployeeExperience
             {
@@ -70,71 +49,76 @@ namespace EmployeeManagementSystem.Controllers
             };
 
             await _context.EmployeeExperiences.AddAsync(experience);
+
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                message = "Experience added successfully."
+                message = "Experience added successfully.",
+                data = experience
             });
         }
 
+
+        // =========================================================
+        // GET BY EMPLOYEE ID
+        // =========================================================
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetByEmployee(string employeeId)
         {
-            bool isAdmin = await IsAdminUser();
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-            if (!isAdmin)
+            if (string.IsNullOrWhiteSpace(employeeId))
             {
-                var currentId = User.FindFirst("EmployeeId")?.Value
-                             ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (currentId != employeeId)
-                    return Forbid("You can view only your own experience details.");
+                return BadRequest(new
+                {
+                    message = "Employee Id is required."
+                });
             }
 
             var data = await _context.EmployeeExperiences
+                .AsNoTracking()
                 .Where(x => x.Employee_Id == employeeId)
                 .ToListAsync();
 
             return Ok(data);
         }
 
+
+        // =========================================================
+        // GET ALL
+        // =========================================================
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            bool isAdmin = await IsAdminUser();
-
-            if (!isAdmin)
-                return Forbid("Only administrators can view all experience records.");
-
             var data = await _context.EmployeeExperiences
+                .AsNoTracking()
                 .OrderBy(x => x.Employee_Id)
                 .ToListAsync();
 
             return Ok(data);
         }
 
-        // ✅ PUT - Update
+
+        // =========================================================
+        // PUT - Update Experience
+        // =========================================================
         [HttpPut("{employeeId}")]
-        public async Task<IActionResult> Update(string employeeId, EmployeeExperienceDto dto)
+        public async Task<IActionResult> Update(
+            string employeeId,
+            EmployeeExperienceDto dto)
         {
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            bool isAdmin = await IsAdminUser();
-
-            if (!isAdmin)
+            if (string.IsNullOrWhiteSpace(employeeId))
             {
-                var currentId = User.FindFirst("EmployeeId")?.Value
-                             ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (string.IsNullOrWhiteSpace(currentId))
-                    return Unauthorized("Invalid user.");
-
-                if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new
                 {
-                    return Forbid("You can edit only your own experience.");
-                }
+                    message = "Employee Id is required."
+                });
             }
 
             var experience = await _context.EmployeeExperiences
@@ -164,23 +148,21 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
 
+
+        // =========================================================
+        // DELETE - Delete Experience
+        // =========================================================
         [HttpDelete("{employeeId}")]
         public async Task<IActionResult> Delete(string employeeId)
         {
-            bool isAdmin = await IsAdminUser();
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
 
-            if (!isAdmin)
+            if (string.IsNullOrWhiteSpace(employeeId))
             {
-                var currentId = User.FindFirst("EmployeeId")?.Value
-                             ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (string.IsNullOrWhiteSpace(currentId))
-                    return Unauthorized("Invalid user.");
-
-                if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new
                 {
-                    return Forbid("You can delete only your own experience.");
-                }
+                    message = "Employee Id is required."
+                });
             }
 
             var experience = await _context.EmployeeExperiences
