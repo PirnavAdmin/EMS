@@ -339,13 +339,11 @@ namespace EmployeeManagementSystem.Services
             using (WordprocessingDocument wordDoc =
                 WordprocessingDocument.Open(outputPath, true))
             {
-                var joiningDate = dto.Joining_Date.ToString("dd MMM yyyy");
-
-                ReplaceBookmark(wordDoc, "Date", DateTime.Now.ToString("dd MMM yyyy"));
+                ReplaceOrdinalDateBookmark(wordDoc, "Date", DateTime.Now);
                 ReplaceBookmark(wordDoc, "CandidateName", candidateFullName);
-                ReplaceBookmark(wordDoc, "Address", dto.Address); // ✅ multi-line supported
-                ReplaceBookmark(wordDoc, "JoiningDate", joiningDate);
-                ReplaceBookmark(wordDoc, "DateOfJoining", joiningDate);
+                ReplaceBookmark(wordDoc, "Address", dto.Address);
+                ReplaceOrdinalDateBookmark(wordDoc, "JoiningDate", dto.Joining_Date);
+                ReplaceOrdinalDateBookmark(wordDoc, "DateOfJoining", dto.Joining_Date);
                 ReplaceBookmark(wordDoc, "Position", dto.Position);
 
                 ReplaceBookmark(wordDoc, "CTCAnnual",
@@ -509,13 +507,7 @@ namespace EmployeeManagementSystem.Services
                 PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}"
             };
         
-            return new OfferLetterResponseDto
-            {
-                Success = true,
-                Message = "Offer Letter Generated Successfully",
-                OfferLetterId = offerLetter.Id,
-                PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}"
-            };
+          
         }
 
 
@@ -740,7 +732,87 @@ namespace EmployeeManagementSystem.Services
         // =============================
         // FIXED BOOKMARK METHOD
         // =============================
+        private void ReplaceOrdinalDateBookmark(
+    WordprocessingDocument doc,
+    string bookmarkName,
+    DateTime date)
+        {
+            var bookmark = doc.MainDocumentPart.RootElement
+                .Descendants<BookmarkStart>()
+                .FirstOrDefault(b => b.Name == bookmarkName);
 
+            if (bookmark == null)
+                return;
+
+            var run = bookmark.NextSibling<Run>();
+
+            if (run == null)
+                return;
+
+            var runProperties =
+                run.RunProperties?.CloneNode(true) as RunProperties;
+
+            run.RemoveAllChildren<Text>();
+
+            int day = date.Day;
+
+            string suffix = (day % 100) switch
+            {
+                11 or 12 or 13 => "th",
+                _ => (day % 10) switch
+                {
+                    1 => "st",
+                    2 => "nd",
+                    3 => "rd",
+                    _ => "th"
+                }
+            };
+
+            // Day
+            var dayRun = new Run();
+
+            if (runProperties != null)
+                dayRun.Append(runProperties.CloneNode(true));
+
+            dayRun.Append(new Text(day.ToString()));
+
+            // Superscript suffix
+            var suffixRun = new Run();
+
+            if (runProperties != null)
+                suffixRun.Append(runProperties.CloneNode(true));
+
+            var suffixProperties =
+                suffixRun.GetFirstChild<RunProperties>();
+
+            if (suffixProperties == null)
+            {
+                suffixProperties = new RunProperties();
+                suffixRun.PrependChild(suffixProperties);
+            }
+
+            suffixProperties.VerticalTextAlignment =
+      new VerticalTextAlignment
+      {
+          Val = VerticalPositionValues.Superscript
+      };
+
+            suffixRun.Append(new Text(suffix));
+
+            // Month + Year
+            var restRun = new Run();
+
+            if (runProperties != null)
+                restRun.Append(runProperties.CloneNode(true));
+
+            restRun.Append(new Text($" {date:MMM yyyy}"));
+
+            run.InsertBeforeSelf(dayRun);
+            run.InsertBeforeSelf(suffixRun);
+            run.InsertBeforeSelf(restRun);
+
+            run.Remove();
+        }
         private void ReplaceBookmark(
       WordprocessingDocument doc,
       string bookmarkName,

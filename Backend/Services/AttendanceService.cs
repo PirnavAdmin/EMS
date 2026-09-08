@@ -6,6 +6,7 @@ using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
 using System.IO;
@@ -44,17 +45,21 @@ namespace EmployeeManagementSystem.Services
 
         private readonly IAdminNotificationService _notificationService;
         private readonly IEmailService _emailService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
 
         public AttendanceService(
      AppDbContext context,
      IAdminNotificationService notificationService,
-     IEmailService emailService)
+     IEmailService emailService,
+     IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
 
             _notificationService = notificationService;
 
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         //---------------------------------------
@@ -1039,6 +1044,13 @@ namespace EmployeeManagementSystem.Services
                         });
                         continue;
                     }
+                    // =====================================================
+                    // ATTENDANCE
+                    // =====================================================
+
+                    var att = attendanceData.FirstOrDefault(x =>
+                        x.Employee_Id == emp.Employee_Id &&
+                        x.Attendance_Date.Date == date.Date);
 
                     // =====================================================
                     // APPROVED LEAVE / WFH
@@ -1049,7 +1061,7 @@ namespace EmployeeManagementSystem.Services
                         date.Date >= l.FromDate.Date &&
                         date.Date <= l.ToDate.Date);
 
-                    if (leave != null)
+                    if (leave != null && att == null)
                     {
                         string leaveStatus =
                             string.Equals(
@@ -1075,9 +1087,9 @@ namespace EmployeeManagementSystem.Services
                     // ATTENDANCE
                     // =====================================================
 
-                    var att = attendanceData.FirstOrDefault(x =>
-                        x.Employee_Id == emp.Employee_Id &&
-                        x.Attendance_Date.Date == date.Date);
+                    //var att = attendanceData.FirstOrDefault(x =>
+                    //    x.Employee_Id == emp.Employee_Id &&
+                    //    x.Attendance_Date.Date == date.Date);
 
                     if (att != null)
                     {
@@ -1124,28 +1136,28 @@ namespace EmployeeManagementSystem.Services
                         continue;
                     }
                 }
-                    // =====================================================
-                    // TOTAL WORKING DAYS
-                    // Include: P, LT, MC, LMC, HD, OL, W, H
-                    // Exclude: Absent/A, LOP and future "-"
-                    // =====================================================
+                // =====================================================
+                // TOTAL WORKING DAYS
+                // Include: P, LT, MC, LMC, HD, OL, W, H
+                // Exclude: Absent/A, LOP and future "-"
+                // =====================================================
 
-                    // =====================================================
-                    // TOTAL WORKING DAYS
-                    //
-                    // Start calculation ONLY from JoiningDate.
-                    //
-                    // Include:
-                    // P, LT, MC, LMC, HD, OL, W, H
-                    //
-                    // Exclude:
-                    // Before JoiningDate
-                    // A / Absent
-                    // LOP
-                    // Future "-"
-                    // =====================================================
+                // =====================================================
+                // TOTAL WORKING DAYS
+                //
+                // Start calculation ONLY from JoiningDate.
+                //
+                // Include:
+                // P, LT, MC, LMC, HD, OL, W, H
+                //
+                // Exclude:
+                // Before JoiningDate
+                // A / Absent
+                // LOP
+                // Future "-"
+                // =====================================================
 
-                    int totalWorkingDays = days.Count(x =>
+                int totalWorkingDays = days.Count(x =>
                 {
                     DateTime currentDate =
                         new DateTime(year, month, x.Day);
@@ -2690,10 +2702,9 @@ namespace EmployeeManagementSystem.Services
 
                             "LT" => "Late",
 
-                            // IMPORTANT:
-                            // Keep OL as OL because leave approval
-                            // also stores attendance.Status = "OL"
                             "OL" => "OL",
+
+                            "WFH" => "WFH",
 
                             "MC" => "MC",
 
@@ -2705,7 +2716,6 @@ namespace EmployeeManagementSystem.Services
 
                             "H" => "Holiday",
 
-                            // Also allow full names
                             "PRESENT" => "Present",
 
                             "ABSENT" => "Absent",
@@ -2716,14 +2726,14 @@ namespace EmployeeManagementSystem.Services
 
                             "ON LEAVE" => "OL",
 
+                            "WORK FROM HOME" => "WFH",
+
                             "WEEKEND" => "Weekend",
 
                             "HOLIDAY" => "Holiday",
 
                             _ => null
                         };
-
-
                         if (string.IsNullOrWhiteSpace(dbStatus))
                         {
                             invalidStatuses++;
@@ -2756,9 +2766,13 @@ namespace EmployeeManagementSystem.Services
                                 .ToUpperInvariant();
 
                             Console.WriteLine(
-                                $"UPDATE => {employeeId} | " +
-                                $"{attendanceDate:yyyy-MM-dd} | " +
-                                $"{oldStatus} -> {dbStatus}");
+     $"EXCEL UPDATE => Employee={employeeId}, " +
+     $"Date={attendanceDate:yyyy-MM-dd}, " +
+     $"ExcelStatus={excelStatus}, " +
+     $"OldStatus={oldStatus}, " +
+     $"NewStatus={dbStatus}, " +
+     $"CheckIn={attendance.Check_In}, " +
+     $"CheckOut={attendance.Check_Out}");
 
 
                             // ================================================
@@ -3122,9 +3136,12 @@ namespace EmployeeManagementSystem.Services
                 // DAILY ATTENDANCE
                 // =================================================
 
-                for (int i = 0; i < emp.Days.Count; i++)
+                for (int day = 1; day <= totalDays; day++)
                 {
-                    var status = emp.Days[i].Status;
+                    var dayData = emp.Days
+                        .FirstOrDefault(x => x.Day == day);
+
+                    var status = dayData?.Status ?? "";
 
 
                     // =============================================
@@ -3244,11 +3261,9 @@ namespace EmployeeManagementSystem.Services
                         _ => status
                     };
 
-
-                    var cell =
-                        worksheet.Cell(
-                            row,
-                            i + 3);
+                    var cell = worksheet.Cell(
+        row,
+        day + 2);
 
                     cell.Value =
                         displayStatus;
@@ -3367,10 +3382,35 @@ namespace EmployeeManagementSystem.Services
 
             worksheet.Rows().Height = 24;
 
-            worksheet.Columns().AdjustToContents();
+            // Set every attendance day column explicitly
+            for (int day = 1; day <= totalDays; day++)
+            {
+                worksheet.Column(day + 2).Width = 5;
+            }
+
+            for (int day = 1; day <= totalDays; day++)
+            {
+                var headerCell = worksheet.Cell(1, day + 2);
+
+                headerCell.Value = day;
+                headerCell.Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+
+                headerCell.Style.Alignment.Vertical =
+                    XLAlignmentVerticalValues.Center;
+            }
+
+            // Employee columns
+            worksheet.Column(1).Width = 18;
+            worksheet.Column(2).Width = 25;
+
+            // Summary columns
+            for (int col = summaryStart; col <= summaryStart + 13; col++)
+            {
+                worksheet.Column(col).AdjustToContents();
+            }
 
             worksheet.SheetView.FreezeRows(1);
-
             worksheet.SheetView.FreezeColumns(2);
 
 
@@ -4318,26 +4358,80 @@ namespace EmployeeManagementSystem.Services
 
                 todayHours = FormatHours(minutes);
             }
-            // Current Week
-            // Current Week
+            // ==========================================
+            // CURRENT RUNNING WEEK
+            // ==========================================
+
             int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
             var monday = today.AddDays(-diff);
+            var nextMonday = monday.AddDays(7);
 
-            // Use already loaded monthly data (NO additional DB calls)
+            // Get attendance only for the current week
             var weekAttendance = await _context.Attendance
-       .Where(a =>
-           a.Employee_Id == emp.Employee_Id &&
-           a.Attendance_Date >= monday &&
-           a.Attendance_Date < monday.AddDays(5))
-       .AsNoTracking()
-       .ToListAsync();
+                .Where(a =>
+                    a.Employee_Id == emp.Employee_Id &&
+                    a.Attendance_Date >= monday &&
+                    a.Attendance_Date < nextMonday)
+                .AsNoTracking()
+                .ToListAsync();
+
+            // ==========================================
+            // CURRENT WEEK TOTAL WORKING HOURS
+            // ==========================================
+
+            int currentWeekWorkingMinutes = 0;
+
+            foreach (var att in weekAttendance)
+            {
+                // Don't include future dates
+                if (att.Attendance_Date.Date > today)
+                    continue;
+
+                int minutes = 0;
+
+                if (att.Check_In.HasValue && att.Check_Out.HasValue)
+                {
+                    // Completed attendance
+                    minutes = att.WorkingMinutes;
+                }
+                else if (att.Check_In.HasValue &&
+                         att.Attendance_Date.Date == today)
+                {
+                    // Employee is currently working today
+                    var now = ConvertToIST(DateTime.UtcNow);
+
+                    minutes = (int)(
+                        now - ConvertToIST(att.Check_In.Value)
+                    ).TotalMinutes;
+
+                    // Maximum 12 hours
+                    minutes = Math.Min(minutes, 720);
+
+                    // Remove break time
+                    minutes -= att.TotalBreakMinutes;
+
+                    // Prevent negative value
+                    minutes = Math.Max(minutes, 0);
+                }
+
+                currentWeekWorkingMinutes += minutes;
+            }
+
+            // Convert total current-week minutes to hours
+            string currentWeekWorkingHours =
+                FormatHours(currentWeekWorkingMinutes);
+
+
+            // ==========================================
+            // WEEKLY DISPLAY - MONDAY TO FRIDAY
+            // ==========================================
 
             var weekHolidays = holidays
-                .Where(x => x >= monday.Date &&
-                            x < monday.AddDays(7).Date)
+                .Where(x =>
+                    x >= monday.Date &&
+                    x < nextMonday.Date)
                 .ToHashSet();
 
-            // Reuse the approved leaves already loaded
             var weekLeaves = leaves;
 
             var weeklyAttendance = new List<WeeklyWorkingHourDto>();
@@ -4347,7 +4441,8 @@ namespace EmployeeManagementSystem.Services
                 var date = monday.AddDays(i);
 
                 var att = weekAttendance
-                    .FirstOrDefault(x => x.Attendance_Date.Date == date.Date);
+                    .FirstOrDefault(x =>
+                        x.Attendance_Date.Date == date.Date);
 
                 string status;
 
@@ -4355,14 +4450,13 @@ namespace EmployeeManagementSystem.Services
                 {
                     status = "-";
                 }
-
                 else if (weekHolidays.Contains(date.Date))
                 {
                     status = "Holiday";
                 }
                 else if (weekLeaves.Any(x =>
-                         date >= x.FromDate.Date &&
-                         date <= x.ToDate.Date))
+                    date >= x.FromDate.Date &&
+                    date <= x.ToDate.Date))
                 {
                     status = "Leave";
                 }
@@ -4384,29 +4478,45 @@ namespace EmployeeManagementSystem.Services
                     };
                 }
 
+                // Individual day's hours
+                int dailyWorkingMinutes = 0;
+
+                if (att != null && att.Check_In.HasValue)
+                {
+                    if (att.Check_Out.HasValue)
+                    {
+                        dailyWorkingMinutes = att.WorkingMinutes;
+                    }
+                    else if (date.Date == today)
+                    {
+                        var now = ConvertToIST(DateTime.UtcNow);
+
+                        dailyWorkingMinutes = (int)(
+                            now - ConvertToIST(att.Check_In.Value)
+                        ).TotalMinutes;
+
+                        dailyWorkingMinutes = Math.Min(
+                            dailyWorkingMinutes,
+                            720);
+
+                        dailyWorkingMinutes -= att.TotalBreakMinutes;
+
+                        dailyWorkingMinutes = Math.Max(
+                            dailyWorkingMinutes,
+                            0);
+                    }
+                }
+
                 weeklyAttendance.Add(new WeeklyWorkingHourDto
                 {
                     Day = date.ToString("ddd"),
                     Date = date,
                     Status = status,
-                    WorkingHours = att == null
-    ? "0h 0m"
-    : !att.Check_In.HasValue
-        ? "0h 0m"
-        : FormatHours(
-            att.Check_Out.HasValue
-                ? att.WorkingMinutes
-                : Math.Max(
-                    0,
-                    Math.Min(
-                        (int)(ConvertToIST(DateTime.UtcNow) - ConvertToIST(att.Check_In.Value)).TotalMinutes,
-                        720
-                    ) - att.TotalBreakMinutes
-                )
-          )
+
+                    // This is only the individual day's hours
+                    WorkingHours = FormatHours(dailyWorkingMinutes)
                 });
             }
-
             return new AttendanceDashboardDto
             {
                 AttendancePercentage = attendancePercentage,
@@ -4414,7 +4524,12 @@ namespace EmployeeManagementSystem.Services
                 AbsentDays = absent,
                 HalfDays = halfDay,
                 LeaveDays = leave,
+
                 TodayWorkingHours = todayHours,
+
+                // TOTAL WORKING HOURS OF CURRENT WEEK
+                CurrentWeekWorkingHours = currentWeekWorkingHours,
+
                 WeeklyHours = weeklyAttendance
             };
         }
@@ -4440,37 +4555,107 @@ namespace EmployeeManagementSystem.Services
         {
             await CheckMissingCheckouts();
 
+            // ==========================================
+            // GET ADMIN ID FROM LOGGED-IN USER
+            // ==========================================
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            var adminIdClaim = user?.FindFirst("AdminId")?.Value;
+
+            int adminId;
+
+            if (!string.IsNullOrWhiteSpace(adminIdClaim) &&
+                int.TryParse(adminIdClaim, out adminId))
+            {
+                // AdminId found directly from JWT
+            }
+            else
+            {
+                // If logged-in user is an employee/HR,
+                // get AdminId through EmployeeId
+                var employeeId = user?.FindFirst("EmployeeId")?.Value;
+
+                if (string.IsNullOrWhiteSpace(employeeId))
+                {
+                    throw new UnauthorizedAccessException(
+                        "AdminId/EmployeeId missing in token.");
+                }
+
+                var loggedInEmployee = await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+
+                if (loggedInEmployee?.AdminId == null)
+                {
+                    throw new UnauthorizedAccessException(
+                        "Logged-in user is not assigned to an Admin/company.");
+                }
+
+                adminId = loggedInEmployee.AdminId.Value;
+            }
+
+            // ==========================================
+            // TODAY
+            // ==========================================
             var today = DateTime.UtcNow.Date;
 
-            //var totalEmployees = await _context.Employees.CountAsync();
-            var totalEmployees = await _context.Employees
-
-.CountAsync(e => e.Status == "Active");
-
-
-            var attendance = await _context.Attendance
-                .Where(a => a.Attendance_Date.Date == today)
+            // ==========================================
+            // EMPLOYEES BELONGING TO THIS ADMIN
+            // ==========================================
+            var adminEmployeeIds = await _context.Employees
+                .Where(e =>
+                    e.AdminId == adminId &&
+                    e.Status == "Active")
+                .Select(e => e.Employee_Id)
                 .ToListAsync();
 
+            var totalEmployees = adminEmployeeIds.Count;
+
+            // ==========================================
+            // TODAY'S ATTENDANCE - THIS ADMIN ONLY
+            // ==========================================
+            var attendance = await _context.Attendance
+                .Where(a =>
+                    a.Attendance_Date.Date == today &&
+                    adminEmployeeIds.Contains(a.Employee_Id))
+                .ToListAsync();
+
+            // ==========================================
+            // TODAY'S APPROVED LEAVES - THIS ADMIN ONLY
+            // ==========================================
             var leaveEmployeeIds = await _context.EmployeeLeaves
                 .Where(l =>
                     l.Status.StartsWith("Approved") &&
                     today >= l.FromDate.Date &&
-                    today <= l.ToDate.Date)
+                    today <= l.ToDate.Date &&
+                    adminEmployeeIds.Contains(l.EmployeeId))
                 .Select(l => l.EmployeeId)
                 .Distinct()
                 .ToListAsync();
 
+            // ==========================================
+            // PRESENT
+            // ==========================================
             var present = attendance.Count(a =>
                 a.Status == "Present" ||
                 a.Status == "Half Day");
 
+            // ==========================================
+            // LATE
+            // ==========================================
             var late = attendance.Count(a =>
                 a.Status == "Late");
 
+            // ==========================================
+            // ON LEAVE
+            // ==========================================
             var onLeave = leaveEmployeeIds.Count;
 
-            var absent = totalEmployees - (present + late + onLeave);
+            // ==========================================
+            // ABSENT
+            // ==========================================
+            var absent = totalEmployees -
+                         (present + late + onLeave);
 
             if (absent < 0)
                 absent = 0;
