@@ -74,13 +74,15 @@ public class EmployeeLeaveController : ControllerBase
     //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpPut("approve-reject/{id}")]
     public async Task<IActionResult> ApproveOrRejectLeave(
-      int id,
-      [FromQuery] string status)
+    int id,
+    [FromQuery] string status,
+    [FromQuery] string? approvalRemark)
     {
         var dto = new LeaveApprovalDto
         {
             RequestId = id,
-            Decision = status
+            Decision = status,
+            ApprovalRemark = approvalRemark
         };
 
         return await _service.UpdateStatus(dto, User);
@@ -206,23 +208,16 @@ WorkFromHomeDto dto)
     //[Authorize]
     //[Permission(ModuleIds.LeaveManagement, PermissionAction.Edit)]
     [HttpPut("update-wfh-status/{id}")]
-
     public async Task<IActionResult> UpdateWFHStatus(
-
-        int id,
-
-        [FromQuery] string status)
-
+     int id,
+     [FromQuery] string status,
+     [FromQuery] string? approvalRemark)
     {
-
         return await _service.UpdateWFHStatus(
-
             id,
-
             status,
-
+            approvalRemark,
             User);
-
     }
 
     //[Authorize]

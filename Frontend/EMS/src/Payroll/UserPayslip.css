@@ -211,22 +211,18 @@
   box-sizing: border-box;
 }
 
-.view-btn {
-  background: var(--bg-muted);
-  color: var(--text-strong);
-}
-
-.view-btn:hover {
-  background: var(--bg-muted);
-  transform: translateY(-1px);
-}
-
+.view-btn,
 .download-btn {
-  background: linear-gradient(90deg, var(--theme-info-strong), var(--theme-info));
+  background: linear-gradient(
+    90deg,
+    var(--theme-info-strong),
+    var(--theme-info)
+  );
   color: var(--theme-on-primary);
   box-shadow: 0 8px 18px var(--surface-info-soft);
 }
 
+.view-btn:hover,
 .download-btn:hover {
   opacity: 0.95;
   transform: translateY(-1px);

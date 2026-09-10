@@ -69,25 +69,81 @@ export const API = {
   },
 
   // ================= SUPER ADMIN =================
+  // SUPER_ADMIN: {
+  //   LOGIN: "/SuperAdmin/login",
+  //   DASHBOARD: "/SuperAdmin/dashboard",
+  // },
+
+  // ================= ADMIN MANAGEMENT =================
+  // ADMIN: {
+  //   CREATE: "/Admin",
+  //   LIST: "/Admin",
+  //   UPDATE_STATUS: (adminId) => `/Admin/${adminId}/status`,
+  // },
+
+  // ================= ADMIN PERMISSIONS =================
+  // ADMIN_PERMISSION: {
+  //   SAVE: "/AdminPermission/save",
+  //   GET: (adminId) => `/AdminPermission/${adminId}`,
+  //   ALLOWED_MODULES: "/AdminPermission/allowed-modules",
+  // },
+
+  // ================= ADMIN SUBSCRIPTIONS =================
+  // ADMIN_SUBSCRIPTION: {
+  //   CREATE: "/AdminSubscription",
+  //   LIST: "/AdminSubscription",
+  //   GET_BY_ADMIN: (adminId) => `/AdminSubscription/${adminId}`,
+  //   UPDATE: (adminId) => `/AdminSubscription/${adminId}`,
+  //   USAGE: (adminId) => `/AdminSubscription/${adminId}/usage`,
+  // },
+
+  // ================= SUPER ADMIN =================
   SUPER_ADMIN: {
     LOGIN: "/SuperAdmin/login",
     DASHBOARD: "/SuperAdmin/dashboard",
+    ENHANCED_DASHBOARD: "/SuperAdmin/dashboard/enhanced",
+    ADMINS: "/SuperAdmin/admins",
+    ADMIN_BY_ID: (adminId) => `/SuperAdmin/admins/${adminId}`,
+    ASSIGN_ADMIN_ORGANIZATION: (adminId) => `/SuperAdmin/admins/${adminId}/assign-organization`,
+    UPDATE_ADMIN_STATUS: (adminId) => `/SuperAdmin/admins/${adminId}/status`,
+    ROLES: "/SuperAdmin/roles",
+    ROLE_BY_ID: (roleId) => `/SuperAdmin/roles/${roleId}`,
+    UPDATE_ROLE_STATUS: (roleId) => `/SuperAdmin/roles/${roleId}/status`,
+    ROLE_USERS: (roleId) => `/SuperAdmin/roles/${roleId}/users`,
+    SETTINGS: "/SuperAdmin/settings",
+    SEARCH: "/SuperAdmin/search",
+    NOTIFICATIONS: "/SuperAdmin/notifications",
+    NOTIFICATIONS_UNREAD_COUNT: "/SuperAdmin/notifications/unread-count",
+    NOTIFICATION_READ: (notificationId) => `/SuperAdmin/notifications/${notificationId}/read`,
+    NOTIFICATIONS_READ_ALL: "/SuperAdmin/notifications/read-all",
+    ORGANIZATIONS: {
+      LIST: "/SuperAdmin/organizations",
+      CREATE: "/SuperAdmin/organizations",
+      BY_ID: (organizationId) => `/SuperAdmin/organizations/${organizationId}`,
+      UPDATE_STATUS: (organizationId) => `/SuperAdmin/organizations/${organizationId}/status`,
+      SUBSCRIPTION: (organizationId) => `/SuperAdmin/organizations/${organizationId}/subscription`,
+      SUBSCRIPTION_USAGE: (organizationId) => `/SuperAdmin/organizations/${organizationId}/subscription/usage`,
+      SUBSCRIPTIONS: "/SuperAdmin/organizations/subscriptions",
+      EMPLOYEES: (organizationId) => `/SuperAdmin/organizations/${organizationId}/employees`,
+      EMPLOYEE_BY_ID: (organizationId, employeeId) => `/SuperAdmin/organizations/${organizationId}/employees/${encodePathSegment(employeeId)}`,
+      UPDATE_EMPLOYEE_STATUS: (organizationId, employeeId) => `/SuperAdmin/organizations/${organizationId}/employees/${encodePathSegment(employeeId)}/status`,
+    },
   },
-
+ 
   // ================= ADMIN MANAGEMENT =================
   ADMIN: {
     CREATE: "/Admin",
     LIST: "/Admin",
     UPDATE_STATUS: (adminId) => `/Admin/${adminId}/status`,
   },
-
+ 
   // ================= ADMIN PERMISSIONS =================
   ADMIN_PERMISSION: {
     SAVE: "/AdminPermission/save",
     GET: (adminId) => `/AdminPermission/${adminId}`,
     ALLOWED_MODULES: "/AdminPermission/allowed-modules",
   },
-
+ 
   // ================= ADMIN SUBSCRIPTIONS =================
   ADMIN_SUBSCRIPTION: {
     CREATE: "/AdminSubscription",
@@ -96,6 +152,7 @@ export const API = {
     UPDATE: (adminId) => `/AdminSubscription/${adminId}`,
     USAGE: (adminId) => `/AdminSubscription/${adminId}/usage`,
   },
+ 
 
   // ================= ATTENDANCE =================
   ATTENDANCE: {
@@ -764,14 +821,62 @@ export const API_ENDPOINTS = {
     get: API.PERMISSION.GET,
   },
   dashboard: API.DASHBOARD.ADMIN,
+  // superAdmin: {
+  //   login: API.SUPER_ADMIN.LOGIN,
+  //   dashboard: API.SUPER_ADMIN.DASHBOARD,
+  // },
+  // adminManagement: {
+  //   create: API.ADMIN.CREATE,
+  //   list: API.ADMIN.LIST,
+  //   updateStatus: API.ADMIN.UPDATE_STATUS,
+  // },
+  // adminPermission: {
+  //   save: API.ADMIN_PERMISSION.SAVE,
+  //   get: API.ADMIN_PERMISSION.GET,
+  //   allowedModules: API.ADMIN_PERMISSION.ALLOWED_MODULES,
+  // },
+  // adminSubscription: {
+  //   create: API.ADMIN_SUBSCRIPTION.CREATE,
+  //   list: API.ADMIN_SUBSCRIPTION.LIST,
+  //   byAdmin: API.ADMIN_SUBSCRIPTION.GET_BY_ADMIN,
+  //   update: API.ADMIN_SUBSCRIPTION.UPDATE,
+  //   usage: API.ADMIN_SUBSCRIPTION.USAGE,
+  // },
   superAdmin: {
     login: API.SUPER_ADMIN.LOGIN,
     dashboard: API.SUPER_ADMIN.DASHBOARD,
+    enhancedDashboard: API.SUPER_ADMIN.ENHANCED_DASHBOARD,
+    admins: API.SUPER_ADMIN.ADMINS,
+    adminById: API.SUPER_ADMIN.ADMIN_BY_ID,
+    assignAdminOrganization: API.SUPER_ADMIN.ASSIGN_ADMIN_ORGANIZATION,
+    updateAdminStatus: API.SUPER_ADMIN.UPDATE_ADMIN_STATUS,
+    roles: API.SUPER_ADMIN.ROLES,
+    roleById: API.SUPER_ADMIN.ROLE_BY_ID,
+    updateRoleStatus: API.SUPER_ADMIN.UPDATE_ROLE_STATUS,
+    roleUsers: API.SUPER_ADMIN.ROLE_USERS,
+    settings: API.SUPER_ADMIN.SETTINGS,
+    search: API.SUPER_ADMIN.SEARCH,
+    superAdmin: API.SUPER_ADMIN.NOTIFICATIONS,
+    superAdminUnreadCount: API.SUPER_ADMIN.NOTIFICATIONS_UNREAD_COUNT,
+    superAdminRead: API.SUPER_ADMIN.NOTIFICATION_READ,
+    superAdminReadAll: API.SUPER_ADMIN.NOTIFICATIONS_READ_ALL,
   },
   adminManagement: {
     create: API.ADMIN.CREATE,
     list: API.ADMIN.LIST,
     updateStatus: API.ADMIN.UPDATE_STATUS,
+  },
+  organizations: {
+    list: API.SUPER_ADMIN.ORGANIZATIONS.LIST,
+    create: API.SUPER_ADMIN.ORGANIZATIONS.CREATE,
+    byId: API.SUPER_ADMIN.ORGANIZATIONS.BY_ID,
+    updateStatus: API.SUPER_ADMIN.ORGANIZATIONS.UPDATE_STATUS,
+    subscription: API.SUPER_ADMIN.ORGANIZATIONS.SUBSCRIPTION,
+    subscriptionUsage: API.SUPER_ADMIN.ORGANIZATIONS.SUBSCRIPTION_USAGE,
+    subscriptions: API.SUPER_ADMIN.ORGANIZATIONS.SUBSCRIPTIONS,
+    employees: API.SUPER_ADMIN.ORGANIZATIONS.EMPLOYEES,
+    employeeById: API.SUPER_ADMIN.ORGANIZATIONS.EMPLOYEE_BY_ID,
+    updateEmployeeStatus: API.SUPER_ADMIN.ORGANIZATIONS.UPDATE_EMPLOYEE_STATUS,
   },
   adminPermission: {
     save: API.ADMIN_PERMISSION.SAVE,
@@ -785,6 +890,7 @@ export const API_ENDPOINTS = {
     update: API.ADMIN_SUBSCRIPTION.UPDATE,
     usage: API.ADMIN_SUBSCRIPTION.USAGE,
   },
+ 
   userDashboard: API.DASHBOARD.USER,
   departments: {
     list: API.DEPARTMENTS.LIST,
@@ -942,7 +1048,7 @@ export const API_ENDPOINTS = {
     all: API.LEAVE.ALL,
     balance: API.LEAVE.BALANCE,
     byId: API.LEAVE.DELETE,
-    updateStatus: API.LEAVE.UPDATE_STATUS,
+    updateStatus: API.LEAVE.APPROVE,
     employeeLeaveDetails:
       API.LEAVE.employeeLeaveDetails,
   },

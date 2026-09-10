@@ -9,7 +9,7 @@ import { toastError } from "@/components/common/toast/toastService";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const getDaysInMonth = (year, monthIndex) =>
-new Date(year, monthIndex + 1, 0).getDate();
+  new Date(year, monthIndex + 1, 0).getDate();
 
 const normalizeDate = (value) => {
   const parsedDate = parseDate(value);
@@ -53,7 +53,7 @@ const addMonthsClamped = (date, months) => {
 };
 
 const formatDurationUnit = (value, label) =>
-`${value} ${value === 1 ? label : `${label}s`}`;
+  `${value} ${value === 1 ? label : `${label}s`}`;
 
 const calculateExperienceDuration = (fromValue, toValue) => {
   const startDate = normalizeDate(fromValue);
@@ -77,10 +77,9 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   let years = endDate.getFullYear() - startDate.getFullYear();
 
   if (
-  endDate.getMonth() < startDate.getMonth() ||
-  endDate.getMonth() === startDate.getMonth() &&
-  endDate.getDate() < startDate.getDate())
-  {
+    endDate.getMonth() < startDate.getMonth() ||
+    endDate.getMonth() === startDate.getMonth() &&
+    endDate.getDate() < startDate.getDate()) {
     years -= 1;
   }
 
@@ -91,8 +90,8 @@ const calculateExperienceDuration = (fromValue, toValue) => {
   const afterYears = addYearsClamped(startDate, years);
 
   let months =
-  (endDate.getFullYear() - afterYears.getFullYear()) * 12 + (
-  endDate.getMonth() - afterYears.getMonth());
+    (endDate.getFullYear() - afterYears.getFullYear()) * 12 + (
+      endDate.getMonth() - afterYears.getMonth());
 
   if (endDate.getDate() < afterYears.getDate()) {
     months -= 1;
@@ -111,11 +110,11 @@ const calculateExperienceDuration = (fromValue, toValue) => {
         endDate.getMonth(),
         endDate.getDate()
       ) -
-      Date.UTC(
-        afterMonths.getFullYear(),
-        afterMonths.getMonth(),
-        afterMonths.getDate()
-      )) /
+        Date.UTC(
+          afterMonths.getFullYear(),
+          afterMonths.getMonth(),
+          afterMonths.getDate()
+        )) /
       ONE_DAY_MS
     )
   );
@@ -156,6 +155,7 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   const [experiences, setExperiences] = useState([emptyExperience]);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [errors, setErrors] = useState({});
   const isEditMode = data && data.length > 0;
 
   useEffect(() => {
@@ -175,10 +175,10 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
         to: toDate,
         years: duration.label || (Number.isFinite(fallbackYears) ? String(fallbackYears) : ""),
         yearsValue: duration.label ?
-        duration.yearsValue :
-        Number.isFinite(fallbackYears) ?
-        fallbackYears :
-        0,
+          duration.yearsValue :
+          Number.isFinite(fallbackYears) ?
+            fallbackYears :
+            0,
         reason: exp.reasonForLeaving || "",
         description: exp.description || ""
       };
@@ -190,6 +190,7 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   const handleChange = (index, e) => {
     const updated = [...experiences];
     const { name, value } = e.target;
+
     updated[index][name] = value;
 
     if (name === "from" || name === "to") {
@@ -197,11 +198,130 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
         updated[index].from,
         updated[index].to
       );
+
       updated[index].years = duration.label;
       updated[index].yearsValue = duration.yearsValue;
     }
 
     setExperiences(updated);
+
+    // Clear error for this field when user changes it
+    setErrors((prev) => ({
+      ...prev,
+      [`${name}_${index}`]: ""
+    }));
+  };
+
+  const validateExperienceFields = () => {
+    const validationErrors = {};
+    const today = getTodayDate();
+
+    // Maximum realistic employment history.
+    // 50 years is used as the business-rule limit.
+    const minimumAllowedDate = new Date(
+      today.getFullYear() - 50,
+      today.getMonth(),
+      today.getDate()
+    );
+
+    experiences.forEach((exp, index) => {
+      const company = String(exp.company || "").trim();
+      const designation = String(exp.designation || "").trim();
+      const fromDate = normalizeDate(exp.from);
+      const toDate = exp.to ? normalizeDate(exp.to) : today;
+
+      // ---------------------------------
+      // Company Name
+      // ---------------------------------
+      if (!company) {
+        validationErrors[`company_${index}`] =
+          "Company Name is required.";
+      } else if (company.length < 2 || company.length > 100) {
+        validationErrors[`company_${index}`] =
+          "Company Name must be between 2 and 100 characters.";
+      } else if (!/[A-Za-z]/.test(company)) {
+        validationErrors[`company_${index}`] =
+          "Company Name must contain letters.";
+      } else if (!/^[A-Za-z0-9 .,'&()/-]+$/.test(company)) {
+        validationErrors[`company_${index}`] =
+          "Company Name contains invalid characters.";
+      }
+
+      // ---------------------------------
+      // Designation
+      // ---------------------------------
+      if (!designation) {
+        validationErrors[`designation_${index}`] =
+          "Designation is required.";
+      } else if (
+        designation.length < 2 ||
+        designation.length > 100
+      ) {
+        validationErrors[`designation_${index}`] =
+          "Designation must be between 2 and 100 characters.";
+      } else if (!/[A-Za-z]/.test(designation)) {
+        validationErrors[`designation_${index}`] =
+          "Designation must contain letters.";
+      } else if (!/^[A-Za-z0-9 .,'&()/-]+$/.test(designation)) {
+        validationErrors[`designation_${index}`] =
+          "Designation contains invalid characters.";
+      }
+
+      // ---------------------------------
+      // From Date
+      // ---------------------------------
+      if (!exp.from) {
+        validationErrors[`from_${index}`] =
+          "Employment start date is required.";
+      } else if (!fromDate) {
+        validationErrors[`from_${index}`] =
+          "Please enter a valid employment start date.";
+      } else if (fromDate > today) {
+        validationErrors[`from_${index}`] =
+          "Employment start date cannot be in the future.";
+      } else if (fromDate < minimumAllowedDate) {
+        validationErrors[`from_${index}`] =
+          "Employment start date cannot be more than 50 years ago.";
+      }
+
+      // ---------------------------------
+      // To Date
+      // ---------------------------------
+      if (exp.to && !toDate) {
+        validationErrors[`to_${index}`] =
+          "Please enter a valid employment end date.";
+      } else if (exp.to && toDate > today) {
+        validationErrors[`to_${index}`] =
+          "Employment end date cannot be in the future.";
+      }
+
+      // ---------------------------------
+      // Date Range
+      // ---------------------------------
+      if (fromDate && toDate) {
+        if (toDate < fromDate) {
+          validationErrors[`to_${index}`] =
+            "To Date cannot be earlier than From Date.";
+        }
+
+        const duration = calculateExperienceDuration(
+          exp.from,
+          exp.to
+        );
+
+        if (duration.yearsValue > 50) {
+          validationErrors[`from_${index}`] =
+            "Employment duration cannot exceed 50 years.";
+
+          validationErrors[`to_${index}`] =
+            "Employment duration cannot exceed 50 years.";
+        }
+      }
+    });
+
+    setErrors(validationErrors);
+
+    return Object.keys(validationErrors).length === 0;
   };
 
   const addExperience = () => {
@@ -244,10 +364,20 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
       return;
     }
 
+    // -----------------------------------------
+    // Validate all experience fields FIRST
+    // -----------------------------------------
+    const isValid = validateExperienceFields();
+
+    if (!isValid) {
+      setSuccessMsg("");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // ✅ DELETE old experiences first (only in edit mode)
+      // DELETE old experiences only AFTER validation passes
       if (isEditMode) {
         await api.delete(
           API_ENDPOINTS.employeeExperience.byEmployeeId(employeeId)
@@ -299,164 +429,256 @@ function Experience({ employeeId, viewMode, data, onNext, onBack }) {
   };
 
   return (
-    <div className="form-section">
-      <h3>Add Previous Work Experience</h3>
- 
+    <div className="form-section">
+
+      <h3>Add Previous Work Experience</h3>
+
+
+
       {experiences.map((exp, index) =>
-      <div className="form-card" key={index}>
-          <div className="card-header">
-            <h4>Experience {index + 1}</h4>
- 
+        <div className="form-card" key={index}>
+
+          <div className="card-header">
+
+            <h4>Experience {index + 1}</h4>
+
+
+
             {!viewMode && experiences.length > 1 &&
-          <button
-            type="button"
-            className="remove-btn"
-            onClick={() => removeExperience(index)}>
-            
-                Remove
+              <button
+                type="button"
+                className="remove-btn"
+                onClick={() => removeExperience(index)}>
+
+
+                Remove
+
               </button>
-          }
-          </div>
- 
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Company Name</label>
+            }
+
+          </div>
+
+
+
+          <div className="form-grid">
+
+            <div className="form-group">
+
+              <label>Company Name</label>
+
               <input
-              type="text"
-              name="company"
-              value={exp.company || ""}
-              onChange={(e) => handleChange(index, e)}
-              disabled={viewMode} />
-            
-            </div>
- 
-            <div className="form-group">
-              <label>Designation</label>
+                type="text"
+                name="company"
+                value={exp.company || ""}
+                maxLength={100}
+                onChange={(e) => handleChange(index, e)}
+                disabled={viewMode}
+              />
+
+              {errors[`company_${index}`] && (
+                <span className="error" role="alert">
+                  {errors[`company_${index}`]}
+                </span>
+              )}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Designation</label>
+
               <input
-              type="text"
-              name="designation"
-              value={exp.designation || ""}
-              onChange={(e) => handleChange(index, e)}
-              disabled={viewMode} />
-            
-            </div>
- 
-            <div className="form-group">
-              <label>From Date</label>
+                type="text"
+                name="designation"
+                value={exp.designation || ""}
+                maxLength={100}
+                onChange={(e) => handleChange(index, e)}
+                disabled={viewMode}
+              />
+
+              {errors[`designation_${index}`] && (
+                <span className="error" role="alert">
+                  {errors[`designation_${index}`]}
+                </span>
+              )}
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>From Date</label>
+
               <AppDatePicker
-              name="from"
-              value={exp.from || ""}
-              onChange={(e) => handleChange(index, e)}
-              disabled={viewMode} />
-            
-            </div>
- 
-            <div className="form-group">
-              <label>To Date</label>
+                name="from"
+                value={exp.from || ""}
+                onChange={(e) => handleChange(index, e)}
+                disabled={viewMode}
+              />
+
+              {errors[`from_${index}`] && (
+                <span className="error" role="alert">
+                  {errors[`from_${index}`]}
+                </span>
+              )}
+
+            </div>
+
+            <div className="form-group">
+
+              <label>To Date</label>
+
               <AppDatePicker
-              name="to"
-              value={exp.to || ""}
-              onChange={(e) => handleChange(index, e)}
-              disabled={viewMode} />
-            
-            </div>
- 
-            <div className="form-group">
-              <label>Years of Experience</label>
+                name="to"
+                value={exp.to || ""}
+                onChange={(e) => handleChange(index, e)}
+                disabled={viewMode}
+              />
+
+              {errors[`to_${index}`] && (
+                <span className="error" role="alert">
+                  {errors[`to_${index}`]}
+                </span>
+              )}
+
+            </div>
+
+            <div className="form-group">
+
+              <label>Years of Experience</label>
+
               <input
-              type="text"
-              name="years"
-              value={exp.years || ""}
-              readOnly
-              placeholder="Auto-calculated duration"
-              disabled={viewMode}
-              className="experience-years-input" />
-            
-            </div>
- 
-            <div className="form-group">
-              <label>Reason for Leaving</label>
+                type="text"
+                name="years"
+                value={exp.years || ""}
+                readOnly
+                placeholder="Auto-calculated duration"
+                disabled={viewMode}
+                className="experience-years-input" />
+
+
+            </div>
+
+
+
+            <div className="form-group">
+
+              <label>Reason for Leaving</label>
+
               <input
-              type="text"
-              name="reason"
-              value={exp.reason || ""}
-              onChange={(e) => handleChange(index, e)}
-              disabled={viewMode} />
-            
-            </div>
- 
-            <div className="form-group full">
-              <label>Description</label>
+                type="text"
+                name="reason"
+                value={exp.reason || ""}
+                onChange={(e) => handleChange(index, e)}
+                disabled={viewMode} />
+
+
+            </div>
+
+
+
+            <div className="form-group full">
+
+              <label>Description</label>
+
               <textarea
-              name="description"
-              value={exp.description || ""}
-              onChange={(e) => handleChange(index, e)}
-              disabled={viewMode} />
-            
-            </div>
-          </div>
+                name="description"
+                value={exp.description || ""}
+                onChange={(e) => handleChange(index, e)}
+                disabled={viewMode} />
+
+
+            </div>
+
+          </div>
+
         </div>
-      )}
- 
+      )}
+
+
+
       {!viewMode &&
-      <button
-        type="button"
-        className="btn primary add-experience-btn"
-        onClick={addExperience}>
-        
-          + Add Another Experience
+        <button
+          type="button"
+          className="btn primary add-experience-btn"
+          onClick={addExperience}>
+
+
+          + Add Another Experience
+
         </button>
-      }
- 
-      <div className="step-actions">
+      }
+
+
+
+      <div className="step-actions">
+
         <button
           type="button"
           className="btn secondary"
           onClick={onBack}
           disabled={loading}>
-          
-          Back
-        </button>
+
+
+          Back
+
+        </button>
+
         {successMsg &&
-        <p className="workflow-feedback success">
-            {successMsg}
+          <p className="workflow-feedback success">
+
+            {successMsg}
+
           </p>
-        }
- 
+        }
+
+
+
         <button
           type="button"
           className="btn primary"
           onClick={handleSave}
           disabled={loading}>
-          
+
+
           {loading ?
-          isEditMode ?
-          "Updating..." :
-          "Saving..." :
-          isEditMode ?
-          "Update & Next" :
-          "Save & Next"}
-        </button>
- 
+            isEditMode ?
+              "Updating..." :
+              "Saving..." :
+            isEditMode ?
+              "Update & Next" :
+              "Save & Next"}
+
+        </button>
+
+
+
         {!viewMode &&
-        <button
-          type="button"
-          className="btn secondary"
-          onClick={() => {
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => {
 
-            setSuccessMsg("Skipped");
+              setSuccessMsg("Skipped");
 
-            setTimeout(() => {
-              if (onNext) {
-                onNext(); // ✅ FIX
-              }
-            }, 500);
-          }}>
-          
-            Skip
+              setTimeout(() => {
+                if (onNext) {
+                  onNext(); // ✅ FIX
+                }
+              }, 500);
+            }}>
+
+
+            Skip
+
           </button>
-        }
-      </div>
+        }
+
+      </div>
+
     </div>);
 
 }

@@ -3,8 +3,9 @@ import React, {
   useState,
   useEffect,
   useRef,
-  useMemo } from
-"react";
+  useMemo
+} from
+  "react";
 import "./OfferLetters.css";
 import {
   FaFileAlt,
@@ -17,8 +18,9 @@ import {
   FaBriefcase,
   FaRupeeSign,
   FaCalendarAlt,
-  FaTrash } from
-"react-icons/fa";
+  FaTrash
+} from
+  "react-icons/fa";
 import CompactSearchableDropdown from "../components/CompactSearchableDropdown";
 import {
   deleteOfferLetter,
@@ -29,8 +31,9 @@ import {
   getOfferLetterSendStatus,
   generateOfferLetter,
   previewOfferLetter,
-  sendOfferLetter } from
-"../services/offerLetterService";
+  sendOfferLetter
+} from
+  "../services/offerLetterService";
 import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import DocumentSendStatusButton from "../components/documentSendStatus/DocumentSendStatusButton";
@@ -49,13 +52,15 @@ import {
   validateEmailAddress
 } from "../utils/validation";
 import {
-  resolveDocumentMimeType } from
-"../Employees/AddEmployee/documentPreview";
+  resolveDocumentMimeType
+} from
+  "../Employees/AddEmployee/documentPreview";
 import {
   OfferLetterDeleteModal,
   OfferLetterPreviewModal,
-  OfferLetterSendModal } from
-"./OfferLetterDialogs";
+  OfferLetterSendModal
+} from
+  "./OfferLetterDialogs";
 import { buildOfferLetterEmailDraft } from "./offerLetterDraft";
 import {
   deleteRelievingLetter,
@@ -65,8 +70,9 @@ import {
   getRelievingLetterApiErrorMessage,
   previewRelievingLetter,
   sendRelievingLetter,
-  getRelievingLetterSendStatus } from
-"../services/relievingLetterService";
+  getRelievingLetterSendStatus
+} from
+  "../services/relievingLetterService";
 
 const redirectToLogin = () => {
   window.location.replace("/login");
@@ -74,20 +80,20 @@ const redirectToLogin = () => {
 };
 
 const getEmployeeId = (employee) =>
-employee?.employee_Id ||
-employee?.employee_id ||
-employee?.employeeId ||
-employee?.id ||
-"";
+  employee?.employee_Id ||
+  employee?.employee_id ||
+  employee?.employeeId ||
+  employee?.id ||
+  "";
 
 const getEmployeeName = (employee) => {
   const fullName = [
-  employee?.firstName,
-  employee?.middleName,
-  employee?.lastName].
+    employee?.firstName,
+    employee?.middleName,
+    employee?.lastName].
 
-  filter(Boolean).
-  join(" ");
+    filter(Boolean).
+    join(" ");
 
   return (
     employee?.name ||
@@ -104,36 +110,36 @@ const formatDisplayValue = (value) => {
 };
 
 const getEmployeeDropdownName = (employee) =>
-formatDisplayValue(
-  employee?.employeeName ||
-  employee?.name ||
-  employee?.fullName ||
-  [
-  employee?.firstName,
-  employee?.middleName,
-  employee?.lastName].
+  formatDisplayValue(
+    employee?.employeeName ||
+    employee?.name ||
+    employee?.fullName ||
+    [
+      employee?.firstName,
+      employee?.middleName,
+      employee?.lastName].
 
-  filter(Boolean).
-  join(" ")
-);
+      filter(Boolean).
+      join(" ")
+  );
 
 const getEmployeeDropdownSortKey = (employee) =>
-String(
-  employee?.employeeName ||
-  employee?.name ||
-  employee?.fullName ||
-  [
-  employee?.firstName,
-  employee?.middleName,
-  employee?.lastName].
+  String(
+    employee?.employeeName ||
+    employee?.name ||
+    employee?.fullName ||
+    [
+      employee?.firstName,
+      employee?.middleName,
+      employee?.lastName].
 
-  filter(Boolean).
-  join(" ") ||
-  getEmployeeId(employee) ||
-  ""
-).
-trim().
-toLowerCase();
+      filter(Boolean).
+      join(" ") ||
+    getEmployeeId(employee) ||
+    ""
+  ).
+    trim().
+    toLowerCase();
 
 const getEmployeeDropdownLabel = (employee) => {
   const employeeId = formatDisplayValue(getEmployeeId(employee));
@@ -184,37 +190,37 @@ const normalizeEmployeesForDropdown = (employeeList) => {
 };
 
 const getRelievingLetterEmployeeId = (letter) =>
-letter?.employeeId ||
-letter?.employee_Id ||
-letter?.employee_id ||
-letter?.id ||
-"";
+  letter?.employeeId ||
+  letter?.employee_Id ||
+  letter?.employee_id ||
+  letter?.id ||
+  "";
 
 const getRelievingLetterId = (letter) =>
-letter?.id ||
-letter?.relievingLetterId ||
-letter?.relieving_Letter_Id ||
-letter?.relieving_letter_id ||
-letter?.relivingLetterId ||
-"";
+  letter?.id ||
+  letter?.relievingLetterId ||
+  letter?.relieving_Letter_Id ||
+  letter?.relieving_letter_id ||
+  letter?.relivingLetterId ||
+  "";
 
 const getRelievingLetterEmployeeLabel = (letter) =>
-letter?.employeeName ||
-letter?.employee_Name ||
-letter?.employee_name ||
-letter?.name ||
-letter?.fullName ||
-letter?.full_Name ||
-getRelievingLetterEmployeeId(letter) ||
-"-";
+  letter?.employeeName ||
+  letter?.employee_Name ||
+  letter?.employee_name ||
+  letter?.name ||
+  letter?.fullName ||
+  letter?.full_Name ||
+  getRelievingLetterEmployeeId(letter) ||
+  "-";
 
 const getRelievingLetterEmployeeEmail = (letter) =>
-letter?.employeeEmail ||
-letter?.employee_Email ||
-letter?.employee_email ||
-letter?.email ||
-letter?.mail ||
-"";
+  letter?.employeeEmail ||
+  letter?.employee_Email ||
+  letter?.employee_email ||
+  letter?.email ||
+  letter?.mail ||
+  "";
 
 const formatRelievingTableValue = (value) => {
   const normalizedValue = String(value ?? "").trim();
@@ -222,13 +228,23 @@ const formatRelievingTableValue = (value) => {
 };
 
 const RELIEVING_TITLE_OPTIONS = [
-{ label: "Mr", value: "Mr" },
-{ label: "Ms", value: "Ms" },
-{ label: "Mrs", value: "Mrs" }];
+  { label: "Mr", value: "Mr" },
+  { label: "Ms", value: "Ms" },
+  { label: "Mrs", value: "Mrs" }];
 
 const RELIEVING_LETTER_TYPE_OPTIONS = [
-{ label: "Employee Relieving Letter", value: "employee" },
-{ label: "External Relieving Letter", value: "external" }];
+  { label: "Employee Relieving Letter", value: "employee" },
+  { label: "External Relieving Letter", value: "external" }];
+
+const getTodayDate = () => {
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 
 const EMPTY_RELIEVING_FORM = {
   employeeId: "",
@@ -236,16 +252,17 @@ const EMPTY_RELIEVING_FORM = {
   email: "",
   designation: "",
   title: "",
+  generatedDate: "",
   joiningDate: "",
   relievingDate: ""
 };
 
 const normalizeRelievingLetterText = (value) =>
-String(value ?? "").trim();
+  String(value ?? "").trim();
 
 const normalizeRelievingLetterDate = (value) =>
-toIsoDateString(value) ||
-normalizeRelievingLetterText(value);
+  toIsoDateString(value) ||
+  normalizeRelievingLetterText(value);
 
 const buildRelievingLetterPayload = (
   form,
@@ -253,16 +270,17 @@ const buildRelievingLetterPayload = (
 ) => {
   const employeeId = normalizeRelievingLetterText(form?.employeeId);
   const employeeName =
-  normalizeRelievingLetterText(form?.employeeName) ||
-  normalizeRelievingLetterText(resolvedEmployeeDetails.employeeName) ||
-  employeeId;
+    normalizeRelievingLetterText(form?.employeeName) ||
+    normalizeRelievingLetterText(resolvedEmployeeDetails.employeeName) ||
+    employeeId;
   const designation =
-  normalizeRelievingLetterText(form?.designation) ||
-  normalizeRelievingLetterText(resolvedEmployeeDetails.designation);
+    normalizeRelievingLetterText(form?.designation) ||
+    normalizeRelievingLetterText(resolvedEmployeeDetails.designation);
   const title =
-  normalizeRelievingTitle(form?.title) ||
-  normalizeRelievingLetterText(form?.title);
+    normalizeRelievingTitle(form?.title) ||
+    normalizeRelievingLetterText(form?.title);
   const email = normalizeRelievingLetterText(form?.email);
+  const generatedDate = normalizeRelievingLetterDate(form?.generatedDate);
   const joiningDate = normalizeRelievingLetterDate(form?.joiningDate);
   const relievingDate = normalizeRelievingLetterDate(form?.relievingDate);
 
@@ -272,6 +290,7 @@ const buildRelievingLetterPayload = (
     ...(email ? { email } : {}),
     designation,
     title,
+    generatedDate,
     joiningDate,
     relievingDate,
   };
@@ -295,39 +314,39 @@ function normalizeRelievingTitle(value) {
 }
 
 const getRelievingEmployeeDesignation = (employee) =>
-String(
-  employee?.designation ||
-  employee?.designationName ||
-  employee?.jobTitle ||
-  employee?.jobTitleName ||
-  employee?.position ||
-  employee?.roleName ||
-  employee?.role ||
-  ""
-).trim();
+  String(
+    employee?.designation ||
+    employee?.designationName ||
+    employee?.jobTitle ||
+    employee?.jobTitleName ||
+    employee?.position ||
+    employee?.roleName ||
+    employee?.role ||
+    ""
+  ).trim();
 
 const getRelievingEmployeeTitle = (employee) =>
-normalizeRelievingTitle(
-  employee?.title ||
-  employee?.salutation ||
-  employee?.prefix ||
-  employee?.employeeTitle ||
-  employee?.honorific
-);
+  normalizeRelievingTitle(
+    employee?.title ||
+    employee?.salutation ||
+    employee?.prefix ||
+    employee?.employeeTitle ||
+    employee?.honorific
+  );
 
 const getOfferLetterId = (letter) =>
-letter?.id ||
-letter?.offerLetterId ||
-letter?.offer_letter_id ||
-letter?.offerLetterID ||
-"";
+  letter?.id ||
+  letter?.offerLetterId ||
+  letter?.offer_letter_id ||
+  letter?.offerLetterID ||
+  "";
 
 const getOfferLetterEmployeeId = (letter) =>
-letter?.employeeId ||
-letter?.employee_Id ||
-letter?.employee_id ||
-letter?.employeeID ||
-"";
+  letter?.employeeId ||
+  letter?.employee_Id ||
+  letter?.employee_id ||
+  letter?.employeeID ||
+  "";
 
 function OfferLetters() {
   const [letterType, setLetterType] = useState("offer");
@@ -377,7 +396,7 @@ function OfferLetters() {
   const [previewOfferLetterError, setPreviewOfferLetterError] = useState("");
   const [previewOfferLetterBlob, setPreviewOfferLetterBlob] = useState(null);
   const [previewOfferLetterContentType, setPreviewOfferLetterContentType] =
-  useState("");
+    useState("");
   const previewRequestRef = useRef(0);
   const [sendOfferLetterOpen, setSendOfferLetterOpen] = useState(false);
   const [sendOfferLetterTarget, setSendOfferLetterTarget] = useState(null);
@@ -387,36 +406,36 @@ function OfferLetters() {
   const [sendingOfferLetterId, setSendingOfferLetterId] = useState(null);
   const [resendOfferLetterOpen, setResendOfferLetterOpen] = useState(false);
   const [resendOfferLetterTarget, setResendOfferLetterTarget] =
-  useState(null);
+    useState(null);
   const [resendOfferLetterKind, setResendOfferLetterKind] = useState("offer");
   const [deleteOfferLetterTarget, setDeleteOfferLetterTarget] = useState(null);
   const [deletingOfferLetterId, setDeletingOfferLetterId] = useState(null);
   const [previewRelievingLetterTarget, setPreviewRelievingLetterTarget] =
-  useState(null);
+    useState(null);
   const [previewRelievingLetterLoading, setPreviewRelievingLetterLoading] =
-  useState(false);
+    useState(false);
   const [previewRelievingLetterError, setPreviewRelievingLetterError] =
-  useState("");
+    useState("");
   const [previewRelievingLetterBlob, setPreviewRelievingLetterBlob] =
-  useState(null);
+    useState(null);
   const [
-  previewRelievingLetterContentType,
-  setPreviewRelievingLetterContentType] =
-  useState("");
+    previewRelievingLetterContentType,
+    setPreviewRelievingLetterContentType] =
+    useState("");
   const previewRelievingRequestRef = useRef(0);
   const [sendRelievingLetterOpen, setSendRelievingLetterOpen] = useState(false);
   const [sendRelievingLetterTarget, setSendRelievingLetterTarget] =
-  useState(null);
+    useState(null);
   const [sendRelievingLetterSubject, setSendRelievingLetterSubject] =
-  useState("");
+    useState("");
   const [sendRelievingLetterBody, setSendRelievingLetterBody] = useState("");
   const [sendRelievingLetterErrors, setSendRelievingLetterErrors] = useState({});
   const [sendingRelievingLetterId, setSendingRelievingLetterId] =
-  useState(null);
+    useState(null);
   const [deleteRelievingLetterTarget, setDeleteRelievingLetterTarget] =
-  useState(null);
+    useState(null);
   const [deletingRelievingLetterId, setDeletingRelievingLetterId] =
-  useState(null);
+    useState(null);
   const [relievingCurrentPage, setRelievingCurrentPage] = useState(1);
   const sendRequestLockRef = useRef(false);
 
@@ -469,29 +488,29 @@ function OfferLetters() {
   };
 
   const getResponseHeaderValue = (headers, key) =>
-  headers?.[key] ||
-  headers?.[key.toLowerCase()] ||
-  headers?.[key.toUpperCase()] ||
-  "";
+    headers?.[key] ||
+    headers?.[key.toLowerCase()] ||
+    headers?.[key.toUpperCase()] ||
+    "";
 
   const isEmployeeRelievingLetter = relievingLetterType === "employee";
   const activeRelievingForm = isEmployeeRelievingLetter ?
-  employeeRelievingForm :
-  externalRelievingForm;
+    employeeRelievingForm :
+    externalRelievingForm;
 
   const employeeDropdownGroups = useMemo(
     () => [
-    {
-      label: "Employees",
-      options: employees.map((employee) => {
-        const employeeId = formatDisplayValue(getEmployeeId(employee));
+      {
+        label: "Employees",
+        options: employees.map((employee) => {
+          const employeeId = formatDisplayValue(getEmployeeId(employee));
 
-        return {
-          value: employeeId,
-          label: getEmployeeDropdownLabel(employee)
-        };
-      })
-    }],
+          return {
+            value: employeeId,
+            label: getEmployeeDropdownLabel(employee)
+          };
+        })
+      }],
 
     [employees]
   );
@@ -553,9 +572,9 @@ function OfferLetters() {
       return (
         employees.find(
           (employee) =>
-          String(getEmployeeId(employee) || "").
-          trim().
-          toLowerCase() === employeeId.trim().toLowerCase()
+            String(getEmployeeId(employee) || "").
+              trim().
+              toLowerCase() === employeeId.trim().toLowerCase()
         ) || null);
 
     },
@@ -590,7 +609,7 @@ function OfferLetters() {
   const buildRelievingLetterEmailDraft = useCallback(
     (letter) => {
       const employeeName =
-      getRelievingLetterRecipientName(letter) || "Employee";
+        getRelievingLetterRecipientName(letter) || "Employee";
 
       return {
         subject: `Relieving Letter - ${employeeName}`,
@@ -653,12 +672,12 @@ HR Team`
   const isOfferLetterAlreadySent = offerLetterSendStatus.isDocumentSent;
   const isRelievingLetterAlreadySent = relievingLetterSendStatus.isDocumentSent;
   const isOfferLetterSendStatusLoading =
-  offerLetterSendStatus.isDocumentLoading;
+    offerLetterSendStatus.isDocumentLoading;
   const isRelievingLetterSendStatusLoading =
-  relievingLetterSendStatus.isDocumentLoading;
+    relievingLetterSendStatus.isDocumentLoading;
   const setOfferLetterSendStatus = offerLetterSendStatus.setDocumentStatus;
   const setRelievingLetterSendStatus =
-  relievingLetterSendStatus.setDocumentStatus;
+    relievingLetterSendStatus.setDocumentStatus;
 
   const isAnyDocumentSending = Boolean(
     sendingOfferLetterId || sendingRelievingLetterId
@@ -717,8 +736,8 @@ HR Team`
     /* ================= CTC AUTO CALCULATION ================= */
     if (name === "ctc_Annual") {
       const numericValue = value.
-      replace(/\D/g, "").
-      slice(0, 8);
+        replace(/\D/g, "").
+        slice(0, 8);
       const annualCTC = Number(numericValue);
 
       setFormData((prev) => ({
@@ -765,17 +784,16 @@ HR Team`
 
     /* ================= FORMAT SALARY INPUTS ================= */
     if (
-    [
-    "basic",
-    "hra",
-    "conveyance",
-    "medicalAllowance",
-    "otherAllowance"].
-    includes(name))
-    {
+      [
+        "basic",
+        "hra",
+        "conveyance",
+        "medicalAllowance",
+        "otherAllowance"].
+        includes(name)) {
       const numericValue = value.
-      replace(/\D/g, "").
-      slice(0, 8);
+        replace(/\D/g, "").
+        slice(0, 8);
 
       setFormData((prev) => ({
         ...prev,
@@ -813,10 +831,10 @@ HR Team`
       });
 
       const data = Array.isArray(res.data) ?
-      res.data :
-      Array.isArray(res.data?.data) ?
-      res.data.data :
-      [];
+        res.data :
+        Array.isArray(res.data?.data) ?
+          res.data.data :
+          [];
 
       setLetters(sortByNewestIdFirst(data, (letter) => letter.id));
       return data;
@@ -869,10 +887,10 @@ HR Team`
         cacheTTL: 30 * 1000
       });
       const data = Array.isArray(response.data) ?
-      response.data :
-      Array.isArray(response.data?.data) ?
-      response.data.data :
-      [];
+        response.data :
+        Array.isArray(response.data?.data) ?
+          response.data.data :
+          [];
 
       setGeneratedRelievingLetters(data);
       return data;
@@ -914,10 +932,10 @@ HR Team`
       });
 
       const data = Array.isArray(res.data) ?
-      res.data :
-      Array.isArray(res.data?.data) ?
-      res.data.data :
-      [];
+        res.data :
+        Array.isArray(res.data?.data) ?
+          res.data.data :
+          [];
 
       setEmployees(normalizeEmployeesForDropdown(data));
       return data;
@@ -985,7 +1003,7 @@ HR Team`
     relievingTotalPages
   );
   const relievingPageStartIndex =
-  (relievingSafeCurrentPage - 1) * RELIEVING_LETTERS_PER_PAGE;
+    (relievingSafeCurrentPage - 1) * RELIEVING_LETTERS_PER_PAGE;
   const visibleRelievingLetters = generatedRelievingLetters.slice(
     relievingPageStartIndex,
     relievingPageStartIndex + RELIEVING_LETTERS_PER_PAGE
@@ -1002,10 +1020,9 @@ HR Team`
 
     // Candidate Name
     if (
-    formData.candidate_Name.trim().length < 2)
-    {
+      formData.candidate_Name.trim().length < 2) {
       newErrors.candidate_Name =
-      "Candidate Name must contain minimum 2 characters";
+        "Candidate Name must contain minimum 2 characters";
 
       setErrors(newErrors);
       scrollToField("candidate_Name");
@@ -1013,12 +1030,11 @@ HR Team`
     }
 
     if (
-    !/^[A-Za-z\s]+$/.test(
-      formData.candidate_Name.trim()
-    ))
-    {
+      !/^[A-Za-z\s]+$/.test(
+        formData.candidate_Name.trim()
+      )) {
       newErrors.candidate_Name =
-      "Only alphabets are allowed";
+        "Only alphabets are allowed";
 
       setErrors(newErrors);
       scrollToField("candidate_Name");
@@ -1058,7 +1074,7 @@ HR Team`
     // CTC
     if (!formData.ctc_Annual.trim()) {
       newErrors.ctc_Annual =
-      "Annual CTC is required";
+        "Annual CTC is required";
 
       setErrors(newErrors);
       scrollToField("ctc_Annual");
@@ -1068,7 +1084,7 @@ HR Team`
     // Joining Date
     if (!formData.joining_Date) {
       newErrors.joining_Date =
-      "Joining date is required";
+        "Joining date is required";
 
       setErrors(newErrors);
       scrollToField("joining_Date");
@@ -1096,7 +1112,7 @@ HR Team`
     // Conveyance
     if (!formData.conveyance?.trim()) {
       newErrors.conveyance =
-      "Conveyance is required";
+        "Conveyance is required";
 
       setErrors(newErrors);
       scrollToField("conveyance");
@@ -1106,7 +1122,7 @@ HR Team`
     // Medical Allowance
     if (!formData.medicalAllowance?.trim()) {
       newErrors.medicalAllowance =
-      "Medical allowance is required";
+        "Medical allowance is required";
 
       setErrors(newErrors);
       scrollToField("medicalAllowance");
@@ -1116,7 +1132,7 @@ HR Team`
     // Other Allowance
     if (!formData.otherAllowance?.trim()) {
       newErrors.otherAllowance =
-      "Other allowance is required";
+        "Other allowance is required";
 
       setErrors(newErrors);
       scrollToField("otherAllowance");
@@ -1184,14 +1200,14 @@ HR Team`
 
         providentFund: Number(
           (formData.providentFund || "0").
-          toString().
-          replace(/,/g, "")
+            toString().
+            replace(/,/g, "")
         ),
 
         professionalTax: Number(
           (formData.professionalTax || "0").
-          toString().
-          replace(/,/g, "")
+            toString().
+            replace(/,/g, "")
         )
       };
 
@@ -1291,10 +1307,10 @@ HR Team`
         rawContentType
       );
       const blob = response.data instanceof Blob ?
-      response.data :
-      new Blob([response.data], {
-        type: rawContentType || ""
-      });
+        response.data :
+        new Blob([response.data], {
+          type: rawContentType || ""
+        });
       const contentType = await resolveDocumentMimeType({
         blob,
         fileName: initialFileName,
@@ -1306,14 +1322,14 @@ HR Team`
         contentType
       );
       const file =
-      blob.type === contentType ?
-      blob :
-      new Blob([blob], {
-        type: contentType || ""
-      });
+        blob.type === contentType ?
+          blob :
+          new Blob([blob], {
+            type: contentType || ""
+          });
 
       const url =
-      window.URL.createObjectURL(file);
+        window.URL.createObjectURL(file);
 
       const link = document.createElement("a");
 
@@ -1384,11 +1400,11 @@ HR Team`
         "content-type"
       );
       const previewBlob =
-      response.data instanceof Blob ?
-      response.data :
-      new Blob([response.data], {
-        type: contentType || ""
-      });
+        response.data instanceof Blob ?
+          response.data :
+          new Blob([response.data], {
+            type: contentType || ""
+          });
 
       setPreviewOfferLetterBlob(previewBlob);
       setPreviewOfferLetterContentType(contentType || previewBlob.type || "");
@@ -1517,14 +1533,14 @@ HR Team`
   const handleSendOfferLetterSubjectChange = (value) => {
     setSendOfferLetterSubject(value);
     setSendOfferLetterErrors((prev) =>
-    prev.subject ? { ...prev, subject: "" } : prev
+      prev.subject ? { ...prev, subject: "" } : prev
     );
   };
 
   const handleSendOfferLetterBodyChange = (value) => {
     setSendOfferLetterBody(value);
     setSendOfferLetterErrors((prev) =>
-    prev.body ? { ...prev, body: "" } : prev
+      prev.body ? { ...prev, body: "" } : prev
     );
   };
 
@@ -1573,13 +1589,13 @@ HR Team`
 
       try {
         const statusRefresh =
-        await offerLetterSendStatus.refreshDocumentSendStatus(
-          sentOfferLetter,
-          {
-            markLoading: true,
-            updateState: false
-          }
-        );
+          await offerLetterSendStatus.refreshDocumentSendStatus(
+            sentOfferLetter,
+            {
+              markLoading: true,
+              updateState: false
+            }
+          );
 
         if (statusRefresh?.statusState?.isSent) {
           setOfferLetterSendStatus(
@@ -1671,13 +1687,13 @@ HR Team`
 
         try {
           const statusRefresh =
-          await relievingLetterSendStatus.refreshDocumentSendStatus(
-            sentRelievingLetter,
-            {
-              markLoading: true,
-              updateState: false
-            }
-          );
+            await relievingLetterSendStatus.refreshDocumentSendStatus(
+              sentRelievingLetter,
+              {
+                markLoading: true,
+                updateState: false
+              }
+            );
 
           if (statusRefresh?.statusState?.isSent) {
             setRelievingLetterSendStatus(
@@ -1708,13 +1724,13 @@ HR Team`
 
       try {
         const statusRefresh =
-        await offerLetterSendStatus.refreshDocumentSendStatus(
-          sentOfferLetter,
-          {
-            markLoading: true,
-            updateState: false
-          }
-        );
+          await offerLetterSendStatus.refreshDocumentSendStatus(
+            sentOfferLetter,
+            {
+              markLoading: true,
+              updateState: false
+            }
+          );
 
         if (statusRefresh?.statusState?.isSent) {
           setOfferLetterSendStatus(
@@ -1770,9 +1786,9 @@ HR Team`
 
       toast.success("Offer letter deleted successfully.");
       setLetters((prev) =>
-      prev.filter(
-        (letter) => String(getOfferLetterId(letter)) !== String(offerLetterId)
-      )
+        prev.filter(
+          (letter) => String(getOfferLetterId(letter)) !== String(offerLetterId)
+        )
       );
       setDeleteOfferLetterTarget(null);
       await fetchOfferLetters();
@@ -1791,8 +1807,8 @@ HR Team`
   const handleRelievingChange = (e) => {
     const { name, value } = e.target;
     const nextValue = name === "email" ?
-    sanitizeEmailInput(value, 60) :
-    value;
+      sanitizeEmailInput(value, 60) :
+      value;
 
     setRelievingErrors((prev) => ({
       ...prev,
@@ -1800,8 +1816,8 @@ HR Team`
     }));
 
     const updateRelievingForm = isEmployeeRelievingLetter ?
-    setEmployeeRelievingForm :
-    setExternalRelievingForm;
+      setEmployeeRelievingForm :
+      setExternalRelievingForm;
 
     updateRelievingForm((prev) => ({
       ...prev,
@@ -1812,13 +1828,13 @@ HR Team`
   const handleRelievingEmployeeChange = useCallback((employeeId) => {
     const normalizedEmployeeId = String(employeeId || "").trim().toLowerCase();
     const selectedEmployee = normalizedEmployeeId ?
-    employees.find((employee) => {
-      return (
-        String(getEmployeeId(employee) || "").trim().toLowerCase() ===
-        normalizedEmployeeId
-      );
-    }) || null :
-    null;
+      employees.find((employee) => {
+        return (
+          String(getEmployeeId(employee) || "").trim().toLowerCase() ===
+          normalizedEmployeeId
+        );
+      }) || null :
+      null;
 
     setRelievingErrors((prev) => ({
       ...prev,
@@ -1867,6 +1883,10 @@ HR Team`
       newErrors.title = "Title is required";
     }
 
+    if (!currentRelievingForm.generatedDate) {
+      newErrors.generatedDate = "Generated date is required";
+    }
+
     if (!currentRelievingForm.joiningDate) {
       newErrors.joiningDate = "Joining date is required";
     }
@@ -1881,7 +1901,7 @@ HR Team`
       currentRelievingForm.joiningDate > currentRelievingForm.relievingDate
     ) {
       newErrors.relievingDate =
-      "Relieving date must be on or after the joining date";
+        "Relieving date must be on or after the joining date";
     }
 
     setRelievingErrors(newErrors);
@@ -1895,22 +1915,22 @@ HR Team`
       setRelievingLoading(true);
 
       const selectedEmployee = isEmployeeRelievingLetter ?
-      employees.find((employee) => {
-        return (
-          String(getEmployeeId(employee) || "").trim().toLowerCase() ===
-          String(employeeRelievingForm.employeeId || "").trim().toLowerCase()
-        );
-      }) || null :
-      null;
+        employees.find((employee) => {
+          return (
+            String(getEmployeeId(employee) || "").trim().toLowerCase() ===
+            String(employeeRelievingForm.employeeId || "").trim().toLowerCase()
+          );
+        }) || null :
+        null;
 
       const resolvedEmployeeDetails = selectedEmployee ?
-      resolveRelievingEmployeeDetails(selectedEmployee) :
-      {
-        employeeId: "",
-        employeeName: "",
-        designation: "",
-        title: ""
-      };
+        resolveRelievingEmployeeDetails(selectedEmployee) :
+        {
+          employeeId: "",
+          employeeName: "",
+          designation: "",
+          title: ""
+        };
 
       const currentRelievingForm = activeRelievingForm;
       const payload = buildRelievingLetterPayload(
@@ -1955,17 +1975,17 @@ HR Team`
       const response = await downloadRelievingLetter(id);
       const contentType = getResponseHeaderValue(response.headers, "content-type");
       const blob =
-      response.data instanceof Blob ?
-      response.data :
-      new Blob([response.data], {
-        type: contentType || "application/pdf"
-      });
+        response.data instanceof Blob ?
+          response.data :
+          new Blob([response.data], {
+            type: contentType || "application/pdf"
+          });
       const file =
-      blob.type === (contentType || "application/pdf") ?
-      blob :
-      new Blob([blob], {
-        type: contentType || "application/pdf"
-      });
+        blob.type === (contentType || "application/pdf") ?
+          blob :
+          new Blob([blob], {
+            type: contentType || "application/pdf"
+          });
       const url = window.URL.createObjectURL(file);
       const link = document.createElement("a");
 
@@ -2030,11 +2050,11 @@ HR Team`
         "content-type"
       );
       const previewBlob =
-      response.data instanceof Blob ?
-      response.data :
-      new Blob([response.data], {
-        type: contentType || "application/pdf"
-      });
+        response.data instanceof Blob ?
+          response.data :
+          new Blob([response.data], {
+            type: contentType || "application/pdf"
+          });
 
       setPreviewRelievingLetterBlob(previewBlob);
       setPreviewRelievingLetterContentType(contentType || previewBlob.type || "");
@@ -2093,14 +2113,14 @@ HR Team`
   const handleSendRelievingLetterSubjectChange = (value) => {
     setSendRelievingLetterSubject(value);
     setSendRelievingLetterErrors((prev) =>
-    prev.subject ? { ...prev, subject: "" } : prev
+      prev.subject ? { ...prev, subject: "" } : prev
     );
   };
 
   const handleSendRelievingLetterBodyChange = (value) => {
     setSendRelievingLetterBody(value);
     setSendRelievingLetterErrors((prev) =>
-    prev.body ? { ...prev, body: "" } : prev
+      prev.body ? { ...prev, body: "" } : prev
     );
   };
 
@@ -2149,13 +2169,13 @@ HR Team`
 
       try {
         const statusRefresh =
-        await relievingLetterSendStatus.refreshDocumentSendStatus(
-          sentRelievingLetter,
-          {
-            markLoading: true,
-            updateState: false
-          }
-        );
+          await relievingLetterSendStatus.refreshDocumentSendStatus(
+            sentRelievingLetter,
+            {
+              markLoading: true,
+              updateState: false
+            }
+          );
 
         if (statusRefresh?.statusState?.isSent) {
           setRelievingLetterSendStatus(
@@ -2207,10 +2227,10 @@ HR Team`
 
       toast.success("Relieving letter deleted successfully.");
       setGeneratedRelievingLetters((prev) =>
-      prev.filter(
-        (letter) =>
-        String(getRelievingLetterId(letter)) !== String(relievingLetterId)
-      )
+        prev.filter(
+          (letter) =>
+            String(getRelievingLetterId(letter)) !== String(relievingLetterId)
+        )
       );
       setDeleteRelievingLetterTarget(null);
       await loadRelievingLetters();
@@ -2231,41 +2251,41 @@ HR Team`
   return (
     <div className="offer-container">
       {letterType === "offer" ?
-      <>
+        <>
           <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            marginBottom: "0px",
-            paddingBottom: "0px",
-            marginTop: "0px"
-          }}>
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              marginBottom: "0px",
+              paddingBottom: "0px",
+              marginTop: "0px"
+            }}>
 
             <h2
-            style={{
-              margin: 0,
-              fontSize: "26px",
-              fontWeight: "650",
-              color: "var(--text-primary)",
-              lineHeight: "1.2",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}>
+              style={{
+                margin: 0,
+                fontSize: "26px",
+                fontWeight: "650",
+                color: "var(--text-primary)",
+                lineHeight: "1.2",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}>
 
               <FaFileAlt />
               Offer Letter Generation
             </h2>
 
             <p
-            style={{
-              marginTop: "0px",
-              marginLeft: "42px",
-              fontSize: "15px",
-              color: "var(--text-muted)",
-              fontWeight: "500"
-            }}>
+              style={{
+                marginTop: "0px",
+                marginLeft: "42px",
+                fontSize: "15px",
+                color: "var(--text-muted)",
+                fontWeight: "500"
+              }}>
 
               Generate offer letters for new hires
             </p>
@@ -2274,9 +2294,9 @@ HR Team`
               <label>Letter Type</label>
 
               <select
-              className="premium-input"
-              value={letterType}
-              onChange={(e) => setLetterType(e.target.value)}>
+                className="premium-input"
+                value={letterType}
+                onChange={(e) => setLetterType(e.target.value)}>
 
                 <option value="offer">Offer Letter</option>
                 <option value="relieving">Relieving Letter</option>
@@ -2298,10 +2318,10 @@ HR Team`
                 <div className="candidate-name-wrapper">
 
                   <select
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className="candidate-title-select">
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    className="candidate-title-select">
 
                     <option value="Mr.">Mr.</option>
                     <option value="Mrs.">Mrs.</option>
@@ -2309,22 +2329,22 @@ HR Team`
                   </select>
 
                   <input
-                  ref={fieldRefs.candidate_Name}
-                  type="text"
-                  name="candidate_Name"
-                  value={formData.candidate_Name}
-                  onChange={handleChange}
-                  placeholder="Enter candidate name"
-                  className="candidate-name-input" />
+                    ref={fieldRefs.candidate_Name}
+                    type="text"
+                    name="candidate_Name"
+                    value={formData.candidate_Name}
+                    onChange={handleChange}
+                    placeholder="Enter candidate name"
+                    className="candidate-name-input" />
 
 
                 </div>
 
                 {errors.candidate_Name &&
-              <p className="field-error">
+                  <p className="field-error">
                     {errors.candidate_Name}
                   </p>
-              }
+                }
               </div>
 
               {/* Email */}
@@ -2334,19 +2354,19 @@ HR Team`
                 </label>
 
                 <input
-                ref={fieldRefs.email}
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter email" />
+                  ref={fieldRefs.email}
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter email" />
 
 
                 {errors.email &&
-              <p className="field-error">
+                  <p className="field-error">
                     {errors.email}
                   </p>
-              }
+                }
               </div>
 
               {/* Position */}
@@ -2356,26 +2376,26 @@ HR Team`
                 </label>
 
                 <input
-                ref={fieldRefs.position}
-                type="text"
-                name="position"
-                value={formData.position}
-                onChange={handleChange}
-                placeholder="Enter position" />
+                  ref={fieldRefs.position}
+                  type="text"
+                  name="position"
+                  value={formData.position}
+                  onChange={handleChange}
+                  placeholder="Enter position" />
 
 
                 {errors.position &&
-              <p
-                style={{
-                  color: "red",
-                  fontSize: "12px",
-                  marginTop: "3px",
-                  minHeight: "16px"
-                }}>
+                  <p
+                    style={{
+                      color: "red",
+                      fontSize: "12px",
+                      marginTop: "3px",
+                      minHeight: "16px"
+                    }}>
 
                     {errors.position || ""}
                   </p>
-              }
+                }
               </div>
 
               {/* Annual CTC */}
@@ -2385,37 +2405,36 @@ HR Team`
                 </label>
 
                 <input
-                ref={fieldRefs.ctc_Annual}
-                type="text"
-                name="ctc_Annual"
-                className="no-spinner"
-                value={formData.ctc_Annual}
-                onChange={handleChange}
-                placeholder="Enter annual CTC"
-                inputMode="numeric"
-                onKeyDown={(e) => {
-                  if (
-                  ["e", "E", "+", "-", "."].includes(
-                    e.key
-                  ))
-                  {
-                    e.preventDefault();
-                  }
-                }} />
+                  ref={fieldRefs.ctc_Annual}
+                  type="text"
+                  name="ctc_Annual"
+                  className="no-spinner"
+                  value={formData.ctc_Annual}
+                  onChange={handleChange}
+                  placeholder="Enter annual CTC"
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (
+                      ["e", "E", "+", "-", "."].includes(
+                        e.key
+                      )) {
+                      e.preventDefault();
+                    }
+                  }} />
 
 
                 {errors.ctc_Annual &&
-              <p
-                style={{
-                  color: "red",
-                  fontSize: "12px",
-                  marginTop: "3px",
-                  minHeight: "16px"
-                }}>
+                  <p
+                    style={{
+                      color: "red",
+                      fontSize: "12px",
+                      marginTop: "3px",
+                      minHeight: "16px"
+                    }}>
 
                     {errors.ctc_Annual || ""}
                   </p>
-              }
+                }
               </div>
 
               {/* Joining Date */}
@@ -2425,23 +2444,23 @@ HR Team`
                 </label>
 
                 <AppDatePicker
-                name="joining_Date"
-                value={formData.joining_Date}
-                onChange={handleChange} />
+                  name="joining_Date"
+                  value={formData.joining_Date}
+                  onChange={handleChange} />
 
 
                 {errors.joining_Date &&
-              <p
-                style={{
-                  color: "red",
-                  fontSize: "12px",
-                  marginTop: "3px",
-                  minHeight: "16px"
-                }}>
+                  <p
+                    style={{
+                      color: "red",
+                      fontSize: "12px",
+                      marginTop: "3px",
+                      minHeight: "16px"
+                    }}>
 
                     {errors.joining_Date || ""}
                   </p>
-              }
+                }
               </div>
 
               {/* Address */}
@@ -2451,50 +2470,50 @@ HR Team`
                 </label>
 
                 <textarea
-                ref={fieldRefs.address}
-                name="address"
-                rows="3"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="Enter address" />
+                  ref={fieldRefs.address}
+                  name="address"
+                  rows="3"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Enter address" />
 
 
                 {errors.address &&
-              <p className="field-error">
+                  <p className="field-error">
                     {errors.address}
                   </p>
-              }
+                }
               </div>
 
               {/* Compensation Section */}
               <div className="full-width compensation-container">
 
                 <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "12px"
-                }}>
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "12px"
+                  }}>
 
                   <h3 className="compensation-title">
                     Compensation and Benefits Structure
                   </h3>
 
                   <button
-                  type="button"
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  style={{
-                    background: isEditMode ?
-                    "var(--danger)" :
-                    "var(--primary)",
-                    color: "var(--theme-on-primary)",
-                    border: "1px solid var(--border-color)",
-                    padding: "7px 14px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    fontWeight: "600"
-                  }}>
+                    type="button"
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    style={{
+                      background: isEditMode ?
+                        "var(--danger)" :
+                        "var(--primary)",
+                      color: "var(--theme-on-primary)",
+                      border: "1px solid var(--border-color)",
+                      padding: "7px 14px",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: "600"
+                    }}>
 
                     {isEditMode ? "Cancel Edit" : "Edit"}
                   </button>
@@ -2510,12 +2529,12 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      type="text"
-                      name="monthlyCTC"
-                      value={formData.monthlyCTC}
-                      onChange={handleChange}
-                      placeholder="Enter Monthly CTC"
-                      disabled={!isEditMode} />
+                        type="text"
+                        name="monthlyCTC"
+                        value={formData.monthlyCTC}
+                        onChange={handleChange}
+                        placeholder="Enter Monthly CTC"
+                        disabled={!isEditMode} />
 
                     </div>
                   </div>
@@ -2528,27 +2547,27 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      ref={fieldRefs.hra}
-                      type="text"
-                      name="hra"
-                      value={formData.hra}
-                      onChange={handleChange}
-                      placeholder="Enter HRA"
-                      disabled={!isEditMode} />
+                        ref={fieldRefs.hra}
+                        type="text"
+                        name="hra"
+                        value={formData.hra}
+                        onChange={handleChange}
+                        placeholder="Enter HRA"
+                        disabled={!isEditMode} />
 
 
                       {errors.hra &&
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px"
-                      }}>
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px"
+                          }}>
 
                           {errors.hra || ""}
                         </p>
-                    }
+                      }
                     </div>
                   </div>
 
@@ -2560,27 +2579,27 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      ref={fieldRefs.conveyance}
-                      type="text"
-                      name="conveyance"
-                      value={formData.conveyance}
-                      onChange={handleChange}
-                      placeholder="Enter Conveyance"
-                      disabled={!isEditMode} />
+                        ref={fieldRefs.conveyance}
+                        type="text"
+                        name="conveyance"
+                        value={formData.conveyance}
+                        onChange={handleChange}
+                        placeholder="Enter Conveyance"
+                        disabled={!isEditMode} />
 
 
                       {errors.conveyance &&
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px"
-                      }}>
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px"
+                          }}>
 
                           {errors.conveyance || ""}
                         </p>
-                    }
+                      }
                     </div>
                   </div>
 
@@ -2592,27 +2611,27 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      ref={fieldRefs.medicalAllowance}
-                      type="text"
-                      name="medicalAllowance"
-                      value={formData.medicalAllowance}
-                      onChange={handleChange}
-                      placeholder="Enter Medical Allowance"
-                      disabled={!isEditMode} />
+                        ref={fieldRefs.medicalAllowance}
+                        type="text"
+                        name="medicalAllowance"
+                        value={formData.medicalAllowance}
+                        onChange={handleChange}
+                        placeholder="Enter Medical Allowance"
+                        disabled={!isEditMode} />
 
 
                       {errors.medicalAllowance &&
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px"
-                      }}>
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px"
+                          }}>
 
                           {errors.medicalAllowance || ""}
                         </p>
-                    }
+                      }
                     </div>
                   </div>
 
@@ -2624,27 +2643,27 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      ref={fieldRefs.otherAllowance}
-                      type="text"
-                      name="otherAllowance"
-                      value={formData.otherAllowance}
-                      onChange={handleChange}
-                      placeholder="Enter Other Allowances"
-                      disabled={!isEditMode} />
+                        ref={fieldRefs.otherAllowance}
+                        type="text"
+                        name="otherAllowance"
+                        value={formData.otherAllowance}
+                        onChange={handleChange}
+                        placeholder="Enter Other Allowances"
+                        disabled={!isEditMode} />
 
 
                       {errors.otherAllowance &&
-                    <p
-                      style={{
-                        color: "red",
-                        fontSize: "12px",
-                        marginTop: "3px",
-                        minHeight: "16px"
-                      }}>
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                            minHeight: "16px"
+                          }}>
 
                           {errors.otherAllowance || ""}
                         </p>
-                    }
+                      }
                     </div>
                   </div>
 
@@ -2656,12 +2675,12 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      type="text"
-                      name="providentFund"
-                      value={formData.providentFund}
-                      onChange={handleChange}
-                      placeholder="Enter Provident Fund"
-                      disabled={!isEditMode} />
+                        type="text"
+                        name="providentFund"
+                        value={formData.providentFund}
+                        onChange={handleChange}
+                        placeholder="Enter Provident Fund"
+                        disabled={!isEditMode} />
 
                     </div>
                   </div>
@@ -2674,12 +2693,12 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      type="text"
-                      name="professionalTax"
-                      value={formData.professionalTax}
-                      onChange={handleChange}
-                      placeholder="Enter Professional Tax"
-                      disabled={!isEditMode} />
+                        type="text"
+                        name="professionalTax"
+                        value={formData.professionalTax}
+                        onChange={handleChange}
+                        placeholder="Enter Professional Tax"
+                        disabled={!isEditMode} />
 
                     </div>
                   </div>
@@ -2692,12 +2711,12 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      type="text"
-                      name="gross"
-                      value={formData.gross}
-                      onChange={handleChange}
-                      placeholder="Enter Gross Salary"
-                      disabled={!isEditMode} />
+                        type="text"
+                        name="gross"
+                        value={formData.gross}
+                        onChange={handleChange}
+                        placeholder="Enter Gross Salary"
+                        disabled={!isEditMode} />
 
                     </div>
                   </div>
@@ -2710,12 +2729,12 @@ HR Team`
 
                     <div className="comp-input">
                       <input
-                      type="text"
-                      name="netTakeHome"
-                      value={formData.netTakeHome}
-                      onChange={handleChange}
-                      placeholder="Enter Net Take Home"
-                      disabled={!isEditMode} />
+                        type="text"
+                        name="netTakeHome"
+                        value={formData.netTakeHome}
+                        onChange={handleChange}
+                        placeholder="Enter Net Take Home"
+                        disabled={!isEditMode} />
 
                     </div>
                   </div>
@@ -2725,15 +2744,15 @@ HR Team`
 
             <div className="offer-buttons offer-letter-actions">
               <button
-              className="btn-primary"
-              onClick={handleGenerate}
-              disabled={loading}>
+                className="btn-primary"
+                onClick={handleGenerate}
+                disabled={loading}>
 
                 <FaFileAlt />
 
                 {loading ?
-              " Generating..." :
-              " Generate Letter"}
+                  " Generating..." :
+                  " Generate Letter"}
               </button>
             </div>
           </div>
@@ -2772,29 +2791,29 @@ HR Team`
                 </thead>
                 <tbody>
                   {currentLetters.length > 0 ?
-                currentLetters.map((item, index) => {
-                  const offerLetterId = getOfferLetterId(item);
-                  const normalizedOfferLetterId = offerLetterId ?
-                  String(offerLetterId) :
-                  "";
-                  const offerLetterStatus =
-                  offerLetterSendStatus.getDocumentStatus(item);
-                  const isAlreadySent = offerLetterStatus.status === "sent";
-                  const isSendStatusChecking =
-                  isOfferLetterSendStatusLoading(item);
-                  const isDownloading =
-                  String(downloadingId) === normalizedOfferLetterId;
-                  const isSending =
-                  String(sendingOfferLetterId) === normalizedOfferLetterId;
-                  const isDeleting =
-                  String(deletingOfferLetterId) === normalizedOfferLetterId;
-                  const isPreviewing =
-                  previewOfferLetterLoading &&
-                  String(getOfferLetterId(previewOfferLetterTarget)) ===
-                  normalizedOfferLetterId;
+                    currentLetters.map((item, index) => {
+                      const offerLetterId = getOfferLetterId(item);
+                      const normalizedOfferLetterId = offerLetterId ?
+                        String(offerLetterId) :
+                        "";
+                      const offerLetterStatus =
+                        offerLetterSendStatus.getDocumentStatus(item);
+                      const isAlreadySent = offerLetterStatus.status === "sent";
+                      const isSendStatusChecking =
+                        isOfferLetterSendStatusLoading(item);
+                      const isDownloading =
+                        String(downloadingId) === normalizedOfferLetterId;
+                      const isSending =
+                        String(sendingOfferLetterId) === normalizedOfferLetterId;
+                      const isDeleting =
+                        String(deletingOfferLetterId) === normalizedOfferLetterId;
+                      const isPreviewing =
+                        previewOfferLetterLoading &&
+                        String(getOfferLetterId(previewOfferLetterTarget)) ===
+                        normalizedOfferLetterId;
 
-                  return (
-                    <tr key={normalizedOfferLetterId || item.id || index}>
+                      return (
+                        <tr key={normalizedOfferLetterId || item.id || index}>
                           <td>{indexOfFirst + index + 1}</td>
 
                           <td>{item.candidate_Name}</td>
@@ -2805,60 +2824,60 @@ HR Team`
                           <td className="offer-actions-cell">
                             <div className="offer-actions-wrapper">
                               <button
-                            type="button"
-                            className="offer-action-btn offer-action-preview"
-                            onClick={() => handlePreviewOfferLetter(item)}
-                            disabled={!offerLetterId || isPreviewing || isSending}
-                            title="Preview"
-                            aria-label="Preview offer letter">
+                                type="button"
+                                className="offer-action-btn offer-action-preview"
+                                onClick={() => handlePreviewOfferLetter(item)}
+                                disabled={!offerLetterId || isPreviewing || isSending}
+                                title="Preview"
+                                aria-label="Preview offer letter">
 
                                 <FaEye />
                               </button>
 
                               <DocumentSendStatusButton
-                            status={offerLetterStatus.status}
-                            loading={isSendStatusChecking}
-                            disabled={
-                            !offerLetterId ||
-                            isSending ||
-                            isAnyDocumentSending
-                            }
-                            onClick={() => handleOpenSendOfferLetterModal(item)}
-                            title={
-                            isAlreadySent ?
-                            "Already Sent - Click to Send Again" :
-                            isSendStatusChecking ?
-                            "Checking send status..." :
-                            "Send Offer Letter"
-                            }
-                            aria-label={
-                            isAlreadySent ?
-                            "Already sent - click to send again" :
-                            isSendStatusChecking ?
-                            "Checking send status" :
-                            "Send offer letter"
-                            }
-                            className="offer-action-btn--status" />
+                                status={offerLetterStatus.status}
+                                loading={isSendStatusChecking}
+                                disabled={
+                                  !offerLetterId ||
+                                  isSending ||
+                                  isAnyDocumentSending
+                                }
+                                onClick={() => handleOpenSendOfferLetterModal(item)}
+                                title={
+                                  isAlreadySent ?
+                                    "Already Sent - Click to Send Again" :
+                                    isSendStatusChecking ?
+                                      "Checking send status..." :
+                                      "Send Offer Letter"
+                                }
+                                aria-label={
+                                  isAlreadySent ?
+                                    "Already sent - click to send again" :
+                                    isSendStatusChecking ?
+                                      "Checking send status" :
+                                      "Send offer letter"
+                                }
+                                className="offer-action-btn--status" />
 
 
                               <button
-                            type="button"
-                            className="offer-action-btn offer-action-download"
-                            onClick={() => handleDownload(offerLetterId)}
-                            disabled={!offerLetterId || isDownloading || isSending}
-                            title="Download"
-                            aria-label="Download offer letter">
+                                type="button"
+                                className="offer-action-btn offer-action-download"
+                                onClick={() => handleDownload(offerLetterId)}
+                                disabled={!offerLetterId || isDownloading || isSending}
+                                title="Download"
+                                aria-label="Download offer letter">
 
                                 <FaDownload />
                               </button>
 
                               <button
-                            type="button"
-                            className="offer-action-btn offer-action-delete"
-                            onClick={() => handleOpenDeleteOfferLetter(item)}
-                            disabled={!offerLetterId || isDeleting || isSending}
-                            title="Delete"
-                            aria-label="Delete offer letter">
+                                type="button"
+                                className="offer-action-btn offer-action-delete"
+                                onClick={() => handleOpenDeleteOfferLetter(item)}
+                                disabled={!offerLetterId || isDeleting || isSending}
+                                title="Delete"
+                                aria-label="Delete offer letter">
 
                                 <FaTrash />
                               </button>
@@ -2866,191 +2885,191 @@ HR Team`
                           </td>
                         </tr>);
 
-                }) :
+                    }) :
 
-                <tr>
+                    <tr>
                       <td colSpan="5" style={{ textAlign: "center" }}>
                         No offer letters found
                       </td>
                     </tr>
-                }
+                  }
                 </tbody>
               </table>
             </div>
 
             {/* PAGINATION */}
             {totalPages > 1 &&
-          <div className="app-pagination-bar">
+              <div className="app-pagination-bar">
                 <div className="app-pagination-info">
                   Showing <strong>{indexOfFirst + 1}</strong>-<strong>{Math.min(indexOfLast, letters.length)}</strong> of <strong>{letters.length}</strong>
                 </div>
 
                 <div className="app-pagination-controls">
                   <select
-                className="app-pagination-page-size"
-                value={lettersPerPage}
-                onChange={(event) => setLettersPerPage(Number(event.target.value))}>
+                    className="app-pagination-page-size"
+                    value={lettersPerPage}
+                    onChange={(event) => setLettersPerPage(Number(event.target.value))}>
 
                     {[10, 20, 30, 50, 100].map((size) =>
-                <option key={size} value={size}>
+                      <option key={size} value={size}>
                         {size} / page
                       </option>
-                )}
+                    )}
                   </select>
 
                   <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(1)}>
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(1)}>
 
                     First
                   </button>
 
                   <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}>
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}>
 
                     Previous
                   </button>
 
                   {Array.from({ length: totalPages }, (_, pageIndex) => pageIndex + 1).
-              filter((page) => page === 1 || page === totalPages || page >= currentPage - 1 && page <= currentPage + 1).
-              map((page, index, pages) => {
-                const previousPage = pages[index - 1];
-                const shouldShowDots = previousPage && page - previousPage > 1;
+                    filter((page) => page === 1 || page === totalPages || page >= currentPage - 1 && page <= currentPage + 1).
+                    map((page, index, pages) => {
+                      const previousPage = pages[index - 1];
+                      const shouldShowDots = previousPage && page - previousPage > 1;
 
-                return (
-                  <React.Fragment key={page}>
+                      return (
+                        <React.Fragment key={page}>
                           {shouldShowDots && <span className="app-pagination-dots">...</span>}
                           <button
-                      type="button"
-                      className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
-                      onClick={() => setCurrentPage(page)}>
+                            type="button"
+                            className={`app-pagination-button ${currentPage === page ? "active" : ""}`}
+                            onClick={() => setCurrentPage(page)}>
 
                             {page}
                           </button>
                         </React.Fragment>);
 
-              })}
+                    })}
 
                   <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}>
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}>
 
                     Next
                   </button>
 
                   <button
-                type="button"
-                className="app-pagination-button"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(totalPages)}>
+                    type="button"
+                    className="app-pagination-button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(totalPages)}>
 
                     Last
                   </button>
                 </div>
               </div>
-          }
+            }
 
             <OfferLetterPreviewModal
-            open={Boolean(previewOfferLetterTarget)}
-            offerLetter={previewOfferLetterTarget}
-            loading={previewOfferLetterLoading}
-            error={previewOfferLetterError}
-            blob={previewOfferLetterBlob}
-            contentType={previewOfferLetterContentType}
-            onClose={closePreviewOfferLetterModal} />
+              open={Boolean(previewOfferLetterTarget)}
+              offerLetter={previewOfferLetterTarget}
+              loading={previewOfferLetterLoading}
+              error={previewOfferLetterError}
+              blob={previewOfferLetterBlob}
+              contentType={previewOfferLetterContentType}
+              onClose={closePreviewOfferLetterModal} />
 
 
             <OfferLetterSendModal
-            open={sendOfferLetterOpen}
-            offerLetter={sendOfferLetterTarget}
-            subject={sendOfferLetterSubject}
-            body={sendOfferLetterBody}
-            errors={sendOfferLetterErrors}
-            sending={Boolean(sendingOfferLetterId)}
-            onClose={closeSendOfferLetterModal}
-            onSubjectChange={handleSendOfferLetterSubjectChange}
-            onBodyChange={handleSendOfferLetterBodyChange}
-            onSubmit={handleSendOfferLetterSubmit} />
+              open={sendOfferLetterOpen}
+              offerLetter={sendOfferLetterTarget}
+              subject={sendOfferLetterSubject}
+              body={sendOfferLetterBody}
+              errors={sendOfferLetterErrors}
+              sending={Boolean(sendingOfferLetterId)}
+              onClose={closeSendOfferLetterModal}
+              onSubjectChange={handleSendOfferLetterSubjectChange}
+              onBodyChange={handleSendOfferLetterBodyChange}
+              onSubmit={handleSendOfferLetterSubmit} />
 
 
             <SendAgainModal
-            open={resendOfferLetterOpen}
-            documentTitle={
-            resendOfferLetterKind === "relieving" ?
-            getRelievingLetterRecipientName(resendOfferLetterTarget) :
-            resendOfferLetterTarget?.candidate_Name ||
-            resendOfferLetterTarget?.candidateName ||
-            "Selected document"
-            }
-            sending={
-            resendOfferLetterKind === "offer" ?
-            Boolean(
-              sendingOfferLetterId &&
-              String(sendingOfferLetterId) ===
-              String(getOfferLetterId(resendOfferLetterTarget))
-            ) :
-            Boolean(
-              sendingRelievingLetterId &&
-              String(sendingRelievingLetterId) ===
-              String(getRelievingLetterId(resendOfferLetterTarget))
-            )
-            }
-            onClose={closeResendOfferLetterModal}
-            onConfirm={handleConfirmResendOfferLetter} />
+              open={resendOfferLetterOpen}
+              documentTitle={
+                resendOfferLetterKind === "relieving" ?
+                  getRelievingLetterRecipientName(resendOfferLetterTarget) :
+                  resendOfferLetterTarget?.candidate_Name ||
+                  resendOfferLetterTarget?.candidateName ||
+                  "Selected document"
+              }
+              sending={
+                resendOfferLetterKind === "offer" ?
+                  Boolean(
+                    sendingOfferLetterId &&
+                    String(sendingOfferLetterId) ===
+                    String(getOfferLetterId(resendOfferLetterTarget))
+                  ) :
+                  Boolean(
+                    sendingRelievingLetterId &&
+                    String(sendingRelievingLetterId) ===
+                    String(getRelievingLetterId(resendOfferLetterTarget))
+                  )
+              }
+              onClose={closeResendOfferLetterModal}
+              onConfirm={handleConfirmResendOfferLetter} />
 
 
             <OfferLetterDeleteModal
-            open={Boolean(deleteOfferLetterTarget)}
-            offerLetter={deleteOfferLetterTarget}
-            deleting={Boolean(deletingOfferLetterId)}
-            onClose={closeDeleteOfferLetterModal}
-            onConfirm={handleDeleteOfferLetter} />
+              open={Boolean(deleteOfferLetterTarget)}
+              offerLetter={deleteOfferLetterTarget}
+              deleting={Boolean(deletingOfferLetterId)}
+              onClose={closeDeleteOfferLetterModal}
+              onConfirm={handleDeleteOfferLetter} />
 
           </div>
         </> :
 
-      <>
+        <>
           <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            marginBottom: "0px",
-            paddingBottom: "0px",
-            marginTop: "0px"
-          }}>
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              marginBottom: "0px",
+              paddingBottom: "0px",
+              marginTop: "0px"
+            }}>
 
             <h2
-            style={{
-              margin: 0,
-              fontSize: "26px",
-              fontWeight: "650",
-              color: "var(--text-primary)",
-              lineHeight: "1.2",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}>
+              style={{
+                margin: 0,
+                fontSize: "26px",
+                fontWeight: "650",
+                color: "var(--text-primary)",
+                lineHeight: "1.2",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}>
 
               <FaFileAlt />
               Relieving Letter Generation
             </h2>
 
             <p
-            style={{
-              marginTop: "0px",
-              marginLeft: "42px",
-              fontSize: "15px",
-              color: "var(--text-muted)",
-              fontWeight: "500"
-            }}>
+              style={{
+                marginTop: "0px",
+                marginLeft: "42px",
+                fontSize: "15px",
+                color: "var(--text-muted)",
+                fontWeight: "500"
+              }}>
 
               Generate relieving letters for employees or external recipients
             </p>
@@ -3059,9 +3078,9 @@ HR Team`
               <label>Letter Type</label>
 
               <select
-              className="premium-input"
-              value={letterType}
-              onChange={(e) => setLetterType(e.target.value)}>
+                className="premium-input"
+                value={letterType}
+                onChange={(e) => setLetterType(e.target.value)}>
 
                 <option value="offer">Offer Letter</option>
                 <option value="relieving">Relieving Letter</option>
@@ -3215,6 +3234,24 @@ HR Team`
 
               <div className="form-group">
                 <label>
+                  <FaCalendarAlt /> Generated Date
+                </label>
+
+                <AppDatePicker
+                  name="generatedDate"
+                  value={activeRelievingForm.generatedDate}
+                  onChange={handleRelievingChange}
+                />
+
+                {relievingErrors.generatedDate && (
+                  <p className="field-error">
+                    {relievingErrors.generatedDate}
+                  </p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>
                   <FaCalendarAlt /> Relieving Date
                 </label>
 
@@ -3293,119 +3330,119 @@ HR Team`
 
                 <tbody>
                   {loadingRelievingLetters ?
-                <tr>
+                    <tr>
                       <td colSpan="5" className="app-table-empty-cell">
                         Loading relieving letters...
                       </td>
                     </tr> :
-                visibleRelievingLetters.length > 0 ?
-                visibleRelievingLetters.map((item, index) => {
-                  const employeeId = getRelievingLetterEmployeeId(item);
-                  const relievingLetterId = getRelievingLetterId(item);
-                  const relievingLetterStatus =
-                  relievingLetterSendStatus.getDocumentStatus(item);
-                  const isAlreadySent =
-                  relievingLetterStatus.status === "sent";
-                  const isSendStatusChecking =
-                  isRelievingLetterSendStatusLoading(item);
-                  const isSending =
-                  String(sendingRelievingLetterId) ===
-                  String(relievingLetterId);
+                    visibleRelievingLetters.length > 0 ?
+                      visibleRelievingLetters.map((item, index) => {
+                        const employeeId = getRelievingLetterEmployeeId(item);
+                        const relievingLetterId = getRelievingLetterId(item);
+                        const relievingLetterStatus =
+                          relievingLetterSendStatus.getDocumentStatus(item);
+                        const isAlreadySent =
+                          relievingLetterStatus.status === "sent";
+                        const isSendStatusChecking =
+                          isRelievingLetterSendStatusLoading(item);
+                        const isSending =
+                          String(sendingRelievingLetterId) ===
+                          String(relievingLetterId);
 
-                  return (
-                    <tr key={relievingLetterId || `${employeeId}-${index}`}>
-                          <td>{formatRelievingTableValue(item.id)}</td>
-                          <td>{formatRelievingTableValue(item.employeeId)}</td>
-                          <td>{formatRelievingTableValue(item.employeeName)}</td>
-                          <td>{formatDate(item.relievingDate)}</td>
-                          <td className="offer-actions-cell">
-                            <div className="offer-actions-wrapper">
-                              <button
-                            type="button"
-                            className="offer-action-btn offer-action-preview"
-                            onClick={() => handlePreviewRelievingLetter(item)}
-                            disabled={
-                            !relievingLetterId ||
-                            isSending ||
-                            previewRelievingLetterLoading &&
-                            String(getRelievingLetterId(previewRelievingLetterTarget)) ===
-                            String(relievingLetterId)
-                            }
-                            title="Preview"
-                            aria-label="Preview relieving letter">
+                        return (
+                          <tr key={relievingLetterId || `${employeeId}-${index}`}>
+                            <td>{formatRelievingTableValue(item.id)}</td>
+                            <td>{formatRelievingTableValue(item.employeeId)}</td>
+                            <td>{formatRelievingTableValue(item.employeeName)}</td>
+                            <td>{formatDate(item.relievingDate)}</td>
+                            <td className="offer-actions-cell">
+                              <div className="offer-actions-wrapper">
+                                <button
+                                  type="button"
+                                  className="offer-action-btn offer-action-preview"
+                                  onClick={() => handlePreviewRelievingLetter(item)}
+                                  disabled={
+                                    !relievingLetterId ||
+                                    isSending ||
+                                    previewRelievingLetterLoading &&
+                                    String(getRelievingLetterId(previewRelievingLetterTarget)) ===
+                                    String(relievingLetterId)
+                                  }
+                                  title="Preview"
+                                  aria-label="Preview relieving letter">
 
-                                <FaEye />
-                              </button>
+                                  <FaEye />
+                                </button>
 
-                              <DocumentSendStatusButton
-                            status={relievingLetterStatus.status}
-                            loading={isSendStatusChecking}
-                            disabled={
-                            !relievingLetterId ||
-                            isSending ||
-                            isAnyDocumentSending
-                            }
-                            onClick={() => handleOpenSendRelievingLetterModal(item)}
-                            title={
-                            isAlreadySent ?
-                            "Already Sent - Click to Send Again" :
-                            isSendStatusChecking ?
-                            "Checking send status..." :
-                            "Send Relieving Letter"
-                            }
-                            aria-label={
-                            isAlreadySent ?
-                            "Already sent - click to send again" :
-                            isSendStatusChecking ?
-                            "Checking send status" :
-                            "Send relieving letter"
-                            }
-                            className="offer-action-btn--status" />
+                                <DocumentSendStatusButton
+                                  status={relievingLetterStatus.status}
+                                  loading={isSendStatusChecking}
+                                  disabled={
+                                    !relievingLetterId ||
+                                    isSending ||
+                                    isAnyDocumentSending
+                                  }
+                                  onClick={() => handleOpenSendRelievingLetterModal(item)}
+                                  title={
+                                    isAlreadySent ?
+                                      "Already Sent - Click to Send Again" :
+                                      isSendStatusChecking ?
+                                        "Checking send status..." :
+                                        "Send Relieving Letter"
+                                  }
+                                  aria-label={
+                                    isAlreadySent ?
+                                      "Already sent - click to send again" :
+                                      isSendStatusChecking ?
+                                        "Checking send status" :
+                                        "Send relieving letter"
+                                  }
+                                  className="offer-action-btn--status" />
 
 
-                              <button
-                            type="button"
-                            className="offer-action-btn offer-action-download"
-                            onClick={() => handleDownloadRelievingLetter(relievingLetterId)}
-                            disabled={
-                            !relievingLetterId ||
-                            isSending ||
-                            String(relievingDownloadingId) ===
-                            String(relievingLetterId)
-                            }
-                            title="Download"
-                            aria-label="Download relieving letter">
+                                <button
+                                  type="button"
+                                  className="offer-action-btn offer-action-download"
+                                  onClick={() => handleDownloadRelievingLetter(relievingLetterId)}
+                                  disabled={
+                                    !relievingLetterId ||
+                                    isSending ||
+                                    String(relievingDownloadingId) ===
+                                    String(relievingLetterId)
+                                  }
+                                  title="Download"
+                                  aria-label="Download relieving letter">
 
-                                <FaDownload />
-                              </button>
+                                  <FaDownload />
+                                </button>
 
-                              <button
-                            type="button"
-                            className="offer-action-btn offer-action-delete"
-                            onClick={() => handleOpenDeleteRelievingLetter(item)}
-                            disabled={
-                            !relievingLetterId ||
-                            isSending ||
-                            String(deletingRelievingLetterId) ===
-                            String(relievingLetterId)
-                            }
-                            title="Delete"
-                            aria-label="Delete relieving letter">
+                                <button
+                                  type="button"
+                                  className="offer-action-btn offer-action-delete"
+                                  onClick={() => handleOpenDeleteRelievingLetter(item)}
+                                  disabled={
+                                    !relievingLetterId ||
+                                    isSending ||
+                                    String(deletingRelievingLetterId) ===
+                                    String(relievingLetterId)
+                                  }
+                                  title="Delete"
+                                  aria-label="Delete relieving letter">
 
-                                <FaTrash />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>);
+                                  <FaTrash />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>);
 
-                }) :
+                      }) :
 
-                <tr>
-                      <td colSpan="5" className="app-table-empty-cell">
-                        No relieving letters found.
-                      </td>
-                    </tr>
-                }
+                      <tr>
+                        <td colSpan="5" className="app-table-empty-cell">
+                          No relieving letters found.
+                        </td>
+                      </tr>
+                  }
                 </tbody>
               </table>
             </div>
@@ -3422,9 +3459,9 @@ HR Team`
                   {generatedRelievingLetters.length === 0
                     ? 0
                     : Math.min(
-                        relievingPageStartIndex + RELIEVING_LETTERS_PER_PAGE,
-                        generatedRelievingLetters.length
-                      )}
+                      relievingPageStartIndex + RELIEVING_LETTERS_PER_PAGE,
+                      generatedRelievingLetters.length
+                    )}
                 </strong>{" "}
                 of <strong>{generatedRelievingLetters.length}</strong> relieving letters
               </div>
@@ -3469,40 +3506,40 @@ HR Team`
           </div>
 
           <OfferLetterPreviewModal
-          open={Boolean(previewRelievingLetterTarget)}
-          offerLetter={previewRelievingLetterTarget}
-          letterLabel="Relieving Letter"
-          loading={previewRelievingLetterLoading}
-          error={previewRelievingLetterError}
-          blob={previewRelievingLetterBlob}
-          contentType={previewRelievingLetterContentType}
-          onClose={closePreviewRelievingLetterModal} />
+            open={Boolean(previewRelievingLetterTarget)}
+            offerLetter={previewRelievingLetterTarget}
+            letterLabel="Relieving Letter"
+            loading={previewRelievingLetterLoading}
+            error={previewRelievingLetterError}
+            blob={previewRelievingLetterBlob}
+            contentType={previewRelievingLetterContentType}
+            onClose={closePreviewRelievingLetterModal} />
 
 
           <OfferLetterSendModal
-          open={sendRelievingLetterOpen}
-          offerLetter={sendRelievingLetterTarget}
-          letterLabel="Relieving Letter"
-          recipientName={getRelievingLetterRecipientName(sendRelievingLetterTarget)}
-          recipientEmail={getRelievingLetterRecipientEmail(sendRelievingLetterTarget)}
-          subject={sendRelievingLetterSubject}
-          body={sendRelievingLetterBody}
-          errors={sendRelievingLetterErrors}
-          sending={Boolean(sendingRelievingLetterId)}
-          onClose={closeSendRelievingLetterModal}
-          onSubjectChange={handleSendRelievingLetterSubjectChange}
-          onBodyChange={handleSendRelievingLetterBodyChange}
-          onSubmit={handleSendRelievingLetterSubmit} />
+            open={sendRelievingLetterOpen}
+            offerLetter={sendRelievingLetterTarget}
+            letterLabel="Relieving Letter"
+            recipientName={getRelievingLetterRecipientName(sendRelievingLetterTarget)}
+            recipientEmail={getRelievingLetterRecipientEmail(sendRelievingLetterTarget)}
+            subject={sendRelievingLetterSubject}
+            body={sendRelievingLetterBody}
+            errors={sendRelievingLetterErrors}
+            sending={Boolean(sendingRelievingLetterId)}
+            onClose={closeSendRelievingLetterModal}
+            onSubjectChange={handleSendRelievingLetterSubjectChange}
+            onBodyChange={handleSendRelievingLetterBodyChange}
+            onSubmit={handleSendRelievingLetterSubmit} />
 
 
           <OfferLetterDeleteModal
-          open={Boolean(deleteRelievingLetterTarget)}
-          offerLetter={deleteRelievingLetterTarget}
-          letterLabel="Relieving Letter"
-          message="Are you sure you want to delete this relieving letter?"
-          deleting={Boolean(deletingRelievingLetterId)}
-          onClose={closeDeleteRelievingLetterModal}
-          onConfirm={handleDeleteRelievingLetter} />
+            open={Boolean(deleteRelievingLetterTarget)}
+            offerLetter={deleteRelievingLetterTarget}
+            letterLabel="Relieving Letter"
+            message="Are you sure you want to delete this relieving letter?"
+            deleting={Boolean(deletingRelievingLetterId)}
+            onClose={closeDeleteRelievingLetterModal}
+            onConfirm={handleDeleteRelievingLetter} />
 
         </>
       }

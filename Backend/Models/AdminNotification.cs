@@ -18,5 +18,9 @@ namespace EmployeeManagementSystem.Models
         public bool IsRead { get; set; }
 
         public DateTime CreatedAt { get; set; }
+        public int? AdminId { get; set; }
+
+        public int? OrganizationId { get; set; }
+
     }
 }

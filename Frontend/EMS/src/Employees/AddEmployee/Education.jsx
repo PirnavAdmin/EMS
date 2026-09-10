@@ -4,20 +4,20 @@ import api from "../../api/axiosInstance";
 import { API_ENDPOINTS } from "../../api/endpoints";
 
 const degreeOptions = [
-"10th (SSC)",
-"Intermediate (12th)",
-"Diploma",
-"B.Tech / BE",
-"B.Sc",
-"BCA",
-"B.Com",
-"M.Tech / ME",
-"M.Sc",
-"MCA",
-"M.Com",
-"MBA",
-"PhD",
-"Other"];
+  "10th (SSC)",
+  "Intermediate (12th)",
+  "Diploma",
+  "B.Tech / BE",
+  "B.Sc",
+  "BCA",
+  "B.Com",
+  "M.Tech / ME",
+  "M.Sc",
+  "MCA",
+  "M.Com",
+  "MBA",
+  "PhD",
+  "Other"];
 
 const createEmptyEducation = () => ({
   Graduation: "",
@@ -29,18 +29,18 @@ const createEmptyEducation = () => ({
 });
 
 const getEducationDegree = (education) =>
-education.Graduation === "Other" ?
-String(education.customGraduation || "").trim() :
-String(education.Graduation || "").trim();
+  education.Graduation === "Other" ?
+    String(education.customGraduation || "").trim() :
+    String(education.Graduation || "").trim();
 
 const isEducationRowEmpty = (education) =>
-[
-getEducationDegree(education),
-education.university,
-education.year,
-education.percentage,
-education.specialization].
-every((value) => !String(value || "").trim());
+  [
+    getEducationDegree(education),
+    education.university,
+    education.year,
+    education.percentage,
+    education.specialization].
+    every((value) => !String(value || "").trim());
 
 const mapEducationFromApi = (education) => {
   const degree = String(education.degree || "").trim();
@@ -52,16 +52,16 @@ const mapEducationFromApi = (education) => {
     university: String(education.universityBoard || ""),
     year: education.yearOfPassing ? String(education.yearOfPassing) : "",
     percentage:
-    education.percentageCGPA !== undefined && education.percentageCGPA !== null ?
-    String(education.percentageCGPA) :
-    "",
+      education.percentageCGPA !== undefined && education.percentageCGPA !== null ?
+        String(education.percentageCGPA) :
+        "",
     specialization: String(education.specialization || "")
   };
 };
 
 function Education({ onNext, onBack, employeeId, viewMode, data }) {
   const [educations, setEducations] = useState(() =>
-  viewMode ? [] : [createEmptyEducation()]
+    viewMode ? [] : [createEmptyEducation()]
   );
   const [errors, setErrors] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
@@ -71,9 +71,9 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
   const isEditMode = Array.isArray(data) && data.length > 0;
 
   const getFieldClassName = (index, field, extraClass = "") =>
-  [extraClass, errors[index]?.[field] ? "is-invalid" : ""].
-  filter(Boolean).
-  join(" ");
+    [extraClass, errors[index]?.[field] ? "is-invalid" : ""].
+      filter(Boolean).
+      join(" ");
 
   useEffect(() => {
     if (!Array.isArray(data) || data.length === 0) {
@@ -88,31 +88,31 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
 
   const clearRowErrors = (index, fields = []) => {
     setErrors((prev) =>
-    prev.map((error, errorIndex) => {
-      if (errorIndex !== index || !error) {
-        return error;
-      }
+      prev.map((error, errorIndex) => {
+        if (errorIndex !== index || !error) {
+          return error;
+        }
 
-      const nextError = { ...error };
-      fields.forEach((field) => {
-        delete nextError[field];
-      });
+        const nextError = { ...error };
+        fields.forEach((field) => {
+          delete nextError[field];
+        });
 
-      return nextError;
-    })
+        return nextError;
+      })
     );
   };
 
   const handleChange = (index, field, value) => {
     setEducations((prev) =>
-    prev.map((education, educationIndex) =>
-    educationIndex === index ?
-    {
-      ...education,
-      [field]: value
-    } :
-    education
-    )
+      prev.map((education, educationIndex) =>
+        educationIndex === index ?
+          {
+            ...education,
+            [field]: value
+          } :
+          education
+      )
     );
 
     clearRowErrors(index, [field, "duplicate", "row"]);
@@ -122,15 +122,15 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
 
   const handleQualificationChange = (index, value) => {
     setEducations((prev) =>
-    prev.map((education, educationIndex) =>
-    educationIndex === index ?
-    {
-      ...education,
-      Graduation: value,
-      customGraduation: value === "Other" ? education.customGraduation : ""
-    } :
-    education
-    )
+      prev.map((education, educationIndex) =>
+        educationIndex === index ?
+          {
+            ...education,
+            Graduation: value,
+            customGraduation: value === "Other" ? education.customGraduation : ""
+          } :
+          education
+      )
     );
 
     clearRowErrors(index, ["Graduation", "customGraduation", "duplicate", "row"]);
@@ -147,11 +147,30 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
   };
 
   const handlePercentageChange = (index, value) => {
-    if (!/^\d*\.?\d*$/.test(value)) {
+    // Allow numbers with up to 2 decimal places
+    if (!/^\d{0,3}(\.\d{0,2})?$/.test(value)) {
+      return;
+    }
+
+    // Maximum value allowed is 100
+    if (value !== "" && Number(value) > 100) {
       return;
     }
 
     handleChange(index, "percentage", value);
+  };
+
+  const handleTextFieldChange = (index, field, value) => {
+    // Allow letters, numbers, spaces and common name characters
+    if (!/^[A-Za-z0-9 .,'&()/-]*$/.test(value)) {
+      return;
+    }
+
+    if (value.length > 100) {
+      return;
+    }
+
+    handleChange(index, field, value);
   };
 
   const addEducation = () => {
@@ -161,16 +180,16 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
   };
 
   const buildEducationPayload = (list) =>
-  list.
-  filter((education) => !isEducationRowEmpty(education)).
-  map((education) => ({
-    Employee_Id: String(employeeId),
-    Degree: getEducationDegree(education),
-    UniversityBoard: String(education.university || "").trim(),
-    YearOfPassing: parseInt(education.year, 10),
-    PercentageCGPA: String(education.percentage || "").trim(),
-    Specialization: String(education.specialization || "").trim()
-  }));
+    list.
+      filter((education) => !isEducationRowEmpty(education)).
+      map((education) => ({
+        Employee_Id: String(employeeId),
+        Degree: getEducationDegree(education),
+        UniversityBoard: String(education.university || "").trim(),
+        YearOfPassing: parseInt(education.year, 10),
+        PercentageCGPA: String(education.percentage || "").trim(),
+        Specialization: String(education.specialization || "").trim()
+      }));
 
   const syncEducationCollection = async (nextEducations) => {
     const payloadList = buildEducationPayload(nextEducations);
@@ -231,6 +250,29 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
       }
 
       const qualification = getEducationDegree(education);
+      if (education.Graduation === "Other") {
+        const customQualification = String(
+          education.customGraduation || ""
+        ).trim();
+
+        if (!customQualification) {
+          nextErrors[index].customGraduation =
+            "Please specify the qualification.";
+          isValid = false;
+        } else if (customQualification.length < 2) {
+          nextErrors[index].customGraduation =
+            "Qualification must contain at least 2 characters.";
+          isValid = false;
+        } else if (customQualification.length > 100) {
+          nextErrors[index].customGraduation =
+            "Qualification cannot exceed 100 characters.";
+          isValid = false;
+        } else if (!/[A-Za-z]/.test(customQualification)) {
+          nextErrors[index].customGraduation =
+            "Qualification must contain letters.";
+          isValid = false;
+        }
+      }
       const institution = String(education.university || "").trim();
       const year = String(education.year || "").trim();
 
@@ -240,22 +282,88 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
       }
 
       if (!institution) {
-        nextErrors[index].university = "University required";
+        nextErrors[index].university =
+          "University name is required.";
+        isValid = false;
+      } else if (institution.length < 2) {
+        nextErrors[index].university =
+          "University name must contain at least 2 characters.";
+        isValid = false;
+      } else if (institution.length > 100) {
+        nextErrors[index].university =
+          "University name cannot exceed 100 characters.";
+        isValid = false;
+      } else if (!/[A-Za-z]/.test(institution)) {
+        nextErrors[index].university =
+          "University name must contain letters.";
+        isValid = false;
+      } else if (!/^[A-Za-z0-9 .,'&()/-]+$/.test(institution)) {
+        nextErrors[index].university =
+          "University name contains invalid characters.";
         isValid = false;
       }
 
-      if (!/^\d{4}$/.test(year)) {
-        nextErrors[index].year = "Valid year required";
+      const currentYear = new Date().getFullYear();
+      const yearValue = Number(year);
+
+      if (!year) {
+        nextErrors[index].year =
+          "Year of passing is required.";
+        isValid = false;
+      } else if (!/^\d{4}$/.test(year)) {
+        nextErrors[index].year =
+          "Year must be exactly 4 digits.";
+        isValid = false;
+      } else if (yearValue < 1980 || yearValue > currentYear) {
+        nextErrors[index].year =
+          `Enter a valid year between 1980 and ${currentYear}.`;
         isValid = false;
       }
 
-      if (!String(education.percentage || "").trim()) {
+      const percentageValue = String(
+        education.percentage || ""
+      ).trim();
+
+      if (!percentageValue) {
         nextErrors[index].percentage = "Percentage required";
         isValid = false;
+      } else if (!/^(100|[0-9]{1,2})(\.[0-9]{1,2})?$/.test(percentageValue)) {
+        nextErrors[index].percentage =
+          "Percentage must be between 0 and 100.";
+        isValid = false;
+      } else if (Number(percentageValue) <= 0) {
+        nextErrors[index].percentage =
+          "Percentage must be greater than 0.";
+        isValid = false;
+      } else if (Number(percentageValue) > 100) {
+        nextErrors[index].percentage =
+          "Percentage cannot exceed 100.";
+        isValid = false;
       }
 
-      if (!String(education.specialization || "").trim()) {
-        nextErrors[index].specialization = "Specialization required";
+      const specializationValue = String(
+        education.specialization || ""
+      ).trim();
+
+      if (!specializationValue) {
+        nextErrors[index].specialization =
+          "Specialization is required.";
+        isValid = false;
+      } else if (specializationValue.length < 2) {
+        nextErrors[index].specialization =
+          "Specialization must contain at least 2 characters.";
+        isValid = false;
+      } else if (specializationValue.length > 100) {
+        nextErrors[index].specialization =
+          "Specialization cannot exceed 100 characters.";
+        isValid = false;
+      } else if (!/[A-Za-z]/.test(specializationValue)) {
+        nextErrors[index].specialization =
+          "Specialization must contain letters.";
+        isValid = false;
+      } else if (!/^[A-Za-z0-9 .,'&()/-]+$/.test(specializationValue)) {
+        nextErrors[index].specialization =
+          "Specialization contains invalid characters.";
         isValid = false;
       }
 
@@ -264,18 +372,18 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
       }
 
       const duplicateKey = [
-      qualification.toLowerCase(),
-      institution.toLowerCase(),
-      year].
-      join("::");
+        qualification.toLowerCase(),
+        institution.toLowerCase(),
+        year].
+        join("::");
 
       if (seenCombinations.has(duplicateKey)) {
         const firstIndex = seenCombinations.get(duplicateKey);
 
         nextErrors[index].duplicate =
-        "This qualification, institution, and year combination already exists.";
+          "This qualification, institution, and year combination already exists.";
         nextErrors[firstIndex].duplicate =
-        "This qualification, institution, and year combination already exists.";
+          "This qualification, institution, and year combination already exists.";
         isValid = false;
         return;
       }
@@ -312,8 +420,8 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
 
         setSuccessMsg(
           isEditMode ?
-          "Education cleared successfully!" :
-          "No education details to save."
+            "Education cleared successfully!" :
+            "No education details to save."
         );
 
         setTimeout(() => {
@@ -332,19 +440,19 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
       } else {
         await Promise.all(
           payloadList.map((payload) =>
-          api.post(API_ENDPOINTS.employeeEducation.list, payload, {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          })
+            api.post(API_ENDPOINTS.employeeEducation.list, payload, {
+              headers: {
+                "Content-Type": "application/json"
+              }
+            })
           )
         );
       }
 
       setSuccessMsg(
         isEditMode ?
-        "Education updated successfully!" :
-        "Education saved successfully!"
+          "Education updated successfully!" :
+          "Education saved successfully!"
       );
 
       setTimeout(() => {
@@ -359,159 +467,265 @@ function Education({ onNext, onBack, employeeId, viewMode, data }) {
   };
 
   return (
-    <div className="form-section">
-      <h3>Add Educational Qualifications</h3>
- 
+    <div className="form-section">
+
+      <h3>Add Educational Qualifications</h3>
+
+
+
       {educations.length === 0 ?
-      <div className="form-card">
-          <p className="review-empty-state">No education details added.</p>
+        <div className="form-card">
+
+          <p className="review-empty-state">No education details added.</p>
+
         </div> :
 
-      educations.map((education, index) =>
-      <div
-        className={`form-card${errors[index]?.row || errors[index]?.duplicate ? " validation-card-error" : ""}`}
-        key={`education-${index}`}>
-        
-            <div className="card-header">
-              <h4>Education {index + 1}</h4>
- 
+        educations.map((education, index) =>
+          <div
+            className={`form-card${errors[index]?.row || errors[index]?.duplicate ? " validation-card-error" : ""}`}
+            key={`education-${index}`}>
+
+
+            <div className="card-header">
+
+              <h4>Education {index + 1}</h4>
+
+
+
               {!viewMode &&
+                <button
+                  type="button"
+                  className="remove-btn"
+                  onClick={() => removeEducation(index)}
+                  disabled={loading}>
+
+
+                  Remove
+
+                </button>
+              }
+
+            </div>
+
+
+
+            {errors[index]?.row && <p className="education-feedback error" role="alert">{errors[index].row}</p>}
+
+            {errors[index]?.duplicate &&
+              <p className="education-feedback error" role="alert">{errors[index].duplicate}</p>
+            }
+
+
+
+            <div className="form-grid">
+
+              <div className="form-group">
+
+                <label>Qualification</label>
+
+                <select
+                  value={education.Graduation}
+                  onChange={(event) => handleQualificationChange(index, event.target.value)}
+                  className={getFieldClassName(index, "Graduation")}
+                  disabled={viewMode}>
+
+
+                  <option value="">Select Qualification</option>
+
+                  {degreeOptions.map((degree) =>
+                    <option key={degree} value={degree}>
+
+                      {degree}
+
+                    </option>
+                  )}
+
+                </select>
+
+                {errors[index]?.Graduation && <span className="error" role="alert">{errors[index].Graduation}</span>}
+
+
+
+                {education.Graduation === "Other" && (
+                  <>
+                    <label>Specify Qualification</label>
+
+                    <input
+                      type="text"
+                      placeholder="Enter qualification"
+                      value={education.customGraduation}
+                      maxLength={100}
+                      onChange={(event) =>
+                        handleTextFieldChange(
+                          index,
+                          "customGraduation",
+                          event.target.value
+                        )
+                      }
+                      className={`education-custom-input ${getFieldClassName(
+                        index,
+                        "customGraduation"
+                      )}`.trim()}
+                      disabled={viewMode}
+                    />
+
+                    {errors[index]?.customGraduation && (
+                      <span className="error" role="alert">
+                        {errors[index].customGraduation}
+                      </span>
+                    )}
+                  </>
+                )}
+
+              </div>
+
+
+
+              <div className="form-group">
+
+                <label>University</label>
+
+                <input
+                  type="text"
+                  value={education.university}
+                  maxLength={100}
+                  onChange={(event) =>
+                    handleTextFieldChange(
+                      index,
+                      "university",
+                      event.target.value
+                    )
+                  }
+                  className={getFieldClassName(index, "university")}
+                  disabled={viewMode}
+                />
+
+
+                {errors[index]?.university && <span className="error" role="alert">{errors[index].university}</span>}
+
+              </div>
+
+
+
+              <div className="form-group">
+
+                <label>Year</label>
+
+                <input
+                  value={education.year}
+                  onChange={(event) => handleYearChange(index, event.target.value)}
+                  className={getFieldClassName(index, "year")}
+                  disabled={viewMode} />
+
+
+                {errors[index]?.year && <span className="error" role="alert">{errors[index].year}</span>}
+
+              </div>
+
+
+
+              <div className="form-group">
+
+                <label>Percentage</label>
+
+                <input
+                  value={education.percentage}
+                  onChange={(event) => handlePercentageChange(index, event.target.value)}
+                  className={getFieldClassName(index, "percentage")}
+                  disabled={viewMode} />
+
+
+                {errors[index]?.percentage && <span className="error" role="alert">{errors[index].percentage}</span>}
+
+              </div>
+
+
+
+              <div className="form-group full">
+
+                <label>Specialization</label>
+
+                <input
+                  type="text"
+                  value={education.specialization}
+                  maxLength={100}
+                  onChange={(event) =>
+                    handleTextFieldChange(
+                      index,
+                      "specialization",
+                      event.target.value
+                    )
+                  }
+                  className={getFieldClassName(index, "specialization")}
+                  disabled={viewMode}
+                />
+
+
+                {errors[index]?.specialization &&
+                  <span className="error" role="alert">{errors[index].specialization}</span>
+                }
+
+              </div>
+
+            </div>
+
+          </div>
+        )
+      }
+
+
+
+      {!viewMode &&
+        <div className="education-add-wrapper">
+
           <button
             type="button"
-            className="remove-btn"
-            onClick={() => removeEducation(index)}
+            className="btn primary add-education-btn"
+            onClick={addEducation}
             disabled={loading}>
-            
-                  Remove
-                </button>
-          }
-            </div>
- 
-            {errors[index]?.row && <p className="education-feedback error" role="alert">{errors[index].row}</p>}
-            {errors[index]?.duplicate &&
-        <p className="education-feedback error" role="alert">{errors[index].duplicate}</p>
-        }
- 
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Qualification</label>
-                <select
-              value={education.Graduation}
-              onChange={(event) => handleQualificationChange(index, event.target.value)}
-              className={getFieldClassName(index, "Graduation")}
-              disabled={viewMode}>
-              
-                  <option value="">Select Qualification</option>
-                  {degreeOptions.map((degree) =>
-              <option key={degree} value={degree}>
-                      {degree}
-                    </option>
-              )}
-                </select>
-                {errors[index]?.Graduation && <span className="error" role="alert">{errors[index].Graduation}</span>}
- 
-                {education.Graduation === "Other" &&
-            <>
-                    <input
-                type="text"
-                placeholder="Enter your qualification"
-                value={education.customGraduation}
-                onChange={(event) =>
-                handleChange(index, "customGraduation", event.target.value)
-                }
-                className={`education-custom-input ${getFieldClassName(index, "customGraduation")}`.trim()}
-                disabled={viewMode} />
-              
-                    {errors[index]?.customGraduation &&
-              <span className="error" role="alert">{errors[index].customGraduation}</span>
-              }
-                  </>
-            }
-              </div>
- 
-              <div className="form-group">
-                <label>University</label>
-                <input
-              value={education.university}
-              onChange={(event) => handleChange(index, "university", event.target.value)}
-              className={getFieldClassName(index, "university")}
-              disabled={viewMode} />
-            
-                {errors[index]?.university && <span className="error" role="alert">{errors[index].university}</span>}
-              </div>
- 
-              <div className="form-group">
-                <label>Year</label>
-                <input
-              value={education.year}
-              onChange={(event) => handleYearChange(index, event.target.value)}
-              className={getFieldClassName(index, "year")}
-              disabled={viewMode} />
-            
-                {errors[index]?.year && <span className="error" role="alert">{errors[index].year}</span>}
-              </div>
- 
-              <div className="form-group">
-                <label>Percentage</label>
-                <input
-              value={education.percentage}
-              onChange={(event) => handlePercentageChange(index, event.target.value)}
-              className={getFieldClassName(index, "percentage")}
-              disabled={viewMode} />
-            
-                {errors[index]?.percentage && <span className="error" role="alert">{errors[index].percentage}</span>}
-              </div>
- 
-              <div className="form-group full">
-                <label>Specialization</label>
-                <input
-              value={education.specialization}
-              onChange={(event) => handleChange(index, "specialization", event.target.value)}
-              className={getFieldClassName(index, "specialization")}
-              disabled={viewMode} />
-            
-                {errors[index]?.specialization &&
-            <span className="error" role="alert">{errors[index].specialization}</span>
-            }
-              </div>
-            </div>
-          </div>
-      )
-      }
- 
-      {!viewMode &&
-      <div className="education-add-wrapper">
-          <button
-          type="button"
-          className="btn primary add-education-btn"
-          onClick={addEducation}
-          disabled={loading}>
-          
-            + Add Education
-          </button>
-        </div>
-      }
- 
-      <div className="step-actions">
-        <button type="button" className="btn secondary" onClick={onBack} disabled={loading}>
-          Back
-        </button>
- 
-        {successMsg && <p className="education-feedback success">{successMsg}</p>}
-        {apiError && <p className="education-feedback error">{apiError}</p>}
- 
-        {!viewMode &&
-        <button className="btn primary" onClick={handleSaveNext} disabled={loading}>
-            {loading ?
-          isEditMode ?
-          "Updating..." :
-          "Saving..." :
-          isEditMode ?
-          "Update & Next" :
-          "Save & Next"}
+
+
+            + Add Education
+
           </button>
-        }
-      </div>
+
+        </div>
+      }
+
+
+
+      <div className="step-actions">
+
+        <button type="button" className="btn secondary" onClick={onBack} disabled={loading}>
+
+          Back
+
+        </button>
+
+
+
+        {successMsg && <p className="education-feedback success">{successMsg}</p>}
+
+        {apiError && <p className="education-feedback error">{apiError}</p>}
+
+
+
+        {!viewMode &&
+          <button className="btn primary" onClick={handleSaveNext} disabled={loading}>
+
+            {loading ?
+              isEditMode ?
+                "Updating..." :
+                "Saving..." :
+              isEditMode ?
+                "Update & Next" :
+                "Save & Next"}
+
+          </button>
+        }
+
+      </div>
+
     </div>);
 
 }

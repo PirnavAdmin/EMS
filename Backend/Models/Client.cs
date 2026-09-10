@@ -19,6 +19,9 @@ public class Client
     public string? Email { get; set; }
 
     public int Active_Projects { get; set; } = 0;
+    public int? AdminId { get; set; }
+
+    public int? OrganizationId { get; set; }
 
     public DateTime CreatedAt { get; set; }  // DB default
 }

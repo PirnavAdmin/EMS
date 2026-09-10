@@ -35,10 +35,16 @@ const SUPER_ADMIN_STATIC_MENUS = [
   icon: FaTachometerAlt,
   label: "Dashboard"
 },
+// --- old: Admin Management, replaced by Organizations ---
+// {
+//   to: "/super-admin/administration/admins",
+//   icon: FaUsers,
+//   label: "Admin Management"
+// },
 {
-  to: "/super-admin/administration/admins",
-  icon: FaUsers,
-  label: "Admin Management"
+  to: "/super-admin/administration/organizations",
+  icon: FaBuilding,
+  label: "Organizations"
 },
 {
   to: "/super-admin/administration/subscriptions",
@@ -49,6 +55,16 @@ const SUPER_ADMIN_STATIC_MENUS = [
   to: "/super-admin/administration/permissions",
   icon: FaShieldAlt,
   label: "Permissions"
+},
+{
+  to: "/super-admin/billing",
+  icon: FaMoneyBillWave,
+  label: "Billing"
+},
+{
+  to: "/super-admin/settings",
+  icon: FaCog,
+  label: "Settings"
 }];
 
 const EXPANDABLE_MENUS = [
@@ -284,6 +300,12 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
   to: "/settings",
   icon: FaCog,
   label: "Settings",
+  adminOnly: true
+},
+{
+  to: "/super-admin/billing",
+  icon: FaMoneyBillWave,
+  label: "Billing",
   adminOnly: true
 }];
 

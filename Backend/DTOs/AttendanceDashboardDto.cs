@@ -15,6 +15,7 @@
         public string TodayWorkingHours { get; set; } = "";
 
         public List<WeeklyWorkingHourDto> WeeklyHours { get; set; } = new();
+        public string CurrentWeekWorkingHours { get; set; }
     }
 
     public class WeeklyWorkingHourDto

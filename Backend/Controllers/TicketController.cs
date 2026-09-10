@@ -70,9 +70,17 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPut("UpdateStatus/{ticketId}")]
-        public async Task<IActionResult> UpdateStatus(int ticketId, [FromQuery] string status)
+        public async Task<IActionResult> UpdateStatus(
+     int ticketId,
+     [FromQuery] string status,
+     [FromQuery] string? remarks)
         {
-            return Ok(await _ticketService.UpdateTicketStatus(ticketId, status, User));
+            return Ok(
+                await _ticketService.UpdateTicketStatus(
+                    ticketId,
+                    status,
+                    remarks,
+                    User));
         }
 
         [HttpDelete("{ticketId}")]

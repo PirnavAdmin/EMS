@@ -50,10 +50,11 @@ const NOTIFICATION_CONFIGS = {
   superadmin: {
     label: "SuperAdmin",
     route: "/notifications",
-    list: "",
-    read: null,
-    readAll: "",
-    supportsNotifications: false
+    list: API_ENDPOINTS.notifications.superAdmin,
+    read: API_ENDPOINTS.notifications.superAdminRead,
+    readAll: API_ENDPOINTS.notifications.superAdminReadAll,
+    unreadCount: API_ENDPOINTS.notifications.superAdminUnreadCount,
+    supportsNotifications: true
   }
 };
 
@@ -121,6 +122,21 @@ export const getNotificationReadEndpoint = (role, notificationId, snapshot) => {
 export const getNotificationReadAllEndpoint = (role, snapshot) =>
 getNotificationContext(role, snapshot).config.readAll || "";
 
+export const getUnreadNotificationCount = async (role, snapshot) => {
+  const context = getNotificationContext(role, snapshot);
+  const endpoint = context.config.unreadCount;
+
+  if (!context.isReady || !endpoint) return 0;
+
+  try {
+    const response = await api.get(endpoint, buildRequestConfig(context));
+    const payload = response.data?.data || response.data || {};
+    return Number(payload.unreadCount ?? payload.UnreadCount) || 0;
+  } catch {
+    return 0;
+  }
+};
+
 export const getNotificationRoute = (role, snapshot) =>
 getNotificationContext(role, snapshot).route;
 
@@ -152,6 +168,7 @@ export const loadNotifications = async (
   try {
     const response = await api.get(context.endpoint, {
       ...buildRequestConfig(context),
+      params: context.resolvedRole === "superadmin" ? { unreadOnly: false } : undefined,
       cacheTTL: forceRefresh ? 0 : NOTIFICATION_CACHE_TTL
     });
 

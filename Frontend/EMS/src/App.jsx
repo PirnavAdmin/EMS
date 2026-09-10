@@ -12,7 +12,7 @@ import "react-toastify/dist/ReactToastify.css";
 import "./components/common/Toast/toast.css";
 import GlobalToastContainer from "./components/common/toast/GlobalToastContainer";
 import { getStoredToken } from "./utils/authStorage";
-import { hasRole } from "./utils/authorization";
+import { hasRole, isAdmin, isSuperAdmin } from "./utils/authorization";
 import {
   clearSessionTimer,
   handleAutoLogout,
@@ -89,8 +89,13 @@ const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVeri
 const ResetPassword = lazyRoute("reset-password", () => import("./Pages/loginpage/ResetPassword"));
 
 const Dashboard = lazyRoute("dashboard", () => import("./dashboard/Dashboard"));
-const SuperAdminClients = lazyRoute("super-admin-clients", () => import("./SuperAdmin/SuperAdminClients"));
+// --- old: Admin Management component, replaced by Organizations ---
+// const SuperAdminClients = lazyRoute("super-admin-clients", () => import("./SuperAdmin/SuperAdminClients"));
+const Organizations = lazyRoute("organizations", () => import("./SuperAdmin/Organizations"));
 const Subscriptions = lazyRoute("subscriptions", () => import("./SuperAdmin/Subscriptions"));
+const Billing = lazyRoute("billing", () => import("./SuperAdmin/Billing"));
+const SuperAdminSettings = lazyRoute("super-admin-settings", () => import("./SuperAdmin/SuperAdminSettings"));
+const SuperAdminSearch = lazyRoute("super-admin-search", () => import("./SuperAdmin/SuperAdminSearch"));
 // const Support = lazyRoute("support", () => import("./SuperAdmin/Support"));
 const SuperAdminPermissions = lazyRoute("super-admin-permissions", () => import("./SuperAdmin/SuperAdminPermissions"));
 
@@ -320,15 +325,31 @@ function App() {
               }
             />
 
+            {/* --- old: Admin Management default, replaced by Organizations ---
             <Route
               path="/super-admin/administration"
               element={<Navigate to="/super-admin/administration/admins" replace />}
             />
+            */}
+            <Route
+              path="/super-admin/administration"
+              element={<Navigate to="/super-admin/administration/organizations" replace />}
+            />
+            {/* --- old: Admin Management route, replaced by Organizations ---
             <Route
               path="/super-admin/administration/admins"
               element={
                 <PermissionRoute module="Admin Management">
                   <SuperAdminClients />
+                </PermissionRoute>
+              }
+            />
+            */}
+            <Route
+              path="/super-admin/administration/organizations"
+              element={
+                <PermissionRoute module="Admin Management">
+                  <Organizations />
                 </PermissionRoute>
               }
             />
@@ -349,6 +370,25 @@ function App() {
               }
             />
             <Route
+              path="/super-admin/billing"
+              element={
+                isSuperAdmin() || isAdmin() ? (
+                  <Billing />
+                ) : (
+                  <Navigate to="/403" replace />
+                )
+              }
+            />
+            <Route
+              path="/super-admin/settings"
+              element={isSuperAdmin() ? <SuperAdminSettings /> : <Navigate to="/403" replace />}
+            />
+            <Route
+              path="/super-admin/search"
+              element={isSuperAdmin() ? <SuperAdminSearch /> : <Navigate to="/403" replace />}
+            />
+            {/* --- old: legacy Admin Management route, replaced by Organizations ---
+            <Route
               path="/admin-management"
               element={
                 <PermissionRoute module="Admin Management">
@@ -356,6 +396,7 @@ function App() {
                 </PermissionRoute>
               }
             />
+            */}
             <Route
               path="/subscription-management"
               element={

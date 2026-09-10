@@ -455,9 +455,13 @@ export const normalizeTicketRecord = (ticket = {}) => {
   const assignedBy =
     ticket.assignedBy ??
     ticket.AssignedBy ??
-    ticket.assignedByName ??
     ticket.assignedByEmployee ??
-    createdBy;
+    "";
+
+  const assignedByName =
+    ticket.assignedByName ??
+    ticket.AssignedByName ??
+    "";
 
   const createdById =
     ticket.createdById ??
@@ -468,13 +472,14 @@ export const normalizeTicketRecord = (ticket = {}) => {
     "";
 
   const assignedTo =
+    ticket.assignedToName ??
+    ticket.AssignedToName ??
+    ticket.assignedEmployeeName ??
     ticket.assignedTo ??
     ticket.AssignedTo ??
-    ticket.assignedToName ??
     ticket.assignee ??
     ticket.Assignee ??
     ticket.assignedEmployee ??
-    ticket.assignedEmployeeName ??
     "";
 
   const assignedToId =
@@ -484,6 +489,7 @@ export const normalizeTicketRecord = (ticket = {}) => {
     ticket.AssigneeId ??
     ticket.assignedEmployeeId ??
     ticket.assignedEmployee_Id ??
+    ticket.assignedTo ??
     "";
 
   const createdDate =
@@ -623,6 +629,7 @@ export const normalizeTicketRecord = (ticket = {}) => {
     createdBy: normalizeSpace(createdBy),
     createdById: normalizeSpace(createdById),
     assignedBy: normalizeSpace(assignedBy),
+    assignedByName: normalizeSpace(assignedByName),
     assignedTo: normalizeSpace(assignedTo),
     assignedToId: normalizeSpace(assignedToId),
     createdDate,

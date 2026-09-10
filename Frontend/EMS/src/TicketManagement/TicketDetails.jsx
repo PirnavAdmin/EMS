@@ -121,11 +121,6 @@ function TicketDetails() {
 
     return [
     {
-      label: "Created",
-      detail: ticket.createdBy || "Ticket submitted",
-      date: ticket.createdDate
-    },
-    {
       label: "Updated",
       detail: ticket.status || "Latest status change",
       date: ticket.updatedDate
@@ -147,7 +142,6 @@ function TicketDetails() {
       key: comment?.id || comment?.commentId || `${index}`,
       author:
       comment?.author ||
-      comment?.createdBy ||
       comment?.userName ||
       comment?.name ||
       "Comment",
@@ -414,10 +408,6 @@ function TicketDetails() {
             <h3>Ticket Info</h3>
             <div className="ticket-info-list">
               <div>
-                <span>Created By</span>
-                <strong>{ticket.createdBy || "-"}</strong>
-              </div>
-              <div>
                 <span>Assigned To</span>
                 <strong>{ticket.assignedTo || "-"}</strong>
               </div>
@@ -455,20 +445,6 @@ function TicketDetails() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="ticket-surface ticket-details-panel">
-            <h3>People</h3>
-            <div className="ticket-info-list">
-              <div>
-                <span>Requester ID</span>
-                <strong>{ticket.createdById || "-"}</strong>
-              </div>
-              <div>
-                <span>Assignee ID</span>
-                <strong>{ticket.assignedToId || "-"}</strong>
-              </div>
             </div>
           </div>
         </div>

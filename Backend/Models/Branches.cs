@@ -23,6 +23,10 @@ public class Branch
     [Column("Department_Id")]
     public string? DepartmentId { get; set; }
     public string? Branch_Id {  get; set; }
+    public int? AdminId { get; set; }
 
-    
+    public int? OrganizationId { get; set; }
+
+
+
 }

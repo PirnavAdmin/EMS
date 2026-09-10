@@ -13,7 +13,11 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<IEnumerable<TicketResponseDto>> GetMyTickets(ClaimsPrincipal user);
 
-        Task<string> UpdateTicketStatus(int ticketId, string status, ClaimsPrincipal user);
+        Task<string> UpdateTicketStatus(
+            int ticketId,
+            string status,
+            string? remarks,
+            ClaimsPrincipal user);
 
         Task<bool> DeleteTicket(int ticketId);
         Task<string> UpdateTicket(int ticketId, UpdateTicketDto dto, ClaimsPrincipal user);

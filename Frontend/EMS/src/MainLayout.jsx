@@ -1,38 +1,42 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { App as CapApp } from "@capacitor/app";
 import Sidebar from "./Sidebar/Sidebar";
 import Header from "./dashboard/Header";
 import { PageSkeleton } from "./components/Skeletons";
 import { getStoredToken } from "./utils/authStorage";
+import { isAdmin, isSuperAdmin } from "./utils/authorization";
 import { handleAutoLogout, isSessionExpired, startSessionTimer, clearSessionTimer } from "./utils/sessionManager";
-
+ 
 function MainLayout({ permissionScope }) {
   const { loadingPermissions, error, errorStatus, refreshPermissions } = permissionScope;
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-
+  const billingRouteAllowed =
+    location.pathname === "/super-admin/billing" && (isAdmin() || isSuperAdmin());
+ 
   useEffect(() => {
     const token = getStoredToken();
-
+ 
     if (!token) {
       clearSessionTimer();
       return undefined;
     }
-
+ 
     if (isSessionExpired()) {
       handleAutoLogout({
         reason: "MainLayout detected an expired session during initialization"
       });
       return undefined;
     }
-
+ 
     startSessionTimer();
     return undefined;
   }, []);
-
+ 
   useEffect(() => {
     let listener;
-
+ 
     const setupListener = async () => {
       try {
         if (CapApp && typeof CapApp.addListener === "function") {
@@ -45,19 +49,19 @@ function MainLayout({ permissionScope }) {
           });
         }
       } catch {
-
+ 
         // Native plugin is not available in standard browser sessions.
       }};
-
+ 
     setupListener();
-
+ 
     return () => {
       if (listener && typeof listener.remove === "function") {
         listener.remove();
       }
     };
   }, []);
-
+ 
   if (loadingPermissions) {
     return (
       <div className="app-layout">
@@ -65,14 +69,14 @@ function MainLayout({ permissionScope }) {
           <PageSkeleton variant="dashboard" />
         </div>
       </div>);
-
+ 
   }
-
-  if (errorStatus === 403) {
+ 
+  if (errorStatus === 403 && !billingRouteAllowed) {
     return <Navigate to="/403" replace />;
   }
-
-  if (error) {
+ 
+  if (error && !billingRouteAllowed) {
     return (
       <div className="app-layout">
         <div
@@ -84,7 +88,7 @@ function MainLayout({ permissionScope }) {
             padding: "32px",
             background: "linear-gradient(180deg, var(--bg-primary), var(--bg-secondary))"
           }}>
-          
+         
           <div
             className="app-surface"
             style={{
@@ -94,7 +98,7 @@ function MainLayout({ permissionScope }) {
               boxShadow: "0 20px 60px rgba(15,108,189,.12)",
               textAlign: "center"
             }}>
-            
+           
             <h2 style={{ margin: 0, color: "var(--text-primary)" }}>
               Unable to load your permissions
             </h2>
@@ -108,40 +112,42 @@ function MainLayout({ permissionScope }) {
                 void refreshPermissions({ force: true }).catch(() => {});
               }}
               style={{ minWidth: 160 }}>
-              
+             
               Retry
             </button>
           </div>
         </div>
       </div>);
-
+ 
   }
-
+ 
   return (
     <div
       className="app-layout">
-      
+     
       <Sidebar
         collapsed={collapsed} />
-      
-
+     
+ 
       <div className={`app-main ${collapsed ? "is-collapsed" : ""}`}>
         <Header
           collapsed={collapsed}
           onToggle={() => {
             setCollapsed((prev) => !prev);
           }} />
-        
-
+       
+ 
         <div className="app-main-scroll">
           <main className="page-shell">
             <Outlet />
           </main>
         </div>
       </div>
-
+ 
     </div>);
-
+ 
 }
-
+ 
 export default MainLayout;
+ 
+ 

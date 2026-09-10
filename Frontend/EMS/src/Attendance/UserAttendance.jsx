@@ -510,14 +510,21 @@ function UserAttendance() {
   };
 
   return (
-    <>
-      <div className="attendance-page">
-        {/* --- REASON POPUP OVERLAY --- */}
+    <>
+
+      <div className="attendance-page">
+
+        {/* --- REASON POPUP OVERLAY --- */}
+
         {showReasonPopup &&
-        <div className="reason-popup-overlay">
-            <div className="reason-popup">
-              <div className="reason-popup-header">
-                <h3>Location Change Detected</h3>
+        <div className="reason-popup-overlay">
+
+            <div className="reason-popup">
+
+              <div className="reason-popup-header">
+
+                <h3>Location Change Detected</h3>
+
                 <button
                 className="close-popup-btn"
                 onClick={() => {
@@ -529,16 +536,26 @@ function UserAttendance() {
                   setPendingCheckoutData(null);
                 }}
                 disabled={reasonSubmitting}>
-                
-                  <FaTimes />
-                </button>
-              </div>
-
-              <p className="reason-popup-message">
-                Your checkout location is more than 500 meters away from your check-in location.
-                Please provide a reason for this change.
-              </p>
-
+                
+
+                  <FaTimes />
+
+                </button>
+
+              </div>
+
+
+
+              <p className="reason-popup-message">
+
+                Your checkout location is more than 500 meters away from your check-in location.
+
+                Please provide a reason for this change.
+
+              </p>
+
+
+
               <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -547,9 +564,12 @@ function UserAttendance() {
               maxLength={500}
               placeholder="Enter reason for location change..."
               autoFocus />
-            
-
-              <div className="reason-popup-actions">
+            
+
+
+
+              <div className="reason-popup-actions">
+
                 <button
                 className="btn-cancel"
                 onClick={() => {
@@ -561,41 +581,65 @@ function UserAttendance() {
                   setPendingCheckoutData(null);
                 }}
                 disabled={reasonSubmitting}>
-                
-                  Cancel
-                </button>
+                
+
+                  Cancel
+
+                </button>
+
                 <button
                 className="btn-submit"
                 onClick={submitCheckoutReason}
                 disabled={reasonSubmitting || reason.trim().length < 10}>
-                
+                
+
                   {reasonSubmitting ?
-                <>
-                      <FaSpinner className="attendance-button-spinner" aria-hidden="true" />
-                      Submitting...
+                <>
+
+                      <FaSpinner className="attendance-button-spinner" aria-hidden="true" />
+
+                      Submitting...
+
                     </> :
 
                 "Submit Reason"
-                }
-                </button>
-              </div>
-            </div>
-          </div>
-        }
-        {/* ----------------------------- */}
-
-        <h1 className="attendance-page-title">My Attendance</h1>
-
-        <div className="attendance-card">
-          {(initialLoading || historyLoading) &&
-          <div className="card-loader">
-              <div className="loader-spinner"></div>
+                }
+
+                </button>
+
+              </div>
+
             </div>
-          }
-          <h3>Mark Attendance</h3>
-          <h1>{formattedDate}</h1>
-
-          <div className="attendance-actions-custom">
+
+          </div>
+        }
+
+        {/* ----------------------------- */}
+
+
+
+        <h1 className="attendance-page-title">My Attendance</h1>
+
+
+
+        <div className="attendance-card">
+
+          {(initialLoading || historyLoading) &&
+          <div className="card-loader">
+
+              <div className="loader-spinner"></div>
+
+            </div>
+          }
+
+          <h3>Mark Attendance</h3>
+
+          <h1>{formattedDate}</h1>
+
+
+
+          <div className="attendance-actions-custom">
+
             <button
               className="checkin-btn"
               onClick={handleCheckIn}
@@ -610,14 +654,20 @@ function UserAttendance() {
               checkInLoading ||
               checkOutLoading
               }>
-              
-              <FaSignInAlt />
-
+              
+
+              <FaSignInAlt />
+
+
+
               {checkInLoading ?
               "Processing..." :
-              "Check In"}
-            </button>
-
+              "CHECK IN"}
+
+            </button>
+
+
+
             <button
               className="checkout-btn"
               onClick={handleCheckOut}
@@ -634,128 +684,216 @@ function UserAttendance() {
               checkOutLoading
               }
               title="">
-              
-              <FaSignOutAlt />
-
+              
+
+              <FaSignOutAlt />
+
+
+
               {checkOutLoading ?
               "Processing..." :
-              "Check Out"}
-            </button>
-
-          </div>
-
-          <div className="attendance-stats-row">
-            <div className="attendance-stat-box">
-              <div className="stat-icon checkin-icon">
-                <FaArrowRight />
-              </div>
-              <div className="stat-label">Check In</div>
-              <div className="stat-value">{stats.checkIn}</div>
-            </div>
-
-            <div className="attendance-stat-box">
-              <div className="stat-icon checkout-icon">
-                <FaArrowLeft />
-              </div>
-              <div className="stat-label">Check Out</div>
-              <div className="stat-value">{stats.checkOut}</div>
-            </div>
-
-            <div className="attendance-stat-box">
-              <div className="stat-icon hours-icon">
-                <FaClock />
-              </div>
-              <div className="stat-label">Hours</div>
-              <div className="stat-value">{stats.workedHours}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="week-card">
-          <div className="week-header">
-            <h3>
-              <FaRegCalendarAlt className="week-title-icon" />
+              "CHECK OUT"}
+
+            </button>
+
+
+
+          </div>
+
+
+
+          <div className="attendance-stats-row">
+
+            <div className="attendance-stat-box">
+
+              <div className="stat-icon checkin-icon">
+
+                <FaArrowRight />
+
+              </div>
+
+              <div className="stat-label">Check In</div>
+
+              <div className="stat-value">{stats.checkIn}</div>
+
+            </div>
+
+
+
+            <div className="attendance-stat-box">
+
+              <div className="stat-icon checkout-icon">
+
+                <FaArrowLeft />
+
+              </div>
+
+              <div className="stat-label">Check Out</div>
+
+              <div className="stat-value">{stats.checkOut}</div>
+
+            </div>
+
+
+
+            <div className="attendance-stat-box">
+
+              <div className="stat-icon hours-icon">
+
+                <FaClock />
+
+              </div>
+
+              <div className="stat-label">Hours</div>
+
+              <div className="stat-value">{stats.workedHours}</div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <div className="week-card">
+
+          <div className="week-header">
+
+            <h3>
+
+              <FaRegCalendarAlt className="week-title-icon" />
+
               {viewType === "week" ?
               "This Week" :
               viewType === "lastWeek" ?
               "Last Week" :
               viewType === "month" ?
               "This Month" :
-              "Last Month"}
-            </h3>
-
-            <div className="week-toggle">
+              "Last Month"}
+
+            </h3>
+
+
+
+            <div className="week-toggle">
+
               <button
                 className={viewType === "week" ? "active" : ""}
                 onClick={() => setViewType("week")}>
-                
-                Week
-              </button>
-
+                
+
+                Week
+
+              </button>
+
+
+
               <button
                 className={viewType === "lastWeek" ? "active" : ""}
                 onClick={() => setViewType("lastWeek")}>
-                
-                Last Week
-              </button>
-
+                
+
+                Last Week
+
+              </button>
+
+
+
               <button
                 className={viewType === "month" ? "active" : ""}
                 onClick={() => setViewType("month")}>
-                
-                Month
-              </button>
-
+                
+
+                Month
+
+              </button>
+
+
+
               <button
                 className={viewType === "lastMonth" ? "active" : ""}
                 onClick={() => setViewType("lastMonth")}>
-                
-                Last Month
-              </button>
-            </div>
-          </div>
-
+                
+
+                Last Month
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+
           <div
             className="week-table-header">
-            
-            <span>DAY</span>
-            <span>CHECK IN</span>
-            <span>CHECK OUT</span>
-            <span>HOURS</span>
-            <span>STATUS</span>
-          </div>
-
+            
+
+            <span>DAY</span>
+
+            <span>CHECK IN</span>
+
+            <span>CHECK OUT</span>
+
+            <span>HOURS</span>
+
+            <span>STATUS</span>
+
+          </div>
+
+
+
           {historyLoading ?
           <div className="attendance-empty">
-              Loading attendance...
+              Loading attendance...
+
             </div> :
           !attendanceData || attendanceData.length === 0 ?
-          <div className="attendance-empty">
-              No attendance records found.
+          <div className="attendance-empty">
+
+              No attendance records found.
+
             </div> :
 
           attendanceData.map((item) =>
           <div
             key={item.id}
             className="week-row">
-            
-                <div className="week-day-cell">
-                  <div>{item.day}</div>
-                  <small>{item.dateLabel}</small>
-                </div>
-
-                <span>{item.checkIn}</span>
-                <span>{item.checkOut}</span>
-                <span>{item.hours}</span>
-
-                <span className={`status ${getStatusClass(item.status)}`}>
-                  {item.status}
-                </span>
+            
+
+                <div className="week-day-cell">
+
+                  <div>{item.day}</div>
+
+                  <small>{item.dateLabel}</small>
+
+                </div>
+
+
+
+                <span>{item.checkIn}</span>
+
+                <span>{item.checkOut}</span>
+
+                <span>{item.hours}</span>
+
+
+
+                <span className={`status ${getStatusClass(item.status)}`}>
+
+                  {item.status}
+
+                </span>
+
               </div>
           )
-          }
-        </div>
-      </div>
+          }
+
+        </div>
+
+      </div>
+
     </>);
 
 }

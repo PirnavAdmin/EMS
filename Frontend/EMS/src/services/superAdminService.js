@@ -122,6 +122,9 @@ export const normalizeAdmin = (admin = {}) => ({
   ),
   email: firstDefined(admin.email, admin.Email, admin.officialEmail, admin.OfficialEmail, ""),
   phone: firstDefined(admin.phone, admin.Phone, admin.phoneNumber, admin.PhoneNumber, ""),
+  organizationId: firstDefined(admin.organizationId, admin.OrganizationId, ""),
+  organizationName: firstDefined(admin.organizationName, admin.OrganizationName, ""),
+  employeeCount: toNumber(firstDefined(admin.employeeCount, admin.EmployeeCount)),
   company: firstDefined(admin.company, admin.Company, admin.companyName, admin.CompanyName, ""),
   isActive: resolveActiveFlag(
     admin.isActive,
@@ -148,9 +151,43 @@ export const normalizeAdmin = (admin = {}) => ({
   createdDate: firstDefined(admin.createdDate, admin.CreatedDate, admin.createdAt, admin.CreatedAt, admin.created_On, ""),
 });
 
+export const normalizeOrganization = (org = {}) => ({
+  raw: org,
+  organizationId: firstDefined(org.organizationId, org.OrganizationId, org.id, org.Id, ""),
+  organizationName: firstDefined(org.organizationName, org.OrganizationName, org.name, org.Name, ""),
+  organizationCode: firstDefined(org.organizationCode, org.OrganizationCode, org.code, org.Code, ""),
+  contactPerson: firstDefined(org.contactPerson, org.ContactPerson, ""),
+  email: firstDefined(org.email, org.Email, ""),
+  phoneNumber: firstDefined(org.phoneNumber, org.PhoneNumber, org.phone, org.Phone, ""),
+  address: firstDefined(org.address, org.Address, ""),
+  city: firstDefined(org.city, org.City, ""),
+  state: firstDefined(org.state, org.State, ""),
+  country: firstDefined(org.country, org.Country, ""),
+  status: normalizeStatus(
+    firstDefined(org.status, org.Status),
+    normalizeBooleanFlag(firstDefined(org.isActive, org.IsActive, org.active, org.Active))
+  ),
+  isActive: resolveActiveFlag(org.isActive, org.IsActive, org.active, org.Active, org.status, org.Status),
+  adminCount: toNumber(firstDefined(org.adminCount, org.AdminCount)),
+  employeeCount: toNumber(firstDefined(org.employeeCount, org.EmployeeCount)),
+  createdDate: firstDefined(org.createdDate, org.CreatedDate, org.createdAt, org.CreatedAt, ""),
+  updatedDate: firstDefined(org.updatedDate, org.UpdatedDate, org.updatedAt, org.UpdatedAt, ""),
+});
+
+export const normalizeSuperAdminRole = (role = {}) => ({
+  roleId: firstDefined(role.roleId, role.RoleId, role.id, role.Id, ""),
+  name: firstDefined(role.name, role.Name, role.roleName, role.RoleName, ""),
+  isActive: resolveActiveFlag(role.isActive, role.IsActive, role.active, role.Active),
+  userCount: toNumber(firstDefined(role.userCount, role.UserCount, role.usersCount, role.UsersCount)),
+  permissionCount: toNumber(firstDefined(role.permissionCount, role.PermissionCount)),
+});
+
 export const normalizeSubscription = (subscription = {}) => ({
   raw: subscription,
   adminId: firstDefined(subscription.adminId, subscription.AdminId, subscription.id, subscription.Id, ""),
+  organizationId: firstDefined(subscription.organizationId, subscription.OrganizationId, ""),
+  organizationName: firstDefined(subscription.organizationName, subscription.OrganizationName, ""),
+  organizationCode: firstDefined(subscription.organizationCode, subscription.OrganizationCode, ""),
   admin: firstDefined(subscription.adminName, subscription.AdminName, subscription.admin, subscription.Admin, subscription.email, ""),
   plan: firstDefined(subscription.plan, subscription.Plan, subscription.planName, subscription.PlanName, ""),
   maximumUsers: toNumber(firstDefined(subscription.maximumUsers, subscription.MaximumUsers, subscription.maxUsers, subscription.MaxUsers)),
@@ -249,33 +286,322 @@ export const getSuperAdminDashboard = async () => {
   return response.data;
 };
 
-export const getAdmins = async () => {
-  const response = await api.get(API_ENDPOINTS.adminManagement.list);
-  return extractCollection(response.data).map(normalizeAdmin);
+export const getEnhancedSuperAdminDashboard = async () => {
+  const response = await api.get(API_ENDPOINTS.superAdmin.enhancedDashboard);
+  return response.data?.data || response.data || {};
 };
 
-export const createAdmin = (payload) =>
-  api.post(API_ENDPOINTS.adminManagement.create, payload, {
+export const getAdminsPage = async ({ search = "", isActive, organizationId, page = 1, pageSize = 100 } = {}) => {
+  const params = {
+    page: Math.max(Number(page) || 1, 1),
+    pageSize: Math.max(Number(pageSize) || 1, 1),
+  };
+
+  if (String(search).trim()) params.search = String(search).trim();
+  if (typeof isActive === "boolean") params.isActive = isActive;
+  if (organizationId !== undefined && organizationId !== null && organizationId !== "") {
+    params.organizationId = Number(organizationId);
+  }
+
+  const response = await api.get(API_ENDPOINTS.superAdmin.admins, { params });
+  const payload = response.data?.data || response.data || {};
+  const items = extractCollection(payload.items ?? payload.Items ?? payload).map(normalizeAdmin);
+
+  return {
+    items,
+    totalCount: toNumber(payload.totalCount ?? payload.TotalCount, items.length),
+    pageNumber: toNumber(payload.pageNumber ?? payload.PageNumber, params.page),
+    pageSize: toNumber(payload.pageSize ?? payload.PageSize, params.pageSize),
+    totalPages: toNumber(payload.totalPages ?? payload.TotalPages, Math.ceil(items.length / params.pageSize)),
+  };
+};
+
+export const getAdmins = async () => (await getAdminsPage()).items;
+
+export const createAdmin = async (payload) => {
+  const response = await api.post(API_ENDPOINTS.superAdmin.admins, payload, {
     headers: { "Content-Type": "application/json" },
   });
 
-export const updateAdminStatus = (adminId, status) =>
-  api.put(API_ENDPOINTS.adminManagement.updateStatus(adminId), {
-    status: Boolean(status),
-    isActive: Boolean(status),
+  return normalizeAdmin(response.data?.data || response.data || {});
+};
+
+export const getAdminById = async (adminId) => {
+  const response = await api.get(API_ENDPOINTS.superAdmin.adminById(adminId));
+  return normalizeAdmin(response.data?.data || response.data || {});
+};
+
+export const updateAdmin = async (adminId, payload) => {
+  const response = await api.put(API_ENDPOINTS.superAdmin.adminById(adminId), payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return normalizeAdmin(response.data?.data || response.data || {});
+};
+
+export const assignAdminOrganization = async (adminId, organizationId) => {
+  const response = await api.put(
+    API_ENDPOINTS.superAdmin.assignAdminOrganization(adminId),
+    { organizationId: Number(organizationId) || 0 },
+    { headers: { "Content-Type": "application/json" } }
+  );
+
+  return normalizeAdmin(response.data?.data || response.data || {});
+};
+
+export const updateSuperAdminAdminStatus = (adminId, isActive, reason = "") =>
+  api.put(API_ENDPOINTS.superAdmin.updateAdminStatus(adminId), {
+    status: isActive ? "Active" : "Inactive",
+    isActive: Boolean(isActive),
+    reason,
   }, {
     headers: { "Content-Type": "application/json" },
   });
+
+export const getSuperAdminRoles = async () => {
+  const response = await api.get(API_ENDPOINTS.superAdmin.roles);
+  return extractCollection(response.data?.data || response.data).map(normalizeSuperAdminRole);
+};
+
+export const createSuperAdminRole = async (payload) => {
+  const response = await api.post(API_ENDPOINTS.superAdmin.roles, payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return normalizeSuperAdminRole(response.data?.data || response.data || {});
+};
+
+export const updateSuperAdminRole = async (roleId, payload) => {
+  const response = await api.put(API_ENDPOINTS.superAdmin.roleById(roleId), payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return normalizeSuperAdminRole(response.data?.data || response.data || {});
+};
+
+export const updateSuperAdminRoleStatus = (roleId, isActive, reason = "") =>
+  api.put(API_ENDPOINTS.superAdmin.updateRoleStatus(roleId), {
+    status: isActive ? "Active" : "Inactive",
+    isActive: Boolean(isActive),
+    reason,
+  }, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+export const getSuperAdminRoleUsers = async (roleId) => {
+  const response = await api.get(API_ENDPOINTS.superAdmin.roleUsers(roleId));
+  return extractCollection(response.data?.data || response.data);
+};
+
+export const getSuperAdminSettings = async () => {
+  const response = await api.get(API_ENDPOINTS.superAdmin.settings);
+  const payload = response.data?.data || response.data || {};
+
+  return Array.isArray(payload) ? {} : payload;
+};
+
+export const updateSuperAdminSettings = async (values) => {
+  const payload = {
+    appName: String(values.appName ?? "").trim(),
+    companyLogoUrl: String(values.companyLogoUrl ?? "").trim(),
+    defaultTimeZone: String(values.defaultTimeZone ?? "").trim(),
+    defaultLanguage: String(values.defaultLanguage ?? "").trim(),
+    sessionTimeoutMinutes: Number(values.sessionTimeoutMinutes) || 0,
+    maxFileUploadSizeMB: Number(values.maxFileUploadSizeMB) || 0,
+    allowedDocumentTypes: String(values.allowedDocumentTypes ?? "").trim(),
+    maintenanceMode: Boolean(values.maintenanceMode),
+    generalNotes: String(values.generalNotes ?? "").trim(),
+  };
+  const response = await api.put(API_ENDPOINTS.superAdmin.settings, payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return response.data?.data || response.data || payload;
+};
+
+export const searchSuperAdmin = async (query) => {
+  const response = await api.get(API_ENDPOINTS.superAdmin.search, {
+    params: { query: String(query ?? "").trim() },
+  });
+  return response.data?.data || response.data || {};
+};
+
+export const getOrganizations = async () => {
+  const response = await api.get(API_ENDPOINTS.organizations.list);
+  return extractCollection(response.data).map(normalizeOrganization);
+};
+
+export const getOrganizationsPage = async ({ search = "", status = "", page = 1, pageSize = 10 } = {}) => {
+  const params = {
+    page: Math.max(Number(page) || 1, 1),
+    pageSize: Math.max(Number(pageSize) || 10, 1),
+  };
+
+  if (String(search).trim()) params.search = String(search).trim();
+  if (String(status).trim()) params.status = String(status).trim();
+
+  const response = await api.get(API_ENDPOINTS.organizations.list, { params });
+  const payload = response.data?.data || response.data || {};
+  const items = extractCollection(payload.items ?? payload.Items ?? payload).map(normalizeOrganization);
+
+  return {
+    items,
+    totalCount: toNumber(payload.totalCount ?? payload.TotalCount, items.length),
+    pageNumber: toNumber(payload.pageNumber ?? payload.PageNumber, params.page),
+    pageSize: toNumber(payload.pageSize ?? payload.PageSize, params.pageSize),
+    totalPages: toNumber(payload.totalPages ?? payload.TotalPages, Math.ceil(items.length / params.pageSize)),
+  };
+};
+
+export const createOrganization = async (payload) => {
+  const response = await api.post(API_ENDPOINTS.organizations.create, payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return normalizeOrganization(response.data?.data || response.data || {});
+};
+
+export const getOrganizationById = async (organizationId) => {
+  const response = await api.get(API_ENDPOINTS.organizations.byId(organizationId));
+  return normalizeOrganization(response.data?.data || response.data || {});
+};
+
+export const updateOrganization = async (organizationId, payload) => {
+  const response = await api.put(API_ENDPOINTS.organizations.byId(organizationId), payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return normalizeOrganization(response.data?.data || response.data || {});
+};
+
+export const deleteOrganization = (organizationId) =>
+  api.delete(API_ENDPOINTS.organizations.byId(organizationId));
+
+export const updateOrganizationStatus = (organizationId, isActive, reason = "") =>
+  api.put(API_ENDPOINTS.organizations.updateStatus(organizationId), {
+    status: isActive ? "Active" : "Inactive",
+    isActive: Boolean(isActive),
+    reason,
+  }, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+export const getOrganizationSubscription = async (organizationId) => {
+  const response = await api.get(API_ENDPOINTS.organizations.subscription(organizationId));
+  return normalizeSubscription(response.data?.data || response.data || {});
+};
+
+export const createOrganizationSubscription = async (organizationId, payload) => {
+  const response = await api.post(
+    API_ENDPOINTS.organizations.subscription(organizationId),
+    payload,
+    {
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+
+  return normalizeSubscription(response.data?.data || response.data || {});
+};
+
+export const updateOrganizationSubscription = async (organizationId, payload) => {
+  const response = await api.put(API_ENDPOINTS.organizations.subscription(organizationId), payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return normalizeSubscription(response.data?.data || response.data || {});
+};
+
+export const getOrganizationSubscriptionUsage = async (organizationId) => {
+  const response = await api.get(API_ENDPOINTS.organizations.subscriptionUsage(organizationId));
+  return response.data?.data || response.data || {};
+};
+
+export const getOrganizationSubscriptionsPage = async ({
+  search = "",
+  isActive,
+  isExpired,
+  pageNumber = 1,
+  pageSize = 10,
+} = {}) => {
+  const params = {
+    PageNumber: Math.max(Number(pageNumber) || 1, 1),
+    PageSize: Math.max(Number(pageSize) || 10, 1),
+  };
+
+  if (String(search).trim()) params.Search = String(search).trim();
+  if (typeof isActive === "boolean") params.IsActive = isActive;
+  if (typeof isExpired === "boolean") params.IsExpired = isExpired;
+
+  const response = await api.get(API_ENDPOINTS.organizations.subscriptions, { params });
+  const payload = response.data?.data || response.data || {};
+  const items = extractCollection(payload.items ?? payload.Items ?? payload).map(normalizeSubscription);
+
+  return {
+    items,
+    totalCount: toNumber(payload.totalCount ?? payload.TotalCount, items.length),
+    pageNumber: toNumber(payload.pageNumber ?? payload.PageNumber, params.PageNumber),
+    pageSize: toNumber(payload.pageSize ?? payload.PageSize, params.PageSize),
+    totalPages: toNumber(payload.totalPages ?? payload.TotalPages, Math.ceil(items.length / params.PageSize)),
+  };
+};
+
+export const getOrganizationEmployeesPage = async (organizationId, {
+  search = "",
+  adminId,
+  status = "",
+  onboardingStatus = "",
+  department = "",
+  roleId,
+  pageNumber = 1,
+  pageSize = 10,
+} = {}) => {
+  const params = {
+    OrganizationId: Number(organizationId),
+    PageNumber: Math.max(Number(pageNumber) || 1, 1),
+    PageSize: Math.max(Number(pageSize) || 10, 1),
+  };
+
+  if (String(search).trim()) params.Search = String(search).trim();
+  if (adminId !== undefined && adminId !== null && adminId !== "") params.AdminId = Number(adminId);
+  if (String(status).trim()) params.Status = String(status).trim();
+  if (String(onboardingStatus).trim()) params.OnboardingStatus = String(onboardingStatus).trim();
+  if (String(department).trim()) params.Department = String(department).trim();
+  if (roleId !== undefined && roleId !== null && roleId !== "") params.RoleId = Number(roleId);
+
+  const response = await api.get(API_ENDPOINTS.organizations.employees(organizationId), { params });
+  const payload = response.data?.data || response.data || {};
+  const items = extractCollection(payload.items ?? payload.Items ?? payload);
+
+  return {
+    items,
+    totalCount: toNumber(payload.totalCount ?? payload.TotalCount, items.length),
+    pageNumber: toNumber(payload.pageNumber ?? payload.PageNumber, params.PageNumber),
+    pageSize: toNumber(payload.pageSize ?? payload.PageSize, params.PageSize),
+    totalPages: toNumber(payload.totalPages ?? payload.TotalPages, Math.ceil(items.length / params.PageSize)),
+  };
+};
+
+export const getOrganizationEmployeeById = async (organizationId, employeeId) => {
+  const response = await api.get(API_ENDPOINTS.organizations.employeeById(organizationId, employeeId));
+  return response.data?.data || response.data || {};
+};
+
+export const updateOrganizationEmployeeStatus = (organizationId, employeeId, isActive, reason = "") =>
+  api.put(API_ENDPOINTS.organizations.updateEmployeeStatus(organizationId, employeeId), {
+    status: isActive ? "Active" : "Inactive",
+    isActive: Boolean(isActive),
+    reason,
+  }, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+export const updateAdminStatus = (adminId, isActive, reason = "") =>
+  updateSuperAdminAdminStatus(adminId, isActive, reason);
 
 export const getAdminSubscriptions = async () => {
   const response = await api.get(API_ENDPOINTS.adminSubscription.list);
   return extractCollection(response.data).map(normalizeSubscription);
 };
-
-export const createAdminSubscription = (payload) =>
-  api.post(API_ENDPOINTS.adminSubscription.create, payload, {
-    headers: { "Content-Type": "application/json" },
-  });
 
 export const updateAdminSubscription = (adminId, payload) =>
   api.put(API_ENDPOINTS.adminSubscription.update(adminId), payload, {

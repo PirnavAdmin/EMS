@@ -493,23 +493,72 @@ EMS Team
             .Distinct()
             .ToListAsync();
         }
-        public async Task<string> UpdateTicketStatus(int ticketId, string status, ClaimsPrincipal user)
+        public async Task<string> UpdateTicketStatus(
+        int ticketId,
+        string status,
+        string? remarks,
+        ClaimsPrincipal user)
         {
             var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(x => x.Id == ticketId && x.IsActive);
+                .FirstOrDefaultAsync(x =>
+                    x.Id == ticketId &&
+                    x.IsActive);
 
             if (ticket == null)
                 throw new Exception("Ticket not found.");
 
-            ticket.Status = status;
+            // Remarks are mandatory for every status except Completed
+            if (!string.Equals(
+                    status,
+                    "Completed",
+                    StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(remarks))
+            {
+                throw new Exception(
+                    "Remarks are required when changing the ticket status.");
+            }
 
+            var oldStatus = ticket.Status;
+
+            // Update status
+            ticket.Status = status;
             ticket.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+
+            // Get logged-in employee
+            var email = user.FindFirst(ClaimTypes.Email)?
+                .Value?
+                .Trim()
+                .ToLower();
+
+            var loggedInEmployee = await _context.Employees
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() == email &&
+                    x.Status == "Active");
+
+            if (loggedInEmployee == null)
+                throw new Exception("Employee not found.");
+
+            // Save status-change history with remarks
+            var history = new TicketHistory
+            {
+                TicketId = ticket.Id,
+                EmployeeId = ticket.AssignedTo,
+                Action = "Status Change",
+                OldStatus = oldStatus,
+                NewStatus = status,
+                Remarks = remarks,
+                CreatedBy = loggedInEmployee.Employee_Id,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.TicketHistory.Add(history);
 
             await _context.SaveChangesAsync();
 
             return "Ticket status updated successfully.";
         }
-
         public async Task<string> UpdateTicket(
       int ticketId,
       UpdateTicketDto dto,
@@ -534,6 +583,7 @@ EMS Team
 
             if (ticket == null)
                 throw new Exception("Ticket not found.");
+            var oldAssignedTo = ticket.AssignedTo;
 
             var project = await _context.Projects
                 .FirstOrDefaultAsync(x => x.Id == dto.ProjectId);
@@ -549,6 +599,14 @@ EMS Team
 
             if (assignedEmployee == null)
                 throw new Exception("Assigned employee not found.");
+
+            bool isTransfer =
+    !string.IsNullOrWhiteSpace(oldAssignedTo) &&
+    !string.IsNullOrWhiteSpace(dto.AssignedTo) &&
+    !string.Equals(
+        oldAssignedTo,
+        dto.AssignedTo,
+        StringComparison.OrdinalIgnoreCase);
 
             if (dto.StartDate.HasValue &&
                 dto.DueDate.HasValue &&
@@ -573,8 +631,30 @@ EMS Team
             ticket.DueDate = dto.DueDate;
             ticket.EstimatedHours = dto.EstimatedHours;
             ticket.UpdatedAt = DateTime.Now;
+            ticket.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
+
+            if (isTransfer)
+            {
+                var transferHistory = new TicketHistory
+                {
+                    TicketId = ticket.Id,
+                    EmployeeId = dto.AssignedTo,
+                    Action = "Transfer",
+                    OldStatus = ticket.Status,
+                    NewStatus = ticket.Status,
+                    Remarks = dto.Remarks,
+                    TransferFromEmployeeId = oldAssignedTo,
+                    TransferToEmployeeId = dto.AssignedTo,
+                    CreatedBy = loggedInEmployee.Employee_Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.TicketHistory.Add(transferHistory);
+
+                await _context.SaveChangesAsync();
+            }
 
             return "Ticket updated successfully.";
         }
@@ -628,12 +708,28 @@ EMS Team
                     t.StartDate,
                     t.DueDate,
                     t.EstimatedHours,
+                    t.ActualHours,
+                    t.CompletedDate,
                     t.CreatedAt
                 }
 
-            ).ToListAsync();
+           ).ToListAsync();
+
+            var transferHistory = await _context.TicketHistory
+    .AsNoTracking()
+    .Where(x => x.Action == "Transfer")
+    .OrderByDescending(x => x.CreatedAt)
+    .ToListAsync();
 
             using var workbook = new XLWorkbook();
+
+            var transferWorksheet = workbook.Worksheets.Add("Ticket Transfers");
+            transferWorksheet.Cell(1, 1).Value = "Ticket Number";
+            transferWorksheet.Cell(1, 2).Value = "From Employee";
+            transferWorksheet.Cell(1, 3).Value = "To Employee";
+            transferWorksheet.Cell(1, 4).Value = "Remarks";
+            transferWorksheet.Cell(1, 5).Value = "Transferred By";
+            transferWorksheet.Cell(1, 6).Value = "Transfer Date (IST)";
 
             var worksheet = workbook.Worksheets.Add("Tickets");
 
@@ -650,14 +746,20 @@ EMS Team
             worksheet.Cell(1, 10).Value = "Start Date";
             worksheet.Cell(1, 11).Value = "Due Date";
             worksheet.Cell(1, 12).Value = "Estimated Hours";
-            worksheet.Cell(1, 13).Value = "Created At";
+            worksheet.Cell(1, 13).Value = "Actual Hours";
+            worksheet.Cell(1, 14).Value = "Time Taken";
+            worksheet.Cell(1, 15).Value = "Created At (IST)";
+            worksheet.Cell(1, 16).Value = "Completed At (IST)";
 
             // Header Style
-            var header = worksheet.Range(1, 1, 1, 13);
+            var transferHeader =
+     transferWorksheet.Range(1, 1, 1, 6);
 
-            header.Style.Font.Bold = true;
-            header.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            header.Style.Fill.BackgroundColor = XLColor.LightBlue;
+            transferHeader.Style.Font.Bold = true;
+            transferHeader.Style.Alignment.Horizontal =
+                XLAlignmentHorizontalValues.Center;
+            transferHeader.Style.Fill.BackgroundColor =
+                XLColor.LightBlue;
 
             int row = 2;
 
@@ -675,12 +777,89 @@ EMS Team
                 worksheet.Cell(row, 10).Value = ticket.StartDate;
                 worksheet.Cell(row, 11).Value = ticket.DueDate;
                 worksheet.Cell(row, 12).Value = ticket.EstimatedHours;
-                worksheet.Cell(row, 13).Value = ticket.CreatedAt;
+                worksheet.Cell(row, 13).Value = ticket.ActualHours;
+
+                // Time actually spent working on the ticket
+                int totalMinutes = (int)Math.Round(ticket.ActualHours * 60);
+
+                int hours = totalMinutes / 60;
+                int minutes = totalMinutes % 60;
+
+                worksheet.Cell(row, 14).Value = $"{hours}h {minutes}m";
+
+                // Created At in IST
+                worksheet.Cell(row, 15).Value =
+                    ConvertUtcToIst(ticket.CreatedAt);
+
+                // Completed At in IST
+                if (ticket.CompletedDate.HasValue)
+                {
+                    worksheet.Cell(row, 16).Value =
+                        ConvertUtcToIst(ticket.CompletedDate.Value);
+                }
+                else
+                {
+                    worksheet.Cell(row, 16).Value = "-";
+                }
 
                 row++;
             }
+            int transferRow = 2;
 
+            foreach (var transfer in transferHistory)
+            {
+                var ticket = await _context.Tickets
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == transfer.TicketId);
+
+                if (ticket == null)
+                    continue;
+
+                var fromEmployee = await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == transfer.TransferFromEmployeeId);
+
+                var toEmployee = await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == transfer.TransferToEmployeeId);
+
+                var transferredBy = await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Employee_Id == transfer.CreatedBy);
+
+                transferWorksheet.Cell(transferRow, 1).Value =
+                    ticket.TicketNumber;
+
+                transferWorksheet.Cell(transferRow, 2).Value =
+                    fromEmployee?.Name ?? transfer.TransferFromEmployeeId ?? "-";
+
+                transferWorksheet.Cell(transferRow, 3).Value =
+                    toEmployee?.Name ?? transfer.TransferToEmployeeId ?? "-";
+
+                transferWorksheet.Cell(transferRow, 4).Value =
+                    transfer.Remarks ?? "-";
+
+                transferWorksheet.Cell(transferRow, 5).Value =
+                    transferredBy?.Name ?? transfer.CreatedBy ?? "-";
+
+                transferWorksheet.Cell(transferRow, 6).Value =
+                    ConvertUtcToIst(transfer.CreatedAt);
+
+                transferRow++;
+            }
+            transferWorksheet.Column(6).Style.DateFormat.Format =
+    "dd-MMM-yyyy hh:mm AM/PM";
+
+            transferWorksheet.Columns().AdjustToContents();
             worksheet.Columns().AdjustToContents();
+            worksheet.Column(15).Style.DateFormat.Format =
+    "dd-MMM-yyyy hh:mm AM/PM";
+
+            worksheet.Column(16).Style.DateFormat.Format =
+                "dd-MMM-yyyy hh:mm AM/PM";
 
             using var stream = new MemoryStream();
 
@@ -917,6 +1096,17 @@ EMS Team
 
             return true;
         }
+        private DateTime ConvertUtcToIst(DateTime utcDateTime)
+{
+    TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(
+        OperatingSystem.IsWindows()
+            ? "India Standard Time"
+            : "Asia/Kolkata");
+
+    return TimeZoneInfo.ConvertTimeFromUtc(
+        DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc),
+        istZone);
+}
         public async Task<bool> RejectTicketAsync(RejectTicketDto dto)
         {
             var ticket = await _context.Tickets

@@ -7,11 +7,7 @@ using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 public class EmployeeLeaveService : IEmployeeLeaveService
 
@@ -215,7 +211,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://localhost:7191";
         var notification = GetNotificationSettings();
 
         if (!notification.EnableEmailNotifications ||
@@ -644,7 +640,7 @@ Employee Management System
         leave.ApprovedBy = approverName;
         leave.ApprovedOn = DateTime.UtcNow;
 
-        leave.ApprovalRemarks = dto.ApprovalRemarks;
+        leave.ApprovalRemarks = dto.ApprovalRemark;
         //if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
         //{
         //    leave.ManagerStatus = status;
@@ -911,7 +907,18 @@ Employee Management System
             // 3. REJECT LEAVE
             // ============================================================
 
+            if (string.IsNullOrWhiteSpace(dto.ApprovalRemark))
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = "Please provide a reason for rejecting the leave."
+                });
+            }
+
             leave.Status = $"Rejected By {approverName}";
+            leave.ApprovalRemarks = dto.ApprovalRemark.Trim();
+            leave.ApprovedBy = approverName;
+            leave.ApprovedOn = DateTime.UtcNow;
             leave.ApprovedType = null;
 
             await _context.SaveChangesAsync();
@@ -995,6 +1002,11 @@ Employee Management System
 </tr>
 
 <tr>
+<td><b>Approval Remark</b></td>
+<td>{leave.ApprovalRemarks}</td>
+</tr>
+
+<tr>
 <td><b>Rejected By</b></td>
 <td>{approverName}</td>
 </tr>
@@ -1009,7 +1021,6 @@ Employee Management System
 <br/>
 
 <p>Regards,<br/>EMS Team</p>";
-
             var notification = GetNotificationSettings();
 
             if (notification.EnableEmailNotifications &&
@@ -1332,7 +1343,8 @@ Employee Management System
                 x.Status,
                 x.ApprovedBy,
                 x.ApprovedOn,
-                x.CreatedAt
+                x.CreatedAt,
+                x.ApprovalRemarks
             })
             .ToListAsync();
 
@@ -1753,7 +1765,7 @@ Employee Management System
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://localhost:7191";
 
         var notification = GetNotificationSettings();
 
@@ -1995,6 +2007,7 @@ Employee Management System
                     Status = x.Status,
 
                     ApprovedBy = x.ApprovedBy,
+                   
 
                     // Handle null values
                     ApprovedOn = x.ApprovedOn == null
@@ -2044,16 +2057,18 @@ Employee Management System
                 x.Status,
                 x.ApprovedBy,
                 x.ApprovedOn,
-                x.AppliedOn
+                x.AppliedOn,
+                x.ApprovalRemarks
             })
             .ToListAsync();
 
         return new OkObjectResult(requests);
     }
     public async Task<IActionResult> UpdateWFHStatus(
-        int id,
-        string status,
-        ClaimsPrincipal user)
+     int id,
+     string status,
+     string? approvalRemark,
+     ClaimsPrincipal user)
     {
         var request = await _context.WorkFromHomeRequests
             .FirstOrDefaultAsync(x => x.Id == id);
@@ -2095,7 +2110,7 @@ Employee Management System
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .FirstOrDefault() ?? approverName;
         }
-
+       
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
 
@@ -2335,13 +2350,29 @@ style='border-collapse:collapse;'>
         }
         else
         {
+            if (string.IsNullOrWhiteSpace(approvalRemark))
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = "Please provide a reason for rejecting the Work From Home request."
+                });
+            }
+
+            // Save approver's rejection reason
+            request.ApprovalRemarks = approvalRemark.Trim();
+
             request.Status = $"Rejected By {approverName}";
+
+            request.ApprovedBy = approverName;
+            request.ApprovedOn = DateTime.UtcNow;
 
             _context.UserNotifications.Add(new UserNotification
             {
                 Employee_Id = request.EmployeeId,
                 Title = "WFH Rejected",
-                Message = $"Your Work From Home request has been rejected by {approverName}.",
+                Message =
+                    $"Your Work From Home request has been rejected by {approverName}. " +
+                    $"Reason: {request.ApprovalRemarks}",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });
@@ -2356,7 +2387,7 @@ style='border-collapse:collapse;'>
 <p>The following Work From Home request has been rejected.</p>
 
 <table border='1' cellpadding='8' cellspacing='0'
-style='border-collapse:collapse;'>
+       style='border-collapse:collapse;'>
 
 <tr>
 <td><b>Employee Name</b></td>
@@ -2386,6 +2417,11 @@ style='border-collapse:collapse;'>
 <tr>
 <td><b>Reason</b></td>
 <td>{request.Reason}</td>
+</tr>
+
+<tr>
+<td><b>Approval Remark</b></td>
+<td>{request.ApprovalRemarks}</td>
 </tr>
 
 <tr>
@@ -2420,7 +2456,8 @@ style='border-collapse:collapse;'>
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Email failed for {mail}: {ex.Message}");
+                        Console.WriteLine(
+                            $"Email failed for {mail}: {ex.Message}");
                     }
                 }
             }
@@ -2665,21 +2702,43 @@ style='border-collapse:collapse;'>
                 x.Employee_Id == leave.EmployeeId);
 
         // ============================================================
-        // SEND RESULT EMAIL TO EMPLOYEE
+        // SEND RESULT EMAIL TO EMPLOYEE + HR + MANAGER
         // ============================================================
 
+        // Get HR and Manager employees
+        var hrManagerEmails = await _context.Employees
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.Email) &&
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                (
+                    x.RoleName.ToLower() == "hr" ||
+                    x.RoleName.ToLower() == "manager"
+                ))
+            .Select(x => x.Email)
+            .ToListAsync();
+
+        // Add employee email
         if (employee != null &&
             !string.IsNullOrWhiteSpace(employee.Email))
         {
-            string employeeMailBody = $@"
+            hrManagerEmails.Add(employee.Email);
+        }
+
+        // Remove duplicate emails
+        var recipientEmails = hrManagerEmails
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        string employeeMailBody = $@"
 <h3>Leave Request {resultText}</h3>
 
-<p>Dear {employee.Name},</p>
+<p>Dear Team,</p>
 
 <p>
-Your leave request has been
+The following leave request has been
 <b>{resultText}</b>
-by the approver.
+by the external approver.
 </p>
 
 <table border='1'
@@ -2739,12 +2798,14 @@ by the approver.
 <p>Regards,<br/>EMS Team</p>
 ";
 
+        // Send email to employee + HR + Manager
+        foreach (var email in recipientEmails)
+        {
             await _emailService.SendEmailAsync(
-                employee.Email,
-                $"Leave Request {resultText} | #{leave.Id} | {DateTime.Now:yyyyMMddHHmmssfff}",
+                email,
+                $"Leave Request {resultText} | #{leave.Id}",
                 employeeMailBody);
         }
-
         return new OkObjectResult(
             $"Leave request {resultText} successfully");
     }
@@ -3004,21 +3065,43 @@ by the approver.
                 x.Employee_Id == request.EmployeeId);
 
         // ============================================================
-        // SEND RESULT EMAIL TO EMPLOYEE
+        // SEND RESULT EMAIL TO EMPLOYEE + HR + MANAGER
         // ============================================================
 
+        // Get HR and Manager emails
+        var hrManagerEmails = await _context.Employees
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.Email) &&
+                !string.IsNullOrWhiteSpace(x.RoleName) &&
+                (
+                    x.RoleName.ToLower() == "hr" ||
+                    x.RoleName.ToLower() == "manager"
+                ))
+            .Select(x => x.Email)
+            .ToListAsync();
+
+        // Add employee email
         if (employee != null &&
             !string.IsNullOrWhiteSpace(employee.Email))
         {
-            string employeeMailBody = $@"
+            hrManagerEmails.Add(employee.Email);
+        }
+
+        // Remove duplicate emails
+        var recipientEmails = hrManagerEmails
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        string employeeMailBody = $@"
 <h3>Work From Home Request {resultText}</h3>
 
-<p>Dear {employee.Name},</p>
+<p>Dear Team,</p>
 
 <p>
-Your Work From Home request has been
+The following Work From Home request has been
 <b>{resultText}</b>
-by the approver.
+by the external approver.
 </p>
 
 <table border='1'
@@ -3078,12 +3161,14 @@ by the approver.
 <p>Regards,<br/>EMS Team</p>
 ";
 
+        // Send to Employee + HR + Manager
+        foreach (var email in recipientEmails)
+        {
             await _emailService.SendEmailAsync(
-                employee.Email,
-                $"WFH Request {resultText} | #{request.Id} | {DateTime.Now:yyyyMMddHHmmssfff}",
+                email,
+                $"Work From Home Request {resultText} | #{request.Id}",
                 employeeMailBody);
         }
-
         return new OkObjectResult(
             $"WFH request {resultText} successfully");
     }

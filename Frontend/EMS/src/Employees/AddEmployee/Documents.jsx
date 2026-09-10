@@ -24,16 +24,7 @@ import { API_ENDPOINTS } from "../../api/endpoints";
 import { SERVER_URL } from "../../api/config";
 import CompactSearchableDropdown from "../../components/CompactSearchableDropdown";
 import DocumentPreviewModal from "./DocumentPreviewModal";
-import {
-  getStoredEmployeeId,
-  getStoredToken
-} from "../../utils/authStorage";
-
-import {
-  downloadBinaryFile,
-  getDownloadErrorMessage,
-  extractDownloadFileName
-} from "../../utils/downloadUtils";
+import { getStoredEmployeeId } from "../../utils/authStorage";
 import {
   extractDocumentRecords,
   areDocumentRecordsEquivalent,
@@ -57,7 +48,10 @@ import {
   viewAgreement,
   viewSignedAgreement } from
 "../../services/agreementService";
-
+import {
+  extractDownloadFileName,
+  getDownloadErrorMessage } from
+"../../utils/downloadUtils";
 import {
   resolveDocumentMimeType,
   isSafeWebUrl } from
@@ -1563,13 +1557,29 @@ const Documents = forwardRef(function Documents({
     setPreviewDocument(doc);
   };
 
-  const handleDownload = async (doc) => {
+  const handleDownload = (doc) => {
     if (!doc) {
       return;
     }
 
     if (doc.blob instanceof Blob) {
       downloadBlob(doc.blob, doc.fileName);
+      return;
+    }
+
+    const safeDocumentUrl = isSafeWebUrl(doc.fileUrl) ?
+    doc.fileUrl :
+    isSafeWebUrl(doc.downloadUrl) ?
+    doc.downloadUrl :
+    "";
+
+    if (safeDocumentUrl) {
+      const anchor = window.document.createElement("a");
+      anchor.href = safeDocumentUrl;
+      anchor.download = doc.fileName || "document";
+      window.document.body.appendChild(anchor);
+      anchor.click();
+      window.document.body.removeChild(anchor);
       return;
     }
 
@@ -1580,33 +1590,13 @@ const Documents = forwardRef(function Documents({
       return;
     }
 
-    const token = getStoredToken();
-
-    if (!token) {
-      toastError("Session expired. Please login again.");
-      return;
-    }
-
-    try {
-      await downloadBinaryFile({
-        endpoint: isOnboardingMode
-          ? documentEndpoints.download(serverId)
-          : `/EmployeeDocuments/download/${serverId}`,
-        token,
-        fallbackFileName: doc.fileName || `Document_${serverId}`,
-        accept:
-          "application/pdf, image/jpeg, image/png, image/jpg, application/octet-stream;q=0.9, */*;q=0.1"
-      });
-
-      toastSuccess("Document downloaded successfully.");
-    } catch (error) {
-      const message = getDownloadErrorMessage(
-        error,
-        "Failed to download document."
-      );
-
-      toastError(message);
-    }
+    const anchor = window.document.createElement("a");
+    anchor.href = isOnboardingMode ?
+    `${SERVER_URL}/api${documentEndpoints.download(serverId)}` :
+    `${SERVER_URL}/api/EmployeeDocuments/download/${serverId}`;
+    window.document.body.appendChild(anchor);
+    anchor.click();
+    window.document.body.removeChild(anchor);
   };
 
   useImperativeHandle(ref, () => ({
@@ -1974,7 +1964,7 @@ const Documents = forwardRef(function Documents({
                 setApiError("");
                 setLoadError("");
               }}>
-
+              
 
                             <option value="documents">{entityLabel}</option>
                             <option value="agreements">Employee Agreements</option>
@@ -2025,7 +2015,7 @@ const Documents = forwardRef(function Documents({
           type="button"
           className="documents-retry-btn"
           onClick={handleRetry}>
-
+          
 
                         <FaRedo aria-hidden="true" />
 
@@ -2069,7 +2059,7 @@ const Documents = forwardRef(function Documents({
             <div
               className="documents-progress-category"
               key={group.label}>
-
+              
 
                                     <div className="documents-progress-category-header">
 
@@ -2098,7 +2088,7 @@ const Documents = forwardRef(function Documents({
                   style={{
                     width: `${group.completionPercent}%`
                   }} />
-
+                
 
                                     </div>
 
@@ -2113,7 +2103,7 @@ const Documents = forwardRef(function Documents({
                   "is-uploaded" :
                   "is-pending"}`
                   }>
-
+                  
 
                                                 <span>{option.label}</span>
 
@@ -2185,7 +2175,7 @@ const Documents = forwardRef(function Documents({
                 disabled={uploading}
                 error={selectedDocumentTypeError}
                 menuMaxHeight={180} />
-
+              
 
                                 </div>
 
@@ -2200,7 +2190,7 @@ const Documents = forwardRef(function Documents({
                 onChange={handleFileChange}
                 disabled={uploading}
                 aria-invalid={Boolean(fileValidationError)} />
-
+              
                                     <div className="premium-field-hint">
                                         Maximum file size: {formatFileSize(MAX_DOCUMENT_FILE_SIZE_BYTES)}
                                     </div>
@@ -2228,7 +2218,7 @@ const Documents = forwardRef(function Documents({
                                             <span
                   className="document-remove-icon"
                   onClick={clearSelectedFile}>
-
+                  
                                                 ×
 
                                             </span>
@@ -2274,7 +2264,7 @@ const Documents = forwardRef(function Documents({
               !selectedDocumentType ||
               selectedDocumentTypeIsUploaded
               }>
-
+              
 
                                     {uploading ?
               <>
@@ -2370,7 +2360,7 @@ const Documents = forwardRef(function Documents({
               type="button"
               className="documents-retry-btn"
               onClick={handleRetry}>
-
+              
 
                                     <FaRedo aria-hidden="true" />
 
@@ -2402,7 +2392,7 @@ const Documents = forwardRef(function Documents({
             <div
               key={document.cacheKey || getDocumentServerId(document) || index}
               className="uploaded-document-item">
-
+              
 
                                         <div className="uploaded-document-left">
 
@@ -2413,14 +2403,14 @@ const Documents = forwardRef(function Documents({
                     alignItems: "center",
                     justifyContent: "center"
                   }}>
-
+                  
 
                                                 <FaFileAlt
                     aria-hidden="true"
                     style={{
                       display: "block"
                     }} />
-
+                  
 
                                             </span>
 
@@ -2470,7 +2460,7 @@ const Documents = forwardRef(function Documents({
                   type="button"
                   className="document-action-btn view-btn"
                   onClick={() => handleView(document)}>
-
+                  
 
                                                 <FaEye aria-hidden="true" />
 
@@ -2484,7 +2474,7 @@ const Documents = forwardRef(function Documents({
                   type="button"
                   className="document-action-btn download-btn"
                   onClick={() => handleDownload(document)}>
-
+                  
 
                                                 <FaDownload aria-hidden="true" />
 
@@ -2501,7 +2491,7 @@ const Documents = forwardRef(function Documents({
                     setSelectedDeleteDocument(document);
                     setShowDeleteModal(true);
                   }}>
-
+                  
 
                                                 <FaTrash aria-hidden="true" />
 
@@ -2606,7 +2596,7 @@ const Documents = forwardRef(function Documents({
               type="button"
               className="documents-retry-btn"
               onClick={handleRetry}>
-
+              
 
                                     <FaRedo aria-hidden="true" />
 
@@ -2660,7 +2650,7 @@ const Documents = forwardRef(function Documents({
                     setApiError("");
                   }}
                   disabled={agreementLoading || signingAgreement}>
-
+                  
 
                                             <option value="">Select Agreement</option>
 
@@ -2670,7 +2660,7 @@ const Documents = forwardRef(function Documents({
                   <option
                     key={agreement.agreementId}
                     value={agreement.agreementId}>
-
+                    
 
                                                     {agreement.agreementName}
 
@@ -2691,7 +2681,7 @@ const Documents = forwardRef(function Documents({
                   className="premium-input"
                   value={selectedAgreementDetails?.agreementName || ""}
                   readOnly />
-
+                
 
                                     </div>
 
@@ -2704,7 +2694,7 @@ const Documents = forwardRef(function Documents({
                   className="premium-input"
                   value={employeeKey || storedEmployeeId || ""}
                   readOnly />
-
+                
 
                                     </div>
 
@@ -2718,7 +2708,7 @@ const Documents = forwardRef(function Documents({
                   className="premium-input"
                   value={selectedAgreementDetails?.agreementCode || ""}
                   readOnly />
-
+                
 
                                     </div>
 
@@ -2732,7 +2722,7 @@ const Documents = forwardRef(function Documents({
                   className="premium-input"
                   value={selectedAgreementStatus}
                   readOnly />
-
+                
 
                                     </div>
 
@@ -2760,7 +2750,7 @@ const Documents = forwardRef(function Documents({
                   isAgreementSigned
                   }
                   placeholder="Signature Name" />
-
+                
 
                                     </div>
 
@@ -2788,7 +2778,7 @@ const Documents = forwardRef(function Documents({
                   isAgreementSigned
                   }
                   placeholder="Signed Location" />
-
+                
 
                                     </div>
 
@@ -2813,7 +2803,7 @@ const Documents = forwardRef(function Documents({
                   signingAgreement ||
                   isAgreementSigned
                   } />
-
+                
 
                                     </div>
 
@@ -2847,7 +2837,7 @@ const Documents = forwardRef(function Documents({
                 className="document-action-btn view-btn"
                 disabled={!canViewAgreement}
                 onClick={() => handleViewAgreement(selectedAgreementDetails)}>
-
+                
 
                                         {agreementActionLoading === `view-${selectedAgreementDetails?.agreementId}` ?
                 <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
@@ -2866,7 +2856,7 @@ const Documents = forwardRef(function Documents({
                 className="document-action-btn view-btn"
                 disabled={!canViewSigned}
                 onClick={() => handleViewSignedAgreement(selectedAgreementDetails)}>
-
+                
 
                                         {agreementActionLoading === `signed-${selectedAgreementDetails?.agreementId}` ?
                 <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
@@ -2885,7 +2875,7 @@ const Documents = forwardRef(function Documents({
                 className="document-action-btn download-btn"
                 disabled={!canDownloadSigned}
                 onClick={() => handleDownloadSignedAgreement(selectedAgreementDetails)}>
-
+                
 
                                         {agreementDownloadLoading === selectedAgreementDetails?.agreementId ?
                 <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
@@ -2905,7 +2895,7 @@ const Documents = forwardRef(function Documents({
                 disabled={!canSubmitAgreement || signingAgreement}
                 onClick={handleSubmitSignature}>
 
-
+                
 
                                         {signingAgreement ?
                 <>
@@ -2966,7 +2956,7 @@ const Documents = forwardRef(function Documents({
                 setSelectedDeleteDocument(null);
               }}
               disabled={Boolean(deletingId)}>
-
+              
 
                                     Cancel
 
@@ -2979,7 +2969,7 @@ const Documents = forwardRef(function Documents({
               className="delete-confirm-btn"
               onClick={() => handleDelete(selectedDeleteDocument)}
               disabled={Boolean(deletingId)}>
-
+              
 
                                     {deletingId ?
               <>
@@ -3009,7 +2999,7 @@ const Documents = forwardRef(function Documents({
         open={Boolean(previewDocument)}
         document={previewDocument}
         onClose={() => setPreviewDocument(null)} />
-
+      
 
 
 
@@ -3044,7 +3034,7 @@ const Documents = forwardRef(function Documents({
             signingAgreement ||
             savingNext
             }>
-
+            
 
                         {savingNext ?
             <>

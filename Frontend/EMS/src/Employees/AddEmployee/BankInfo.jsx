@@ -29,6 +29,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
   const [apiError, setApiError] = useState("");
   const [saving, setSaving] = useState(false);
   const [salaryErrors, setSalaryErrors] = useState({});
+  const [bankErrors, setBankErrors] = useState({});
   useEffect(() => {
     if (!data) return;
 
@@ -104,32 +105,374 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     loadSalary();
   }, [employeeId, data, loadSalary]);
 
+  const validateBankFields = () => {
+    const errors = {};
+
+    const customerIdValue = String(customerId || "").trim();
+    const accountHolderValue = String(accountHolder || "").trim();
+    const accountNumberValue = String(accountNumber || "").trim();
+    const ifscValue = String(ifsc || "").trim().toUpperCase();
+    const branchValue = String(branch || "").trim();
+    const uanValue = String(uan || "").trim();
+    const pfValue = String(pf || "").trim();
+    const finalBankName = bankName === "Other"
+      ? String(manualBank || "").trim()
+      : String(bankName || "").trim();
+
+    // -------------------------
+    // Bank Name
+    // -------------------------
+    if (!finalBankName) {
+      errors.bankName = "Please select a bank.";
+    }
+
+    if (bankName === "Other" && finalBankName) {
+      if (finalBankName.length < 2 || finalBankName.length > 100) {
+        errors.manualBank = "Bank name must be between 2 and 100 characters.";
+      } else if (!/^[A-Za-z0-9 .,'&()/-]+$/.test(finalBankName)) {
+        errors.manualBank =
+          "Bank name can contain letters, numbers, spaces and basic punctuation only.";
+      }
+    }
+
+    // -------------------------
+    // Customer ID
+    // -------------------------
+    if (!customerIdValue) {
+      errors.customerId = "Customer ID is required.";
+    } else if (!/^[A-Za-z0-9]+$/.test(customerIdValue)) {
+      errors.customerId =
+        "Customer ID can contain only letters and numbers.";
+    } else if (customerIdValue.length < 5 || customerIdValue.length > 20) {
+      errors.customerId =
+        "Customer ID must be between 5 and 20 characters.";
+    } else if (/^0+$/.test(customerIdValue)) {
+      errors.customerId = "Customer ID cannot contain only zeros.";
+    }
+
+    // -------------------------
+    // Account Holder Name
+    // -------------------------
+    if (!accountHolderValue) {
+      errors.accountHolder = "Account holder name is required.";
+    } else if (
+      !/^[A-Za-z]+(?:[A-Za-z .'-]*[A-Za-z])?$/.test(accountHolderValue)
+    ) {
+      errors.accountHolder =
+        "Account holder name can contain letters, spaces, '.', apostrophe and hyphen only.";
+    } else if (
+      accountHolderValue.length < 2 ||
+      accountHolderValue.length > 100
+    ) {
+      errors.accountHolder =
+        "Account holder name must be between 2 and 100 characters.";
+    }
+
+    // -------------------------
+    // Account Number
+    // -------------------------
+    if (!accountNumberValue) {
+      errors.accountNumber = "Account number is required.";
+    } else if (!/^[A-Za-z0-9]+$/.test(accountNumberValue)) {
+      errors.accountNumber =
+        "Account number can contain only letters and numbers.";
+    } else if (
+      accountNumberValue.length < 6 ||
+      accountNumberValue.length > 18
+    ) {
+      errors.accountNumber =
+        "Account number must be between 6 and 18 characters.";
+    } else if (/^0+$/.test(accountNumberValue)) {
+      errors.accountNumber = "Account number cannot contain only zeros.";
+    }
+
+    // -------------------------
+    // IFSC Code
+    // -------------------------
+    if (!ifscValue) {
+      errors.ifsc = "IFSC code is required.";
+    } else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscValue)) {
+      errors.ifsc =
+        "IFSC code must be exactly 11 characters in the format ABCD0XXXXXX.";
+    }
+
+    // -------------------------
+    // Branch Name
+    // -------------------------
+    if (!branchValue) {
+      errors.branch = "Branch name is required.";
+    } else if (
+      !/^[A-Za-z0-9]+(?:[A-Za-z0-9 .,'&()/-]*[A-Za-z0-9])?$/.test(branchValue)
+    ) {
+      errors.branch =
+        "Branch name contains invalid characters.";
+    } else if (branchValue.length < 2 || branchValue.length > 100) {
+      errors.branch = "Branch name must be between 2 and 100 characters.";
+    } else if (/^0+$/.test(branchValue)) {
+      errors.branch = "Branch name cannot contain only zeros.";
+    }
+
+    // -------------------------
+    // UAN Number
+    // -------------------------
+    if (!uanValue) {
+      errors.uan = "UAN number is required.";
+    } else if (!/^\d+$/.test(uanValue)) {
+      errors.uan = "UAN number must contain numbers only.";
+    } else if (uanValue.length !== 12) {
+      errors.uan = "UAN number must be exactly 12 digits.";
+    } else if (/^0+$/.test(uanValue)) {
+      errors.uan = "UAN number cannot contain only zeros.";
+    }
+
+    // -------------------------
+    // PF Account Number
+    // -------------------------
+    if (!pfValue) {
+      errors.pf = "PF account number is required.";
+    } else if (!/^[A-Za-z0-9/-]+$/.test(pfValue)) {
+      errors.pf =
+        "PF account number can contain letters, numbers, '/' and '-' only.";
+    } else if (pfValue.length < 5 || pfValue.length > 22) {
+      errors.pf =
+        "PF account number must be between 5 and 22 characters.";
+    } else if (/^0+$/.test(pfValue)) {
+      errors.pf = "PF account number cannot contain only zeros.";
+    }
+
+    setBankErrors(errors);
+
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateSalaryFields = () => {
+    const errors = {};
+
+    const annual = Number(annualCTC);
+    const basic = Number(basicSalary);
+    const hraValue = Number(hra);
+    const conveyance = Number(conveyanceAllowance);
+    const medical = Number(medicalAllowance);
+    const special = Number(specialAllowance);
+    const employeePFValue = Number(employeePF);
+    const employerPFValue = Number(employerPF);
+    const professionalTaxValue = Number(professionalTax);
+    const tdsValue = Number(tds);
+    const otherDeductionValue = Number(otherDeduction);
+
+    // -------------------------
+    // Annual CTC
+    // -------------------------
+    if (!annualCTC) {
+      errors.annualCTC = "Annual CTC is required.";
+    } else if (!/^\d+$/.test(String(annualCTC))) {
+      errors.annualCTC = "Annual CTC must contain numbers only.";
+    } else if (annual < 12000) {
+      errors.annualCTC = "Annual CTC must be at least ₹12,000.";
+    }
+
+    // -------------------------
+    // Basic Salary
+    // -------------------------
+    if (!basicSalary) {
+      errors.basicSalary = "Basic Salary is required.";
+    } else if (!/^\d+$/.test(String(basicSalary))) {
+      errors.basicSalary = "Basic Salary must contain numbers only.";
+    } else if (basic < 1000) {
+      errors.basicSalary = "Basic Salary must be at least ₹1,000.";
+    }
+
+    // -------------------------
+    // HRA
+    // -------------------------
+    if (!hra) {
+      errors.hra = "HRA is required.";
+    } else if (!/^\d+$/.test(String(hra))) {
+      errors.hra = "HRA must contain numbers only.";
+    } else if (hraValue < 100) {
+      errors.hra = "HRA must be at least ₹100.";
+    }
+
+    // -------------------------
+    // Conveyance Allowance
+    // -------------------------
+    if (!conveyanceAllowance) {
+      errors.conveyanceAllowance =
+        "Conveyance Allowance is required.";
+    } else if (!/^\d+$/.test(String(conveyanceAllowance))) {
+      errors.conveyanceAllowance =
+        "Conveyance Allowance must contain numbers only.";
+    } else if (conveyance < 100) {
+      errors.conveyanceAllowance =
+        "Conveyance Allowance must be at least ₹100.";
+    }
+
+    // -------------------------
+    // Medical Allowance
+    // -------------------------
+    if (!medicalAllowance) {
+      errors.medicalAllowance =
+        "Medical Allowance is required.";
+    } else if (!/^\d+$/.test(String(medicalAllowance))) {
+      errors.medicalAllowance =
+        "Medical Allowance must contain numbers only.";
+    } else if (medical < 100) {
+      errors.medicalAllowance =
+        "Medical Allowance must be at least ₹100.";
+    }
+
+    // -------------------------
+    // Special Allowance
+    // -------------------------
+    if (!specialAllowance) {
+      errors.specialAllowance =
+        "Special Allowance is required.";
+    } else if (!/^\d+$/.test(String(specialAllowance))) {
+      errors.specialAllowance =
+        "Special Allowance must contain numbers only.";
+    } else if (special < 100) {
+      errors.specialAllowance =
+        "Special Allowance must be at least ₹100.";
+    }
+
+    // -------------------------
+    // Employee PF
+    // -------------------------
+    if (!employeePF) {
+      errors.employeePF = "Employee PF is required.";
+    } else if (!/^\d+$/.test(String(employeePF))) {
+      errors.employeePF =
+        "Employee PF must contain numbers only.";
+    } else if (employeePFValue < 100) {
+      errors.employeePF =
+        "Employee PF must be at least ₹100.";
+    }
+
+    // -------------------------
+    // Employer PF
+    // -------------------------
+    if (!employerPF) {
+      errors.employerPF = "Employer PF is required.";
+    } else if (!/^\d+$/.test(String(employerPF))) {
+      errors.employerPF =
+        "Employer PF must contain numbers only.";
+    } else if (employerPFValue < 100) {
+      errors.employerPF =
+        "Employer PF must be at least ₹100.";
+    }
+
+    // -------------------------
+    // Professional Tax
+    // -------------------------
+    if (!professionalTax) {
+      errors.professionalTax =
+        "Professional Tax is required.";
+    } else if (!/^\d+$/.test(String(professionalTax))) {
+      errors.professionalTax =
+        "Professional Tax must contain numbers only.";
+    } else if (
+      professionalTaxValue !== 0 &&
+      professionalTaxValue < 100
+    ) {
+      errors.professionalTax =
+        "Professional Tax must be 0 or at least ₹100.";
+    }
+
+    // -------------------------
+    // TDS - Optional
+    // -------------------------
+    if (tds && !/^\d+$/.test(String(tds))) {
+      errors.tds = "TDS must contain numbers only.";
+    } else if (tds && tdsValue < 0) {
+      errors.tds = "TDS cannot be negative.";
+    }
+
+    // -------------------------
+    // Other Deduction - Optional
+    // -------------------------
+    if (otherDeduction && !/^\d+$/.test(String(otherDeduction))) {
+      errors.otherDeduction =
+        "Other Deduction must contain numbers only.";
+    } else if (otherDeduction && otherDeductionValue < 0) {
+      errors.otherDeduction =
+        "Other Deduction cannot be negative.";
+    }
+
+    // -------------------------
+    // Annual CTC consistency
+    // -------------------------
+    if (
+      annualCTC &&
+      basicSalary &&
+      hra &&
+      conveyanceAllowance &&
+      medicalAllowance &&
+      specialAllowance &&
+      employerPF
+    ) {
+      const calculatedAnnualCTC =
+        (
+          basic +
+          hraValue +
+          conveyance +
+          medical +
+          special +
+          employerPFValue
+        ) * 12;
+
+      if (annual !== calculatedAnnualCTC) {
+        errors.annualCTC =
+          `Annual CTC must match the salary structure. Expected ₹${calculatedAnnualCTC.toLocaleString("en-IN")}.`;
+      }
+    }
+
+    setSalaryErrors(errors);
+
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateAllFields = () => {
+    const bankValid = validateBankFields();
+    const salaryValid = validateSalaryFields();
+
+    if (!bankValid || !salaryValid) {
+      setApiError(
+        "Please correct all highlighted bank and salary details before proceeding."
+      );
+      return false;
+    }
+
+    setApiError("");
+    return true;
+  };
+
   useImperativeHandle(ref, () => ({
     validate() {
-      return true;
+      return validateAllFields();
     },
   }));
 
   const handleSalaryInput = (field, value, setter) => {
-    // Remove spaces
-    value = value.replace(/\s/g, "");
-    // Allow only numbers and commas
-    if (!/^[0-9,]*$/.test(value)) {
+    // Numbers only
+    if (!/^\d*$/.test(value)) {
       return;
     }
-    // Count only digits
-    const digits = value.replace(/,/g, "");
-    if (digits.length > 10) {
-      setSalaryErrors(prev => ({
+
+    // Maximum 10 digits
+    if (value.length > 10) {
+      setSalaryErrors((prev) => ({
         ...prev,
-        [field]: "Maximum 10 digits allowed"
+        [field]: "Maximum 10 digits allowed.",
       }));
       return;
     }
-    setSalaryErrors(prev => ({
+
+    // Clear error while typing
+    setSalaryErrors((prev) => ({
       ...prev,
-      [field]: ""
+      [field]: "",
     }));
+
     setter(value);
   };
 
@@ -236,10 +579,21 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
   const handleSaveNext = async () => {
     if (saving) return;
 
-    const finalBankName = bankName === "Other" ? manualBank : bankName;
-
     setApiError("");
     setSuccessMsg("");
+
+    // Validate all fields before proceeding
+    const isValid = validateAllFields();
+
+    if (!isValid) {
+      return;
+    }
+
+    const finalBankName =
+      bankName === "Other"
+        ? manualBank.trim()
+        : bankName.trim();
+
     setSaving(true);
 
     try {
@@ -268,23 +622,23 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
       const response = data
         ? await api.put(
-            API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId),
-            payload,
-            {
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
-          )
+          API_ENDPOINTS.employeeBankDetails.byEmployeeId(employeeId),
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
         : await api.post(
-            API_ENDPOINTS.employeeBankDetails.list,
-            payload,
-            {
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
-          );
+          API_ENDPOINTS.employeeBankDetails.list,
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
       console.log("[BankInfo] Bank save response", {
         method: requestMethod,
@@ -328,9 +682,26 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
             <label>Customer ID</label>
             <input
               value={customerId || ""}
-              onChange={(e) => setCustomerId(e.target.value)}
+              maxLength={20}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\s/g, "");
+
+                if (/^[A-Za-z0-9]*$/.test(value)) {
+                  setCustomerId(value);
+                  setBankErrors((prev) => ({
+                    ...prev,
+                    customerId: "",
+                  }));
+                }
+              }}
               disabled={viewMode}
             />
+
+            {bankErrors.customerId && (
+              <small className="field-error">
+                {bankErrors.customerId}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
@@ -359,9 +730,26 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               <label>Enter Bank Name</label>
               <input
                 value={manualBank || ""}
-                onChange={(e) => setManualBank(e.target.value)}
+                maxLength={100}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  if (/^[A-Za-z0-9 .,'&()/-]*$/.test(value)) {
+                    setManualBank(value);
+                    setBankErrors((prev) => ({
+                      ...prev,
+                      manualBank: "",
+                    }));
+                  }
+                }}
                 disabled={viewMode}
               />
+
+              {bankErrors.manualBank && (
+                <small className="field-error">
+                  {bankErrors.manualBank}
+                </small>
+              )}
             </div>
           )}
 
@@ -369,54 +757,162 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
             <label>Account Holder Name</label>
             <input
               value={accountHolder || ""}
-              onChange={(e) => setAccountHolder(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (/^[A-Za-z .'-]*$/.test(value)) {
+                  setAccountHolder(value);
+                  setBankErrors((prev) => ({
+                    ...prev,
+                    accountHolder: "",
+                  }));
+                }
+              }}
+              maxLength={100}
               disabled={viewMode}
             />
+            {bankErrors.accountHolder && (
+              <small className="field-error">
+                {bankErrors.accountHolder}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
             <label>Account Number</label>
             <input
               value={accountNumber || ""}
-              onChange={(e) => setAccountNumber(e.target.value)}
+              maxLength={18}
+              inputMode="text"
+              onChange={(e) => {
+                const value = e.target.value.replace(/\s/g, "");
+
+                if (/^[A-Za-z0-9]*$/.test(value)) {
+                  setAccountNumber(value);
+                  setBankErrors((prev) => ({
+                    ...prev,
+                    accountNumber: "",
+                  }));
+                }
+              }}
               disabled={viewMode}
             />
+
+            {bankErrors.accountNumber && (
+              <small className="field-error">
+                {bankErrors.accountNumber}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
             <label>IFSC Code</label>
             <input
               value={ifsc || ""}
-              onChange={(e) => setIfsc(e.target.value)}
+              maxLength={11}
+              style={{ textTransform: "uppercase" }}
+              onChange={(e) => {
+                const value = e.target.value
+                  .toUpperCase()
+                  .replace(/[^A-Z0-9]/g, "");
+
+                if (value.length <= 11) {
+                  setIfsc(value);
+                  setBankErrors((prev) => ({
+                    ...prev,
+                    ifsc: "",
+                  }));
+                }
+              }}
               disabled={viewMode}
             />
+
+            {bankErrors.ifsc && (
+              <small className="field-error">
+                {bankErrors.ifsc}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
             <label>Branch Name</label>
             <input
               value={branch || ""}
-              onChange={(e) => setBranch(e.target.value)}
+              maxLength={100}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (/^[A-Za-z0-9 .,'&()/-]*$/.test(value)) {
+                  setBranch(value);
+                  setBankErrors((prev) => ({
+                    ...prev,
+                    branch: "",
+                  }));
+                }
+              }}
               disabled={viewMode}
             />
+
+            {bankErrors.branch && (
+              <small className="field-error">
+                {bankErrors.branch}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
             <label>UAN Number</label>
             <input
               value={uan || ""}
-              onChange={(e) => setUan(e.target.value)}
+              maxLength={12}
+              inputMode="numeric"
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+
+                if (value.length <= 12) {
+                  setUan(value);
+                  setBankErrors((prev) => ({
+                    ...prev,
+                    uan: "",
+                  }));
+                }
+              }}
               disabled={viewMode}
             />
+
+            {bankErrors.uan && (
+              <small className="field-error">
+                {bankErrors.uan}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
             <label>PF Account Number</label>
             <input
               value={pf || ""}
-              onChange={(e) => setPf(e.target.value)}
+              maxLength={22}
+              onChange={(e) => {
+                const value = e.target.value
+                  .toUpperCase()
+                  .replace(/\s/g, "");
+
+                if (/^[A-Z0-9/-]*$/.test(value)) {
+                  setPf(value);
+                  setBankErrors((prev) => ({
+                    ...prev,
+                    pf: "",
+                  }));
+                }
+              }}
               disabled={viewMode}
             />
+
+            {bankErrors.pf && (
+              <small className="field-error">
+                {bankErrors.pf}
+              </small>
+            )}
           </div>
         </div>
       </div>
@@ -446,6 +942,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={annualCTC}
               placeholder="Enter annual CTC (e.g. 600000)"
               onChange={(e) =>
@@ -470,16 +967,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
-              placeholder="Enter basic salary (e.g. 300000)"
+              maxLength={10}
+              placeholder="Enter basic salary (e.g. 30000)"
               value={basicSalary}
               onChange={(e) =>
                 handleSalaryInput(
                   "basicSalary",
                   e.target.value,
                   setBasicSalary
-                )}
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.basicSalary && (
               <small className="field-error">
                 {salaryErrors.basicSalary}
@@ -494,16 +994,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={hra}
-              placeholder="Enter HRA amount (e.g. 120000)"
+              placeholder="Enter HRA amount (e.g. 12000)"
               onChange={(e) =>
                 handleSalaryInput(
                   "hra",
                   e.target.value,
                   setHra
-                )}
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.hra && (
               <small className="field-error">
                 {salaryErrors.hra}
@@ -518,8 +1021,9 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={conveyanceAllowance}
-              placeholder="Enter conveyance allowance (e.g. 24000)"
+              placeholder="Enter conveyance allowance (e.g. 2400)"
               onChange={(e) =>
                 handleSalaryInput(
                   "conveyanceAllowance",
@@ -529,6 +1033,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               }
               disabled={viewMode}
             />
+
             {salaryErrors.conveyanceAllowance && (
               <small className="field-error">
                 {salaryErrors.conveyanceAllowance}
@@ -543,15 +1048,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={medicalAllowance}
-              placeholder="Enter medical allowance (e.g. 15000)"
-              onChange={(e) => handleSalaryInput(
-                "medicalAllowance",
-                e.target.value,
-                setMedicalAllowance
-              )}
+              placeholder="Enter medical allowance (e.g. 1500)"
+              onChange={(e) =>
+                handleSalaryInput(
+                  "medicalAllowance",
+                  e.target.value,
+                  setMedicalAllowance
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.medicalAllowance && (
               <small className="field-error">
                 {salaryErrors.medicalAllowance}
@@ -566,15 +1075,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={specialAllowance}
-              placeholder="Enter special allowance (e.g. 50000)"
-              onChange={(e) => handleSalaryInput(
-                "specialAllowance",
-                e.target.value,
-                setSpecialAllowance
-              )}
+              placeholder="Enter special allowance (e.g. 5000)"
+              onChange={(e) =>
+                handleSalaryInput(
+                  "specialAllowance",
+                  e.target.value,
+                  setSpecialAllowance
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.specialAllowance && (
               <small className="field-error">
                 {salaryErrors.specialAllowance}
@@ -589,15 +1102,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={employeePF}
               placeholder="Enter employee PF (e.g. 1800)"
-              onChange={(e) => handleSalaryInput(
-                "employeePF",
-                e.target.value,
-                setEmployeePF
-              )}
+              onChange={(e) =>
+                handleSalaryInput(
+                  "employeePF",
+                  e.target.value,
+                  setEmployeePF
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.employeePF && (
               <small className="field-error">
                 {salaryErrors.employeePF}
@@ -612,15 +1129,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={employerPF}
               placeholder="Enter employer PF (e.g. 1800)"
-              onChange={(e) => handleSalaryInput(
-                "employerPF",
-                e.target.value,
-                setEmployerPF
-              )}
+              onChange={(e) =>
+                handleSalaryInput(
+                  "employerPF",
+                  e.target.value,
+                  setEmployerPF
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.employerPF && (
               <small className="field-error">
                 {salaryErrors.employerPF}
@@ -635,15 +1156,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={professionalTax}
               placeholder="Enter professional tax (e.g. 200)"
-              onChange={(e) => handleSalaryInput(
-                "professionalTax",
-                e.target.value,
-                setProfessionalTax
-              )}
+              onChange={(e) =>
+                handleSalaryInput(
+                  "professionalTax",
+                  e.target.value,
+                  setProfessionalTax
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.professionalTax && (
               <small className="field-error">
                 {salaryErrors.professionalTax}
@@ -658,15 +1183,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={tds}
               placeholder="Enter TDS amount (e.g. 2500)"
-              onChange={(e) => handleSalaryInput(
-                "tds",
-                e.target.value,
-                setTds
-              )}
+              onChange={(e) =>
+                handleSalaryInput(
+                  "tds",
+                  e.target.value,
+                  setTds
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.tds && (
               <small className="field-error">
                 {salaryErrors.tds}
@@ -681,15 +1210,19 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
               type="text"
               inputMode="numeric"
               autoComplete="off"
+              maxLength={10}
               value={otherDeduction}
               placeholder="Enter other deduction (e.g. 1000)"
-              onChange={(e) => handleSalaryInput(
-                "otherDeduction",
-                e.target.value,
-                setOtherDeduction
-              )}
+              onChange={(e) =>
+                handleSalaryInput(
+                  "otherDeduction",
+                  e.target.value,
+                  setOtherDeduction
+                )
+              }
               disabled={viewMode}
             />
+
             {salaryErrors.otherDeduction && (
               <small className="field-error">
                 {salaryErrors.otherDeduction}
@@ -699,7 +1232,7 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
 
         </div>
 
-       
+
       </div>
 
       <div className="step-actions bank-step-actions">

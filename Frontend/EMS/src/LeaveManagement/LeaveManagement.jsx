@@ -19,6 +19,8 @@ function LeaveManagement() {
   const [filter, setFilter] = useState("All");
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [pendingApproval, setPendingApproval] = useState(null);
+  const [rejectRequest, setRejectRequest] = useState(null);
+  const [rejectRemark, setRejectRemark] = useState("");
   const [leaveData, setLeaveData] = useState([]);
   const [actionLoading, setActionLoading] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,30 +33,30 @@ function LeaveManagement() {
   const [searchQuery, setSearchQuery] = useState(""); // ✅ NEW: Search state
   const ROWS_PER_PAGE = 5;
   const FILTER_OPTIONS = [
-  "All",
-  "Pending",
-  "Approved",
-  "Rejected",
-  "Leave",
-  "WFH"];
+    "All",
+    "Pending",
+    "Approved",
+    "Rejected",
+    "Leave",
+    "WFH"];
 
   const getToken = () =>
-  localStorage.getItem("token") || sessionStorage.getItem("token");
+    localStorage.getItem("token") || sessionStorage.getItem("token");
 
   const firstDefined = (...values) =>
-  values.find((value) => value !== undefined && value !== null && value !== "");
+    values.find((value) => value !== undefined && value !== null && value !== "");
 
   const getValue = (record, keys) =>
-  firstDefined(...keys.map((key) => record?.[key]));
+    firstDefined(...keys.map((key) => record?.[key]));
 
   const normalizeStatusToken = (value) =>
-  String(value ?? "")
-  .trim()
-  .toLowerCase()
-  .replace(/[\s_-]+/g, "");
+    String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
 
   const isPendingStatus = (status) =>
-  normalizeStatusToken(status) === "pending";
+    normalizeStatusToken(status) === "pending";
 
   const isApprovedStatus = (status) => {
     const normalized = normalizeStatusToken(status);
@@ -116,13 +118,13 @@ function LeaveManagement() {
       const approverMatch = rawValue.match(/\bby\s+(.+)$/i);
       const approver = approverMatch?.[1]?.trim();
       const isWfhApproval =
-      normalized.includes("wfh") ||
-      /\bwfh\b/i.test(rawValue);
+        normalized.includes("wfh") ||
+        /\bwfh\b/i.test(rawValue);
 
       if (approver) {
         return isWfhApproval ?
-        `Approved As WFH By ${approver}` :
-        `Approved By ${approver}`;
+          `Approved As WFH By ${approver}` :
+          `Approved By ${approver}`;
       }
 
       if (isWfhApproval) {
@@ -177,14 +179,14 @@ function LeaveManagement() {
       const displayValue =
         typeof value === "object"
           ? firstDefined(
-              value.remaining,
-              value.Remaining,
-              value.balance,
-              value.Balance,
-              value.total,
-              value.Total,
-              0
-            )
+            value.remaining,
+            value.Remaining,
+            value.balance,
+            value.Balance,
+            value.total,
+            value.Total,
+            0
+          )
           : value;
 
       return { label, value: displayValue };
@@ -265,14 +267,14 @@ function LeaveManagement() {
   };
 
   const normalizeText = (value) =>
-  String(value ?? "").trim().toLowerCase();
+    String(value ?? "").trim().toLowerCase();
 
   const normalizeLeaveType = (value) => {
     const normalized = normalizeText(value).
-    replace(/\((.*?)\)/g, "$1").
-    replace(/[^a-z0-9]+/g, " ").
-    replace(/\bleave\b/g, "").
-    trim();
+      replace(/\((.*?)\)/g, "$1").
+      replace(/[^a-z0-9]+/g, " ").
+      replace(/\bleave\b/g, "").
+      trim();
 
     if (["lop", "loss of pay"].includes(normalized)) {
       return "loss of pay";
@@ -283,11 +285,11 @@ function LeaveManagement() {
 
   const normalizeRequestRecord = (item, requestType, index) => {
     const leaveType = requestType === "WFH" ?
-    firstDefined(
-      getValue(item, ["leaveType", "LeaveType", "requestType", "RequestType"]),
-      "Work From Home"
-    ) :
-    getValue(item, ["leaveType", "LeaveType", "type", "Type"]);
+      firstDefined(
+        getValue(item, ["leaveType", "LeaveType", "requestType", "RequestType"]),
+        "Work From Home"
+      ) :
+      getValue(item, ["leaveType", "LeaveType", "type", "Type"]);
 
     return {
       ...item,
@@ -428,7 +430,7 @@ function LeaveManagement() {
         leaveBalance,
 
         totalLeavesApplied:
-        apiData?.totalLeavesApplied || history.length || 0,
+          apiData?.totalLeavesApplied || history.length || 0,
 
         // leaveBalances: {
         //   casual:
@@ -467,9 +469,10 @@ function LeaveManagement() {
 
   /* ================= UPDATE STATUS ================= */
   const updateStatus = async (
-  leaveId,
-  status) =>
-  {
+    leaveId,
+    status,
+    approvalRemark = ""
+  ) => {
 
     const requestStatus = String(status ?? "").trim();
 
@@ -483,7 +486,12 @@ function LeaveManagement() {
         leaveId,
         null,
         {
-          params: { status },
+          params: {
+            status,
+            ...(approvalRemark?.trim()
+              ? { approvalRemark: approvalRemark.trim() }
+              : {})
+          },
           headers: {
             Authorization: `Bearer ${getToken()}`
           }
@@ -496,8 +504,7 @@ function LeaveManagement() {
       ]);
 
       if (
-      selectedLeave?.id === leaveId)
-      {
+        selectedLeave?.id === leaveId) {
 
         setSelectedLeave((prev) => ({
           ...prev,
@@ -508,8 +515,8 @@ function LeaveManagement() {
 
       toast.success(
         requestStatus === "Reject" ?
-        "Leave request rejected successfully." :
-        "Leave request updated successfully."
+          "Leave request rejected successfully." :
+          "Leave request updated successfully."
       );
 
       return true;
@@ -532,10 +539,10 @@ function LeaveManagement() {
   };
 
   const updateWFHStatus = async (
-  id,
-  status) =>
-  {
-
+    id,
+    status,
+    approvalRemark = ""
+  ) => {
     const requestStatus = String(status ?? "").trim();
 
     try {
@@ -546,7 +553,15 @@ function LeaveManagement() {
         id,
         null,
         {
-          params: { status: requestStatus },
+          params: {
+            status: requestStatus,
+            ...(approvalRemark?.trim()
+              ? {
+                approvalRemark:
+                  approvalRemark.trim()
+              }
+              : {})
+          },
           headers: {
             Authorization: `Bearer ${getToken()}`
           }
@@ -560,8 +575,8 @@ function LeaveManagement() {
 
       toast.success(
         requestStatus === "Reject" ?
-        "Work From Home request rejected successfully." :
-        "Work From Home request updated successfully."
+          "Work From Home request rejected successfully." :
+          "Work From Home request updated successfully."
       );
 
       return true;
@@ -584,17 +599,17 @@ function LeaveManagement() {
   };
 
   const getApprovalOptions = (requestType) =>
-  requestType === "WFH" ?
-  [
-    { label: "Approve as Work From Home", status: "ApproveAsWFH" },
-    { label: "Approve as Leave", status: "ApproveAsLeave" },
-    { label: "Reject", status: "Reject" }
-  ] :
-  [
-    { label: "Approve as Leave", status: "ApproveAsLeave" },
-    { label: "Approve as Work From Home", status: "ApproveAsWFH" },
-    { label: "Reject", status: "Reject" }
-  ];
+    requestType === "WFH" ?
+      [
+        { label: "Approve as Work From Home", status: "ApproveAsWFH" },
+        { label: "Approve as Leave", status: "ApproveAsLeave" },
+        { label: "Reject", status: "Reject" }
+      ] :
+      [
+        { label: "Approve as Leave", status: "ApproveAsLeave" },
+        { label: "Approve as Work From Home", status: "ApproveAsWFH" },
+        { label: "Reject", status: "Reject" }
+      ];
 
   const handleApprovalAction = async (request, status) => {
     if (!request?.id || !status || isFinalApprovalStatus(request.status)) {
@@ -602,12 +617,41 @@ function LeaveManagement() {
     }
 
     const result =
-    request.requestType === "WFH" ?
-    await updateWFHStatus(request.id, status) :
-    await updateStatus(request.id, status);
+      request.requestType === "WFH" ?
+        await updateWFHStatus(request.id, status) :
+        await updateStatus(request.id, status);
 
     if (result) {
       setPendingApproval(null);
+    }
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!rejectRequest?.id) return;
+
+    const remark = rejectRemark.trim();
+
+    if (!remark) {
+      toast.error("Please enter a rejection reason.");
+      return;
+    }
+
+    const success =
+      rejectRequest.requestType === "WFH"
+        ? await updateWFHStatus(
+          rejectRequest.id,
+          "Reject",
+          remark
+        )
+        : await updateStatus(
+          rejectRequest.id,
+          "Reject",
+          remark
+        );
+
+    if (success) {
+      setRejectRequest(null);
+      setRejectRemark("");
     }
   };
 
@@ -639,13 +683,13 @@ function LeaveManagement() {
   };
 
   const combinedData = [
-  ...(leaveData || []).map((item, index) =>
-  normalizeRequestRecord(item, "Leave", index)
-  ),
+    ...(leaveData || []).map((item, index) =>
+      normalizeRequestRecord(item, "Leave", index)
+    ),
 
-  ...(wfhData || []).map((item, index) =>
-  normalizeRequestRecord(item, "WFH", index)
-  )];
+    ...(wfhData || []).map((item, index) =>
+      normalizeRequestRecord(item, "WFH", index)
+    )];
 
   const filteredLeaves = combinedData.filter((item) => {
     const itemStatus = normalizeStatusToken(item.status);
@@ -661,11 +705,11 @@ function LeaveManagement() {
       matchesFilter = itemStatus === "pending";
     } else if (filter === "Approved") {
       matchesFilter =
-      itemStatus.includes("approved") ||
-      itemStatus.startsWith("approveas");
+        itemStatus.includes("approved") ||
+        itemStatus.startsWith("approveas");
     } else if (filter === "Rejected") {
       matchesFilter =
-      itemStatus.includes("reject");
+        itemStatus.includes("reject");
     }
 
     if (!matchesFilter) {
@@ -679,26 +723,26 @@ function LeaveManagement() {
     }
 
     return [
-    item.employeeName,
-    item.employeeId,
-    item.leaveType,
-    item.reason,
-    formatStatusLabel(item.status),
-    item.requestType].
-    some((value) => normalizeText(value).includes(normalizedSearch));
+      item.employeeName,
+      item.employeeId,
+      item.leaveType,
+      item.reason,
+      formatStatusLabel(item.status),
+      item.requestType].
+      some((value) => normalizeText(value).includes(normalizedSearch));
   });
   const totalPages = Math.ceil(
     filteredLeaves.length / ROWS_PER_PAGE
   );
 
   const startIndex =
-  (currentPage - 1) * ROWS_PER_PAGE;
+    (currentPage - 1) * ROWS_PER_PAGE;
 
   const paginatedLeaves =
-  filteredLeaves.slice(
-    startIndex,
-    startIndex + ROWS_PER_PAGE
-  );
+    filteredLeaves.slice(
+      startIndex,
+      startIndex + ROWS_PER_PAGE
+    );
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -708,129 +752,193 @@ function LeaveManagement() {
 
   if (loading) {
     return (
-      <div className="leave-page">
-        <div className="leave-header">
-          <div>
-            <h2>Leave Management</h2>
-            <p>Manage employee leave requests</p>
-          </div>
-        </div>
-
-        <div className="leave-filter-tabs" aria-label="Leave request filters">
+      <div className="leave-page">
+
+        <div className="leave-header">
+
+          <div>
+
+            <h2>Leave Management</h2>
+
+            <p>Manage employee leave requests</p>
+
+          </div>
+
+        </div>
+
+
+
+        <div className="leave-filter-tabs" aria-label="Leave request filters">
+
           {FILTER_OPTIONS.map((tab) =>
-          <button
-            key={tab}
-            type="button"
-            className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
-            aria-pressed={filter === tab}
-            disabled>
-            
-              {tab}
+            <button
+              key={tab}
+              type="button"
+              className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
+              aria-pressed={filter === tab}
+              disabled>
+
+
+              {tab}
+
             </button>
-          )}
-        </div>
-
+          )}
+
+        </div>
+
+
+
         <TableSkeleton
           rows={10}
           columns={[
-          { width: "140px", headerWidth: "58%" },
-          { width: "minmax(180px, 1.2fr)", headerWidth: "62%" },
-          { width: "minmax(160px, 1.1fr)", headerWidth: "60%" },
-          { width: "180px", headerWidth: "60%" },
-          { width: "70px", type: "status", headerWidth: "54%" },
-          { width: "180px", headerWidth: "58%" },
-          { width: "120px", type: "status", headerWidth: "54%" },
-          { width: "160px", type: "actions", headerWidth: "54%" }]
+            { width: "140px", headerWidth: "58%" },
+            { width: "minmax(180px, 1.2fr)", headerWidth: "62%" },
+            { width: "minmax(160px, 1.1fr)", headerWidth: "60%" },
+            { width: "180px", headerWidth: "60%" },
+            { width: "70px", type: "status", headerWidth: "54%" },
+            { width: "180px", headerWidth: "58%" },
+            { width: "120px", type: "status", headerWidth: "54%" },
+            { width: "160px", type: "actions", headerWidth: "54%" }]
           } />
-        
+
+
       </div>);
 
   }
 
   return (
-    <div className="leave-page">
-      {/* HEADER */}
-      <div className="leave-header">
-        <div>
-          <h2>Leave Management</h2>
-          <p>Manage employee leave requests</p>
-        </div>
-      </div>
-
-      {/* ✅ NEW: SEARCH BAR */}
-      <div className="leave-toolbar" aria-label="Leave search and filters">
-        <div className="search-bar-container">
-        <input
+    <div className="leave-page">
+
+      {/* HEADER */}
+
+      <div className="leave-header">
+
+        <div>
+
+          <h2>Leave Management</h2>
+
+          <p>Manage employee leave requests</p>
+
+        </div>
+
+      </div>
+
+
+
+      {/* ✅ NEW: SEARCH BAR */}
+
+      <div className="leave-toolbar" aria-label="Leave search and filters">
+
+        <div className="search-bar-container">
+
+          <input
             type="text"
             placeholder="Search by name, ID, type, or reason..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input" />
-          
-        {searchQuery &&
-          <button
-            className="clear-search-btn"
-            onClick={() => setSearchQuery("")}>
-            
-            ✕
-          </button>
-          }
-        </div>
-
-        {/* FILTERS */}
-        <div className="leave-filter-tabs" aria-label="Leave request filters">
-        {FILTER_OPTIONS.map((tab) =>
-          <button
-            key={tab}
-            type="button"
-            className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
-            onClick={() => setFilter(tab)}
-            aria-pressed={filter === tab}>
-            
-            {tab}
-          </button>
-          )}
-        </div>
-
-      </div>
-
-      {/* TABLE */}
-      <div className="leave-table">
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>EMPLOYEE</th>
-                <th>LEAVE TYPE</th>
-                <th>DURATION</th>
-                <th>DAYS</th>
-                <th>REASON</th>
-                <th>STATUS</th>
-                <th>ACTIONS</th>
-              </tr>
-            </thead>
-
-            <tbody>
+
+
+          {searchQuery &&
+            <button
+              className="clear-search-btn"
+              onClick={() => setSearchQuery("")}>
+
+
+              ✕
+
+            </button>
+          }
+
+        </div>
+
+
+
+        {/* FILTERS */}
+
+        <div className="leave-filter-tabs" aria-label="Leave request filters">
+
+          {FILTER_OPTIONS.map((tab) =>
+            <button
+              key={tab}
+              type="button"
+              className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
+              onClick={() => setFilter(tab)}
+              aria-pressed={filter === tab}>
+
+
+              {tab}
+
+            </button>
+          )}
+
+        </div>
+
+
+
+      </div>
+
+
+
+      {/* TABLE */}
+
+      <div className="leave-table">
+
+        <div className="table-scroll">
+
+          <table>
+
+            <thead>
+
+              <tr>
+
+                <th>EMPLOYEE</th>
+
+                <th>LEAVE TYPE</th>
+
+                <th>DURATION</th>
+
+                <th>DAYS</th>
+
+                <th>REASON</th>
+
+                <th>STATUS</th>
+
+                <th>ACTIONS</th>
+
+              </tr>
+
+            </thead>
+
+
+
+            <tbody>
+
               {filteredLeaves.length === 0 ?
-              <tr>
+                <tr>
+
                   <td colSpan="7" style={{ textAlign: "center", padding: "20px" }}>
-                    {searchQuery ? "No matching records found" : "No leave records found"}
-                  </td>
+                    {searchQuery ? "No matching records found" : "No leave records found"}
+
+                  </td>
+
                 </tr> :
 
-              paginatedLeaves.map((leave) => {
-                const days = calculateDays(leave.fromDate, leave.toDate);
-                const isFinalRequest = isFinalApprovalStatus(leave.status);
-                const isRowActionLoading = actionLoading.startsWith(`${leave.id}-`);
-                const isRowActionDisabled = isFinalRequest || isRowActionLoading;
-                const reasonText = String(leave.reason ?? "").trim();
-                const reasonTitle = reasonText || "No reason provided";
+                paginatedLeaves.map((leave) => {
+                  const days = calculateDays(leave.fromDate, leave.toDate);
+                  const isFinalRequest = isFinalApprovalStatus(leave.status);
+                  const isRowActionLoading = actionLoading.startsWith(`${leave.id}-`);
+                  const isRowActionDisabled = isFinalRequest || isRowActionLoading;
+                  const reasonText = String(leave.reason ?? "").trim();
+                  const reasonTitle = reasonText || "No reason provided";
 
-                return (
-                  <tr
-                    key={`${leave.requestType}-${leave.id}`}>
-                    
-
+                  return (
+                    <tr
+                      key={`${leave.requestType}-${leave.id}`}>
+
+
+
+
                       <td className="leave-employee-cell">
                         <div className="leave-employee-content">
                           <span
@@ -843,510 +951,930 @@ function LeaveManagement() {
                           </span>
                         </div>
                       </td>
-
-                      <td>{leave.leaveType || "-"}</td>
-
-                      <td>
-                        {formatDate(leave.fromDate)} — {formatDate(leave.toDate)}
-                      </td>
-
-                      <td className="center">{days}</td>
-
-                      {/* ✅ FIXED: Short reason in table */}
+
+
+                      <td>{leave.leaveType || "-"}</td>
+
+
+
+                      <td>
+
+                        {formatDate(leave.fromDate)} — {formatDate(leave.toDate)}
+
+                      </td>
+
+
+
+                      <td className="center">{days}</td>
+
+
+
+                      {/* ✅ FIXED: Short reason in table */}
+
                       <td
-                      className="leave-reason-cell"
-                      onClick={() => setSelectedLeave(leave)}
-                      title={reasonTitle}>
+                        className="leave-reason-cell"
+                        onClick={() => setSelectedLeave(leave)}
+                        title={reasonTitle}>
                         <span className="leave-reason-text">
                           {reasonText || "-"}
                         </span>
                       </td>
-
-                      <td>
-                          {(() => {
-                            const statusValue = leave.status || "Pending";
-                            const { display, title } = truncateStatus(
-                              formatStatusLabel(statusValue),
-                              20
-                            );
 
-                            return (
-                              <span
-                                className={`status ${getStatusGroup(statusValue)}`}
-                                title={title}>
-                                {display}
-                              </span>
-                            );
-                          })()}
-                      </td>
-
+
+                      <td>
+
+                        {(() => {
+                          const statusValue = leave.status || "Pending";
+                          const { display, title } = truncateStatus(
+                            formatStatusLabel(statusValue),
+                            20
+                          );
+
+                          return (
+                            <span
+                              className={`status ${getStatusGroup(statusValue)}`}
+                              title={title}>
+                              {display}
+                            </span>
+                          );
+                        })()}
+                      </td>
+
+
+
                       <td
-                      className="action-cell"
-                      onClick={(e) => e.stopPropagation()}>
-                      
+                        className="action-cell"
+                        onClick={(e) => e.stopPropagation()}>
+
+
                         <button
-                        className="approve-btn"
-                        onClick={() => !isRowActionDisabled && setPendingApproval(leave)}
-                        disabled={isRowActionDisabled}>
-                        
+                          className="approve-btn"
+                          onClick={() => !isRowActionDisabled && setPendingApproval(leave)}
+                          disabled={isRowActionDisabled}>
+
+
                           {isRowActionLoading ?
-                        "Processing..." :
-                        "Approve"}
+                            "Processing..." :
+                            "Approve"}
                         </button>
-
+
+
                         <button
-                        className="reject-btn"
-                        onClick={() =>
-                        !isRowActionDisabled &&
-                        (leave.requestType === "WFH" ?
-                        updateWFHStatus(
-                          leave.id,
-                          "Reject"
-                        ) :
-                        updateStatus(
-                          leave.id,
-                          "Reject"
-                        ))
-                        }
-                        disabled={isRowActionDisabled}>
-                        
-                          {actionLoading ===
-                        `${leave.id}-Reject` ?
-                        "Rejecting..." :
-                        "Reject"}
-                        </button>
-                      </td>
+                          className="reject-btn"
+                          onClick={() => {
+                            if (isRowActionDisabled) return;
+
+                            setRejectRequest(leave);
+                            setRejectRemark("");
+                          }}
+                          disabled={isRowActionDisabled}
+                        >
+                          Reject
+                        </button>
+
+                      </td>
+
                     </tr>);
 
-              })
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* PAGINATION */}
+                })
+              }
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+
+
+      {/* PAGINATION */}
+
       <AppPagination
         totalItems={filteredLeaves.length}
         currentPage={currentPage}
         pageSize={ROWS_PER_PAGE}
         onPageChange={setCurrentPage}
         itemLabel="leave requests" />
-      
-
+
+
+
+
       {/* APPROVAL MODAL */}
 
       {pendingApproval &&
-      (() => {
-        const isProcessing = actionLoading.startsWith(`${pendingApproval.id}-`);
-        const isFinalRequest = isFinalApprovalStatus(pendingApproval.status);
-        const isActionDisabled = isProcessing || isFinalRequest;
-        const approvalOptions = getApprovalOptions(pendingApproval.requestType)
-        .filter((option) => option.status !== "Reject");
+        (() => {
+          const isProcessing = actionLoading.startsWith(`${pendingApproval.id}-`);
+          const isFinalRequest = isFinalApprovalStatus(pendingApproval.status);
+          const isActionDisabled = isProcessing || isFinalRequest;
+          const approvalOptions = getApprovalOptions(pendingApproval.requestType)
+            .filter((option) => option.status !== "Reject");
 
-        return (
-          <div className="leave-details-overlay" role="presentation">
-            <div className="leave-details-container leave-approval-container" role="dialog" aria-modal="true" aria-labelledby="leave-approval-title">
-              <button
-                type="button"
-                className="leave-details-close-icon"
-                onClick={() => !isProcessing && setPendingApproval(null)}
-                disabled={isProcessing}
-                aria-label="Close approval dialog">
-                ×
-              </button>
+          return (
+            <div className="leave-details-overlay" role="presentation">
+              <div className="leave-details-container leave-approval-container" role="dialog" aria-modal="true" aria-labelledby="leave-approval-title">
+                <button
+                  type="button"
+                  className="leave-details-close-icon"
+                  onClick={() => !isProcessing && setPendingApproval(null)}
+                  disabled={isProcessing}
+                  aria-label="Close approval dialog">
+                  ×
+                </button>
 
-              <h3 className="leave-details-title" id="leave-approval-title">
-                {pendingApproval.requestType === "WFH" ? "Work From Home Approval" : "Leave Approval"}
-              </h3>
+                <h3 className="leave-details-title" id="leave-approval-title">
+                  {pendingApproval.requestType === "WFH" ? "Work From Home Approval" : "Leave Approval"}
+                </h3>
 
-              <div className="leave-details-row">
-                <span className="leave-details-label">Employee</span>
-                <span className="leave-details-value">{pendingApproval.employeeName || "-"}</span>
-              </div>
+                <div className="leave-details-row">
+                  <span className="leave-details-label">Employee</span>
+                  <span className="leave-details-value">{pendingApproval.employeeName || "-"}</span>
+                </div>
 
-              <div className="leave-details-row">
-                <span className="leave-details-label">Employee ID</span>
-                <span className="leave-details-value">{pendingApproval.employeeId || "-"}</span>
-              </div>
+                <div className="leave-details-row">
+                  <span className="leave-details-label">Employee ID</span>
+                  <span className="leave-details-value">{pendingApproval.employeeId || "-"}</span>
+                </div>
 
-              <div className="leave-details-row">
-                <span className="leave-details-label">Request Type</span>
-                <span className="leave-details-value">
-                  {pendingApproval.requestType === "WFH" ? "Work From Home" : "Leave"}
-                </span>
-              </div>
+                <div className="leave-details-row">
+                  <span className="leave-details-label">Request Type</span>
+                  <span className="leave-details-value">
+                    {pendingApproval.requestType === "WFH" ? "Work From Home" : "Leave"}
+                  </span>
+                </div>
 
-              <div className="leave-details-row">
-                <span className="leave-details-label">From Date</span>
-                <span className="leave-details-value">{formatDate(pendingApproval.fromDate)}</span>
-              </div>
+                <div className="leave-details-row">
+                  <span className="leave-details-label">From Date</span>
+                  <span className="leave-details-value">{formatDate(pendingApproval.fromDate)}</span>
+                </div>
 
-              <div className="leave-details-row">
-                <span className="leave-details-label">To Date</span>
-                <span className="leave-details-value">{formatDate(pendingApproval.toDate)}</span>
-              </div>
+                <div className="leave-details-row">
+                  <span className="leave-details-label">To Date</span>
+                  <span className="leave-details-value">{formatDate(pendingApproval.toDate)}</span>
+                </div>
 
-              <div className="leave-details-reason">
-                <span className="leave-details-label">Reason</span>
-                <div className="leave-details-reason-text">
-                  {pendingApproval.reason || "-"}
+                <div className="leave-details-reason">
+                  <span className="leave-details-label">Reason</span>
+                  <div className="leave-details-reason-text">
+                    {pendingApproval.reason || "-"}
+                  </div>
+                </div>
+
+                <div className="leave-approval-actions">
+                  {approvalOptions.map((option) => {
+                    const isCurrentOptionLoading = actionLoading === `${pendingApproval.id}-${option.status}`;
+
+                    return (
+                      <button
+                        key={option.status}
+                        type="button"
+                        className={option.status === "Reject" ? "reject-btn" : "approve-btn"}
+                        onClick={() => !isActionDisabled && handleApprovalAction(pendingApproval, option.status)}
+                        disabled={isActionDisabled}>
+                        {isCurrentOptionLoading ? "Processing..." : option.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
+            </div>
+          );
+        })()}
 
-              <div className="leave-approval-actions">
-                {approvalOptions.map((option) => {
-                  const isCurrentOptionLoading = actionLoading === `${pendingApproval.id}-${option.status}`;
+      {/* REJECT REASON MODAL */}
+      {rejectRequest && (
+        <div
+          className="leave-details-overlay"
+          role="presentation"
+        >
+          <div
+            className="leave-details-container leave-reject-container"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leave-reject-title"
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              className="leave-details-close-icon"
+              onClick={() => {
+                if (!actionLoading) {
+                  setRejectRequest(null);
+                  setRejectRemark("");
+                }
+              }}
+              disabled={!!actionLoading}
+              aria-label="Close rejection dialog"
+            >
+              ×
+            </button>
 
-                  return (
-                    <button
-                      key={option.status}
-                      type="button"
-                      className={option.status === "Reject" ? "reject-btn" : "approve-btn"}
-                      onClick={() => !isActionDisabled && handleApprovalAction(pendingApproval, option.status)}
-                      disabled={isActionDisabled}>
-                      {isCurrentOptionLoading ? "Processing..." : option.label}
-                    </button>
-                  );
-                })}
+            {/* Title */}
+            <h3
+              className="leave-details-title"
+              id="leave-reject-title"
+            >
+              Reject Leave
+            </h3>
+
+            {/* Employee */}
+            <div className="leave-details-row">
+              <span className="leave-details-label">
+                Employee
+              </span>
+
+              <span className="leave-details-value">
+                {rejectRequest.employeeName || "-"}
+              </span>
+            </div>
+
+            {/* Employee ID */}
+            <div className="leave-details-row">
+              <span className="leave-details-label">
+                Employee ID
+              </span>
+
+              <span className="leave-details-value">
+                {rejectRequest.employeeId || "-"}
+              </span>
+            </div>
+
+            {/* Request Type */}
+            <div className="leave-details-row">
+              <span className="leave-details-label">
+                Request Type
+              </span>
+
+              <span className="leave-details-value">
+                {rejectRequest.requestType || "Leave"}
+              </span>
+            </div>
+
+            {/* From Date */}
+            <div className="leave-details-row">
+              <span className="leave-details-label">
+                From Date
+              </span>
+
+              <span className="leave-details-value">
+                {formatDate(rejectRequest.fromDate)}
+              </span>
+            </div>
+
+            {/* To Date */}
+            <div className="leave-details-row">
+              <span className="leave-details-label">
+                To Date
+              </span>
+
+              <span className="leave-details-value">
+                {formatDate(rejectRequest.toDate)}
+              </span>
+            </div>
+
+            {/* Rejection Reason */}
+            <div className="leave-reject-form-group">
+              <label htmlFor="reject-remark">
+                Rejection Reason
+              </label>
+
+              <textarea
+                id="reject-remark"
+                value={rejectRemark}
+                onChange={(e) =>
+                  setRejectRemark(e.target.value)
+                }
+                placeholder="Enter reason for rejecting this leave request..."
+                rows={5}
+                maxLength={500}
+                disabled={!!actionLoading}
+              />
+
+              <div className="reject-remark-counter">
+                {rejectRemark.length}/500
               </div>
             </div>
+
+            {/* Buttons */}
+            <div className="leave-approval-actions">
+              <button
+                type="button"
+                className="approve-btn"
+                onClick={() => {
+                  setRejectRequest(null);
+                  setRejectRemark("");
+                }}
+                disabled={!!actionLoading}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="reject-btn"
+                onClick={handleRejectSubmit}
+                disabled={
+                  !!actionLoading ||
+                  !rejectRemark.trim()
+                }
+              >
+                {actionLoading ===
+                  `${rejectRequest.id}-Reject`
+                  ? "Rejecting..."
+                  : "Submit Rejection"}
+              </button>
+            </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* DETAILS MODAL */}
       {selectedLeave &&
-      <div className="leave-details-overlay">
-          <div className="leave-details-container">
-
+        <div className="leave-details-overlay">
+
+          <div className="leave-details-container">
+
+
+
             <button
-            className="leave-details-close-icon"
-            onClick={() => setSelectedLeave(null)}>
-            
-              ×
-            </button>
-            <h3 className="leave-details-title">Leave Details</h3>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Emp ID</span>
-              <span className="leave-details-value">
-                {selectedLeave.employeeId}
-              </span>
-            </div>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Name</span>
-              <span className="leave-details-value">
-                {selectedLeave.employeeName}
-              </span>
-            </div>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Type</span>
-              <span className="leave-details-value">
-                {selectedLeave.leaveType}
-              </span>
-            </div>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Duration</span>
-              <span className="leave-details-value">
-                {formatDate(selectedLeave.fromDate)} —{" "}
-                {formatDate(selectedLeave.toDate)}
-              </span>
-            </div>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Days</span>
-              <span className="leave-details-value">
-                {calculateDays(selectedLeave.fromDate, selectedLeave.toDate)}
-              </span>
-            </div>
-
-            {/* ✅ FULL reason stays in popup */}
-            <div className="leave-details-reason">
-              <span className="leave-details-label">Reason</span>
-
-              <div className="leave-details-reason-text">
-                {selectedLeave.reason || "-"}
-              </div>
-            </div>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Applied Date</span>
-              <span className="leave-details-value">
-                {selectedLeave.appliedDate ?
-              formatDate(selectedLeave.appliedDate) :
-              "-"}
-              </span>
-            </div>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Approved Date</span>
-              <span className="leave-details-value">
-                {selectedLeave.approvedDate ?
-              formatDate(selectedLeave.approvedDate) :
-              "-"}
-              </span>
-            </div>
-
-            <div className="leave-details-row">
-              <span className="leave-details-label">Status</span>
-              <span
-              className={`leave-details-value leave-status-${getStatusGroup(selectedLeave.status)}`}>
-              
-                {formatStatusLabel(selectedLeave.status)}
-              </span>
-            </div>
-
-            <div className="leave-details-footer">
-              <button
-              className="leave-details-close-btn"
+              className="leave-details-close-icon"
               onClick={() => setSelectedLeave(null)}>
-              
-                Close
-              </button>
-            </div>
-          </div>
-
-
+
+
+              ×
+
+            </button>
+
+            <h3 className="leave-details-title">Leave Details</h3>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Emp ID</span>
+
+              <span className="leave-details-value">
+
+                {selectedLeave.employeeId}
+
+              </span>
+
+            </div>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Name</span>
+
+              <span className="leave-details-value">
+
+                {selectedLeave.employeeName}
+
+              </span>
+
+            </div>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Type</span>
+
+              <span className="leave-details-value">
+
+                {selectedLeave.leaveType}
+
+              </span>
+
+            </div>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Duration</span>
+
+              <span className="leave-details-value">
+
+                {formatDate(selectedLeave.fromDate)} —{" "}
+
+                {formatDate(selectedLeave.toDate)}
+
+              </span>
+
+            </div>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Days</span>
+
+              <span className="leave-details-value">
+
+                {calculateDays(selectedLeave.fromDate, selectedLeave.toDate)}
+
+              </span>
+
+            </div>
+
+
+
+            {/* ✅ FULL reason stays in popup */}
+
+            <div className="leave-details-reason">
+
+              <span className="leave-details-label">Reason</span>
+
+
+
+              <div className="leave-details-reason-text">
+
+                {selectedLeave.reason || "-"}
+
+              </div>
+
+            </div>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Applied Date</span>
+
+              <span className="leave-details-value">
+
+                {selectedLeave.appliedDate ?
+                  formatDate(selectedLeave.appliedDate) :
+                  "-"}
+
+              </span>
+
+            </div>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Approved Date</span>
+
+              <span className="leave-details-value">
+
+                {selectedLeave.approvedDate ?
+                  formatDate(selectedLeave.approvedDate) :
+                  "-"}
+
+              </span>
+
+            </div>
+
+
+
+            <div className="leave-details-row">
+
+              <span className="leave-details-label">Status</span>
+
+              <span
+                className={`leave-details-value leave-status-${getStatusGroup(selectedLeave.status)}`}>
+
+
+                {formatStatusLabel(selectedLeave.status)}
+              </span>
+
+            </div>
+
+
+
+            <div className="leave-details-footer">
+
+              <button
+                className="leave-details-close-btn"
+                onClick={() => setSelectedLeave(null)}>
+
+
+                Close
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+
+
+
         </div>
-      }
-      {/* -----------History modal----------- */}
+      }
+
+      {/* -----------History modal----------- */}
+
       {selectedEmployee &&
-      <div className="employee-history-overlay">
-          <div className="employee-history-modal">
-
+        <div className="employee-history-overlay">
+
+          <div className="employee-history-modal">
+
+
+
             <button
-            className="history-close-icon"
-            onClick={() => setSelectedEmployee(null)}>
-            
-              ×
-            </button>
-
-            <div className="history-header">
-
-              <div className="history-avatar">
-                {selectedEmployee.employeeName?.charAt(0)?.toUpperCase()}
-              </div>
-
-              <div>
-                <h2>{selectedEmployee.employeeName}</h2>
-                <p>Emp ID: {selectedEmployee.employeeId}</p>
-              </div>
-
-            </div>
-
-            {/* LEAVE BALANCE
-            <div className="leave-balance-section">
-             <h4>LEAVE BALANCE</h4>
-               <div className="leave-balance-grid">
-                 <div className="balance-card">
-                 <div className="balance-header">
-                   <span>Casual</span>
-                   <span>
-                     {selectedEmployee?.leaveBalances?.casual?.used || 0}/
-                     {selectedEmployee?.leaveBalances?.casual?.total || 0}
-                   </span>
-                 </div>
-                   <div className="progress-bar">
-                   <div
-                     className="progress-fill"
-                     style={{
-                       width: `${Math.min(
-                         (
-                           (selectedEmployee?.leaveBalances?.casual?.used || 0) /
-                           (selectedEmployee?.leaveBalances?.casual?.total || 1)
-                         ) * 100,
-                         100
-                       )}%`
-                     }}
-                   />
-                 </div>
-                   <p>
-                   {selectedEmployee?.leaveBalances?.casual?.remaining || 0} remaining
-                 </p>
-               </div>
-                 <div className="balance-card">
-                 <div className="balance-header">
-                   <span>Sick</span>
-                   <span>
-                     {selectedEmployee?.leaveBalances?.sick?.used || 0}/
-                     {selectedEmployee?.leaveBalances?.sick?.total || 0}
-                   </span>
-                 </div>
-                   <div className="progress-bar">
-                   <div
-                     className="progress-fill"
-                     style={{
-                       width: `${Math.min(
-                         (
-                           (selectedEmployee?.leaveBalances?.sick?.used || 0) /
-                           (selectedEmployee?.leaveBalances?.sick?.total || 1)
-                         ) * 100,
-                         100
-                       )}%`
-                     }}
-                   />
-                 </div>
-                   <p>
-                   {selectedEmployee?.leaveBalances?.sick?.remaining || 0} remaining
-                 </p>
-               </div>
-                 <div className="balance-card">
-                 <div className="balance-header">
-                   <span>Earned</span>
-                   <span>
-                     {selectedEmployee?.leaveBalances?.earned?.used || 0}/
-                     {selectedEmployee?.leaveBalances?.earned?.total || 0}
-                   </span>
-                 </div>
-                   <div className="progress-bar">
-                   <div
-                     className="progress-fill"
-                     style={{
-                       width: `${Math.min(
-                         (
-                           (selectedEmployee?.leaveBalances?.earned?.used || 0) /
-                           (selectedEmployee?.leaveBalances?.earned?.total || 1)
-                         ) * 100,
-                         100
-                       )}%`
-                     }}
-                   />
-                 </div>
-                   <p>
-                   {selectedEmployee?.leaveBalances?.earned?.remaining || 0} remaining
-                 </p>
-               </div>
-               </div>
+              className="history-close-icon"
+              onClick={() => setSelectedEmployee(null)}>
+
+
+              ×
+
+            </button>
+
+
+
+            <div className="history-header">
+
+
+
+              <div className="history-avatar">
+
+                {selectedEmployee.employeeName?.charAt(0)?.toUpperCase()}
+
+              </div>
+
+
+
+              <div>
+
+                <h2>{selectedEmployee.employeeName}</h2>
+
+                <p>Emp ID: {selectedEmployee.employeeId}</p>
+
+              </div>
+
+
+
+            </div>
+
+
+
+            {/* LEAVE BALANCE
+
+            <div className="leave-balance-section">
+
+             <h4>LEAVE BALANCE</h4>
+
+               <div className="leave-balance-grid">
+
+                 <div className="balance-card">
+
+                 <div className="balance-header">
+
+                   <span>Casual</span>
+
+                   <span>
+
+                     {selectedEmployee?.leaveBalances?.casual?.used || 0}/
+
+                     {selectedEmployee?.leaveBalances?.casual?.total || 0}
+
+                   </span>
+
+                 </div>
+
+                   <div className="progress-bar">
+
+                   <div
+
+                     className="progress-fill"
+
+                     style={{
+
+                       width: `${Math.min(
+
+                         (
+
+                           (selectedEmployee?.leaveBalances?.casual?.used || 0) /
+
+                           (selectedEmployee?.leaveBalances?.casual?.total || 1)
+
+                         ) * 100,
+
+                         100
+
+                       )}%`
+
+                     }}
+
+                   />
+
+                 </div>
+
+                   <p>
+
+                   {selectedEmployee?.leaveBalances?.casual?.remaining || 0} remaining
+
+                 </p>
+
+               </div>
+
+                 <div className="balance-card">
+
+                 <div className="balance-header">
+
+                   <span>Sick</span>
+
+                   <span>
+
+                     {selectedEmployee?.leaveBalances?.sick?.used || 0}/
+
+                     {selectedEmployee?.leaveBalances?.sick?.total || 0}
+
+                   </span>
+
+                 </div>
+
+                   <div className="progress-bar">
+
+                   <div
+
+                     className="progress-fill"
+
+                     style={{
+
+                       width: `${Math.min(
+
+                         (
+
+                           (selectedEmployee?.leaveBalances?.sick?.used || 0) /
+
+                           (selectedEmployee?.leaveBalances?.sick?.total || 1)
+
+                         ) * 100,
+
+                         100
+
+                       )}%`
+
+                     }}
+
+                   />
+
+                 </div>
+
+                   <p>
+
+                   {selectedEmployee?.leaveBalances?.sick?.remaining || 0} remaining
+
+                 </p>
+
+               </div>
+
+                 <div className="balance-card">
+
+                 <div className="balance-header">
+
+                   <span>Earned</span>
+
+                   <span>
+
+                     {selectedEmployee?.leaveBalances?.earned?.used || 0}/
+
+                     {selectedEmployee?.leaveBalances?.earned?.total || 0}
+
+                   </span>
+
+                 </div>
+
+                   <div className="progress-bar">
+
+                   <div
+
+                     className="progress-fill"
+
+                     style={{
+
+                       width: `${Math.min(
+
+                         (
+
+                           (selectedEmployee?.leaveBalances?.earned?.used || 0) /
+
+                           (selectedEmployee?.leaveBalances?.earned?.total || 1)
+
+                         ) * 100,
+
+                         100
+
+                       )}%`
+
+                     }}
+
+                   />
+
+                 </div>
+
+                   <p>
+
+                   {selectedEmployee?.leaveBalances?.earned?.remaining || 0} remaining
+
+                 </p>
+
+               </div>
+
+               </div>
+
             </div> */
 
-          }
-
+            }
+
+
+
             {/* SUMMARY CARDS */}
-            <div className="leave-summary-grid">
-
-              <div className="summary-card applied">
-                <h2>{selectedEmployee.totalLeavesApplied || 0}</h2>
-                <span>Applied</span>
-              </div>
-
-              <div className="summary-card approved">
-                <h2>
+            <div className="leave-summary-grid">
+
+
+
+              <div className="summary-card applied">
+
+                <h2>{selectedEmployee.totalLeavesApplied || 0}</h2>
+
+                <span>Applied</span>
+
+              </div>
+
+
+
+              <div className="summary-card approved">
+
+                <h2>
+
                   {
-                selectedEmployee.history.filter(
-                  (x) => getStatusGroup(x.status) === "approved"
-                ).length
-                }
-                </h2>
-                <span>Approved</span>
-              </div>
-
-              <div className="summary-card rejected">
-                <h2>
+                    selectedEmployee.history.filter(
+                      (x) => getStatusGroup(x.status) === "approved"
+                    ).length
+                  }
+
+                </h2>
+
+                <span>Approved</span>
+
+              </div>
+
+
+
+              <div className="summary-card rejected">
+
+                <h2>
+
                   {
-                selectedEmployee.history.filter(
-                  (x) => getStatusGroup(x.status) === "rejected"
-                ).length
-                }
-                </h2>
-                <span>Rejected</span>
-              </div>
-
-              <div className="summary-card pending">
-                <h2>
+                    selectedEmployee.history.filter(
+                      (x) => getStatusGroup(x.status) === "rejected"
+                    ).length
+                  }
+
+                </h2>
+
+                <span>Rejected</span>
+
+              </div>
+
+
+
+              <div className="summary-card pending">
+
+                <h2>
+
                   {
-                selectedEmployee.history.filter(
-                  (x) => getStatusGroup(x.status) === "pending"
-                ).length
-                }
-                </h2>
-                <span>Pending</span>
-              </div>
-
-            </div>
-
-            <div className="history-section-title">
-              FULL HISTORY
-            </div>
-
+                    selectedEmployee.history.filter(
+                      (x) => getStatusGroup(x.status) === "pending"
+                    ).length
+                  }
+
+                </h2>
+
+                <span>Pending</span>
+
+              </div>
+
+
+
+            </div>
+
+
+
+            <div className="history-section-title">
+
+              FULL HISTORY
+
+            </div>
+
+
+
             {employeeHistoryLoading ?
 
-          <div className="history-loading">
-                Loading leave history...
+              <div className="history-loading">
+
+                Loading leave history...
+
               </div> :
 
-          <div className="history-table-wrapper">
-
-                <table className="history-table">
-                  <thead>
-                    <tr>
-                      <th>APPLIED</th>
-                      <th>TYPE</th>
-                      <th>DAYS</th>
-                      <th>DURATION</th>
-                      <th>REASON</th>
-                      <th>STATUS</th>
-                    </tr>
-                  </thead>
-
+              <div className="history-table-wrapper">
+
+
+
+                <table className="history-table">
+
+                  <thead>
+
+                    <tr>
+
+                      <th>APPLIED</th>
+
+                      <th>TYPE</th>
+
+                      <th>DAYS</th>
+
+                      <th>DURATION</th>
+
+                      <th>REASON</th>
+
+                      <th>STATUS</th>
+
+                    </tr>
+
+                  </thead>
+
+
+
                   <tbody>
                     {selectedEmployee.history.map((item) => {
                       const reasonValue = String(item.reason ?? "");
                       const reasonText = reasonValue.trim();
 
                       return (
-                <tr key={`${item.requestType}-${item.id}`}>
-                        <td>{formatDate(item.createdAt)}</td>
+                        <tr key={`${item.requestType}-${item.id}`}>
+                          <td>{formatDate(item.createdAt)}</td>
 
-                        <td>{item.leaveType}</td>
-
-                        <td>
-                          {formatDate(item.fromDate)} — {formatDate(item.toDate)}
-                        </td>
-
-                        <td>
-                          {calculateDays(
-                      item.fromDate,
-                      item.toDate
-                    )}
-                        </td>
+                          <td>{item.leaveType}</td>
 
-                        <td
-                        className="history-reason-cell"
-                        title={reasonText ? reasonValue : undefined}>
-                          <span className="history-reason-text">
-                            {reasonText || "-"}
-                          </span>
-                        </td>
 
-                        <td>
-                          <span className={`history-status ${getStatusGroup(item.status)}`}>
-                            {formatStatusLabel(item.status)}
-                          </span>
-                        </td>
-                      </tr>
+                          <td>
+
+                            {formatDate(item.fromDate)} — {formatDate(item.toDate)}
+
+                          </td>
+
+
+
+                          <td>
+                            {calculateDays(
+                              item.fromDate,
+                              item.toDate
+                            )}
+                          </td>
+
+                          <td
+                            className="history-reason-cell"
+                            title={reasonText ? reasonValue : undefined}>
+                            <span className="history-reason-text">
+                              {reasonText || "-"}
+                            </span>
+                          </td>
+
+                          <td>
+                            <span className={`history-status ${getStatusGroup(item.status)}`}>
+                              {formatStatusLabel(item.status)}
+                            </span>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>
-                </table>
+                </table>
+
               </div>
-          }
-
-            <div className="history-footer">
+            }
+
+
+
+            <div className="history-footer">
+
               <button
-              className="history-close-btn"
-              onClick={() => setSelectedEmployee(null)}>
-              
-                Close
-              </button>
-            </div>
-
-          </div>
+                className="history-close-btn"
+                onClick={() => setSelectedEmployee(null)}>
+
+
+                Close
+
+              </button>
+
+            </div>
+
+
+
+          </div>
+
         </div>
-      }
+      }
+
     </div>);
 
 }

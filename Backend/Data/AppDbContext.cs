@@ -256,6 +256,19 @@ namespace EmployeeManagementSystem.Data
         public DbSet<EmployeeSalaryStructure>
     EmployeeSalaryStructures
         { get; set; }
+
+        public DbSet<Organization> Organizations { get; set; }
+
+        public DbSet<OrganizationSubscription> OrganizationSubscriptions { get; set; }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
+
+        public DbSet<SystemSetting> SystemSettings { get; set; }
+
+        public DbSet<SuperAdminNotification> SuperAdminNotifications { get; set; }
+
+        public DbSet<StatusChangeLog> StatusChangeLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
         {
@@ -333,8 +346,6 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<TicketTimer>().ToTable("tickettimer");
             modelBuilder.Entity<TicketHistory>().ToTable("tickethistory");
             modelBuilder.Entity<TicketWorkLog>().ToTable("ticketworklogs");
-            modelBuilder.Entity<TicketAssignment>().ToTable("ticketassignments");
-            modelBuilder.Entity<TicketAssignment>().ToTable("ticketassignments");
 
             modelBuilder.Entity<SchedulerLog>().ToTable("schedulerlog");
             modelBuilder.Entity<SchedulerSetting>().ToTable("schedulersettings");
@@ -401,6 +412,18 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<WorkflowHistory>()
                 .ToTable("workflowhistory");
+
+
+            modelBuilder.Entity<Organization>().ToTable("organizations");
+
+            modelBuilder.Entity<AuditLog>().ToTable("auditlogs");
+
+            modelBuilder.Entity<SystemSetting>().ToTable("systemsettings");
+
+            modelBuilder.Entity<SuperAdminNotification>().ToTable("superadminnotifications");
+
+            modelBuilder.Entity<StatusChangeLog>().ToTable("statuschangelogs");
+
 
             modelBuilder.Entity<RolePermission>()
 
@@ -613,6 +636,90 @@ namespace EmployeeManagementSystem.Data
     .HasForeignKey(f => f.Employee_Id)
 
     .HasPrincipalKey(e => e.Employee_Id);
+
+
+            modelBuilder.Entity<Organization>(entity =>
+
+            {
+
+                entity.ToTable("organizations");
+
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.Status);
+
+                entity.HasIndex(e => e.IsDeleted);
+
+                entity.HasIndex(e => e.CreatedDate);
+
+            });
+
+            modelBuilder.Entity<OrganizationSubscription>(entity =>
+
+            {
+
+                entity.ToTable("organizationsubscriptions");
+
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.OrganizationId);
+
+                entity.HasIndex(e => new { e.IsActive, e.EndDate });
+
+            });
+
+            modelBuilder.Entity<AuditLog>(entity =>
+
+            {
+
+                entity.ToTable("auditlogs");
+
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.CreatedAt);
+
+                entity.HasIndex(e => e.Module);
+
+                entity.HasIndex(e => e.Action);
+
+            });
+
+            modelBuilder.Entity<SystemSetting>(entity =>
+
+            {
+
+                entity.ToTable("systemsettings");
+
+                entity.HasKey(e => e.Id);
+
+            });
+
+            modelBuilder.Entity<SuperAdminNotification>(entity =>
+
+            {
+
+                entity.ToTable("superadminnotifications");
+
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => e.IsRead);
+
+                entity.HasIndex(e => e.CreatedAt);
+
+            });
+
+            modelBuilder.Entity<StatusChangeLog>(entity =>
+
+            {
+
+                entity.ToTable("statuschangelogs");
+
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
+
+            });
+
 
 
             //    modelBuilder.Entity<ShiftRoster>()

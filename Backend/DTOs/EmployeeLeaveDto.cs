@@ -9,6 +9,7 @@ public class EmployeeLeaveDto
     public string? Reason { get; set; }
    
     public DateOnly? AppliedDate { get; set; }
+    public string? ApprovalRemark { get; set; }
 
     public List<string>? ExternalApproverEmails { get; set; }
 }

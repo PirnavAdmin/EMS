@@ -23,10 +23,7 @@ public class HolidaysController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var today = DateTime.UtcNow.Date;
-
         var holidays = await _context.Holidays
-            .Where(h => h.Holiday_Date.Date >= today)
             .Select(h => new HolidayDto
             {
                 Id = h.Id,
@@ -35,7 +32,6 @@ public class HolidaysController : ControllerBase
                 Day = h.Day,
                 Type = h.Type
             })
-            .OrderBy(h => h.Holiday_Date)
             .ToListAsync();
 
         return Ok(holidays);

@@ -6,9 +6,9 @@ namespace EmployeeManagementSystem.Services
 {
     public interface IEmployeeService
     {
-       
 
-        Task<List<Employee>> GetAllEmployees();
+
+        Task<List<Employee>> GetAllEmployees(ClaimsPrincipal user);
 
         Task<object> AddEmployee(
      ClaimsPrincipal user,

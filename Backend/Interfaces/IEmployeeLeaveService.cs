@@ -37,9 +37,10 @@ string action,
 string token,
 string approverEmail);
     Task<IActionResult> UpdateWFHStatus(
-        int id,
-        string status,
-        ClaimsPrincipal user);
+     int id,
+     string status,
+     string? approvalRemark,
+     ClaimsPrincipal user);
     Task<IActionResult> CancelWFH(
     int id,
     ClaimsPrincipal user);

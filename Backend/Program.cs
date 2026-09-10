@@ -163,6 +163,8 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IEmployeeSalaryStructureService,
     EmployeeSalaryStructureService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>(); 
+
 
 builder.Services.AddScoped<ITemplateService, TemplateService>(); //Vishnu change
 //builder.Services.AddScoped<PermissionFilter>();

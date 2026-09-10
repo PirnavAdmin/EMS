@@ -6,6 +6,6 @@
 
         public string Decision { get; set; } = string.Empty;
 
-        public string? ApprovalRemarks { get; set; }
+        public string? ApprovalRemark { get; set; }
     }
 }

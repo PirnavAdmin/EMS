@@ -24,6 +24,9 @@ namespace EmployeeManagementSystem.Models
         public string? CreatedBy { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string? TransferFromEmployeeId { get; set; }
+
+        public string? TransferToEmployeeId { get; set; }
 
         [ForeignKey(nameof(TicketId))]
         public virtual Ticket? Ticket { get; set; }

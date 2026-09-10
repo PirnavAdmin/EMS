@@ -417,12 +417,22 @@ namespace EmployeeManagementSystem.Services
 
         }
         // ✅ GET ALL
-        public async Task<List<Employee>> GetAllEmployees()
+        public async Task<List<Employee>> GetAllEmployees(ClaimsPrincipal user)
         {
+            var adminIdClaim = user.FindFirst("AdminId")?.Value;
+
+            if (string.IsNullOrWhiteSpace(adminIdClaim) ||
+                !int.TryParse(adminIdClaim, out int adminId))
+            {
+                throw new UnauthorizedAccessException(
+                    "AdminId missing or invalid in token.");
+            }
+
             return await _context.Employees
-        .AsNoTracking()
-        .OrderByDescending(e => e.Id)
-        .ToListAsync();
+                .AsNoTracking()
+                .Where(e => e.AdminId == adminId)
+                .OrderByDescending(e => e.Id)
+                .ToListAsync();
         }
 
         // ✅ UPDATE EMPLOYEE

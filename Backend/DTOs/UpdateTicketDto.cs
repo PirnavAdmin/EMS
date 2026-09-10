@@ -28,5 +28,6 @@ namespace EmployeeManagementSystem.DTOs
         public DateTime? DueDate { get; set; }
 
         public decimal? EstimatedHours { get; set; }
+        public string? Remarks { get; set; }
     }
 }

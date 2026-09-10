@@ -62,17 +62,11 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // GET ALL EMPLOYEES
-
         [HttpGet]
-
         public async Task<IActionResult> GetAll()
-
         {
-
-            var employees = await _employeeService.GetAllEmployees();
-
+            var employees = await _employeeService.GetAllEmployees(User);
             return Ok(employees);
-
         }
 
         // UPDATE EMPLOYEE

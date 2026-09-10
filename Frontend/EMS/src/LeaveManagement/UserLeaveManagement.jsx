@@ -6,8 +6,9 @@ import {
   FaUserInjured,
   FaBookOpen,
   FaRegCalendarAlt,
-  FaTrash } from
-"react-icons/fa";
+  FaTrash
+} from
+  "react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import { formatDate, isDateRangeValid, toIsoDateString } from "../utils/date";
@@ -15,8 +16,9 @@ import { extractCollection, sortByRecency } from "../utils/collections";
 import {
   CardSkeleton,
   FormSkeleton,
-  TableSkeleton } from
-"../components/Skeletons";
+  TableSkeleton
+} from
+  "../components/Skeletons";
 import {
   applyWfh,
   cancelLeave,
@@ -29,22 +31,21 @@ import {
 
 const getLeaveRecordId = (leave) => {
   const value =
-  leave?.id ??
-  leave?.leaveId ??
-  leave?.leave_Id ??
-  leave?.leaveID ??
-  leave?.leaveRequestId ??
-  leave?.leave_Request_Id ??
-  null;
+    leave?.id ??
+    leave?.leaveId ??
+    leave?.leave_Id ??
+    leave?.leaveID ??
+    leave?.leaveRequestId ??
+    leave?.leave_Request_Id ??
+    null;
 
   if (value === null || value === undefined) {
     return null;
   }
 
   if (
-  typeof value === "string" &&
-  !value.trim())
-  {
+    typeof value === "string" &&
+    !value.trim()) {
     return null;
   }
 
@@ -52,15 +53,14 @@ const getLeaveRecordId = (leave) => {
 };
 
 const buildLeaveIdentifierFields = (
-value) =>
-{
+  value) => {
   const resolvedLeaveId =
-  getLeaveRecordId(
-    typeof value === "object" &&
-    value !== null ?
-    value :
-    { id: value }
-  );
+    getLeaveRecordId(
+      typeof value === "object" &&
+        value !== null ?
+        value :
+        { id: value }
+    );
 
   if (resolvedLeaveId === null) {
     return {};
@@ -74,26 +74,26 @@ value) =>
 };
 
 const firstDefined = (...values) =>
-values.find((value) => value !== undefined && value !== null && value !== "");
+  values.find((value) => value !== undefined && value !== null && value !== "");
 
 const normalizeLeaveBalanceCards = (payload) => {
   const data = payload?.data || payload || {};
   const types = [
-  ["Annual Leave", ["annualLeave", "AnnualLeave", "annual"]],
-  ["Casual Leave", ["casualLeave", "CasualLeave", "casual"]],
-  ["Medical Leave", ["medicalLeave", "MedicalLeave", "medical"]],
-  ["Sick Leave", ["sickLeave", "SickLeave", "sick"]],
-  ["Comp Off", ["compOff", "CompOff", "compensatoryOff"]],
-  ["LOP", ["lop", "LOP", "lossOfPay"]],
-  ["Remaining Leave", ["remainingLeave", "RemainingLeave", "remaining"]],
-  ["Total Leave", ["totalLeave", "TotalLeave", "total"]],
-  ["Consumed Leave", ["consumedLeave", "ConsumedLeave", "used"]]];
+    ["Annual Leave", ["annualLeave", "AnnualLeave", "annual"]],
+    ["Casual Leave", ["casualLeave", "CasualLeave", "casual"]],
+    ["Medical Leave", ["medicalLeave", "MedicalLeave", "medical"]],
+    ["Sick Leave", ["sickLeave", "SickLeave", "sick"]],
+    ["Comp Off", ["compOff", "CompOff", "compensatoryOff"]],
+    ["LOP", ["lop", "LOP", "lossOfPay"]],
+    ["Remaining Leave", ["remainingLeave", "RemainingLeave", "remaining"]],
+    ["Total Leave", ["totalLeave", "TotalLeave", "total"]],
+    ["Consumed Leave", ["consumedLeave", "ConsumedLeave", "used"]]];
 
   return types.map(([label, keys]) => {
     const value = firstDefined(...keys.map((key) => data[key]), 0);
     const displayValue = typeof value === "object" ?
-    firstDefined(value.remaining, value.Remaining, value.balance, value.Balance, value.total, value.Total, 0) :
-    value;
+      firstDefined(value.remaining, value.Remaining, value.balance, value.Balance, value.total, value.Total, 0) :
+      value;
 
     return { label, value: displayValue };
   });
@@ -111,8 +111,8 @@ const truncateText = (text, maxLength = 15) => {
 
 const resolveEndpoint = (endpoint, label) => {
   const resolved = typeof endpoint === "string" ?
-  endpoint.trim() :
-  "";
+    endpoint.trim() :
+    "";
 
   if (!resolved) {
 
@@ -136,7 +136,7 @@ const getRequestUrl = (endpoint) => {
 
 function UserLeaveManagement() {
   const getToken = () =>
-  localStorage.getItem("token") || sessionStorage.getItem("token");
+    localStorage.getItem("token") || sessionStorage.getItem("token");
 
   // ✅ use backend values here
   const [form, setForm] = useState({
@@ -225,9 +225,9 @@ function UserLeaveManagement() {
     } catch (err) {
 
       const message =
-      err.response?.data?.message ||
-      err.response?.data ||
-      "Error applying leave";
+        err.response?.data?.message ||
+        err.response?.data ||
+        "Error applying leave";
 
       toast.error(message);
     }
@@ -306,9 +306,9 @@ function UserLeaveManagement() {
 
       try {
         const results = await Promise.allSettled([
-        fetchLeaves(),
-        fetchMyWFH(),
-        fetchBalance()]
+          fetchLeaves(),
+          fetchMyWFH(),
+          fetchBalance()]
         );
 
       } finally {
@@ -334,6 +334,21 @@ function UserLeaveManagement() {
     return true;
   };
 
+  const getLeaveDurationInDays = (fromDate, toDate) => {
+    const start = new Date(fromDate);
+    const end = new Date(toDate);
+
+    // Normalize time to avoid timezone/DST issues
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const difference = end.getTime() - start.getTime();
+
+    return Math.floor(difference / (24 * 60 * 60 * 1000)) + 1;
+  };
+
+  const MAX_LEAVE_DAYS = 30;
+
   const handleSubmit = async () => {
     if (!form.leaveType || form.leaveType === "Select") {
       toast.error("Please select a leave type");
@@ -349,6 +364,19 @@ function UserLeaveManagement() {
       toast.error("From date cannot be after To date");
       return;
     }
+
+    const leaveDuration = getLeaveDurationInDays(
+      form.fromDate,
+      form.toDate
+    );
+
+    if (leaveDuration > MAX_LEAVE_DAYS) {
+      toast.error(
+        `Leave duration cannot exceed ${MAX_LEAVE_DAYS} days.`
+      );
+      return;
+    }
+    
     if (isWeekendOnlyRange(form.fromDate, form.toDate)) {
       toast.error("Leave cannot be applied for weekends");
       return;
@@ -407,9 +435,9 @@ function UserLeaveManagement() {
     } catch (err) {
 
       const message =
-      err.response?.data?.message ||
-      err.response?.data ||
-      "Error applying leave";
+        err.response?.data?.message ||
+        err.response?.data ||
+        "Error applying leave";
 
       toast.error(message);
     } finally {
@@ -418,8 +446,7 @@ function UserLeaveManagement() {
   };
 
   const deleteLeave = async (
-  leaveRecord) =>
-  {
+    leaveRecord) => {
     const confirmDelete = window.confirm("Delete this leave request?");
     if (!confirmDelete) return;
 
@@ -430,12 +457,12 @@ function UserLeaveManagement() {
     }
 
     const leaveIdentifierFields =
-    buildLeaveIdentifierFields(
-      leaveRecord
-    );
+      buildLeaveIdentifierFields(
+        leaveRecord
+      );
 
     const resolvedLeaveId =
-    leaveIdentifierFields.id;
+      leaveIdentifierFields.id;
 
     if (!resolvedLeaveId) {
       toast.error("Unable to delete leave");
@@ -498,15 +525,15 @@ function UserLeaveManagement() {
 
   const combinedHistory = [
 
-  ...(leaveData || []).map((item) => ({
-    ...item,
-    requestType: "Leave"
-  })),
+    ...(leaveData || []).map((item) => ({
+      ...item,
+      requestType: "Leave"
+    })),
 
-  ...(wfhData || []).map((item) => ({
-    ...item,
-    requestType: "WFH"
-  }))];
+    ...(wfhData || []).map((item) => ({
+      ...item,
+      requestType: "WFH"
+    }))];
 
   // const leaveCards = balance ? [
   //   {
@@ -537,299 +564,402 @@ function UserLeaveManagement() {
 
   return (
     initialLoading ?
-    <div
-      className="leave-page"
-      style={{
-        paddingTop: "0px",
-        marginTop: "-20px"
-      }}>
-      
-        <h2
-        className="leave-main-title"
+      <div
+        className="leave-page"
         style={{
-          marginTop: "8px",
-          marginBottom: "18px"
+          paddingTop: "0px",
+          marginTop: "-20px"
         }}>
-        
-          Leave Management
-        </h2>
-
-        <CardSkeleton count={3} />
-
-        <div className="apply-card" style={{ marginTop: "18px" }}>
-          <FormSkeleton fields={5} columns={2} />
-        </div>
-
-        <div className="leave-history" style={{ marginTop: "18px" }}>
+
+        <h2
+          className="leave-main-title"
+          style={{
+            marginTop: "8px",
+            marginBottom: "18px"
+          }}>
+
+
+          Leave Management
+
+        </h2>
+
+
+
+        <CardSkeleton count={3} />
+
+
+
+        <div className="apply-card" style={{ marginTop: "18px" }}>
+
+          <FormSkeleton fields={5} columns={2} />
+
+        </div>
+
+
+
+        <div className="leave-history" style={{ marginTop: "18px" }}>
+
           <TableSkeleton
-          rows={6}
-          columns={[
-          { width: "90px", headerWidth: "60%" },
-          { width: "150px", headerWidth: "58%" },
-          { width: "110px", headerWidth: "58%" },
-          { width: "110px", headerWidth: "58%" },
-          { width: "minmax(220px, 1fr)", headerWidth: "62%" },
-          { width: "140px", type: "status", headerWidth: "54%" },
-          { width: "90px", type: "actions", headerWidth: "54%" }]
-          } />
-        
-        </div>
+            rows={6}
+            columns={[
+              { width: "90px", headerWidth: "60%" },
+              { width: "150px", headerWidth: "58%" },
+              { width: "110px", headerWidth: "58%" },
+              { width: "110px", headerWidth: "58%" },
+              { width: "minmax(220px, 1fr)", headerWidth: "62%" },
+              { width: "140px", type: "status", headerWidth: "54%" },
+              { width: "90px", type: "actions", headerWidth: "54%" }]
+            } />
+
+
+        </div>
+
       </div> :
 
-    <div
-      className="leave-page"
-      style={{
-        paddingTop: "0px",
-        marginTop: "-20px"
-      }}>
-      
-        <h2
-        className="leave-main-title"
+      <div
+        className="leave-page"
         style={{
-          marginTop: "8px",
-          marginBottom: "18px"
+          paddingTop: "0px",
+          marginTop: "-20px"
         }}>
-        
-          Leave Management
-        </h2>
-
-        {/* <div className="leave-top-cards">
-         {!balance ? (
-           <p>Loading leave balance...</p>
-         ) : (
-           leaveCards.map((card, index) => {
-             const progress =
-               card.total > 0
-                 ? Math.min(
-                   (card.used / card.total) * 100,
-                   100
-                 )
-                 : 0;
-             return (
-               <div
-                 className="leave-summary-card"
-                 key={index}
-               >
-                 <div className="leave-card-header">
-                   <div
-                     className={`leave-icon-box ${card.className}`}
-                   >
-                     {card.icon}
-                   </div>
-                   <h4>{card.title}</h4>
-                 </div>
-                 <div className="leave-card-info">
-                   <span>
-                     Used {card.used} / {card.total}
-                   </span>
-                   <span>
-                     {card.remaining} left
-                   </span>
-                 </div>
-                 <div className="leave-progress">
-                   <div
-                     className={`leave-progress-fill ${card.className}`}
-                     style={{
-                       width: progress > 0 ? `${progress}%` : "8px"
-                     }}
-                   ></div>
-                 </div>
-               </div>
-             );
-           })
-         )}
-        </div> */}
-
-        <div className="apply-card">
-          <h2>Apply Leave</h2>
-
-          <label>Leave Type</label>
-          <select
-          name="leaveType"
-          value={form.leaveType}
-          onChange={handleChange}>
-          
-            {/* ✅ backend values */}
-            <option value="Select">Select Leave</option>
-            <option value="Casual">Casual Leave</option>
-            <option value="Sick">Sick Leave</option>
-            <option value="Earned">Earned Leave</option>
-            <option value="Work From Home">Work From Home</option>
-          </select>
-
-          <div
-          className="date-row"
+
+        <h2
+          className="leave-main-title"
           style={{
-            overflow: "visible",
-            position: "relative",
-            zIndex: 1
+            marginTop: "8px",
+            marginBottom: "18px"
           }}>
-          
-            <div
+          Leave Management
+        </h2>
+
+
+
+        {/* <div className="leave-top-cards">
+
+         {!balance ? (
+
+           <p>Loading leave balance...</p>
+
+         ) : (
+
+           leaveCards.map((card, index) => {
+
+             const progress =
+
+               card.total > 0
+
+                 ? Math.min(
+
+                   (card.used / card.total) * 100,
+
+                   100
+
+                 )
+
+                 : 0;
+
+             return (
+
+               <div
+
+                 className="leave-summary-card"
+
+                 key={index}
+
+               >
+
+                 <div className="leave-card-header">
+
+                   <div
+
+                     className={`leave-icon-box ${card.className}`}
+
+                   >
+
+                     {card.icon}
+
+                   </div>
+
+                   <h4>{card.title}</h4>
+
+                 </div>
+
+                 <div className="leave-card-info">
+
+                   <span>
+
+                     Used {card.used} / {card.total}
+
+                   </span>
+
+                   <span>
+
+                     {card.remaining} left
+
+                   </span>
+
+                 </div>
+
+                 <div className="leave-progress">
+
+                   <div
+
+                     className={`leave-progress-fill ${card.className}`}
+
+                     style={{
+
+                       width: progress > 0 ? `${progress}%` : "8px"
+
+                     }}
+
+                   ></div>
+
+                 </div>
+
+               </div>
+
+             );
+
+           })
+
+         )}
+
+        </div> */}
+
+        <div className="apply-card">
+          <h2>Apply Leave</h2>
+          <label>Leave Type</label>
+          <select
+            name="leaveType"
+            value={form.leaveType}
+            onChange={handleChange}>
+            {/* ✅ backend values */}
+            <option value="Select">Select Leave</option>
+            <option value="Casual">Casual Leave</option>
+            <option value="Sick">Sick Leave</option>
+            <option value="Earned">Earned Leave</option>
+            <option value="Work From Home">Work From Home</option>
+          </select>
+
+          <div
+            className="date-row"
             style={{
               overflow: "visible",
-              position: "relative"
+              position: "relative",
+              zIndex: 1
             }}>
-            
-              <label>From</label>
-
-              <AppDatePicker
-              name="fromDate"
-              value={form.fromDate}
-              onChange={handleChange} />
-            
-            </div>
-
+
             <div
-            style={{
-              overflow: "visible",
-              position: "relative"
-            }}>
-            
-              <label>To</label>
-
+              style={{
+                overflow: "visible",
+                position: "relative"
+              }}>
+
+              <label>From</label>
               <AppDatePicker
-              name="toDate"
-              value={form.toDate}
-              onChange={handleChange} />
-            
-            </div>
-          </div>
-
-          <label>Reason</label>
+                name="fromDate"
+                value={form.fromDate}
+                onChange={handleChange} />
+            </div>
+
+            <div
+              style={{
+                overflow: "visible",
+                position: "relative"
+              }}>
+
+              <label>To</label>
+              <AppDatePicker
+                name="toDate"
+                value={form.toDate}
+                onChange={handleChange} />
+            </div>
+          </div>
+
+          <label>Reason</label>
+
           <textarea
-          name="reason"
-          value={form.reason}
-          onChange={handleChange}
-          placeholder="Enter reason for leave..." />
-        
-
+            name="reason"
+            value={form.reason}
+            onChange={handleChange}
+            placeholder="Enter reason for leave..." />
+
           <button
-          className="submit-btn"
-          onClick={handleSubmit}
-          disabled={loading}>
-          
-            {loading ? "Submitting..." : "Submit Application"}
-          </button>
-        </div>
-
-        <div className="leave-history leave-history--my-requests">
-          <h3>My Leave Requests</h3>
-
-          <div className="leave-history-table-scroll">
-            <table className="my-leave-requests-table">
-              <colgroup>
-                <col style={{ width: "9%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "23%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "10%" }} />
-              </colgroup>
-
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Leave Type</th>
-                  <th>From</th>
-                  <th>To</th>
-                  <th>Reason</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
+            className="submit-btn"
+            onClick={handleSubmit}
+            disabled={loading}>
+            {loading ? "Submitting..." : "Submit Application"}
+          </button>
+        </div>
+
+        <div className="leave-history leave-history--my-requests">
+          <h3>My Leave Requests</h3>
+
+          <div className="leave-history-table-scroll">
+
+            <table className="my-leave-requests-table">
+              <colgroup>
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "19%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "5%" }} />
+              </colgroup>
+
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Leave Type</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Rejection Reason</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
                 {combinedHistory.length === 0 ?
-              <tr>
-                    <td colSpan="7" style={{ textAlign: "center" }}>
-                      No Leave Requests
-                    </td>
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: "center" }}>
+                      No Leave Requests
+                    </td>
                   </tr> :
 
-              combinedHistory.map((leave) =>
-              <tr key={`${leave.requestType}-${leave.id}`}>
+                  combinedHistory.map((leave) =>
+                    <tr key={`${leave.requestType}-${leave.id}`}>
+
                       <td
-                  onClick={() => showTextDetails("Type", leave.requestType)}>
+                        onClick={() => showTextDetails("Type", leave.requestType)}>
                         {truncateText(leave.requestType)}
                       </td>
                       {(() => {
                         const leaveType = formatLeaveType(leave.leaveType);
 
                         return (
-                      <td
-                  onClick={() => showTextDetails("Leave Type", leaveType)}>
-                        {truncateText(leaveType)}
-                      </td>
+                          <td
+                            onClick={() => showTextDetails("Leave Type", leaveType)}>
+                            {truncateText(leaveType)}
+                          </td>
                         );
                       })()}
-                      <td>{formatDate(leave.fromDate)}</td>
-                      <td>{formatDate(leave.toDate)}</td>
+                      <td>{formatDate(leave.fromDate)}</td>
+
+                      <td>{formatDate(leave.toDate)}</td>
+
                       <td
-                  className="leave-reason-cell"
-                  onClick={() => showTextDetails("Reason", leave.reason)}>
-                  
+                        className="leave-reason-cell"
+                        onClick={() => showTextDetails("Reason", leave.reason)}>
+
+
                         {leave.reason ? truncateText(leave.reason) : "-"}
-                      </td>
+                      </td>
+
 
                       <td>
                         {(() => {
-                          const statusText = String(leave.status ?? "").trim() || "Pending";
+                          const statusText =
+                            String(leave.status ?? "").trim() || "Pending";
+
+                          const normalizedStatus = statusText
+                            .toLowerCase()
+                            .replace(/[\s_-]+/g, "");
+
+                          const statusClass = normalizedStatus.includes("reject")
+                            ? "rejected"
+                            : normalizedStatus.includes("approve")
+                              ? "approved"
+                              : normalizedStatus.includes("cancel")
+                                ? "cancelled"
+                                : "pending";
 
                           return (
-                        <span
-                    className={`status ${statusText.toLowerCase()} leave-status-badge`}
-                    onClick={() => showTextDetails("Status", statusText)}>
-                    
-                          {truncateText(statusText)}
-                        </span>
+                            <span
+                              className={`status ${statusClass} leave-status-badge`}
+                              onClick={() => showTextDetails("Status", statusText)}
+                              title={statusText}
+                            >
+                              {truncateText(statusText, 20)}
+                            </span>
                           );
                         })()}
                       </td>
 
+                      <td
+                        className="leave-rejection-reason-cell"
+                        onClick={() =>
+                          showTextDetails(
+                            "Rejection Reason",
+                            leave.approvalRemarks
+                          )
+                        }
+                        title={leave.approvalRemarks || "No rejection reason"}
+                      >
+                        {leave.status?.toLowerCase().includes("rejected") &&
+                          (leave.approvalRemarks)
+                          ? truncateText(
+                            leave.approvalRemarks,
+                            20
+                          )
+                          : "-"}
+                      </td>
+
                       <td>
                         {leave.status === "Pending" &&
-                  <button
-                    className="icon-delete-btn leave-action-btn"
-                    onClick={() =>
-                    leave.requestType === "WFH" ?
-                    cancelWFH(leave.id) :
-                    deleteLeave(leave)
-                    }>
-                    
-                            <FaTrash />
+                          <button
+                            className="icon-delete-btn leave-action-btn"
+                            onClick={() =>
+                              leave.requestType === "WFH" ?
+                                cancelWFH(leave.id) :
+                                deleteLeave(leave)
+                            }>
+
+
+                            <FaTrash />
+
                           </button>
-                  }
-                      </td>
+                        }
+
+                      </td>
+
                     </tr>
-              )
-              }
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {textDetails &&
-        <div
-          className="leave-text-details-overlay"
-          role="presentation"
-          onClick={() => setTextDetails(null)}>
-          <div
-            className="leave-text-details-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="leave-text-details-title"
-            onClick={(event) => event.stopPropagation()}>
-            <h3 id="leave-text-details-title">{textDetails.label}</h3>
-            <p>{textDetails.text}</p>
-            <button
-              type="button"
-              className="leave-text-details-close"
-              onClick={() => setTextDetails(null)}>
-              Close
-            </button>
+                  )
+                }
+
+              </tbody>
+
+            </table>
+
           </div>
-        </div>}
+
+        </div>
+
+        {textDetails &&
+          <div
+            className="leave-text-details-overlay"
+            role="presentation"
+            onClick={() => setTextDetails(null)}>
+            <div
+              className="leave-text-details-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="leave-text-details-title"
+              onClick={(event) => event.stopPropagation()}>
+              <h3 id="leave-text-details-title">{textDetails.label}</h3>
+              <p>{textDetails.text}</p>
+              <button
+                type="button"
+                className="leave-text-details-close"
+                onClick={() => setTextDetails(null)}>
+                Close
+              </button>
+            </div>
+          </div>}
 
       </div>);
 

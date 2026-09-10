@@ -7,15 +7,48 @@
   font-family: var(--font-sans);
 }
 
+.attendance-page-title,
+.attendance-card,
+.week-card {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
 .attendance-page-title {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto 18px;
+  padding: 0;
+  box-sizing: border-box;
   color: var(--attendance-text);
   font-size: clamp(24px, 2.4vw, 28px);
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.03em;
+}
+
+.attendance-page-title {
+  margin-top: 0;
+  margin-bottom: 18px;
+  padding: 0;
+  color: var(--attendance-text);
+  font-size: clamp(24px, 2.4vw, 28px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.attendance-card,
+.week-card {
+  margin-bottom: 24px;
+  background: var(--attendance-card);
+  border-radius: 22px;
+  box-shadow: var(--shadow-md);
+  padding: 30px 32px;
+  border: 1px solid var(--attendance-border);
 }
  
 /* FORCE REMOVE HOVER LINE */
