@@ -388,7 +388,7 @@ namespace EmployeeManagementSystem.Data
 
     .HasKey(x => x.SubscriptionId);
             modelBuilder.Entity<EmployeeResignation>()
-    .ToTable("employeeresignation");
+     .ToTable("EmployeeResignation");
             modelBuilder.Entity<EmployeeGoal>()
     .ToTable("employeegoal");
             modelBuilder.Entity<Appraisal>()
