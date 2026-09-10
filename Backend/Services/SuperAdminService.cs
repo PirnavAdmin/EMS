@@ -162,69 +162,96 @@ namespace EmployeeManagementSystem.Services
         {
             var today = DateTime.UtcNow.Date;
 
-            var admins = await _context.Admins
+            // ✅ Get all non-deleted organizations
+            var organizations = await _context.Organizations
+                .AsNoTracking()
+                .Where(o => !o.IsDeleted)
+                .ToListAsync();
+
+            // ✅ Get all organization subscriptions
+            var subscriptions = await _context.OrganizationSubscriptions
                 .AsNoTracking()
                 .ToListAsync();
 
-            var subscriptions = await _context.AdminSubscriptions
-                .AsNoTracking()
-                .ToListAsync();
-
+            // ✅ Employee counts grouped by Organization
             var employeeCounts = await _context.Employees
                 .AsNoTracking()
-                .Where(x => x.AdminId != null)
-                .GroupBy(x => x.AdminId)
+                .Where(e => e.AdminId != null)
+                .Join(
+                    _context.Admins,
+                    e => e.AdminId,
+                    a => a.Id,
+                    (e, a) => new
+                    {
+                        e.Id,
+                        a.OrganizationId
+                    })
+                .Where(x => x.OrganizationId != null)
+                .GroupBy(x => x.OrganizationId)
                 .Select(g => new
                 {
-                    AdminId = g.Key,
+                    OrganizationId = g.Key,
                     Count = g.Count()
                 })
                 .ToListAsync();
 
             var result = new SuperAdminDashboardDto
             {
-                TotalClients = admins.Count,
-                ActiveClients = admins.Count(x => x.IsActive),
-                InactiveClients = admins.Count(x => !x.IsActive)
+                // ✅ Organization-based counts
+                TotalClients = organizations.Count,
+                ActiveClients = organizations.Count(x => x.Status == "Active"),
+                InactiveClients = organizations.Count(x => x.Status != "Active")
             };
 
-            foreach (var admin in admins)
+            // ✅ IMPORTANT: One loop per organization
+            foreach (var organization in organizations)
             {
+                // Get latest subscription for THIS organization only
                 var subscription = subscriptions
-                    .Where(x => x.AdminId == admin.Id)
-                    .OrderByDescending(x => x.SubscriptionId)
+                    .Where(x => x.OrganizationId == organization.Id)
+                    .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
 
                 var currentUsers = employeeCounts
-                    .FirstOrDefault(x => x.AdminId == admin.Id)
+                    .FirstOrDefault(x => x.OrganizationId == organization.Id)
                     ?.Count ?? 0;
 
                 int maxUsers = 0;
                 int remainingUsers = 0;
                 int daysRemaining = 0;
+
                 DateTime? startDate = null;
                 DateTime? endDate = null;
+
                 string subscriptionStatus = "No Subscription";
 
                 if (subscription != null)
                 {
                     maxUsers = subscription.MaxUsers;
-                    remainingUsers = Math.Max(0, maxUsers - currentUsers);
+
+                    remainingUsers = Math.Max(
+                        0,
+                        maxUsers - currentUsers);
+
                     startDate = subscription.StartDate;
                     endDate = subscription.EndDate;
-                    daysRemaining = Math.Max(0, (subscription.EndDate.Date - today).Days);
 
-                    if (!subscription.IsActive)
-                    {
-                        subscriptionStatus = "Inactive";
-                    }
-                    else if (subscription.EndDate.Date < today)
+                    daysRemaining = Math.Max(
+                        0,
+                        (subscription.EndDate.Date - today).Days);
+
+                    // ✅ Correct subscription status
+                    if (subscription.EndDate.Date < today)
                     {
                         subscriptionStatus = "Expired";
                     }
                     else if (subscription.StartDate.Date > today)
                     {
                         subscriptionStatus = "Upcoming";
+                    }
+                    else if (!subscription.IsActive)
+                    {
+                        subscriptionStatus = "Inactive";
                     }
                     else if (daysRemaining <= 7)
                     {
@@ -239,37 +266,64 @@ namespace EmployeeManagementSystem.Services
                 result.Clients.Add(
                     new ClientDashboardItemDto
                     {
-                        ClientId = admin.Id,
-                        Email = admin.Email,
-                        IsActive = admin.IsActive,
+                        // Organization ID instead of Admin ID
+                        ClientId = organization.Id,
+
+                        Email = organization.Email,
+
+                        IsActive = organization.Status == "Active",
+
                         MaxUsers = maxUsers,
+
                         CurrentUsers = currentUsers,
+
                         RemainingUsers = remainingUsers,
+
                         StartDate = startDate,
+
                         EndDate = endDate,
+
                         SubscriptionStatus = subscriptionStatus,
+
                         DaysRemaining = daysRemaining
                     });
             }
 
-            result.ActiveSubscriptions = result.Clients.Count(x => x.SubscriptionStatus == "Active");
-            result.ExpiredSubscriptions = result.Clients.Count(x => x.SubscriptionStatus == "Expired");
-            result.ExpiringSoon = result.Clients.Count(x => x.SubscriptionStatus == "Expiring Soon");
-            result.NoSubscription = result.Clients.Count(x => x.SubscriptionStatus == "No Subscription");
+            // ✅ These counts are now ONE PER ORGANIZATION
+            result.ActiveSubscriptions =
+                result.Clients.Count(x =>
+                    x.SubscriptionStatus == "Active");
 
-            result.TotalAllowedUsers = result.Clients.Sum(x => x.MaxUsers);
-            result.TotalCurrentUsers = result.Clients.Sum(x => x.CurrentUsers);
-            result.TotalRemainingUsers = result.Clients.Sum(x => x.RemainingUsers);
+            result.ExpiredSubscriptions =
+                result.Clients.Count(x =>
+                    x.SubscriptionStatus == "Expired");
 
+            result.ExpiringSoon =
+                result.Clients.Count(x =>
+                    x.SubscriptionStatus == "Expiring Soon");
+
+            result.NoSubscription =
+                result.Clients.Count(x =>
+                    x.SubscriptionStatus == "No Subscription");
+
+            // ✅ User totals
+            result.TotalAllowedUsers =
+                result.Clients.Sum(x => x.MaxUsers);
+
+            result.TotalCurrentUsers =
+                result.Clients.Sum(x => x.CurrentUsers);
+
+            result.TotalRemainingUsers =
+                result.Clients.Sum(x => x.RemainingUsers);
+
+            // ✅ Sort organizations
             result.Clients = result.Clients
                 .OrderByDescending(x => x.IsActive)
                 .ThenBy(x => x.Email)
                 .ToList();
 
             return result;
-        }
-
-        // =========================================================
+        }   // =========================================================
         // 3. ENHANCED DASHBOARD (Real Database Aggregations)
         // =========================================================
         public async Task<SuperAdminEnhancedDashboardDto> GetEnhancedDashboard()

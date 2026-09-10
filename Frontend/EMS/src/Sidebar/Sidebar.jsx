@@ -56,16 +56,17 @@ const SUPER_ADMIN_STATIC_MENUS = [
   icon: FaShieldAlt,
   label: "Permissions"
 },
-{
-  to: "/super-admin/billing",
-  icon: FaMoneyBillWave,
-  label: "Billing"
-},
-{
-  to: "/super-admin/settings",
-  icon: FaCog,
-  label: "Settings"
-}];
+// {
+//   to: "/super-admin/billing",
+//   icon: FaMoneyBillWave,
+//   label: "Billing"
+// },
+// {
+//   to: "/super-admin/settings",
+//   icon: FaCog,
+//   label: "Settings"
+// }
+];
 
 const EXPANDABLE_MENUS = [
 {
@@ -371,9 +372,12 @@ function SidebarLink({ to, icon, label, compact, onClick }) {
       data-title={label}
       data-nav-target={to}
       title={compact ? label : undefined}>
-      
-      <span className="menu-item-icon">{React.createElement(icon)}</span>
-      <span className="menu-item-label">{label}</span>
+      
+
+      <span className="menu-item-icon">{React.createElement(icon)}</span>
+
+      <span className="menu-item-label">{label}</span>
+
     </NavLink>);
 
 }
@@ -386,9 +390,12 @@ function SubmenuLink({ to, icon, label, onClick }) {
       onClick={onClick}
       data-title={label}
       data-nav-target={to}>
-      
-      <span className="submenu-item-icon">{React.createElement(icon)}</span>
-      <span className="submenu-item-label">{label}</span>
+      
+
+      <span className="submenu-item-icon">{React.createElement(icon)}</span>
+
+      <span className="submenu-item-label">{label}</span>
+
     </NavLink>);
 
 }
@@ -664,7 +671,8 @@ function Sidebar({ collapsed }) {
         "submenu-open-down"}`
         }
         key={menu.key}>
-        
+        
+
         <button
           type="button"
           className={`menu-item menu-toggle ${isMenuActive(menu.key) ? "active" : ""}`
@@ -674,26 +682,39 @@ function Sidebar({ collapsed }) {
           data-title={menu.label}
           aria-expanded={isMenuExpanded(menu.key)}
           title={isCompact ? menu.label : undefined}>
-          
-          <span className="menu-item-icon">{React.createElement(menu.icon)}</span>
-
-          <span className="menu-item-label">
-            {menu.labelByRole?.[roleName] || menu.label}
-          </span>
-          <span className="menu-arrow-wrap">
+          
+
+          <span className="menu-item-icon">{React.createElement(menu.icon)}</span>
+
+
+
+          <span className="menu-item-label">
+
+            {menu.labelByRole?.[roleName] || menu.label}
+
+          </span>
+
+          <span className="menu-arrow-wrap">
+
             <FaChevronDown
               className={`menu-arrow ${isMenuExpanded(menu.key) ? "rotated" : ""}`
               } />
-            
-          </span>
-        </button>
-
+            
+
+          </span>
+
+        </button>
+
+
+
         {!isCompact &&
         <div
           ref={setSubmenuRef(menu.key)}
           className={`submenu-shell ${isMenuExpanded(menu.key) ? "open" : ""}`}>
-          
-            <div className="submenu">
+          
+
+            <div className="submenu">
+
               {visibleItems.map((item) =>
             <SubmenuLink
               key={item.to}
@@ -702,24 +723,30 @@ function Sidebar({ collapsed }) {
               label={item.label}
               onClick={handleLinkClick} />
 
-            )}
-            </div>
+            )}
+
+            </div>
+
           </div>
-        }
+        }
+
       </div>);
 
   };
 
   const renderSuperAdminMenu = () =>
-  <>
+  <>
+
     <SidebarLink
       to="/super-admin/dashboard"
       icon={FaTachometerAlt}
       label="Dashboard"
       compact={isCompact}
       onClick={handleLinkClick} />
-    
-      {SUPER_ADMIN_EXPANDABLE_MENUS.map(renderExpandableMenu)}
+    
+
+      {SUPER_ADMIN_EXPANDABLE_MENUS.map(renderExpandableMenu)}
+
       {SUPER_ADMIN_STATIC_MENUS.filter((item) => item.label !== "Dashboard").map((item) =>
     <SidebarLink
       key={item.label}
@@ -729,7 +756,8 @@ function Sidebar({ collapsed }) {
       compact={isCompact}
       onClick={handleLinkClick} />
 
-    )}
+    )}
+
     </>;
 
   return (
@@ -749,29 +777,40 @@ function Sidebar({ collapsed }) {
             }} />
           
         </div>
-
-        <nav className="menu">
+
+
+        <nav className="menu">
+
           {isOnboardingUser() ?
-          <>
+          <>
+
               <SidebarLink
               to="/onboarding/details"
               icon={FaUsers}
               label="Add Details"
               compact={isCompact}
               onClick={handleLinkClick} />
-            
+            
+
             </> :
           superAdminUser ?
           renderSuperAdminMenu() :
 
-          <>
-              {STATIC_MENUS_BEFORE_DROPDOWNS.map(renderStaticMenu)}
-              {EXPANDABLE_MENUS.map(renderExpandableMenu)}
-              {STATIC_MENUS_AFTER_DROPDOWNS.map(renderStaticMenu)}
+          <>
+
+              {STATIC_MENUS_BEFORE_DROPDOWNS.map(renderStaticMenu)}
+
+              {EXPANDABLE_MENUS.map(renderExpandableMenu)}
+
+              {STATIC_MENUS_AFTER_DROPDOWNS.map(renderStaticMenu)}
+
             </>
-          }
-        </nav>
-      </aside>
+          }
+
+        </nav>
+
+      </aside>
+
     </>);
 
 }

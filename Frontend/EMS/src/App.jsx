@@ -93,8 +93,8 @@ const Dashboard = lazyRoute("dashboard", () => import("./dashboard/Dashboard"));
 // const SuperAdminClients = lazyRoute("super-admin-clients", () => import("./SuperAdmin/SuperAdminClients"));
 const Organizations = lazyRoute("organizations", () => import("./SuperAdmin/Organizations"));
 const Subscriptions = lazyRoute("subscriptions", () => import("./SuperAdmin/Subscriptions"));
-const Billing = lazyRoute("billing", () => import("./SuperAdmin/Billing"));
-const SuperAdminSettings = lazyRoute("super-admin-settings", () => import("./SuperAdmin/SuperAdminSettings"));
+// const Billing = lazyRoute("billing", () => import("./SuperAdmin/Billing"));
+// const SuperAdminSettings = lazyRoute("super-admin-settings", () => import("./SuperAdmin/SuperAdminSettings"));
 const SuperAdminSearch = lazyRoute("super-admin-search", () => import("./SuperAdmin/SuperAdminSearch"));
 // const Support = lazyRoute("support", () => import("./SuperAdmin/Support"));
 const SuperAdminPermissions = lazyRoute("super-admin-permissions", () => import("./SuperAdmin/SuperAdminPermissions"));
@@ -369,7 +369,7 @@ function App() {
                 </PermissionRoute>
               }
             />
-            <Route
+            {/* <Route
               path="/super-admin/billing"
               element={
                 isSuperAdmin() || isAdmin() ? (
@@ -382,7 +382,7 @@ function App() {
             <Route
               path="/super-admin/settings"
               element={isSuperAdmin() ? <SuperAdminSettings /> : <Navigate to="/403" replace />}
-            />
+            /> */}
             <Route
               path="/super-admin/search"
               element={isSuperAdmin() ? <SuperAdminSearch /> : <Navigate to="/403" replace />}
