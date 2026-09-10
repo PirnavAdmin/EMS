@@ -847,7 +847,7 @@ function TicketEditorModal({
                   options: employees.map((employee) => ({
                     value: employee.id || employee.name,
                     label: employee.label
-                  }))
+                  }))                                                                           
                 }]
               }
               placeholder={
@@ -2329,7 +2329,7 @@ function AllTicketsPage({ scope = "admin" }) {
                             <FaEye aria-hidden="true" />
                           </button>
 
-                          
+                       
                             <button
                               type="button"
                               className="ticket-action-button edit"
@@ -2344,7 +2344,7 @@ function AllTicketsPage({ scope = "admin" }) {
                             >
                               <FaPen aria-hidden="true" />
                             </button>
-                          )
+                         
 
                           {/* <button
                             type="button"
