@@ -41,6 +41,7 @@ services:
 #     - /home/ubuntu/ems-storage/uploads:/app/wwwroot/uploads/employee-documents
  
       - /home/ubuntu/ems-storage/uploads/employee-documents:/app/wwwroot/uploads/employee-documents
+      - /home/ubuntu/ems-storage/uploads/leave-attachments:/app/wwwroot/uploads/leave-attachments
  
       - /home/ubuntu/ems-storage/Agreements:/app/wwwroot/Agreements
  
