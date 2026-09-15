@@ -179,6 +179,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
         var approvalToken = Guid.NewGuid().ToString();
         string? attachmentFileName = null;
         string? attachmentPath = null;
+        string? attachmentPhysicalPath = null;
 
         if (dto.Attachment != null && dto.Attachment.Length > 0)
         {
@@ -188,6 +189,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
                 "uploads",
                 "leave-attachments"
             );
+
 
             if (!Directory.Exists(uploadFolder))
                 Directory.CreateDirectory(uploadFolder);
@@ -213,6 +215,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
             attachmentPath =
                 $"/uploads/leave-attachments/{uniqueFileName}";
+            attachmentPhysicalPath = physicalPath;
         }
 
         var leave = new EmployeeLeave
@@ -314,87 +317,86 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
             {
 
-                await _emailService.SendEmailAsync(
-
-approver.Email,
-
-$"Leave Approval Request - {employee.Name} ({employee.Employee_Id}) - #{leave.Id}",
-
-$@"
+                await _emailService.SendEmailWithAttachment(
+     approver.Email,
+     $"Leave Approval Request - {employee.Name} ({employee.Employee_Id}) - #{leave.Id}",
+     $@"
 <html>
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
-<p>Hi Team,</p>
-<p>Hope you are doing well!!</p>
-<p>
 
+<p>Hi Team,</p>
+
+<p>Hope you are doing well!!</p>
+
+<p>
 With reference to the above subject, employee
 <b>{employee.Name} ({employee.Employee_Id})</b>
-
 has applied for <b>{dto.LeaveType}</b> from
 <b>{fromDate:dd-MMM-yyyy}</b> to
 <b>{toDate:dd-MMM-yyyy}</b>.
 </p>
+
 <p>
 <b>Applied On:</b>
-
 {leave.CreatedAt.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
 </p>
+
 <p>
 <b>Reason:</b> {dto.Reason}
 </p>
-<p>
 
+<p>
 We kindly request you to review the leave application and provide your approval/rejection at the earliest.
 </p>
-<p>
 
+<p>
 NOTE: Please log in to the EMS application using the link below:
 </p>
+
 <p>
 <a href='https://hrms.pirnav.com/login' target='_blank'>
-
 EMS Login Portal
 </a>
 </p>
-<p>
 
+<p>
 Or copy and paste the URL into your browser:
 <br/>
 <b>https://hrms.pirnav.com/login</b>
 </p>
-<p>
 
+<p>
 After logging in, navigate to:
 <br/>
 <b>Leave Management → Pending Requests</b>
 </p>
-<p>
 
+<p>
 to take the necessary action.
 </p>
-<p>
 
+<p>
 Thank you for your understanding and support.
 </p>
-<p>
 
+<p>
 Thank you,
 </p>
-<p>
 
+<p>
 Regards,
 </p>
+
 <p>
 <b>PIRNAV EMS</b><br/>
-
 Employee Management System<br/>
-
 Pirnav Software Solutions Pvt. Ltd.<br/>
 </p>
-</body>
-</html>"
 
-);
+</body>
+</html>",
+     attachmentPhysicalPath ?? string.Empty
+ );
 
             }
 
@@ -417,13 +419,10 @@ Pirnav Software Solutions Pvt. Ltd.<br/>
                 var rejectLink =
                     $"{baseUrl}/api/EmployeeLeave/mail-action?leaveId={leave.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
 
-                await _emailService.SendEmailAsync(
-
-                    externalEmail,
-
-                    $"Leave Approval Required - {employee.Name} - Leave #{leave.Id}",
-
-                    $@"
+               await _emailService.SendEmailWithAttachment(
+    externalEmail,
+    $"Leave Approval Required - {employee.Name} - Leave #{leave.Id}",
+    $@"
 <html>
 
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
@@ -456,10 +455,6 @@ and provide your approval/rejection.
 
 <br/>
 
-<!-- ========================================================= -->
-<!-- APPROVE AS LEAVE -->
-<!-- ========================================================= -->
-
 <a href='{approveAsLeaveLink}'
 style='background-color:green;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;margin-right:10px;display:inline-block;'>
 Approve as Leave
@@ -474,6 +469,7 @@ Approve as WFH
 style='background-color:red;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;display:inline-block;'>
 Reject
 </a>
+
 <br/>
 <br/>
 
@@ -487,8 +483,9 @@ Employee Management System
 
 </body>
 
-</html>"
-                );
+</html>",
+    attachmentPhysicalPath ?? string.Empty
+);
             }
         }
 
@@ -1789,6 +1786,7 @@ Employee Management System
         }
         string? attachmentFileName = null;
         string? attachmentPath = null;
+        string? attachmentPhysicalPath = null;
 
         if (dto.Attachment != null && dto.Attachment.Length > 0)
         {
@@ -1824,6 +1822,7 @@ Employee Management System
 
             attachmentPath =
                 $"/uploads/leave-attachments/{uniqueFileName}";
+            attachmentPhysicalPath = physicalPath;
         }
 
         var fromDate = dto.FromDate.Date;
@@ -1945,10 +1944,10 @@ Employee Management System
         {
             if (!string.IsNullOrWhiteSpace(approver.Email))
             {
-                await _emailService.SendEmailAsync(
-                    approver.Email,
-                    $"WFH Approval Request - {employee.Name} ({employee.Employee_Id}) - #{wfh.Id}",
-    $@"
+                await _emailService.SendEmailWithAttachment(
+     approver.Email,
+     $"WFH Approval Request - {employee.Name} ({employee.Employee_Id}) - #{wfh.Id}",
+     $@"
 <html>
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
 
@@ -1969,7 +1968,8 @@ to
 
 <p>
 <b>Applied On:</b>
-{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}</p>
+{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
+</p>
 
 <p>
 <b>Reason:</b> {dto.Reason}
@@ -2016,37 +2016,38 @@ Employee Management System
 </p>
 
 </body>
-</html>");
+</html>",
+     attachmentPhysicalPath ?? string.Empty
+ );
             }
         }
+                //==========================================================
+                // External Mail
+                //==========================================================
 
-        //==========================================================
-        // External Mail
-        //==========================================================
+                foreach (var externalEmail in externalEmails)
+                {
+                    // ============================================================
+                    // APPROVE AS WFH
+                    // ============================================================
 
-        foreach (var externalEmail in externalEmails)
-        {
-            // ============================================================
-            // APPROVE AS WFH
-            // ============================================================
+                    var approveAsWFHLink =
+                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
 
-            var approveAsWFHLink =
-     $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
+                    var approveAsLeaveLink =
+                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
 
-            var approveAsLeaveLink =
-                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
-
-            var rejectLink =
-                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
+                    var rejectLink =
+                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
 
 
-            await _emailService.SendEmailAsync(
+                    await _emailService.SendEmailWithAttachment(
 
-                externalEmail,
+                        externalEmail,
 
-                $"WFH Approval Required - {employee.Name} - Request #{wfh.Id}",
+                        $"WFH Approval Required - {employee.Name} - Request #{wfh.Id}",
 
-                $@"
+                        $@"
 <html>
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
 
@@ -2106,83 +2107,84 @@ Employee Management System
 </p>
 
 </body>
-</html>"
-            );
-        }
+</html>",
 
+                        attachmentPhysicalPath ?? string.Empty
+                    );
+                }
 
-        // ==========================================================
-        // Admin Notification
-        // ==========================================================
+                // ==========================================================
+                // Admin Notification
+                // ==========================================================
 
-        _context.AdminNotifications.Add(new AdminNotification
-        {
-            Title = "WFH Request",
-
-            Message = $"{employee.Name} applied for Work From Home",
-
-            UserRole = "Manager",
-
-            IsRead = false,
-
-            CreatedAt = DateTime.UtcNow
-        });
-
-        await _context.SaveChangesAsync();
-
-        return new OkObjectResult(new
-        {
-            message = "Work From Home applied successfully."
-        });
-    }
-    [HttpGet("all-wfh")]
-    public async Task<IActionResult> GetAllWFH()
-    {
-        try
-        {
-            var requests = await _context.WorkFromHomeRequests
-                .OrderByDescending(x => x.AppliedOn)
-                .Select(x => new
+                _context.AdminNotifications.Add(new AdminNotification
                 {
-                    Id = x.Id,
-                    EmployeeId = x.EmployeeId,
-                    EmployeeName = x.EmployeeName,
-                    LeaveType = x.LeaveType,
+                    Title = "WFH Request",
 
-                    FromDate = x.FromDate,
-                    ToDate = x.ToDate,
+                    Message = $"{employee.Name} applied for Work From Home",
 
-                    Reason = x.Reason,
+                    UserRole = "Manager",
 
-                    // Attachment
-                    AttachmentFileName = x.AttachmentFileName,
-                    AttachmentPath = x.AttachmentPath,
+                    IsRead = false,
 
-                    Status = x.Status,
+                    CreatedAt = DateTime.UtcNow
+                });
 
-                    ApprovedBy = x.ApprovedBy,
+                await _context.SaveChangesAsync();
 
-                    ApprovedOn = x.ApprovedOn == null
-                        ? null
-                        : x.ApprovedOn,
-
-                    AppliedOn = x.AppliedOn == null
-                        ? null
-                        : x.AppliedOn
-                })
-                .ToListAsync();
-
-            return new OkObjectResult(requests);
-        }
-        catch (Exception ex)
-        {
-            return new BadRequestObjectResult(new
+                return new OkObjectResult(new
+                {
+                    message = "Work From Home applied successfully."
+                });
+            }
+            [HttpGet("all-wfh")]
+            public async Task<IActionResult> GetAllWFH()
             {
-                Message = ex.Message,
-                StackTrace = ex.StackTrace
-            });
-        }
-    }
+                try
+                {
+                    var requests = await _context.WorkFromHomeRequests
+                        .OrderByDescending(x => x.AppliedOn)
+                        .Select(x => new
+                        {
+                            Id = x.Id,
+                            EmployeeId = x.EmployeeId,
+                            EmployeeName = x.EmployeeName,
+                            LeaveType = x.LeaveType,
+
+                            FromDate = x.FromDate,
+                            ToDate = x.ToDate,
+
+                            Reason = x.Reason,
+
+                            // Attachment
+                            AttachmentFileName = x.AttachmentFileName,
+                            AttachmentPath = x.AttachmentPath,
+
+                            Status = x.Status,
+
+                            ApprovedBy = x.ApprovedBy,
+
+                            ApprovedOn = x.ApprovedOn == null
+                                ? null
+                                : x.ApprovedOn,
+
+                            AppliedOn = x.AppliedOn == null
+                                ? null
+                                : x.AppliedOn
+                        })
+                        .ToListAsync();
+
+                    return new OkObjectResult(requests);
+                }
+                catch (Exception ex)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = ex.Message,
+                        StackTrace = ex.StackTrace
+                    });
+                }
+            } 
     public async Task<IActionResult> GetMyWFH(ClaimsPrincipal user)
     {
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
