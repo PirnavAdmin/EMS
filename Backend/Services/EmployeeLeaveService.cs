@@ -69,6 +69,39 @@ public class EmployeeLeaveService : IEmployeeLeaveService
         if (employee == null)
 
             return new BadRequestObjectResult(new { message = "Employee not found" });
+        // Attachment validation
+        if (dto.Attachment != null)
+        {
+            var allowedExtensions = new[]
+            {
+        ".pdf",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp"
+    };
+
+            var extension =
+                Path.GetExtension(dto.Attachment.FileName)
+                    .ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = "Only PDF and image files are allowed."
+                });
+            }
+
+            // Maximum file size = 5 MB
+            if (dto.Attachment.Length > 5 * 1024 * 1024)
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = "Attachment size cannot exceed 5 MB."
+                });
+            }
+        }
 
         var fromDate = dto.FromDate.Date;
         var toDate = dto.ToDate.Date;
@@ -144,6 +177,43 @@ public class EmployeeLeaveService : IEmployeeLeaveService
         }
 
         var approvalToken = Guid.NewGuid().ToString();
+        string? attachmentFileName = null;
+        string? attachmentPath = null;
+
+        if (dto.Attachment != null && dto.Attachment.Length > 0)
+        {
+            var uploadFolder = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "uploads",
+                "leave-attachments"
+            );
+
+            if (!Directory.Exists(uploadFolder))
+                Directory.CreateDirectory(uploadFolder);
+
+            var extension =
+                Path.GetExtension(dto.Attachment.FileName)
+                    .ToLowerInvariant();
+
+            var uniqueFileName =
+                $"{Guid.NewGuid()}{extension}";
+
+            var physicalPath =
+                Path.Combine(uploadFolder, uniqueFileName);
+
+            using (var stream = new FileStream(
+                physicalPath,
+                FileMode.Create))
+            {
+                await dto.Attachment.CopyToAsync(stream);
+            }
+
+            attachmentFileName = Path.GetFileName(dto.Attachment.FileName);
+
+            attachmentPath =
+                $"/uploads/leave-attachments/{uniqueFileName}";
+        }
 
         var leave = new EmployeeLeave
 
@@ -172,6 +242,8 @@ public class EmployeeLeaveService : IEmployeeLeaveService
             HRStatus = "Pending",
 
             ApprovalToken = approvalToken,
+            AttachmentFileName = attachmentFileName,
+            AttachmentPath = attachmentPath,
 
 
             CreatedAt = DateTime.UtcNow
@@ -211,7 +283,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://localhost:7191";
+        string baseUrl = "https://hrms.pirnav.com";
         var notification = GetNotificationSettings();
 
         if (!notification.EnableEmailNotifications ||
@@ -1182,7 +1254,11 @@ Employee Management System
                 x.ApprovedBy,
 
                 AppliedDate = x.CreatedAt,
-                ApprovedDate = x.ApprovedOn
+                ApprovedDate = x.ApprovedOn,
+
+                // Attachment
+                AttachmentFileName = x.AttachmentFileName,
+                AttachmentPath = x.AttachmentPath
             })
             .ToListAsync();
 
@@ -1678,6 +1754,77 @@ Employee Management System
                 message = "Employee not found"
             });
         }
+        // Attachment validation
+        if (dto.Attachment != null)
+        {
+            var allowedExtensions = new[]
+            {
+        ".pdf",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp"
+    };
+
+            var extension =
+                Path.GetExtension(dto.Attachment.FileName)
+                    .ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = "Only PDF and image files are allowed."
+                });
+            }
+
+            // Maximum file size = 5 MB
+            if (dto.Attachment.Length > 5 * 1024 * 1024)
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = "Attachment size cannot exceed 5 MB."
+                });
+            }
+        }
+        string? attachmentFileName = null;
+        string? attachmentPath = null;
+
+        if (dto.Attachment != null && dto.Attachment.Length > 0)
+        {
+            var uploadFolder = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "uploads",
+                "leave-attachments"
+            );
+
+            if (!Directory.Exists(uploadFolder))
+                Directory.CreateDirectory(uploadFolder);
+
+            var extension =
+                Path.GetExtension(dto.Attachment.FileName)
+                    .ToLowerInvariant();
+
+            var uniqueFileName =
+                $"{Guid.NewGuid()}{extension}";
+
+            var physicalPath =
+                Path.Combine(uploadFolder, uniqueFileName);
+
+            using (var stream = new FileStream(
+                physicalPath,
+                FileMode.Create))
+            {
+                await dto.Attachment.CopyToAsync(stream);
+            }
+
+            attachmentFileName =
+                Path.GetFileName(dto.Attachment.FileName);
+
+            attachmentPath =
+                $"/uploads/leave-attachments/{uniqueFileName}";
+        }
 
         var fromDate = dto.FromDate.Date;
         var toDate = dto.ToDate.Date;
@@ -1725,6 +1872,8 @@ Employee Management System
             FromDate = fromDate,
             ToDate = toDate,
             Reason = dto.Reason,
+            AttachmentFileName = attachmentFileName,
+            AttachmentPath = attachmentPath,
             Status = "Pending",
             ManagerStatus = "Pending",
             HRStatus = "Pending",
@@ -1765,7 +1914,7 @@ Employee Management System
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://localhost:7191";
+        string baseUrl = "https://hrms.pirnav.com";
 
         var notification = GetNotificationSettings();
 
@@ -2004,12 +2153,15 @@ Employee Management System
                     ToDate = x.ToDate,
 
                     Reason = x.Reason,
+
+                    // Attachment
+                    AttachmentFileName = x.AttachmentFileName,
+                    AttachmentPath = x.AttachmentPath,
+
                     Status = x.Status,
 
                     ApprovedBy = x.ApprovedBy,
-                   
 
-                    // Handle null values
                     ApprovedOn = x.ApprovedOn == null
                         ? null
                         : x.ApprovedOn,
@@ -2029,7 +2181,6 @@ Employee Management System
                 Message = ex.Message,
                 StackTrace = ex.StackTrace
             });
-
         }
     }
     public async Task<IActionResult> GetMyWFH(ClaimsPrincipal user)
@@ -2053,7 +2204,13 @@ Employee Management System
                 LeaveType = x.LeaveType,
                 FromDate = x.FromDate,
                 ToDate = x.ToDate,
+
                 x.Reason,
+
+                // Attachment
+                x.AttachmentFileName,
+                x.AttachmentPath,
+
                 x.Status,
                 x.ApprovedBy,
                 x.ApprovedOn,

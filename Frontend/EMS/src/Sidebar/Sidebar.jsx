@@ -18,8 +18,9 @@ import {
   FaCog,
   FaTicketAlt,
   FaCreditCard,
-  FaHeadset } from
-"react-icons/fa";
+  FaHeadset
+} from
+  "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import pirnavLogo from "../assets/pirnav.png";
@@ -30,165 +31,165 @@ import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, i
 const SUPER_ADMIN_EXPANDABLE_MENUS = [];
 
 const SUPER_ADMIN_STATIC_MENUS = [
-{
-  to: "/super-admin/dashboard",
-  icon: FaTachometerAlt,
-  label: "Dashboard"
-},
-// --- old: Admin Management, replaced by Organizations ---
-// {
-//   to: "/super-admin/administration/admins",
-//   icon: FaUsers,
-//   label: "Admin Management"
-// },
-{
-  to: "/super-admin/administration/organizations",
-  icon: FaBuilding,
-  label: "Organizations"
-},
-{
-  to: "/super-admin/administration/subscriptions",
-  icon: FaCreditCard,
-  label: "Subscription Management"
-},
-{
-  to: "/super-admin/administration/permissions",
-  icon: FaShieldAlt,
-  label: "Permissions"
-},
-// {
-//   to: "/super-admin/billing",
-//   icon: FaMoneyBillWave,
-//   label: "Billing"
-// },
-// {
-//   to: "/super-admin/settings",
-//   icon: FaCog,
-//   label: "Settings"
-// }
+  {
+    to: "/super-admin/dashboard",
+    icon: FaTachometerAlt,
+    label: "Dashboard"
+  },
+  // --- old: Admin Management, replaced by Organizations ---
+  // {
+  //   to: "/super-admin/administration/admins",
+  //   icon: FaUsers,
+  //   label: "Admin Management"
+  // },
+  {
+    to: "/super-admin/administration/organizations",
+    icon: FaBuilding,
+    label: "Organizations"
+  },
+  {
+    to: "/super-admin/administration/subscriptions",
+    icon: FaCreditCard,
+    label: "Subscription Management"
+  },
+  {
+    to: "/super-admin/administration/permissions",
+    icon: FaShieldAlt,
+    label: "Permissions"
+  },
+  // {
+  //   to: "/super-admin/billing",
+  //   icon: FaMoneyBillWave,
+  //   label: "Billing"
+  // },
+  // {
+  //   to: "/super-admin/settings",
+  //   icon: FaCog,
+  //   label: "Settings"
+  // }
 ];
 
 const EXPANDABLE_MENUS = [
-{
-  key: "employees",
-  label: "Employees",
-  icon: FaUsers,
-  items: [
   {
-    to: "/employees",
-    icon: FaList,
-    label: "Employee List",
-    permission: "Employees"
-  },
-  {
-    to: "/admin/onboarding",
-    icon: FaUserTie,
-    label: "Onboarding List",
-    permission: "Onboarding List"
-  },
-  {
-    to: "/add-employee",
+    key: "employees",
+    label: "Employees",
     icon: FaUsers,
-    label: "Add Details",
-    permission: "Add Employee"
-  }]
+    items: [
+      {
+        to: "/employees",
+        icon: FaList,
+        label: "Employee List",
+        permission: "Employees"
+      },
+      {
+        to: "/admin/onboarding",
+        icon: FaUserTie,
+        label: "Onboarding List",
+        permission: "Onboarding List"
+      },
+      {
+        to: "/add-employee",
+        icon: FaUsers,
+        label: "Add Details",
+        permission: "Add Employee"
+      }]
 
-},
-{
-  key: "company",
-  label: "Company",
-  icon: FaBuilding,
-  items: [
+  },
   {
-    to: "/company",
+    key: "company",
+    label: "Company",
     icon: FaBuilding,
-    label: "Company Details",
-    permission: "Company Details"
-  },
-  {
-    to: "/projects",
-    icon: FaList,
-    label: "Projects",
-    permission: "Projects"
-  },
-  {
-    to: "/holidays",
-    icon: FaCalendarAlt,
-    label: "Holidays",
-    permission: "Holidays"
-  }]
+    items: [
+      {
+        to: "/company",
+        icon: FaBuilding,
+        label: "Company Details",
+        permission: "Company Details"
+      },
+      {
+        to: "/projects",
+        icon: FaList,
+        label: "Projects",
+        permission: "Projects"
+      },
+      {
+        to: "/holidays",
+        icon: FaCalendarAlt,
+        label: "Holidays",
+        permission: "Holidays"
+      }]
 
-},
-{
-  key: "masters",
-  label: "Masters",
-  icon: FaShieldAlt,
-  items: [
+  },
   {
-    to: "/roles",
+    key: "masters",
+    label: "Masters",
     icon: FaShieldAlt,
-    label: "Roles",
-    permission: "Roles"
-  },
-  {
-    to: "/assets",
-    icon: FaLaptop,
-    label: "Assets",
-    permission: "Assets"
-  },
-  {
-    to: "/clients",
-    icon: FaUserTie,
-    label: "Clients",
-    permission: "Clients"
-  },
-  {
-    to: "/departments",
-    icon: FaBuilding,
-    label: "Departments",
-    permission: "Departments"
-  }]
+    items: [
+      {
+        to: "/roles",
+        icon: FaShieldAlt,
+        label: "Roles",
+        permission: "Roles"
+      },
+      {
+        to: "/assets",
+        icon: FaLaptop,
+        label: "Assets",
+        permission: "Assets"
+      },
+      {
+        to: "/clients",
+        icon: FaUserTie,
+        label: "Clients",
+        permission: "Clients"
+      },
+      {
+        to: "/departments",
+        icon: FaBuilding,
+        label: "Departments",
+        permission: "Departments"
+      }]
 
-},
-{
-  key: "tickets",
-  label: "Ticket Management",
-  labelByRole: {
-    user: "My Tickets",
-    employee: "My Tickets"
-  },
-  icon: FaTicketAlt,
-  items: [
-  {
-    to: "/admin/tickets",
-    icon: FaList,
-    label: "All Tickets",
-    permission: "All Tickets"
   },
   {
-    to: "/employee/my-tickets",
-    icon: FaList,
-    label: "My Tickets",
-    permission: "My Tickets"
-  }]
+    key: "tickets",
+    label: "Ticket Management",
+    labelByRole: {
+      user: "My Tickets",
+      employee: "My Tickets"
+    },
+    icon: FaTicketAlt,
+    items: [
+      {
+        to: "/admin/tickets",
+        icon: FaList,
+        label: "All Tickets",
+        permission: "All Tickets"
+      },
+      {
+        to: "/employee/my-tickets",
+        icon: FaList,
+        label: "My Tickets",
+        permission: "My Tickets"
+      }]
 
-},
-{
-  key: "settings",
-  label: "Settings",
-  icon: FaCog,
-  adminOnly: true,
-  hidden: true,
-  items: [
-  { to: "/settings", icon: FaCog, label: "General Settings", adminOnly: true },
-  { to: "/settings/resignation", icon: FaFileSignature, label: "Resignation", adminOnly: true },
-  { to: "/settings/employee-clearance", icon: FaShieldAlt, label: "Employee Clearance", adminOnly: true },
-  { to: "/settings/exit-interview", icon: FaUserTie, label: "Exit Interview", adminOnly: true },
-  { to: "/settings/full-final-settlement", icon: FaMoneyBillWave, label: "Full Final Settlement", adminOnly: true },
-  { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
-  { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true }]
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: FaCog,
+    adminOnly: true,
+    hidden: true,
+    items: [
+      { to: "/settings", icon: FaCog, label: "General Settings", adminOnly: true },
+      { to: "/settings/resignation", icon: FaFileSignature, label: "Resignation", adminOnly: true },
+      { to: "/settings/employee-clearance", icon: FaShieldAlt, label: "Employee Clearance", adminOnly: true },
+      { to: "/settings/exit-interview", icon: FaUserTie, label: "Exit Interview", adminOnly: true },
+      { to: "/settings/full-final-settlement", icon: FaMoneyBillWave, label: "Full Final Settlement", adminOnly: true },
+      { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
+      { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true }]
 
-}];
+  }];
 
 const EXPANDABLE_MENU_PATHS = EXPANDABLE_MENUS.reduce((acc, menu) => {
   acc[menu.key] = menu.items.map((item) => item.to);
@@ -211,129 +212,129 @@ const pathMatchesMenu = (pathname, menuKey) => {
 };
 
 const STATIC_MENUS_BEFORE_DROPDOWNS = [
-{
-  getTo: (roleName) => roleName === "admin" ? "/dashboard" : "/user-dashboard",
-  icon: FaTachometerAlt,
-  label: "Dashboard"
-},
-{
-  to: "/user-holidays",
-  icon: FaCalendarAlt,
-  label: "My Holidays",
-  permission: "User Holidays"
-}];
+  {
+    getTo: (roleName) => roleName === "admin" ? "/dashboard" : "/user-dashboard",
+    icon: FaTachometerAlt,
+    label: "Dashboard"
+  },
+  {
+    to: "/user-holidays",
+    icon: FaCalendarAlt,
+    label: "My Holidays",
+    permission: "User Holidays"
+  }];
 
 const STATIC_MENUS_AFTER_DROPDOWNS = [
-{
-  to: "/payroll",
-  icon: FaMoneyBillWave,
-  label: "Payroll",
-  permission: "Payroll"
-},
-{
-  to: "/user-payslip",
-  icon: FaMoneyBillWave,
-  label: "Payslip",
-  permission: "User Payslip"
-},
-{
-  to: "/reports",
-  icon: FaChartBar,
-  label: "Reports",
-  permission: "Reports"
-},
-{
-  to: "/offer-letters",
-  icon: FaFileSignature,
-  label: "Employee Letters",
-  permission: "Offer Letters"
-},
-{
-  to: "/attendance",
-  icon: FaCalendarAlt,
-  label: "Attendance",
-  permission: "Attendance"
-},
-{
-  to: "/user-attendance",
-  icon: FaCalendarAlt,
-  label: "My Attendance",
-  permission: "User Attendance"
-},
-{
-  to: "/teams",
-  icon: FaProjectDiagram,
-  label: "Teams",
-  permission: "Teams"
-},
-{
-  to: "/my-team",
-  icon: FaProjectDiagram,
-  label: "My Teams",
-  permission: "My Teams",
-  permissionId: 77
-},
-{
-  to: "/leave-management",
-  icon: FaCalendarMinus,
-  label: "Leave",
-  permission: "Leave Management"
-},
-{
-  to: "/user-leave-management",
-  icon: FaCalendarMinus,
-  label: "Employee Leave",
-  permission: "User Leave Management"
-},
-{
-  to: "/notifications",
-  icon: FaBell,
-  label: "Notifications",
-  permission: "Notifications"
-},
-{
-  to: "/user-notifications",
-  icon: FaBell,
-  label: "My Notifications",
-  permission: "User Notifications"
-},
-{
-  to: "/settings",
-  icon: FaCog,
-  label: "Settings",
-  adminOnly: true
-},
-{
-  to: "/super-admin/billing",
-  icon: FaMoneyBillWave,
-  label: "Billing",
-  adminOnly: true
-}];
+  {
+    to: "/payroll",
+    icon: FaMoneyBillWave,
+    label: "Payroll",
+    permission: "Payroll"
+  },
+  {
+    to: "/user-payslip",
+    icon: FaMoneyBillWave,
+    label: "Payslip",
+    permission: "User Payslip"
+  },
+  {
+    to: "/reports",
+    icon: FaChartBar,
+    label: "Reports",
+    permission: "Reports"
+  },
+  {
+    to: "/offer-letters",
+    icon: FaFileSignature,
+    label: "Employee Letters",
+    permission: "Offer Letters"
+  },
+  {
+    to: "/attendance",
+    icon: FaCalendarAlt,
+    label: "Attendance",
+    permission: "Attendance"
+  },
+  {
+    to: "/user-attendance",
+    icon: FaCalendarAlt,
+    label: "My Attendance",
+    permission: "User Attendance"
+  },
+  {
+    to: "/teams",
+    icon: FaProjectDiagram,
+    label: "Teams",
+    permission: "Teams"
+  },
+  {
+    to: "/my-team",
+    icon: FaProjectDiagram,
+    label: "My Teams",
+    permission: "My Teams",
+  },
+  {
+    to: "/leave-management",
+    icon: FaCalendarMinus,
+    label: "Leave",
+    permission: "Leave Management"
+  },
+  {
+    to: "/user-leave-management",
+    icon: FaCalendarMinus,
+    label: "Employee Leave",
+    permission: "User Leave Management"
+  },
+  {
+    to: "/notifications",
+    icon: FaBell,
+    label: "Notifications",
+    permission: "Notifications"
+  },
+  {
+    to: "/user-notifications",
+    icon: FaBell,
+    label: "My Notifications",
+    permission: "User Notifications"
+  },
+  {
+    to: "/settings",
+    icon: FaCog,
+    label: "Settings",
+    adminOnly: true
+  },
+  // {
+  //   to: "/super-admin/billing",
+  //   icon: FaMoneyBillWave,
+  //   label: "Billing",
+  //   adminOnly: true
+  // }
+];
 
 const getMenuKeyFromPath = (pathname) =>
-Object.entries(EXPANDABLE_MENU_PATHS).find(([, paths]) =>
-paths.some((path) =>
-pathname === path ||
-path === "/add-employee" && pathname.startsWith("/add-employee/")
-)
-)?.[0] || null;
+  Object.entries(EXPANDABLE_MENU_PATHS).find(([, paths]) =>
+    paths.some((path) =>
+      pathname === path ||
+      path === "/add-employee" && pathname.startsWith("/add-employee/")
+    )
+  )?.[0] || null;
 
 const getMenuLinkClassName = ({ isActive }) =>
-`menu-item ${isActive ? "active" : ""}`;
+  `menu-item ${isActive ? "active" : ""}`;
 
 const getSubmenuLinkClassName = ({ isActive }) =>
-`submenu-item ${isActive ? "active" : ""}`;
+  `submenu-item ${isActive ? "active" : ""}`;
 
 const hasPermission = (module) => hasModulePermission(module);
 
 const getPermissionRecordId = (permission = {}) =>
-String(
-permission.permissionId ??
-permission.PermissionId ??
-permission.id ??
-permission.Id ??
-"")
-  .trim();
+  String(
+    permission.permissionId ??
+    permission.PermissionId ??
+    permission.id ??
+    permission.Id ??
+    "")
+    .trim();
 
 const isSidebarPermissionVisible = (item, permissions = []) => {
   const moduleVisible = !item.permission || hasPermission(item.permission);
@@ -345,19 +346,19 @@ const isSidebarPermissionVisible = (item, permissions = []) => {
 
   const permissionIdVisible = Array.isArray(permissions)
     ? permissions.some((permission) => {
-        if (getPermissionRecordId(permission) !== String(requiredPermissionId)) {
-          return false;
-        }
+      if (getPermissionRecordId(permission) !== String(requiredPermissionId)) {
+        return false;
+      }
 
-        const canAccess =
+      const canAccess =
         permission.canAccess ??
         permission.CanAccess ??
         permission.canView ??
         permission.CanView ??
         true;
 
-        return canAccess === true;
-      })
+      return canAccess === true;
+    })
     : false;
 
   return moduleVisible && permissionIdVisible;
@@ -372,7 +373,7 @@ function SidebarLink({ to, icon, label, compact, onClick }) {
       data-title={label}
       data-nav-target={to}
       title={compact ? label : undefined}>
-      
+
 
       <span className="menu-item-icon">{React.createElement(icon)}</span>
 
@@ -390,7 +391,7 @@ function SubmenuLink({ to, icon, label, onClick }) {
       onClick={onClick}
       data-title={label}
       data-nav-target={to}>
-      
+
 
       <span className="submenu-item-icon">{React.createElement(icon)}</span>
 
@@ -417,10 +418,10 @@ function Sidebar({ collapsed }) {
   const menuButtonRefs = useRef({});
   const submenuRefs = useRef({});
   const activeMenu = isCompact ?
-  null :
-  menuState.interactionPath === location.pathname ?
-  menuState.active :
-  routeMenu;
+    null :
+    menuState.interactionPath === location.pathname ?
+      menuState.active :
+      routeMenu;
 
   useEffect(() => {
     const permissionControlledItems = [
@@ -476,7 +477,7 @@ function Sidebar({ collapsed }) {
 
     const rect = button.getBoundingClientRect();
     const submenuHeight =
-    submenu.scrollHeight || submenu.offsetHeight || 0;
+      submenu.scrollHeight || submenu.offsetHeight || 0;
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
     const buffer = 16;
@@ -561,18 +562,19 @@ function Sidebar({ collapsed }) {
 
   const isMenuExpanded = (menuKey) => !isCompact && activeMenu === menuKey;
   const isMenuActive = (menuKey) =>
-  pathMatchesMenu(location.pathname, menuKey) || isMenuExpanded(menuKey);
+    pathMatchesMenu(location.pathname, menuKey) || isMenuExpanded(menuKey);
 
   const renderStaticMenu = (item) => {
 
     // Hide user menus for admin
     const adminHiddenMenus = [
-    "Add Details",
-    "My Holidays",
-    "Employee Leave",
-    "My Attendance",
-    "Payslip",
-    "My Notifications"];
+      "Add Details",
+      "My Holidays",
+      "Employee Leave",
+      "My Attendance",
+      "Payslip",
+      "My Notifications",
+      "My Teams"];
 
     if (item.hidden) {
       return null;
@@ -595,7 +597,7 @@ function Sidebar({ collapsed }) {
     }
 
     const targetPath =
-    typeof item.getTo === "function" ? item.getTo(roleName) : item.to;
+      typeof item.getTo === "function" ? item.getTo(roleName) : item.to;
 
     if (!isSidebarPermissionVisible(item, loadedPermissions)) {
       return null;
@@ -647,10 +649,9 @@ function Sidebar({ collapsed }) {
     const submenuDirection = submenuDirections[menu.key] || "down";
 
     if (
-    menu.key === "tickets" &&
-    hasRole("user", "employee") &&
-    visibleItems.length === 1)
-    {
+      menu.key === "tickets" &&
+      hasRole("user", "employee") &&
+      visibleItems.length === 1) {
       const item = visibleItems[0];
 
       return (
@@ -667,11 +668,11 @@ function Sidebar({ collapsed }) {
     return (
       <div
         className={`menu-section ${submenuDirection === "up" ?
-        "submenu-open-up" :
-        "submenu-open-down"}`
+          "submenu-open-up" :
+          "submenu-open-down"}`
         }
         key={menu.key}>
-        
+
 
         <button
           type="button"
@@ -682,7 +683,7 @@ function Sidebar({ collapsed }) {
           data-title={menu.label}
           aria-expanded={isMenuExpanded(menu.key)}
           title={isCompact ? menu.label : undefined}>
-          
+
 
           <span className="menu-item-icon">{React.createElement(menu.icon)}</span>
 
@@ -699,7 +700,7 @@ function Sidebar({ collapsed }) {
             <FaChevronDown
               className={`menu-arrow ${isMenuExpanded(menu.key) ? "rotated" : ""}`
               } />
-            
+
 
           </span>
 
@@ -708,22 +709,22 @@ function Sidebar({ collapsed }) {
 
 
         {!isCompact &&
-        <div
-          ref={setSubmenuRef(menu.key)}
-          className={`submenu-shell ${isMenuExpanded(menu.key) ? "open" : ""}`}>
-          
+          <div
+            ref={setSubmenuRef(menu.key)}
+            className={`submenu-shell ${isMenuExpanded(menu.key) ? "open" : ""}`}>
+
 
             <div className="submenu">
 
               {visibleItems.map((item) =>
-            <SubmenuLink
-              key={item.to}
-              to={item.to}
-              icon={item.icon}
-              label={item.label}
-              onClick={handleLinkClick} />
+                <SubmenuLink
+                  key={item.to}
+                  to={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  onClick={handleLinkClick} />
 
-            )}
+              )}
 
             </div>
 
@@ -735,28 +736,28 @@ function Sidebar({ collapsed }) {
   };
 
   const renderSuperAdminMenu = () =>
-  <>
+    <>
 
-    <SidebarLink
-      to="/super-admin/dashboard"
-      icon={FaTachometerAlt}
-      label="Dashboard"
-      compact={isCompact}
-      onClick={handleLinkClick} />
-    
+      <SidebarLink
+        to="/super-admin/dashboard"
+        icon={FaTachometerAlt}
+        label="Dashboard"
+        compact={isCompact}
+        onClick={handleLinkClick} />
+
 
       {SUPER_ADMIN_EXPANDABLE_MENUS.map(renderExpandableMenu)}
 
       {SUPER_ADMIN_STATIC_MENUS.filter((item) => item.label !== "Dashboard").map((item) =>
-    <SidebarLink
-      key={item.label}
-      to={item.to}
-      icon={item.icon}
-      label={item.label}
-      compact={isCompact}
-      onClick={handleLinkClick} />
+        <SidebarLink
+          key={item.label}
+          to={item.to}
+          icon={item.icon}
+          label={item.label}
+          compact={isCompact}
+          onClick={handleLinkClick} />
 
-    )}
+      )}
 
     </>;
 
@@ -764,7 +765,7 @@ function Sidebar({ collapsed }) {
     <>
       <aside
         className={`sidebar ${isCompact ? "collapsed" : ""}`}>
-        
+
         <div className="logo">
           <img
             src={logoSrc}
@@ -775,36 +776,36 @@ function Sidebar({ collapsed }) {
                 event.currentTarget.src = pirnavLogo;
               }
             }} />
-          
+
         </div>
 
 
         <nav className="menu">
 
           {isOnboardingUser() ?
-          <>
+            <>
 
               <SidebarLink
-              to="/onboarding/details"
-              icon={FaUsers}
-              label="Add Details"
-              compact={isCompact}
-              onClick={handleLinkClick} />
-            
+                to="/onboarding/details"
+                icon={FaUsers}
+                label="Add Details"
+                compact={isCompact}
+                onClick={handleLinkClick} />
+
 
             </> :
-          superAdminUser ?
-          renderSuperAdminMenu() :
+            superAdminUser ?
+              renderSuperAdminMenu() :
 
-          <>
+              <>
 
-              {STATIC_MENUS_BEFORE_DROPDOWNS.map(renderStaticMenu)}
+                {STATIC_MENUS_BEFORE_DROPDOWNS.map(renderStaticMenu)}
 
-              {EXPANDABLE_MENUS.map(renderExpandableMenu)}
+                {EXPANDABLE_MENUS.map(renderExpandableMenu)}
 
-              {STATIC_MENUS_AFTER_DROPDOWNS.map(renderStaticMenu)}
+                {STATIC_MENUS_AFTER_DROPDOWNS.map(renderStaticMenu)}
 
-            </>
+              </>
           }
 
         </nav>

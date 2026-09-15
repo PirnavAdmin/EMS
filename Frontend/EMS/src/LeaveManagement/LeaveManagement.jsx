@@ -7,7 +7,7 @@ import { toast } from "../components/common/Toast/toastService";
 import { TableSkeleton } from "../components/Skeletons";
 import { extractCollection, sortByRecency } from "../utils/collections";
 import { formatDate, isDateRangeValid, parseDate } from "../utils/date";
-import { FaChevronDown, FaFilter } from "react-icons/fa";
+import { FaChevronDown, FaFilter, FaPaperclip } from "react-icons/fa";
 import {
   getAllLeaveRequests,
   getWfhRequests,
@@ -300,6 +300,19 @@ function LeaveManagement() {
       fromDate: getValue(item, ["fromDate", "FromDate", "startDate", "StartDate"]),
       toDate: getValue(item, ["toDate", "ToDate", "endDate", "EndDate"]),
       reason: getValue(item, ["reason", "Reason", "description", "Description"]),
+      attachmentFileName: getValue(item, [
+        "attachmentFileName",
+        "AttachmentFileName",
+        "fileName",
+        "FileName"
+      ]),
+
+      attachmentPath: getValue(item, [
+        "attachmentPath",
+        "AttachmentPath",
+        "filePath",
+        "FilePath"
+      ]),
       status: getValue(item, ["status", "Status"]) || "Pending",
       appliedDate: getValue(item, ["appliedDate", "AppliedDate", "createdAt", "CreatedAt", "createdOn", "CreatedOn"]),
       approvedDate: getValue(item, ["approvedDate", "ApprovedDate", "updatedAt", "UpdatedAt", "updatedOn", "UpdatedOn"]),
@@ -750,6 +763,20 @@ function LeaveManagement() {
     }
   }, [currentPage, totalPages]);
 
+  
+  const openAttachment = (leave) => {
+    if (!leave?.attachmentPath) {
+      toast.error("Attachment not available");
+      return;
+    }
+
+    const url = leave.attachmentPath.startsWith("http")
+      ? leave.attachmentPath
+      : `${buildApiUrl(leave.attachmentPath).replace("/api", "")}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   if (loading) {
     return (
       <div className="leave-page">
@@ -975,6 +1002,7 @@ function LeaveManagement() {
                         className="leave-reason-cell"
                         onClick={() => setSelectedLeave(leave)}
                         title={reasonTitle}>
+
                         <span className="leave-reason-text">
                           {reasonText || "-"}
                         </span>
@@ -1398,74 +1426,64 @@ function LeaveManagement() {
 
             </div>
 
+            {selectedLeave.attachmentPath && (
+              <div className="leave-details-row">
+                <span className="leave-details-label">
+                  Attachment
+                </span>
 
+                <span className="leave-details-value leave-attachment-details">
+                  <FaPaperclip />
+
+                  <span>
+                    {selectedLeave.attachmentFileName || "Attachment"}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="attachment-open-btn"
+                    onClick={() => openAttachment(selectedLeave)}
+                  >
+                    Open File
+                  </button>
+                </span>
+              </div>
+            )}
 
             <div className="leave-details-row">
-
               <span className="leave-details-label">Applied Date</span>
-
               <span className="leave-details-value">
-
                 {selectedLeave.appliedDate ?
                   formatDate(selectedLeave.appliedDate) :
                   "-"}
-
               </span>
-
             </div>
 
-
-
             <div className="leave-details-row">
-
               <span className="leave-details-label">Approved Date</span>
-
               <span className="leave-details-value">
-
                 {selectedLeave.approvedDate ?
                   formatDate(selectedLeave.approvedDate) :
                   "-"}
-
               </span>
-
             </div>
-
-
 
             <div className="leave-details-row">
-
               <span className="leave-details-label">Status</span>
-
               <span
                 className={`leave-details-value leave-status-${getStatusGroup(selectedLeave.status)}`}>
-
-
                 {formatStatusLabel(selectedLeave.status)}
               </span>
-
             </div>
 
-
-
             <div className="leave-details-footer">
-
               <button
                 className="leave-details-close-btn"
                 onClick={() => setSelectedLeave(null)}>
-
-
                 Close
-
               </button>
-
             </div>
-
           </div>
-
-
-
-
-
         </div>
       }
 
@@ -1700,30 +1718,21 @@ function LeaveManagement() {
 
               </div>
 
-
-
               <div className="summary-card approved">
-
                 <h2>
-
                   {
                     selectedEmployee.history.filter(
                       (x) => getStatusGroup(x.status) === "approved"
                     ).length
                   }
-
                 </h2>
-
                 <span>Approved</span>
-
               </div>
 
 
 
               <div className="summary-card rejected">
-
                 <h2>
-
                   {
                     selectedEmployee.history.filter(
                       (x) => getStatusGroup(x.status) === "rejected"

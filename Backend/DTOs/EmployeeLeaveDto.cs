@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.AspNetCore.Http;
 
 public class EmployeeLeaveDto
 {
@@ -10,6 +11,6 @@ public class EmployeeLeaveDto
    
     public DateOnly? AppliedDate { get; set; }
     public string? ApprovalRemark { get; set; }
-
+    public IFormFile? Attachment { get; set; }
     public List<string>? ExternalApproverEmails { get; set; }
 }

@@ -17,16 +17,19 @@ namespace EmployeeManagementSystem.Services
         private readonly IUserNotificationService _notificationService;
         private readonly IEmailService _emailService;
         private readonly ITicketAssignmentEngine _assignmentEngine;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         public TicketService(
-            AppDbContext context,
-            IUserNotificationService notificationService,
-             IEmailService emailService,
-             ITicketAssignmentEngine assignmentEngine)
+      AppDbContext context,
+      IUserNotificationService notificationService,
+      IEmailService emailService,
+      ITicketAssignmentEngine assignmentEngine,
+      IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _notificationService = notificationService;
             _emailService = emailService;
             _assignmentEngine = assignmentEngine;
+            _httpContextAccessor = httpContextAccessor;
         }
         public async Task<CreateTicketResponseDto> CreateTicket(CreateTicketDto dto, ClaimsPrincipal user)
         {
@@ -365,7 +368,44 @@ EMS Team
                         UpdatedAt = t.UpdatedAt
                     }
                 ).ToListAsync();
+            // Convert UTC timestamps to IST for API response
+            foreach (var ticket in normalTickets)
+            {
+                if (ticket.AssignedDate.HasValue)
+                    ticket.AssignedDate = ConvertUtcToIst(ticket.AssignedDate.Value);
 
+                if (ticket.OpenedDate.HasValue)
+                    ticket.OpenedDate = ConvertUtcToIst(ticket.OpenedDate.Value);
+
+                if (ticket.CompletedDate.HasValue)
+                    ticket.CompletedDate = ConvertUtcToIst(ticket.CompletedDate.Value);
+
+                // CreatedAt is DateTime (non-nullable)
+                ticket.CreatedAt = ConvertUtcToIst(ticket.CreatedAt);
+
+                // UpdatedAt is DateTime? (nullable)
+                if (ticket.UpdatedAt.HasValue)
+                    ticket.UpdatedAt = ConvertUtcToIst(ticket.UpdatedAt.Value);
+            }
+
+            foreach (var ticket in trainingTickets)
+            {
+                if (ticket.AssignedDate.HasValue)
+                    ticket.AssignedDate = ConvertUtcToIst(ticket.AssignedDate.Value);
+
+                if (ticket.OpenedDate.HasValue)
+                    ticket.OpenedDate = ConvertUtcToIst(ticket.OpenedDate.Value);
+
+                if (ticket.CompletedDate.HasValue)
+                    ticket.CompletedDate = ConvertUtcToIst(ticket.CompletedDate.Value);
+
+                // CreatedAt is DateTime (non-nullable)
+                ticket.CreatedAt = ConvertUtcToIst(ticket.CreatedAt);
+
+                // UpdatedAt is DateTime? (nullable)
+                if (ticket.UpdatedAt.HasValue)
+                    ticket.UpdatedAt = ConvertUtcToIst(ticket.UpdatedAt.Value);
+            }
             return normalTickets
                 .Concat(trainingTickets)
                 .OrderByDescending(x => x.CreatedAt)
@@ -373,50 +413,98 @@ EMS Team
         }
         public async Task<TicketResponseDto?> GetTicketById(int id)
         {
-            return await
-            (
-                from t in _context.Tickets
+            var ticket = await
+                (
+                    from t in _context.Tickets
 
-                join p in _context.Projects
-                    on t.ProjectId equals p.Id
+                    join p in _context.Projects
+                        on t.ProjectId equals p.Id
 
-                join e1 in _context.Employees
-                    on t.AssignedTo equals e1.Employee_Id
+                    join e1 in _context.Employees
+                        on t.AssignedTo equals e1.Employee_Id
 
-                join e2 in _context.Employees
-                    on t.AssignedBy equals e2.Employee_Id
+                    join e2 in _context.Employees
+                        on t.AssignedBy equals e2.Employee_Id
 
-                where t.Id == id && t.IsActive
+                    where t.Id == id && t.IsActive
 
-                select new TicketResponseDto
-                {
-                    Id = t.Id,
-                    TicketNumber = t.TicketNumber,
-                    ProjectId = t.ProjectId,
-                    ProjectName = p.Project_Name,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Technology = t.Technology,
-                    Priority = t.Priority,
-                    Status = t.Technology == "Training"
-    ? _context.TicketAssignments
-        .Where(x => x.TicketId == t.Id &&
-                    x.EmployeeId == t.AssignedTo)
-        .Select(x => x.Status)
-        .FirstOrDefault() ?? t.Status
-    : t.Status,
-                    AssignedTo = t.AssignedTo,
-                    AssignedToName = e1.Name,
-                    AssignedBy = t.AssignedBy,
-                    AssignedByName = e2.Name,
-                    StartDate = t.StartDate,
-                    DueDate = t.DueDate,
-                    EstimatedHours = t.EstimatedHours,
-                    CreatedAt = t.CreatedAt
-                }
-            ).FirstOrDefaultAsync();
+                    select new TicketResponseDto
+                    {
+                        Id = t.Id,
+                        TicketNumber = t.TicketNumber,
+                        ProjectId = t.ProjectId,
+                        ProjectName = p.Project_Name,
+                        Title = t.Title,
+                        Description = t.Description,
+                        Technology = t.Technology,
+                        Priority = t.Priority,
+
+                        Status = t.Technology == "Training"
+                            ? _context.TicketAssignments
+                                .Where(x =>
+                                    x.TicketId == t.Id &&
+                                    x.EmployeeId == t.AssignedTo)
+                                .Select(x => x.Status)
+                                .FirstOrDefault() ?? t.Status
+                            : t.Status,
+
+                        AssignedTo = t.AssignedTo,
+                        AssignedToName = e1.Name,
+
+                        AssignedBy = t.AssignedBy,
+                        AssignedByName = e2.Name,
+
+                        // Ticket timestamps
+                        AssignedDate = t.AssignedDate,
+                        OpenedDate = t.OpenedDate,
+                        CompletedDate = t.CompletedDate,
+
+                        StartDate = t.StartDate,
+                        DueDate = t.DueDate,
+                        EstimatedHours = t.EstimatedHours,
+
+                        CreatedAt = t.CreatedAt,
+                        UpdatedAt = t.UpdatedAt,
+
+                        // Latest status-change remark
+                        Remarks = _context.TicketHistory
+                            .Where(x =>
+                                x.TicketId == t.Id &&
+                                x.Action == "Status Change" &&
+                                x.Remarks != null &&
+                                x.Remarks != "")
+                            .OrderByDescending(x => x.CreatedAt)
+                            .Select(x => x.Remarks)
+                            .FirstOrDefault()
+                    }
+                )
+                .FirstOrDefaultAsync();
+
+            if (ticket == null)
+                return null;
+
+            // Convert UTC timestamps to IST
+            if (ticket.AssignedDate.HasValue)
+                ticket.AssignedDate =
+                    ConvertUtcToIst(ticket.AssignedDate.Value);
+
+            if (ticket.OpenedDate.HasValue)
+                ticket.OpenedDate =
+                    ConvertUtcToIst(ticket.OpenedDate.Value);
+
+            if (ticket.CompletedDate.HasValue)
+                ticket.CompletedDate =
+                    ConvertUtcToIst(ticket.CompletedDate.Value);
+
+            ticket.CreatedAt =
+                ConvertUtcToIst(ticket.CreatedAt);
+
+            if (ticket.UpdatedAt.HasValue)
+                ticket.UpdatedAt =
+                    ConvertUtcToIst(ticket.UpdatedAt.Value);
+
+            return ticket;
         }
-
         public async Task<IEnumerable<TicketResponseDto>> GetMyTickets(ClaimsPrincipal user)
         {
             var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
@@ -427,71 +515,106 @@ EMS Team
             if (employee == null)
                 throw new Exception("Employee not found.");
 
-            return await
-            (
-                from t in _context.Tickets
+            var tickets = await
+                (
+                    from t in _context.Tickets
 
-                join p in _context.Projects
-                    on t.ProjectId equals p.Id
+                    join p in _context.Projects
+                        on t.ProjectId equals p.Id
 
-                join assignedBy in _context.Employees
-                    on t.AssignedBy equals assignedBy.Employee_Id
+                    join assignedBy in _context.Employees
+                        on t.AssignedBy equals assignedBy.Employee_Id
 
-                // LEFT JOIN TicketAssignments
-                join ta in _context.TicketAssignments
-                    on t.Id equals ta.TicketId into ticketAssignments
+                    // LEFT JOIN TicketAssignments
+                    join ta in _context.TicketAssignments
+                        on t.Id equals ta.TicketId into ticketAssignments
 
-                from ta in ticketAssignments.DefaultIfEmpty()
+                    from ta in ticketAssignments.DefaultIfEmpty()
 
-                    // LEFT JOIN Assigned Employee
-                join assignedEmployee in _context.Employees
-                    on t.AssignedTo equals assignedEmployee.Employee_Id into assignedEmployees
+                        // LEFT JOIN Assigned Employee
+                    join assignedEmployee in _context.Employees
+                        on t.AssignedTo equals assignedEmployee.Employee_Id into assignedEmployees
 
-                from assignedEmployee in assignedEmployees.DefaultIfEmpty()
+                    from assignedEmployee in assignedEmployees.DefaultIfEmpty()
 
-                where t.IsActive &&
-                      (
-                          // Normal Ticket
-                          t.AssignedTo == employee.Employee_Id
+                    where t.IsActive &&
+                          (
+                              // Normal Ticket
+                              t.AssignedTo == employee.Employee_Id
 
-                          ||
+                              ||
 
-                          // Training Ticket
-                          ta.EmployeeId == employee.Employee_Id
-                      )
+                              // Training Ticket
+                              ta.EmployeeId == employee.Employee_Id
+                          )
 
-                orderby t.CreatedAt descending
+                    orderby t.CreatedAt descending
 
-                select new TicketResponseDto
-                {
-                    Id = t.Id,
-                    TicketNumber = t.TicketNumber,
-                    ProjectId = t.ProjectId,
-                    ProjectName = p.Project_Name,
+                    select new TicketResponseDto
+                    {
+                        Id = t.Id,
+                        TicketNumber = t.TicketNumber,
 
-                    Title = t.Title,
-                    Description = t.Description,
-                    Technology = t.Technology,
-                    Priority = t.Priority,
-                    Status = t.Status,
+                        ProjectId = t.ProjectId,
+                        ProjectName = p.Project_Name,
 
-                    AssignedTo = t.AssignedTo,
-                    AssignedToName = assignedEmployee != null
-                                        ? assignedEmployee.Name
-                                        : employee.Name,
+                        Title = t.Title,
+                        Description = t.Description,
+                        Technology = t.Technology,
+                        Priority = t.Priority,
 
-                    AssignedBy = t.AssignedBy,
-                    AssignedByName = assignedBy.Name,
+                        Status = t.Status,
 
-                    StartDate = t.StartDate,
-                    DueDate = t.DueDate,
-                    EstimatedHours = t.EstimatedHours,
-                    CreatedAt = t.CreatedAt
-                }
+                        AssignedTo = t.AssignedTo,
+                        AssignedToName = assignedEmployee != null
+                                            ? assignedEmployee.Name
+                                            : employee.Name,
 
-            )
-            .Distinct()
-            .ToListAsync();
+                        AssignedBy = t.AssignedBy,
+                        AssignedByName = assignedBy.Name,
+
+                        // Ticket timestamps
+                        AssignedDate = t.AssignedDate,
+                        OpenedDate = t.OpenedDate,
+                        CompletedDate = t.CompletedDate,
+
+                        StartDate = t.StartDate,
+                        DueDate = t.DueDate,
+                        EstimatedHours = t.EstimatedHours,
+
+                        CreatedAt = t.CreatedAt,
+                        UpdatedAt = t.UpdatedAt
+                    }
+                )
+                .Distinct()
+                .ToListAsync();
+
+            // Convert UTC timestamps to IST
+            foreach (var ticket in tickets)
+            {
+                if (ticket.AssignedDate.HasValue)
+                    ticket.AssignedDate =
+                        ConvertUtcToIst(ticket.AssignedDate.Value);
+
+                if (ticket.OpenedDate.HasValue)
+                    ticket.OpenedDate =
+                        ConvertUtcToIst(ticket.OpenedDate.Value);
+
+                if (ticket.CompletedDate.HasValue)
+                    ticket.CompletedDate =
+                        ConvertUtcToIst(ticket.CompletedDate.Value);
+
+                // CreatedAt is DateTime
+                ticket.CreatedAt =
+                    ConvertUtcToIst(ticket.CreatedAt);
+
+                // UpdatedAt is DateTime?
+                if (ticket.UpdatedAt.HasValue)
+                    ticket.UpdatedAt =
+                        ConvertUtcToIst(ticket.UpdatedAt.Value);
+            }
+
+            return tickets;
         }
         public async Task<string> UpdateTicketStatus(
         int ticketId,
@@ -522,7 +645,7 @@ EMS Team
 
             // Update status
             ticket.Status = status;
-            ticket.UpdatedAt = DateTime.Now;
+            ticket.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -620,7 +743,6 @@ EMS Team
             {
                 throw new Exception("Estimated hours must be greater than zero.");
             }
-
             ticket.ProjectId = dto.ProjectId;
             ticket.Title = dto.Title;
             ticket.Description = dto.Description;
@@ -630,8 +752,10 @@ EMS Team
             ticket.StartDate = dto.StartDate;
             ticket.DueDate = dto.DueDate;
             ticket.EstimatedHours = dto.EstimatedHours;
-            ticket.UpdatedAt = DateTime.Now;
-            ticket.UpdatedAt = DateTime.Now;
+
+            ticket.UpdatedAt = DateTime.UtcNow;
+
+           
 
             await _context.SaveChangesAsync();
 
@@ -668,7 +792,7 @@ EMS Team
 
             ticket.IsActive = false;
 
-            ticket.UpdatedAt = DateTime.Now;
+            ticket.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -1156,21 +1280,44 @@ EMS Team
 
         public async Task<bool> StartWorkAsync(StartWorkDto dto)
         {
+            // Get logged-in employee from JWT
+            var email = _httpContextAccessor.HttpContext?
+                .User
+                .FindFirst(ClaimTypes.Email)?
+                .Value?
+                .Trim()
+                .ToLower();
+
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() == email &&
+                    x.Status == "Active");
+
+            if (employee == null)
+                return false;
+
+            // Employee ID from JWT user
+            var employeeId = employee.Employee_Id;
+
             var ticket = await _context.Tickets
-    .FirstOrDefaultAsync(t =>
-        t.Id == dto.TicketId &&
-        t.IsActive);
+                .FirstOrDefaultAsync(t =>
+                    t.Id == dto.TicketId &&
+                    t.IsActive);
 
             if (ticket == null)
                 return false;
 
-            if (ticket.Technology.Equals("Training",
-     StringComparison.OrdinalIgnoreCase))
+            if (ticket.Technology.Equals(
+                "Training",
+                StringComparison.OrdinalIgnoreCase))
             {
                 var assignment = await _context.TicketAssignments
                     .FirstOrDefaultAsync(x =>
                         x.TicketId == dto.TicketId &&
-                        x.EmployeeId == dto.EmployeeId);
+                        x.EmployeeId == employeeId);
 
                 if (assignment == null)
                     return false;
@@ -1179,13 +1326,9 @@ EMS Team
             }
             else
             {
-                if (ticket.AssignedTo != dto.EmployeeId)
+                if (ticket.AssignedTo != employeeId)
                     return false;
             }
-          
-
-            if (ticket == null)
-                return false;
 
             if (ticket.Status == "Completed")
                 return false;
@@ -1199,7 +1342,7 @@ EMS Team
             var runningLog = await _context.TicketWorkLogs
                 .AnyAsync(x =>
                     x.TicketId == dto.TicketId &&
-                    x.EmployeeId == dto.EmployeeId &&
+                    x.EmployeeId == employeeId &&
                     x.IsRunning);
 
             if (runningLog)
@@ -1208,7 +1351,7 @@ EMS Team
             var workLog = new TicketWorkLog
             {
                 TicketId = dto.TicketId,
-                EmployeeId = dto.EmployeeId,
+                EmployeeId = employeeId,
                 StartTime = DateTime.UtcNow,
                 IsRunning = true
             };
@@ -1226,7 +1369,6 @@ EMS Team
             }
 
             ticket.UpdatedAt = DateTime.UtcNow;
-            
 
             await _context.SaveChangesAsync();
 
@@ -1234,30 +1376,53 @@ EMS Team
         }
         public async Task<bool> StopWorkAsync(StopWorkDto dto)
         {
+            // Get logged-in employee from JWT
+            var email = _httpContextAccessor.HttpContext?
+                .User
+                .FindFirst(ClaimTypes.Email)?
+                .Value?
+                .Trim()
+                .ToLower();
+
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() == email &&
+                    x.Status == "Active");
+
+            if (employee == null)
+                return false;
+
+            // Employee ID from JWT
+            var employeeId = employee.Employee_Id;
+
             var workLog = await _context.TicketWorkLogs
                 .FirstOrDefaultAsync(x =>
                     x.TicketId == dto.TicketId &&
-                    x.EmployeeId == dto.EmployeeId &&
+                    x.EmployeeId == employeeId &&
                     x.IsRunning);
 
             if (workLog == null)
                 return false;
 
             var ticket = await _context.Tickets
-    .FirstOrDefaultAsync(x =>
-        x.Id == dto.TicketId &&
-        x.IsActive);
+                .FirstOrDefaultAsync(x =>
+                    x.Id == dto.TicketId &&
+                    x.IsActive);
 
             if (ticket == null)
                 return false;
 
-            if (ticket.Technology.Equals("Training",
-     StringComparison.OrdinalIgnoreCase))
+            if (ticket.Technology.Equals(
+                "Training",
+                StringComparison.OrdinalIgnoreCase))
             {
                 var assignment = await _context.TicketAssignments
                     .FirstOrDefaultAsync(x =>
                         x.TicketId == dto.TicketId &&
-                        x.EmployeeId == dto.EmployeeId);
+                        x.EmployeeId == employeeId);
 
                 if (assignment == null)
                     return false;
@@ -1266,12 +1431,9 @@ EMS Team
             }
             else
             {
-                if (ticket.AssignedTo != dto.EmployeeId)
+                if (ticket.AssignedTo != employeeId)
                     return false;
             }
-
-            if (ticket == null)
-                return false;
 
             if (ticket.Status != "In Progress")
                 return false;
@@ -1331,23 +1493,32 @@ EMS Team
                 "Completed",
                 "In Progress",
                 "Completed",
-                dto.EmployeeId,
+                employeeId,
                 "Ticket work completed by employee");
 
             // Employee is now free.
             // Immediately assign next eligible ticket.
             await _assignmentEngine
-                .AssignNextTicketForEmployeeAsync(
-                    dto.EmployeeId);
+                .AssignNextTicketForEmployeeAsync(employeeId);
 
             return true;
         }
         public async Task<List<TicketWorkLog>> GetWorkLogsAsync(int ticketId)
         {
-            return await _context.TicketWorkLogs
+            var workLogs = await _context.TicketWorkLogs
                 .Where(x => x.TicketId == ticketId)
                 .OrderByDescending(x => x.StartTime)
                 .ToListAsync();
+
+            foreach (var log in workLogs)
+            {
+                log.StartTime = ConvertUtcToIst(log.StartTime);
+
+                if (log.EndTime.HasValue)
+                    log.EndTime = ConvertUtcToIst(log.EndTime.Value);
+            }
+
+            return workLogs;
         }
         public async Task<List<TicketResponseDto>> GetTicketsByEmployeeIdAsync(string employeeId)
         {

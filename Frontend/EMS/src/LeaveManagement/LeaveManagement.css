@@ -658,15 +658,16 @@ body {
 }
 
 .table-scroll {
-    width: 100%;
+  width: 100%;
 
-    overflow-x: auto;   /* Horizontal scroll */
-    overflow-y: visible;
+  overflow-x: auto;
+  /* Horizontal scroll */
+  overflow-y: visible;
 
-    border-radius: 12px;
+  border-radius: 12px;
 }
 
-.page-shell .leave-table .table-scroll > table {
+.page-shell .leave-table .table-scroll>table {
   width: max-content;
   min-width: max-content;
   border-collapse: collapse;
@@ -1956,7 +1957,7 @@ body {
 }
 
 /* Keep the main leave table dividers visible while horizontally scrolling. */
-.page-shell .leave-table .table-scroll > table {
+.page-shell .leave-table .table-scroll>table {
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -2446,3 +2447,93 @@ body {
   gap: 12px;
 }
 
+.leave-attachment-field {
+  margin-top: 12px;
+}
+
+.leave-attachment-field label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.leave-attachment-field input[type="file"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d5e5e5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.attachment-file-name {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #555;
+}
+
+.leave-attachment-icon {
+  margin-left: 8px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.leave-attachment-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachment-open-btn {
+  border: none;
+  background: transparent;
+  color: #168f89;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+}
+
+.attachment-open-btn:hover {
+  text-decoration: underline;
+}
+
+.leave-attachment-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachment-open-btn {
+  border: none;
+  background: transparent;
+  color: #168f89;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+}
+
+.attachment-open-btn:hover {
+  text-decoration: underline;
+}
+
+.leave-attachment-cell {
+  text-align: center;
+}
+
+.leave-attachment-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #15918d;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+}
+
+.leave-attachment-btn:hover {
+  background: #e8f7f6;
+  color: #0f7773;
+}

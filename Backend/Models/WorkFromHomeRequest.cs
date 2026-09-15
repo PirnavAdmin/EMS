@@ -41,6 +41,9 @@ namespace EmployeeManagementSystem.Models
         public string? ApprovalToken { get; set; }
 
         public DateTime? AppliedOn { get; set; }
+        public string? AttachmentFileName { get; set; }
+
+        public string? AttachmentPath { get; set; }
 
         public string? RequestedType { get; set; }
 

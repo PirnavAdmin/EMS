@@ -49,4 +49,7 @@ public class EmployeeLeave
 
     // Reason/comment given by approver
     public string? ApprovalRemarks { get; set; }
+    public string? AttachmentFileName { get; set; }
+
+    public string? AttachmentPath { get; set; }
 }

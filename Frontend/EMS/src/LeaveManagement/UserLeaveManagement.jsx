@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import "./LeaveManagement.css";
 import api from "../api/axiosInstance";
-import { API_ENDPOINTS } from "../api/endpoints";
+import { API_ENDPOINTS, buildApiUrl } from "../api/endpoints";
 import {
   FaUserInjured,
   FaBookOpen,
   FaRegCalendarAlt,
-  FaTrash
-} from
-  "react-icons/fa";
+  FaTrash,
+  FaPaperclip
+} from "react-icons/fa";
 import { toast } from "../components/common/Toast/toastService";
 import AppDatePicker from "../components/AppDatePicker";
 import { formatDate, isDateRangeValid, toIsoDateString } from "../utils/date";
@@ -143,7 +143,8 @@ function UserLeaveManagement() {
     leaveType: "",
     fromDate: "",
     toDate: "",
-    reason: ""
+    reason: "",
+    attachment: null
   });
 
   const [leaveData, setLeaveData] = useState([]);
@@ -167,6 +168,15 @@ function UserLeaveManagement() {
     setForm({
       ...form,
       [e.target.name]: e.target.value
+    });
+  };
+
+  const handleAttachmentChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    setForm({
+      ...form,
+      attachment: file
     });
   };
 
@@ -376,7 +386,7 @@ function UserLeaveManagement() {
       );
       return;
     }
-    
+
     if (isWeekendOnlyRange(form.fromDate, form.toDate)) {
       toast.error("Leave cannot be applied for weekends");
       return;
@@ -397,20 +407,23 @@ function UserLeaveManagement() {
       return;
     }
 
-    const payload = {
-      leaveType: form.leaveType.trim(),
-      fromDate,
-      toDate,
-      reason: form.reason.trim()
-    };
+    const payload = new FormData();
+
+    payload.append("LeaveType", form.leaveType.trim());
+    payload.append("FromDate", fromDate);
+    payload.append("ToDate", toDate);
+    payload.append("Reason", form.reason.trim());
+
+    if (form.attachment) {
+      payload.append("Attachment", form.attachment);
+    }
 
     try {
       setLoading(true);
 
       const requestConfig = {
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${token}`
         }
       };
 
@@ -561,6 +574,19 @@ function UserLeaveManagement() {
   //     className: "casual"
   //   }
   // ] : [];
+
+  const openAttachment = (leave) => {
+    if (!leave?.attachmentPath) {
+      toast.error("Attachment not available");
+      return;
+    }
+
+    const url = leave.attachmentPath.startsWith("http")
+      ? leave.attachmentPath
+      : `${buildApiUrl(leave.attachmentPath).replace("/api", "")}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   return (
     initialLoading ?
@@ -784,6 +810,23 @@ function UserLeaveManagement() {
             onChange={handleChange}
             placeholder="Enter reason for leave..." />
 
+          <div className="leave-attachment-field">
+            <label>Attachment</label>
+
+            <input
+              type="file"
+              name="attachment"
+              onChange={handleAttachmentChange}
+              accept="image/*,.pdf,.doc,.docx"
+            />
+
+            {form.attachment && (
+              <span className="attachment-file-name">
+                {form.attachment.name}
+              </span>
+            )}
+          </div>
+
           <button
             className="submit-btn"
             onClick={handleSubmit}
@@ -799,13 +842,14 @@ function UserLeaveManagement() {
 
             <table className="my-leave-requests-table">
               <colgroup>
-                <col style={{ width: "9%" }} />
-                <col style={{ width: "16%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "14%" }} />
                 <col style={{ width: "10%" }} />
                 <col style={{ width: "10%" }} />
                 <col style={{ width: "15%" }} />
-                <col style={{ width: "19%" }} />
-                <col style={{ width: "16%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "15%" }} />
                 <col style={{ width: "5%" }} />
               </colgroup>
 
@@ -816,6 +860,7 @@ function UserLeaveManagement() {
                   <th>From</th>
                   <th>To</th>
                   <th>Reason</th>
+                  <th>Attachment</th>
                   <th>Status</th>
                   <th>Rejection Reason</th>
                   <th>Action</th>
@@ -826,7 +871,7 @@ function UserLeaveManagement() {
 
                 {combinedHistory.length === 0 ?
                   <tr>
-                    <td colSpan="8" style={{ textAlign: "center" }}>
+                    <td colSpan="9" style={{ textAlign: "center" }}>
                       No Leave Requests
                     </td>
                   </tr> :
@@ -860,6 +905,20 @@ function UserLeaveManagement() {
                         {leave.reason ? truncateText(leave.reason) : "-"}
                       </td>
 
+                      <td className="leave-attachment-cell">
+                        {leave.attachmentPath ? (
+                          <button
+                            type="button"
+                            className="leave-attachment-btn"
+                            onClick={() => openAttachment(leave)}
+                            title={leave.attachmentFileName || "Open attachment"}
+                          >
+                            <FaPaperclip />
+                          </button>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
 
                       <td>
                         {(() => {

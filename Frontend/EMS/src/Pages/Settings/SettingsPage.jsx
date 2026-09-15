@@ -192,13 +192,14 @@ const HRMS_SETTINGS_MODULES = [
   icon: FaMoneyBillWave,
   component: () => <HrmsSettingsTab moduleKey="fullFinalSettlement" />
 },
-{
-  key: "shiftManagement",
-  label: "Shift Management",
-  description: "Shift modules in one internal dropdown",
-  icon: FaClock,
-  component: ShiftSettingsTab
-}].
+// {
+//   key: "shiftManagement",
+//   label: "Shift Management",
+//   description: "Shift modules in one internal dropdown",
+//   icon: FaClock,
+//   component: ShiftSettingsTab
+// }
+].
 map((definition) => ({
   ...definition,
   fetchSettings: async () => ({ values: {}, lastUpdated: "" }),
@@ -238,13 +239,14 @@ const SETTINGS_GROUPS = [
 },
 */
 
-{
-  key: "shift",
-  title: "Shift Management",
-  tabs: [
-  "shiftManagement"]
+// {
+//   key: "shift",
+//   title: "Shift Management",
+//   tabs: [
+//   "shiftManagement"]
 
-}];
+// }
+];
 
 const createSectionState = (defaults) => ({
   values: { ...defaults },

@@ -169,17 +169,14 @@ public class EmployeeLeaveController : ControllerBase
 
     [HttpPost("apply-wfh")]
 
+  
     public async Task<IActionResult> ApplyWFH(
-
-WorkFromHomeDto dto)
-
+    [FromForm] WorkFromHomeDto dto)
     {
-
         return await _service.ApplyWFH(dto, User);
-
     }
 
-    
+
     //[Authorize]
     //[Permission(ModuleIds.LeaveManagement, PermissionAction.View)]
     [HttpGet("all-wfh")]
