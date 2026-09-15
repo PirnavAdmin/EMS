@@ -763,7 +763,7 @@ function LeaveManagement() {
     }
   }, [currentPage, totalPages]);
 
-  
+
   const openAttachment = (leave) => {
     if (!leave?.attachmentPath) {
       toast.error("Attachment not available");
@@ -1364,20 +1364,28 @@ function LeaveManagement() {
 
             </div>
 
-
-
             <div className="leave-details-row">
-
               <span className="leave-details-label">Type</span>
-
               <span className="leave-details-value">
-
                 {selectedLeave.leaveType}
-
               </span>
-
             </div>
 
+            <div className="leave-details-row">
+              <span className="leave-details-label">Project Name</span>
+
+              <span className="leave-details-value">
+                {selectedLeave.projectName || "-"}
+              </span>
+            </div>
+
+            <div className="leave-details-row">
+              <span className="leave-details-label">Probation Status</span>
+
+              <span className="leave-details-value">
+                {selectedLeave.probationStatus || "-"}
+              </span>
+            </div>
 
 
             <div className="leave-details-row">
