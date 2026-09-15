@@ -697,7 +697,9 @@ namespace EmployeeManagementSystem.Services
                 });
             }
 
-            // Get all members of the same team
+            // Get all ACTIVE members of the same team
+            // Get all ACTIVE members of the same team
+            // Designation comes from EmployeePersonalInfo
             var members = await _context.TeamMembers
                 .AsNoTracking()
                 .Where(tm => tm.TeamId == team.Id)
@@ -708,15 +710,35 @@ namespace EmployeeManagementSystem.Services
                     (tm, e) => new
                     {
                         EmployeeId = e.Employee_Id,
-                        Name = e.Name
+                        Name = e.Name,
+                        Status = e.Status
+                    })
+                .Where(x => x.Status == "Active")
+                .Join(
+                    _context.EmployeePersonalInfos,
+                    x => x.EmployeeId,
+                    pi => pi.Employee_Id,
+                    (x, pi) => new
+                    {
+                        EmployeeId = x.EmployeeId,
+                        Name = x.Name,
+                        Designation = pi.Designation
                     })
                 .ToListAsync();
-
             // Get project
             var project = await _context.Projects
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p =>
                     p.Id == team.ProjectId);
+
+            // Get reporting manager name
+            var manager = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e =>
+                    e.Employee_Id == team.ReportingManagerId &&
+                    e.Status == "Active");
+
+            var managerName = manager?.Name;
 
             // Get reporting days
             var reportingDays = await _context.TeamReportingDays
@@ -733,10 +755,12 @@ namespace EmployeeManagementSystem.Services
 
                 projectId = team.ProjectId,
                 projectName = project != null
-                    ? project.Project_Name
-                    : null,
+         ? project.Project_Name
+         : null,
 
                 reportingManagerId = team.ReportingManagerId,
+                managerName = managerName,
+
                 engagementType = team.EngagementType,
 
                 reportingDays = reportingDays,
