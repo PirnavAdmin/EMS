@@ -309,9 +309,9 @@ function AddTeamModal({
       nextErrors.reportingManagerId = "Reporting Manager is required";
     }
 
-    if (!form.projectId.trim()) {
-      nextErrors.projectId = "Project is required";
-    }
+    // if (!form.projectId.trim()) {
+    //   nextErrors.projectId = "Project is required";
+    // }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
