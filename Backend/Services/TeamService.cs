@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml.Spreadsheet;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
@@ -268,11 +268,45 @@ namespace EmployeeManagementSystem.Services
                 })
                 .ToListAsync();
 
+            // ==========================================
+            // GET EMPLOYEES PRESENT IN EACH PROJECT
+            // ==========================================
+
+            var projectEmployees = await _context.ProjectTeamMembers
+                .AsNoTracking()
+                .Join(
+                    _context.Employees,
+                    ptm => ptm.EmployeeId,
+                    e => e.Employee_Id,
+                    (ptm, e) => new
+                    {
+                        ptm.ProjectId,
+                        EmployeeId = e.Employee_Id,
+                        EmployeeName = e.Name,
+                        EmployeeStatus = e.Status
+                    })
+                .Where(x => x.EmployeeStatus == "Active")
+                .ToListAsync();
+
+            // ==========================================
+            // BUILD RESPONSE
+            // ==========================================
+
             var result = projects
                 .Select(project =>
                 {
                     var team = teams.FirstOrDefault(
                         t => t.ProjectId == project.ProjectId);
+
+                    var employees = projectEmployees
+                        .Where(x => x.ProjectId == project.ProjectId)
+                        .Select(x => new
+                        {
+                            x.EmployeeId,
+                            x.EmployeeName
+                        })
+                        .Distinct()
+                        .ToList();
 
                     return new
                     {
@@ -294,7 +328,15 @@ namespace EmployeeManagementSystem.Services
                             team?.EngagementType,
 
                         IsActive =
-                            team?.IsActive ?? true
+                            team?.IsActive ?? true,
+
+                        // ==========================================
+                        // PROJECT EMPLOYEES
+                        // ==========================================
+
+                        EmployeeCount = employees.Count,
+
+                        Employees = employees
                     };
                 })
                 .OrderBy(x => x.ProjectName)
@@ -302,7 +344,6 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult(result);
         }
-
         private static string GetShortDayName(string day)
         {
             return day switch
@@ -833,3 +874,4 @@ namespace EmployeeManagementSystem.Services
         }
     }
 }
+
