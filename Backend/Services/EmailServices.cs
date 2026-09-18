@@ -82,7 +82,7 @@ This OTP is confidential. Please do not share it with anyone.
 Regards,
 Pirnav EMS Team";
 
-                message.IsBodyHtml = false;
+                message.IsBodyHtml = true;
 
                 await smtp.SendMailAsync(message);
             }
@@ -141,7 +141,7 @@ Pirnav EMS Team";
 
                 message.Body = body;
 
-                message.IsBodyHtml = false;
+                message.IsBodyHtml = true;
 
                 if (File.Exists(attachmentPath))
 
