@@ -424,6 +424,7 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<SuperAdminNotification>().ToTable("superadminnotifications");
 
             modelBuilder.Entity<StatusChangeLog>().ToTable("statuschangelogs");
+            modelBuilder.Entity<TicketAttachment>().ToTable("ticketattachmnet");
 
 
             modelBuilder.Entity<RolePermission>()
