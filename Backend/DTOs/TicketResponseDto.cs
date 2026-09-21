@@ -53,6 +53,9 @@
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
-        public string? Remarks { get; set; }
+        public List<TicketRemarkDto> Remarks { get; set; }
+     = new List<TicketRemarkDto>();
+        public List<TicketAttachmentDto> Attachments { get; set; }
+    = new List<TicketAttachmentDto>();
     }
 }

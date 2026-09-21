@@ -69,6 +69,50 @@ public class EmployeeLeaveService : IEmployeeLeaveService
         if (employee == null)
 
             return new BadRequestObjectResult(new { message = "Employee not found" });
+
+        // ============================================================
+        // Employee Details for Leave Email
+        // ============================================================
+
+        // Get employee designation
+        var personalInfo = await _context.EmployeePersonalInfos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                x.Employee_Id == employee.Employee_Id);
+
+        var designation = personalInfo?.Designation ?? "Not Specified";
+
+
+        // Get project name
+        var projectName = await _context.TeamMembers
+            .AsNoTracking()
+            .Where(tm => tm.EmployeeId == employee.Employee_Id)
+            .Join(
+                _context.Teams,
+                tm => tm.TeamId,
+                t => t.Id,
+                (tm, t) => t.ProjectId)
+            .Join(
+                _context.Projects,
+                projectId => projectId,
+                p => p.Id,
+                (projectId, p) => p.Project_Name)
+            .FirstOrDefaultAsync();
+
+        projectName ??= "Not Assigned";
+
+
+        // Get probation status
+        DateTime joiningDate = employee.JoiningDate.Date;
+        DateTime probationEndDate = joiningDate.AddMonths(6);
+
+        bool probationCompleted =
+            DateTime.Today >= probationEndDate;
+
+        string probationStatus =
+            probationCompleted
+                ? "Completed"
+                : "Not Completed";
         // Attachment validation
         if (dto.Attachment != null)
         {
@@ -105,6 +149,24 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
         var fromDate = dto.FromDate.Date;
         var toDate = dto.ToDate.Date;
+        // Preserve the employee's complete submitted reason
+        // and convert line breaks for HTML email display.
+        var formattedReason = (dto.Reason ?? string.Empty)
+            .Replace("\r\n", "<br/>")
+            .Replace("\n", "<br/>");
+        var returnReason = $@"Dear Sir/Madam,
+
+I hope you are doing well.
+
+{dto.Reason}
+
+I kindly request you to consider and approve my leave application.
+
+Thank you for your time and consideration.
+
+Regards,
+{employee.Name}
+Employee ID: {employee.Employee_Id}";
 
         var today = DateTime.Today;
 
@@ -181,6 +243,7 @@ public class EmployeeLeaveService : IEmployeeLeaveService
         string? attachmentPath = null;
         string? attachmentPhysicalPath = null;
 
+
         if (dto.Attachment != null && dto.Attachment.Length > 0)
         {
             var uploadFolder = Path.Combine(
@@ -236,8 +299,9 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
             ToDate = toDate,
 
-            Reason = dto.Reason,
-
+          
+            Reason = returnReason,
+           
             Status = "Pending",
 
             ManagerStatus = "Pending",
@@ -302,10 +366,18 @@ public class EmployeeLeaveService : IEmployeeLeaveService
             });
 
             await _context.SaveChangesAsync();
-
             return new OkObjectResult(new
             {
-                message = "Leave applied successfully"
+                message = "Leave applied successfully",
+                employeeName = employee.Name,
+                employeeId = employee.Employee_Id,
+                designation = designation,
+                projectName = projectName,
+                probationStatus = probationStatus,
+                leaveType = dto.LeaveType,
+                fromDate = fromDate,
+                toDate = toDate,
+                reason = returnReason
             });
         }
 
@@ -324,33 +396,102 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 <html>
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
 
-<p>Hi Team,</p>
-
-<p>Hope you are doing well!!</p>
+<p>Dear Sir/Madam,</p>
 
 <p>
-With reference to the above subject, employee
-<b>{employee.Name} ({employee.Employee_Id})</b>
-has applied for <b>{dto.LeaveType}</b> from
-<b>{fromDate:dd-MMM-yyyy}</b> to
-<b>{toDate:dd-MMM-yyyy}</b>.
+I hope you are doing well.
 </p>
 
 <p>
-<b>Applied On:</b>
-{leave.CreatedAt.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
+This is to inform you that <b>{employee.Name}</b>
+(Employee ID: <b>{employee.Employee_Id}</b>) has submitted a leave application
+for the period from <b>{fromDate:dd-MMM-yyyy}</b>
+to <b>{toDate:dd-MMM-yyyy}</b>.
 </p>
 
 <p>
-<b>Reason:</b> {dto.Reason}
+<b>Reason for Leave:</b>
+</p>
+
+<div style='margin-left:20px;'>
+{formattedReason}
+</div>
+
+<p>
+I kindly request you to review the leave application and
+consider the request for approval.
 </p>
 
 <p>
-We kindly request you to review the leave application and provide your approval/rejection at the earliest.
+Thank you for your time and consideration.
 </p>
 
 <p>
-NOTE: Please log in to the EMS application using the link below:
+Regards,<br/>
+<b>{employee.Name}</b><br/>
+Employee ID: {employee.Employee_Id}
+</p>
+
+<hr/>
+
+<h3>Leave Application Details</h3>
+
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'
+       style='border-collapse:collapse;width:100%;'>
+
+<tr>
+    <td><b>Employee Name</b></td>
+    <td>{employee.Name}</td>
+</tr>
+
+<tr>
+    <td><b>Employee ID</b></td>
+    <td>{employee.Employee_Id}</td>
+</tr>
+
+<tr>
+    <td><b>Designation</b></td>
+    <td>{designation}</td>
+</tr>
+
+<tr>
+    <td><b>Project Name</b></td>
+    <td>{projectName}</td>
+</tr>
+
+<tr>
+    <td><b>Probation Status</b></td>
+    <td>{probationStatus}</td>
+</tr>
+
+<tr>
+    <td><b>Leave Type</b></td>
+    <td>{dto.LeaveType}</td>
+</tr>
+
+<tr>
+    <td><b>From Date</b></td>
+    <td>{fromDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>To Date</b></td>
+    <td>{toDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>Applied On</b></td>
+    <td>{leave.CreatedAt.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}</td>
+</tr>
+
+</table>
+
+<br/>
+
+<p>
+Please log in to the EMS application using the link below:
 </p>
 
 <p>
@@ -360,44 +501,30 @@ EMS Login Portal
 </p>
 
 <p>
-Or copy and paste the URL into your browser:
-<br/>
-<b>https://hrms.pirnav.com/login</b>
-</p>
-
-<p>
 After logging in, navigate to:
 <br/>
 <b>Leave Management → Pending Requests</b>
 </p>
 
 <p>
-to take the necessary action.
+Please review the application and take the necessary action.
 </p>
 
 <p>
-Thank you for your understanding and support.
+Thank you for your time and consideration.
 </p>
 
 <p>
-Thank you,
-</p>
-
-<p>
-Regards,
-</p>
-
-<p>
+Regards,<br/>
 <b>PIRNAV EMS</b><br/>
 Employee Management System<br/>
-Pirnav Software Solutions Pvt. Ltd.<br/>
+Pirnav Software Solutions Pvt. Ltd.
 </p>
 
 </body>
 </html>",
      attachmentPhysicalPath ?? string.Empty
  );
-
             }
 
         }
@@ -418,39 +545,95 @@ Pirnav Software Solutions Pvt. Ltd.<br/>
 
                 var rejectLink =
                     $"{baseUrl}/api/EmployeeLeave/mail-action?leaveId={leave.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
-
-               await _emailService.SendEmailWithAttachment(
-    externalEmail,
-    $"Leave Approval Required - {employee.Name} - Leave #{leave.Id}",
-    $@"
+                await _emailService.SendEmailWithAttachment(
+                    externalEmail,
+                    $"Leave Approval Required - {employee.Name} - Leave #{leave.Id}",
+                    $@"
 <html>
 
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
 
-<p>Hi Team,</p>
-
-<p>Hope you are doing well!!</p>
+<p>Dear Sir/Madam,</p>
 
 <p>
-With reference to the above subject, employee
-<b>{employee.Name} ({employee.Employee_Id})</b>
-has applied for <b>{dto.LeaveType}</b> from
-<b>{fromDate:dd-MMM-yyyy}</b> to
-<b>{toDate:dd-MMM-yyyy}</b>.
+I hope you are doing well.
 </p>
 
 <p>
-<b>Applied On:</b>
-{leave.CreatedAt.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
+This is to inform you that <b>{employee.Name}</b>
+(Employee ID: <b>{employee.Employee_Id}</b>) has submitted a leave application
+for the period from <b>{fromDate:dd-MMM-yyyy}</b>
+to <b>{toDate:dd-MMM-yyyy}</b>.
 </p>
 
 <p>
-<b>Reason:</b> {dto.Reason}
+<b>Reason for Leave:</b>
+</p>
+
+<div style='margin-left:20px;'>
+{formattedReason}
+</div>
+
+<p>
+I kindly request you to review the leave application and
+consider the request for approval.
 </p>
 
 <p>
-We kindly request you to review the leave application
-and provide your approval/rejection.
+Thank you for your time and consideration.
+</p>
+
+<p>
+Regards,<br/>
+<b>{employee.Name}</b><br/>
+Employee ID: {employee.Employee_Id}
+</p>
+
+<hr/>
+
+<h3>Leave Application Details</h3>
+
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'
+       style='border-collapse:collapse;width:100%;'>
+
+<tr>
+    <td><b>Employee Name</b></td>
+    <td>{employee.Name}</td>
+</tr>
+
+<tr>
+    <td><b>Employee ID</b></td>
+    <td>{employee.Employee_Id}</td>
+</tr>
+
+<tr>
+    <td><b>Leave Type</b></td>
+    <td>{dto.LeaveType}</td>
+</tr>
+
+<tr>
+    <td><b>From Date</b></td>
+    <td>{fromDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>To Date</b></td>
+    <td>{toDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>Applied On</b></td>
+    <td>{leave.CreatedAt.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}</td>
+</tr>
+
+</table>
+
+<br/>
+
+<p>
+Please review the leave application and select the appropriate action below:
 </p>
 
 <br/>
@@ -473,19 +656,27 @@ Reject
 <br/>
 <br/>
 
-<p>Thank you,</p>
+<p>
+After selecting the appropriate option, the leave application
+will be updated accordingly in the EMS application.
+</p>
+
+<p>
+Thank you for your time and consideration.
+</p>
 
 <p>
 Regards,<br/>
 <b>PIRNAV EMS</b><br/>
-Employee Management System
+Employee Management System<br/>
+Pirnav Software Solutions Pvt. Ltd.
 </p>
 
 </body>
 
 </html>",
-    attachmentPhysicalPath ?? string.Empty
-);
+                    attachmentPhysicalPath ?? string.Empty
+                );
             }
         }
 
@@ -1240,20 +1431,48 @@ Employee Management System
             .Select(x => new
             {
                 x.Id,
-                x.EmployeeId,
-                x.EmployeeName,
+                EmployeeId = x.EmployeeId,
+                EmployeeName = x.EmployeeName,
+
+                Designation = _context.EmployeePersonalInfos
+                    .Where(pi => pi.Employee_Id == x.EmployeeId)
+                    .Select(pi => pi.Designation)
+                    .FirstOrDefault() ?? "Not Specified",
+
+                ProjectName = _context.TeamMembers
+                    .Where(tm => tm.EmployeeId == x.EmployeeId)
+                    .Join(
+                        _context.Teams,
+                        tm => tm.TeamId,
+                        t => t.Id,
+                        (tm, t) => t.ProjectId)
+                    .Join(
+                        _context.Projects,
+                        projectId => projectId,
+                        p => p.Id,
+                        (projectId, p) => p.Project_Name)
+                    .FirstOrDefault() ?? "Not Assigned",
+
+                ProbationStatus =
+                    DateTime.Today >=
+                    _context.Employees
+                        .Where(e => e.Employee_Id == x.EmployeeId)
+                        .Select(e => e.JoiningDate)
+                        .FirstOrDefault()
+                        .AddMonths(6)
+                        ? "Completed"
+                        : "Not Completed",
+
                 x.LeaveType,
                 x.FromDate,
                 x.ToDate,
                 x.Reason,
                 x.Status,
-
                 x.ApprovedBy,
 
                 AppliedDate = x.CreatedAt,
                 ApprovedDate = x.ApprovedOn,
 
-                // Attachment
                 AttachmentFileName = x.AttachmentFileName,
                 AttachmentPath = x.AttachmentPath
             })
@@ -1275,6 +1494,39 @@ Employee Management System
 
         var today = DateTime.Today;
 
+        var designation = await _context.EmployeePersonalInfos
+            .AsNoTracking()
+            .Where(x => x.Employee_Id == employee.Employee_Id)
+            .Select(x => x.Designation)
+            .FirstOrDefaultAsync();
+
+        designation ??= "Not Specified";
+
+        var projectName = await _context.TeamMembers
+            .AsNoTracking()
+            .Where(tm => tm.EmployeeId == employee.Employee_Id)
+            .Join(
+                _context.Teams,
+                tm => tm.TeamId,
+                t => t.Id,
+                (tm, t) => t.ProjectId)
+            .Join(
+                _context.Projects,
+                projectId => projectId,
+                p => p.Id,
+                (projectId, p) => p.Project_Name)
+            .FirstOrDefaultAsync();
+
+        projectName ??= "Not Assigned";
+
+        DateTime probationEndDate =
+            employee.JoiningDate.Date.AddMonths(6);
+
+        string probationStatus =
+            DateTime.Today >= probationEndDate
+                ? "Completed"
+                : "Not Completed";
+
         var leaves = await _context.EmployeeLeaves
             .Where(l => l.EmployeeId == employee.Employee_Id)
             .OrderByDescending(l =>
@@ -1282,6 +1534,28 @@ Employee Management System
                 l.FromDate.Date <= today &&
                 l.ToDate.Date >= today)
             .ThenByDescending(l => l.CreatedAt)
+            .Select(l => new
+            {
+                l.Id,
+                EmployeeId = l.EmployeeId,
+                EmployeeName = l.EmployeeName,
+
+                Designation = designation,
+                ProjectName = projectName,
+                ProbationStatus = probationStatus,
+
+                l.LeaveType,
+                l.FromDate,
+                l.ToDate,
+                l.Reason,
+                l.Status,
+                l.ApprovedBy,
+                AppliedDate = l.CreatedAt,
+                ApprovedDate = l.ApprovedOn,
+
+                l.AttachmentFileName,
+                l.AttachmentPath
+            })
             .ToListAsync();
 
         return new OkObjectResult(leaves);
@@ -1750,7 +2024,44 @@ Employee Management System
             {
                 message = "Employee not found"
             });
+
         }
+        var personalInfo = await _context.EmployeePersonalInfos
+    .AsNoTracking()
+    .FirstOrDefaultAsync(x =>
+        x.Employee_Id == employee.Employee_Id);
+
+        var designation = personalInfo?.Designation ?? "Not Specified";
+
+        // Get project name
+        var projectName = await _context.TeamMembers
+            .AsNoTracking()
+            .Where(tm => tm.EmployeeId == employee.Employee_Id)
+            .Join(
+                _context.Teams,
+                tm => tm.TeamId,
+                t => t.Id,
+                (tm, t) => t.ProjectId)
+            .Join(
+                _context.Projects,
+                projectId => projectId,
+                p => p.Id,
+                (projectId, p) => p.Project_Name)
+            .FirstOrDefaultAsync();
+
+        projectName ??= "Not Assigned";
+
+        // Get probation status
+        DateTime joiningDate = employee.JoiningDate.Date;
+        DateTime probationEndDate = joiningDate.AddMonths(6);
+
+        bool probationCompleted =
+            DateTime.Today >= probationEndDate;
+
+        string probationStatus =
+            probationCompleted
+                ? "Completed"
+                : "Not Completed";
         // Attachment validation
         if (dto.Attachment != null)
         {
@@ -1827,6 +2138,22 @@ Employee Management System
 
         var fromDate = dto.FromDate.Date;
         var toDate = dto.ToDate.Date;
+        var formattedReason = (dto.Reason ?? string.Empty)
+    .Replace("\r\n", "<br/>")
+    .Replace("\n", "<br/>");
+        var returnReason = $@"Dear Sir/Madam,
+
+I hope you are doing well.
+
+{dto.Reason}
+
+I kindly request you to consider and approve my Work From Home application.
+
+Thank you for your time and consideration.
+
+Regards,
+{employee.Name}
+Employee ID: {employee.Employee_Id}";
 
         if (fromDate > toDate)
         {
@@ -1870,7 +2197,8 @@ Employee Management System
             LeaveType = dto.LeaveType,
             FromDate = fromDate,
             ToDate = toDate,
-            Reason = dto.Reason,
+            Reason = returnReason,
+           
             AttachmentFileName = attachmentFileName,
             AttachmentPath = attachmentPath,
             Status = "Pending",
@@ -1933,7 +2261,16 @@ Employee Management System
 
             return new OkObjectResult(new
             {
-                message = "Work From Home applied successfully."
+                message = "Work From Home applied successfully.",
+                employeeName = employee.Name,
+                employeeId = employee.Employee_Id,
+                designation = designation,
+                projectName = projectName,
+                probationStatus = probationStatus,
+                leaveType = dto.LeaveType,
+                fromDate = fromDate,
+                toDate = toDate,
+                reason = returnReason
             });
         }
         //==========================================================
@@ -1945,80 +2282,128 @@ Employee Management System
             if (!string.IsNullOrWhiteSpace(approver.Email))
             {
                 await _emailService.SendEmailWithAttachment(
-     approver.Email,
-     $"WFH Approval Request - {employee.Name} ({employee.Employee_Id}) - #{wfh.Id}",
-     $@"
+      approver.Email,
+      $"WFH Approval Request - {employee.Name} ({employee.Employee_Id}) - #{wfh.Id}",
+      $@"
 <html>
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
 
-<p>Hi Team,</p>
-
-<p>Hope you are doing well!!</p>
+<p>Dear Sir/Madam,</p>
 
 <p>
-Employee
-<b>{employee.Name} ({employee.Employee_Id})</b>
-has applied for
-<b>{dto.LeaveType}</b>
-from
+I hope you are doing well.
+</p>
+
+<p>
+This is to inform you that <b>{employee.Name}</b>
+(Employee ID: <b>{employee.Employee_Id}</b>) has submitted a
+Work From Home application for the period from
 <b>{fromDate:dd-MMM-yyyy}</b>
 to
 <b>{toDate:dd-MMM-yyyy}</b>.
 </p>
 
 <p>
-<b>Applied On:</b>
-{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
+<b>Reason for Work From Home:</b>
+</p>
+
+<div style='margin-left:20px;'>
+{formattedReason}
+</div>
+
+<p>
+I kindly request you to review the Work From Home application
+and consider the request for approval.
 </p>
 
 <p>
-<b>Reason:</b> {dto.Reason}
+Thank you for your time and consideration.
 </p>
 
 <p>
-Kindly review the Work From Home request and take the necessary action.
+Regards,<br/>
+<b>{employee.Name}</b><br/>
+Employee ID: {employee.Employee_Id}
+</p>
+
+<hr/>
+
+<h3>Work From Home Application Details</h3>
+
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'
+       style='border-collapse:collapse;width:100%;'>
+
+<tr>
+    <td><b>Employee Name</b></td>
+    <td>{employee.Name}</td>
+</tr>
+
+<tr>
+    <td><b>Employee ID</b></td>
+    <td>{employee.Employee_Id}</td>
+</tr>
+
+<tr>
+    <td><b>WFH Type</b></td>
+    <td>{dto.LeaveType}</td>
+</tr>
+
+<tr>
+    <td><b>From Date</b></td>
+    <td>{fromDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>To Date</b></td>
+    <td>{toDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>Applied On</b></td>
+    <td>{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}</td>
+</tr>
+
+</table>
+
+<br/>
+
+<p>
+Please log in to the EMS application using the link below:
 </p>
 
 <p>
-Please login using the below link.
-</p>
-
-<p>
-<a href='https://hrms.pirnav.com/login'>
+<a href='https://hrms.pirnav.com/login' target='_blank'>
 EMS Login Portal
 </a>
 </p>
 
 <p>
-Or copy below URL:
-
+After logging in, navigate to:
 <br/>
-
-<b>https://hrms.pirnav.com/login</b>
-</p>
-
-<p>
-Navigate to:
-
-<br/>
-
 <b>Work From Home → Pending Requests</b>
 </p>
 
 <p>
-Thank you.
+Please review the application and take the necessary action.
+</p>
+
+<p>
+Thank you for your time and consideration.
 </p>
 
 <p>
 Regards,<br/>
 <b>PIRNAV EMS</b><br/>
-Employee Management System
+Employee Management System<br/>
+Pirnav Software Solutions Pvt. Ltd.
 </p>
 
 </body>
 </html>",
-     attachmentPhysicalPath ?? string.Empty
- );
+      attachmentPhysicalPath ?? string.Empty
+  );
             }
         }
                 //==========================================================
@@ -2041,42 +2426,99 @@ Employee Management System
                         $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
 
 
-                    await _emailService.SendEmailWithAttachment(
+            await _emailService.SendEmailWithAttachment(
 
-                        externalEmail,
+externalEmail,
 
-                        $"WFH Approval Required - {employee.Name} - Request #{wfh.Id}",
+$"WFH Approval Required - {employee.Name} - Request #{wfh.Id}",
 
-                        $@"
+$@"
 <html>
 <body style='font-family:Calibri,Arial,sans-serif;font-size:14px;color:#333;'>
 
-<p>Hi Team,</p>
-
-<p>Hope you are doing well!!</p>
+<p>Dear Sir/Madam,</p>
 
 <p>
-Employee
-<b>{employee.Name} ({employee.Employee_Id})</b>
-has applied for
-<b>{dto.LeaveType}</b>
-from
+I hope you are doing well.
+</p>
+
+<p>
+This is to inform you that <b>{employee.Name}</b>
+(Employee ID: <b>{employee.Employee_Id}</b>) has submitted a
+Work From Home application for the period from
 <b>{fromDate:dd-MMM-yyyy}</b>
 to
 <b>{toDate:dd-MMM-yyyy}</b>.
 </p>
 
 <p>
-<b>Applied On:</b>
-{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}
+<b>Reason for Work From Home:</b>
+</p>
+
+<div style='margin-left:20px;'>
+{formattedReason}
+</div>
+
+<p>
+I kindly request you to review the Work From Home application
+and consider the request for approval.
 </p>
 
 <p>
-<b>Reason:</b> {dto.Reason}
+Thank you for your time and consideration.
 </p>
 
 <p>
-Kindly review the Work From Home request and select the appropriate action.
+Regards,<br/>
+<b>{employee.Name}</b><br/>
+Employee ID: {employee.Employee_Id}
+</p>
+
+<hr/>
+
+<h3>Work From Home Application Details</h3>
+
+<table border='1'
+       cellpadding='8'
+       cellspacing='0'
+       style='border-collapse:collapse;width:100%;'>
+
+<tr>
+    <td><b>Employee Name</b></td>
+    <td>{employee.Name}</td>
+</tr>
+
+<tr>
+    <td><b>Employee ID</b></td>
+    <td>{employee.Employee_Id}</td>
+</tr>
+
+<tr>
+    <td><b>WFH Type</b></td>
+    <td>{dto.LeaveType}</td>
+</tr>
+
+<tr>
+    <td><b>From Date</b></td>
+    <td>{fromDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>To Date</b></td>
+    <td>{toDate:dd-MMM-yyyy}</td>
+</tr>
+
+<tr>
+    <td><b>Applied On</b></td>
+    <td>{wfh.AppliedOn?.ToLocalTime():dd-MMM-yyyy hh:mm:ss tt}</td>
+</tr>
+
+</table>
+
+<br/>
+
+<p>
+Please review the Work From Home application and select the appropriate action below:
 </p>
 
 <br/>
@@ -2096,22 +2538,31 @@ style='background-color:red;color:white;padding:12px 20px;text-decoration:none;b
 Reject
 </a>
 
-<br/><br/>
+<br/>
+<br/>
 
-<p>Thank you,</p>
+<p>
+After selecting the appropriate option, the Work From Home application
+will be updated accordingly in the EMS application.
+</p>
+
+<p>
+Thank you for your time and consideration.
+</p>
 
 <p>
 Regards,<br/>
 <b>PIRNAV EMS</b><br/>
-Employee Management System
+Employee Management System<br/>
+Pirnav Software Solutions Pvt. Ltd.
 </p>
 
 </body>
 </html>",
 
-                        attachmentPhysicalPath ?? string.Empty
-                    );
-                }
+attachmentPhysicalPath ?? string.Empty
+);
+        }
 
                 // ==========================================================
                 // Admin Notification
@@ -2137,54 +2588,90 @@ Employee Management System
                     message = "Work From Home applied successfully."
                 });
             }
-            [HttpGet("all-wfh")]
-            public async Task<IActionResult> GetAllWFH()
+
+    [HttpGet("all-wfh")]
+    public async Task<IActionResult> GetAllWFH()
+    {
+        try
+        {
+            var requests = await _context.WorkFromHomeRequests
+     .Where(x =>
+         (x.ApprovedType == null ||
+          x.ApprovedType != "Leave")
+         &&
+         !_context.EmployeeLeaves.Any(l =>
+             l.EmployeeId == x.EmployeeId &&
+             l.Status != "Rejected" &&
+             l.Status != "Cancelled" &&
+             x.FromDate.Date <= l.ToDate.Date &&
+             x.ToDate.Date >= l.FromDate.Date))
+     .OrderByDescending(x => x.AppliedOn)
+                .Select(x => new
+                {
+                    Id = x.Id,
+
+                    EmployeeId = x.EmployeeId,
+                    EmployeeName = x.EmployeeName,
+
+                    Designation = _context.EmployeePersonalInfos
+                        .Where(pi => pi.Employee_Id == x.EmployeeId)
+                        .Select(pi => pi.Designation)
+                        .FirstOrDefault() ?? "Not Specified",
+
+                    ProjectName = _context.TeamMembers
+                        .Where(tm => tm.EmployeeId == x.EmployeeId)
+                        .Join(
+                            _context.Teams,
+                            tm => tm.TeamId,
+                            t => t.Id,
+                            (tm, t) => t.ProjectId)
+                        .Join(
+                            _context.Projects,
+                            projectId => projectId,
+                            p => p.Id,
+                            (projectId, p) => p.Project_Name)
+                        .FirstOrDefault() ?? "Not Assigned",
+
+                    ProbationStatus =
+                        DateTime.Today >=
+                        _context.Employees
+                            .Where(e => e.Employee_Id == x.EmployeeId)
+                            .Select(e => e.JoiningDate)
+                            .FirstOrDefault()
+                            .AddMonths(6)
+                            ? "Completed"
+                            : "Not Completed",
+
+                    LeaveType = x.LeaveType,
+
+                    FromDate = x.FromDate,
+                    ToDate = x.ToDate,
+
+                    Reason = x.Reason,
+
+                    AttachmentFileName = x.AttachmentFileName,
+                    AttachmentPath = x.AttachmentPath,
+
+                    Status = x.Status,
+                    ApprovedBy = x.ApprovedBy,
+                    ApprovedOn = x.ApprovedOn,
+                    AppliedOn = x.AppliedOn,
+
+                    ApprovalRemarks = x.ApprovalRemarks
+                })
+                .ToListAsync();
+
+            return new OkObjectResult(requests);
+        }
+        catch (Exception ex)
+        {
+            return new BadRequestObjectResult(new
             {
-                try
-                {
-                    var requests = await _context.WorkFromHomeRequests
-                        .OrderByDescending(x => x.AppliedOn)
-                        .Select(x => new
-                        {
-                            Id = x.Id,
-                            EmployeeId = x.EmployeeId,
-                            EmployeeName = x.EmployeeName,
-                            LeaveType = x.LeaveType,
-
-                            FromDate = x.FromDate,
-                            ToDate = x.ToDate,
-
-                            Reason = x.Reason,
-
-                            // Attachment
-                            AttachmentFileName = x.AttachmentFileName,
-                            AttachmentPath = x.AttachmentPath,
-
-                            Status = x.Status,
-
-                            ApprovedBy = x.ApprovedBy,
-
-                            ApprovedOn = x.ApprovedOn == null
-                                ? null
-                                : x.ApprovedOn,
-
-                            AppliedOn = x.AppliedOn == null
-                                ? null
-                                : x.AppliedOn
-                        })
-                        .ToListAsync();
-
-                    return new OkObjectResult(requests);
-                }
-                catch (Exception ex)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = ex.Message,
-                        StackTrace = ex.StackTrace
-                    });
-                }
-            } 
+                Message = ex.Message,
+                StackTrace = ex.StackTrace
+            });
+        }
+    }
     public async Task<IActionResult> GetMyWFH(ClaimsPrincipal user)
     {
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
@@ -2195,21 +2682,68 @@ Employee Management System
         if (employee == null)
             return new BadRequestObjectResult("Employee not found");
 
+        var designation = await _context.EmployeePersonalInfos
+            .AsNoTracking()
+            .Where(x => x.Employee_Id == employee.Employee_Id)
+            .Select(x => x.Designation)
+            .FirstOrDefaultAsync();
+
+        designation ??= "Not Specified";
+
+        var projectName = await _context.TeamMembers
+            .AsNoTracking()
+            .Where(tm => tm.EmployeeId == employee.Employee_Id)
+            .Join(
+                _context.Teams,
+                tm => tm.TeamId,
+                t => t.Id,
+                (tm, t) => t.ProjectId)
+            .Join(
+                _context.Projects,
+                projectId => projectId,
+                p => p.Id,
+                (projectId, p) => p.Project_Name)
+            .FirstOrDefaultAsync();
+
+        projectName ??= "Not Assigned";
+
+        DateTime probationEndDate =
+            employee.JoiningDate.Date.AddMonths(6);
+
+        string probationStatus =
+            DateTime.Today >= probationEndDate
+                ? "Completed"
+                : "Not Completed";
+
         var requests = await _context.WorkFromHomeRequests
-            .Where(x => x.EmployeeId == employee.Employee_Id)
-            .OrderByDescending(x => x.AppliedOn)
+     .Where(x =>
+         x.EmployeeId == employee.Employee_Id &&
+         (x.ApprovedType == null || x.ApprovedType != "Leave") &&
+         !_context.EmployeeLeaves.Any(l =>
+             l.EmployeeId == employee.Employee_Id &&
+             l.Status != "Rejected" &&
+             l.Status != "Cancelled" &&
+             x.FromDate.Date <= l.ToDate.Date &&
+             x.ToDate.Date >= l.FromDate.Date))
+                     .OrderByDescending(x => x.AppliedOn)
             .Select(x => new
             {
                 x.Id,
+
                 EmployeeId = x.EmployeeId,
                 EmployeeName = x.EmployeeName,
+
+                Designation = designation,
+                ProjectName = projectName,
+                ProbationStatus = probationStatus,
+
                 LeaveType = x.LeaveType,
+
                 FromDate = x.FromDate,
                 ToDate = x.ToDate,
 
-                x.Reason,
+                Reason = x.Reason,
 
-                // Attachment
                 x.AttachmentFileName,
                 x.AttachmentPath,
 
@@ -2312,7 +2846,11 @@ Employee Management System
         }
         if (status.Equals("ApproveAsWFH", StringComparison.OrdinalIgnoreCase))
         {
-            request.Status = $"Approved As WFH By {approverName}";
+            // Same type as requested: WFH
+            request.Status = $"Approved By {approverName}";
+
+            request.LeaveType = "WFH";
+            request.ApprovedType = "WFH";
 
             request.ApprovedBy = approverName;
             request.ApprovedOn = DateTime.UtcNow;
@@ -2774,8 +3312,7 @@ style='border-collapse:collapse;'>
             "ApproveAsLeave",
             StringComparison.OrdinalIgnoreCase))
         {
-            leave.Status = "Approved";
-
+            leave.Status = $"Approved As Leave By {approverEmail}";
             // Keep this only if ApprovedType exists in your model
             leave.ApprovedType = "Leave";
 
@@ -3096,7 +3633,7 @@ by the external approver.
         "Leave",
 
                 Status =
-        "Approved",
+    $"Approved As Leave By {approverEmail}",
 
                 ApprovedBy =
         approverEmail,

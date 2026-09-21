@@ -1,17 +1,14 @@
 ﻿using DocumentFormat.OpenXml.Spreadsheet;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
+using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using EmployeeManagementSystem.Models;
-
-using Microsoft.IdentityModel.Tokens;
-
-using System.IdentityModel.Tokens.Jwt;
-
-using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 
 namespace EmployeeManagementSystem.Controllers
@@ -43,11 +40,58 @@ namespace EmployeeManagementSystem.Controllers
             _context = context;
 
         }
+        //[HttpPost("login")]
+        //public IActionResult Login(LoginDto dto)
+        //{
+        //    var admin = _context.Admins
+        //        .FirstOrDefault(a => a.Email == dto.Email);
+
+        //    if (admin == null)
+        //    {
+        //        return Unauthorized(new
+        //        {
+        //            message = "Invalid credentials"
+        //        });
+        //    }
+
+        //    // Block inactive admin
+        //    if (!admin.IsActive)
+        //    {
+        //        return Unauthorized(new
+        //        {
+        //            message = "Your account is inactive. Please contact Super Admin."
+        //        });
+        //    }
+
+        //    if (admin.Password != dto.Password)
+        //    {
+        //        return Unauthorized(new
+        //        {
+        //            message = "Invalid credentials"
+        //        });
+        //    }
+
+
+        //    var token = GenerateJwtToken(admin);
+
+        //    return Ok(new
+        //    {
+        //        message = "Login successful",
+        //        token,
+        //        admin = new
+        //        {
+        //            admin.Id,
+        //            admin.Email,
+        //            admin.IsActive
+        //        }
+        //    });
+        //}
+
         [HttpPost("login")]
-        public IActionResult Login(LoginDto dto)
+        public async Task<IActionResult> Login(LoginDto dto)
         {
-            var admin = _context.Admins
-                .FirstOrDefault(a => a.Email == dto.Email);
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(a => a.Email == dto.Email);
 
             if (admin == null)
             {
@@ -66,11 +110,49 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
-            if (admin.Password != dto.Password)
+            // Existing password verification (commented out):
+            // if (admin.Password != dto.Password)
+            // {
+            //     return Unauthorized(new
+            //     {
+            //         message = "Invalid credentials"
+            //     });
+            // }
+
+            // Verify password (supports BCrypt as well as plain text)
+            bool isPasswordValid = false;
+            if (!string.IsNullOrWhiteSpace(admin.Password))
+            {
+                if (admin.Password.StartsWith("$2a$") || admin.Password.StartsWith("$2b$") || admin.Password.StartsWith("$2y$"))
+                {
+                    try { isPasswordValid = BCrypt.Net.BCrypt.Verify(dto.Password, admin.Password); }
+                    catch { isPasswordValid = admin.Password == dto.Password; }
+                }
+                else
+                {
+                    isPasswordValid = admin.Password == dto.Password;
+                }
+            }
+
+            if (!isPasswordValid)
             {
                 return Unauthorized(new
                 {
                     message = "Invalid credentials"
+                });
+            }
+
+            // Subscription validation (Admin + Organization)
+            var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
+                _context,
+                admin.Id,
+                admin.OrganizationId);
+
+            if (!effectiveSub.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Your subscription is inactive or expired. Please contact Super Admin."
                 });
             }
 
@@ -84,10 +166,24 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     admin.Id,
                     admin.Email,
-                    admin.IsActive
+                    admin.IsActive,
+                    admin.OrganizationId,
+                    admin.OrganizationName,
+                    subscription = new
+                    {
+                        effectiveSub.MaxUsers,
+                        effectiveSub.CurrentUsers,
+                        effectiveSub.RemainingUsers,
+                        effectiveSub.StartDate,
+                        effectiveSub.EndDate,
+                        effectiveSub.Source,
+                        effectiveSub.PlanName
+                    }
                 }
             });
         }
+
+
         [HttpPost("change-password")]
         public IActionResult ChangePassword(ChangePasswordDto dto)
         {
@@ -140,18 +236,35 @@ namespace EmployeeManagementSystem.Controllers
             if (string.IsNullOrWhiteSpace(dto.Password))
                 return BadRequest("Password is required.");
 
-            var exists = await _context.Admins
-                .AnyAsync(x => x.Email == dto.Email);
+            // Existing code (commented out to allow updating existing admin without duplicate error):
+            // var exists = await _context.Admins
+            //     .AnyAsync(x => x.Email == dto.Email);
+            // if (exists)
+            //     return BadRequest("Admin already exists.");
 
-            if (exists)
-                return BadRequest("Admin already exists.");
+            var existing = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.Trim().ToLower());
+
+            if (existing != null)
+            {
+                existing.Password = dto.Password;
+                existing.IsActive = true;
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    Message = "Existing admin updated successfully.",
+                    AdminId = existing.Id
+                });
+            }
 
             var admin = new Admin
             {
-                Email = dto.Email,
+                Email = dto.Email.Trim(),
                 Password = dto.Password,
-                 Role = "Admin",
-                IsActive = true
+                Role = "Admin",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Admins.Add(admin);
@@ -159,7 +272,8 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(new
             {
-                Message = "Admin created successfully."
+                Message = "Admin created successfully.",
+                AdminId = admin.Id
             });
         }
 
@@ -211,7 +325,7 @@ namespace EmployeeManagementSystem.Controllers
                 adminId = admin.Id,
                 email = admin.Email,
                 isActive = admin.IsActive,
-                Role=admin.Role
+                Role = admin.Role
             });
         }
         private string GenerateJwtToken(Admin admin)

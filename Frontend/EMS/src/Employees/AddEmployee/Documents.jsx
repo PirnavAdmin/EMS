@@ -1,3 +1,4 @@
+
 import React, {
   useCallback,
   useEffect,
@@ -5,8 +6,8 @@ import React, {
   useImperativeHandle,
   useMemo,
   useRef,
-  useState } from
-"react";
+  useState
+} from "react";
 import {
   FaCloudUploadAlt,
   FaDownload,
@@ -15,8 +16,8 @@ import {
   FaFolderOpen,
   FaRedo,
   FaSpinner,
-  FaTrash } from
-"react-icons/fa";
+  FaTrash
+} from "react-icons/fa";
 import { toastSuccess, toastError, toastWarning } from "@/components/common/toast/toastService";
 import "./AddEmployee.css";
 import api from "../../api/axiosInstance";
@@ -36,8 +37,8 @@ import {
   normalizeDocumentTypeKey,
   removeStoredDocument,
   saveStoredDocument,
-  validateFileSize } from
-"./documentStore";
+  validateFileSize
+} from "./documentStore";
 import { formatDateTime } from "../../utils/date";
 import {
   downloadSignedAgreement,
@@ -46,116 +47,682 @@ import {
   getSignedAgreementCount,
   signAgreement,
   viewAgreement,
-  viewSignedAgreement } from
-"../../services/agreementService";
+  viewSignedAgreement
+} from "../../services/agreementService";
 import {
   extractDownloadFileName,
-  getDownloadErrorMessage } from
-"../../utils/downloadUtils";
+  getDownloadErrorMessage
+} from "../../utils/downloadUtils";
 import {
   resolveDocumentMimeType,
-  isSafeWebUrl } from
-"./documentPreview";
+  isSafeWebUrl
+} from "./documentPreview";
+import {
+  readDocumentText,
+  validateOcrDocumentType
+} from "./documentOcrValidation";
+
+/* =========================================================================
+   PDF.js Worker Setup for Client-Side PDF Reading
+   ========================================================================= */
+import * as pdfjsLib from "pdfjs-dist";
+
+if (pdfjsLib?.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+}
 
 const MAX_SIGNATURE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
+// Cache OCR and face analysis promises per File instance to avoid redundant computation
+const fileAnalysisCache = new WeakMap();
+
+// =========================================================================
+// 1. AI FACE DETECTION & OCR ENGINES
+// =========================================================================
+
+/**
+ * Loads BlazeFace Model (Google's Lightweight AI Human Face Detector)
+ */
+let blazeFaceModelPromise = null;
+const loadBlazeFaceModel = async () => {
+  if (window.blazeface && typeof window.blazeface.load === "function") {
+    if (!blazeFaceModelPromise) {
+      blazeFaceModelPromise = window.blazeface.load();
+    }
+    return blazeFaceModelPromise;
+  }
+
+  if (!blazeFaceModelPromise) {
+    blazeFaceModelPromise = (async () => {
+      if (!window.tf) {
+        await new Promise((resolve, reject) => {
+          const tfScript = document.createElement("script");
+          tfScript.src = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js";
+          tfScript.async = true;
+          tfScript.onload = resolve;
+          tfScript.onerror = () => reject(new Error("Failed to load TensorFlow.js"));
+          document.head.appendChild(tfScript);
+        });
+      }
+
+      if (!window.blazeface) {
+        await new Promise((resolve, reject) => {
+          const bfScript = document.createElement("script");
+          bfScript.src = "https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js";
+          bfScript.async = true;
+          bfScript.onload = resolve;
+          bfScript.onerror = () => reject(new Error("Failed to load BlazeFace detector"));
+          document.head.appendChild(bfScript);
+        });
+      }
+
+      return await window.blazeface.load();
+    })();
+  }
+
+  return blazeFaceModelPromise;
+};
+
+const renderPdfPageToCanvas = async (pdfDoc, pageNumber = 1) => {
+  try {
+    const page = await pdfDoc.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d");
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas;
+  } catch (err) {
+    console.warn("Error rendering PDF page to canvas:", err);
+    return null;
+  }
+};
+
+/**
+ * Strict Human Face Detector using Google BlazeFace AI
+ */
+const detectHumanFace = async (file) => {
+  if (!file) {
+    return { hasFace: false, isPortrait: false, isValid: false, message: "No file selected." };
+  }
+
+  let blobUrl = null;
+  let imgElement = null;
+
+  try {
+    let imageSource = null;
+
+    if (file.type === "application/pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
+      if (!pdfjsLib?.getDocument) {
+        return { hasFace: false, isPortrait: false, isValid: false, message: "PDF could not be parsed." };
+      }
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const canvas = await renderPdfPageToCanvas(pdf, 1);
+      if (!canvas) {
+        return { hasFace: false, isPortrait: false, isValid: false, message: "Could not render PDF." };
+      }
+      imageSource = canvas;
+    } else {
+      imgElement = new Image();
+      blobUrl = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => {
+        imgElement.onload = resolve;
+        imgElement.onerror = () => reject(new Error("Invalid image format."));
+        imgElement.src = blobUrl;
+      });
+      imageSource = imgElement;
+    }
+
+    const imgWidth = imageSource.naturalWidth || imageSource.videoWidth || imageSource.width || 1;
+    const imgHeight = imageSource.naturalHeight || imageSource.videoHeight || imageSource.height || 1;
+    const imgArea = imgWidth * imgHeight;
+
+    try {
+      const model = await loadBlazeFaceModel();
+      if (model && typeof model.estimateFaces === "function") {
+        const predictions = await model.estimateFaces(imageSource, false);
+
+        if (predictions && predictions.length > 0) {
+          const validFaces = predictions.filter((p) => {
+            const prob = Array.isArray(p.probability) ? p.probability[0] : (p.probability || 1);
+            return prob >= 0.70;
+          });
+
+          if (validFaces.length > 0) {
+            const mainFace = validFaces[0];
+            const [x1, y1] = mainFace.topLeft;
+            const [x2, y2] = mainFace.bottomRight;
+            const faceWidth = Math.abs(x2 - x1);
+            const faceHeight = Math.abs(y2 - y1);
+            const faceArea = faceWidth * faceHeight;
+            const faceRatio = faceArea / imgArea;
+
+            return {
+              hasFace: true,
+              isPortrait: faceRatio >= 0.04,
+              faceCount: validFaces.length,
+              faceRatio,
+              isValid: true,
+              message: ""
+            };
+          }
+        }
+
+        return {
+          hasFace: false,
+          isPortrait: false,
+          faceCount: 0,
+          isValid: false,
+          message: "No human face detected in photo."
+        };
+      }
+    } catch (aiErr) {
+      console.warn("BlazeFace AI detection skipped, using fallback:", aiErr);
+    }
+
+    return {
+      hasFace: false,
+      isPortrait: false,
+      isValid: false,
+      message: "No human face detected in photo."
+    };
+  } catch (err) {
+    console.warn("Face detection error:", err);
+    return {
+      hasFace: false,
+      isPortrait: false,
+      isValid: false,
+      message: "No human face detected in photo."
+    };
+  } finally {
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+    }
+  }
+};
+
+/**
+ * Cached extraction helper so heavy analysis only runs once per selected file
+ */
+const getFileAnalysis = async (file) => {
+  if (!file) return { insideText: "", faceAnalysis: { hasFace: false, isPortrait: false } };
+
+  if (fileAnalysisCache.has(file)) {
+    return fileAnalysisCache.get(file);
+  }
+
+  const analysisPromise = (async () => {
+    const [ocrResult, faceAnalysis] = await Promise.all([
+      readDocumentText(file),
+      detectHumanFace(file)
+    ]);
+    return { insideText: ocrResult.text, faceAnalysis };
+  })();
+
+  fileAnalysisCache.set(file, analysisPromise);
+  return analysisPromise;
+};
+
+// =========================================================================
+// 2. STRICT INSIDE-CONTENT VALIDATOR (Content-Based, Short Error Messages)
+// =========================================================================
+const validateInsideDocumentContent = async (file, selectedDocType = "") => {
+  if (!file || !selectedDocType) return null;
+
+  const cleanDocType = selectedDocType.toLowerCase();
+  const { insideText = "", faceAnalysis = {} } = await getFileAnalysis(file);
+  const upperText = (insideText || "").toUpperCase();
+  const rawTextChars = upperText.replace(/[^A-Z0-9]/g, "");
+  const textLength = rawTextChars.length;
+
+  // 1. PASSPORT-SIZE PHOTO VALIDATION (Must be a human face)
+  if (cleanDocType.includes("passport-size photo") || cleanDocType.includes("photo")) {
+    if (!faceAnalysis.hasFace || !faceAnalysis.isValid) {
+      return "No human face detected in photo.";
+    }
+
+    if (faceAnalysis.faceCount > 1) {
+      return "Multiple faces detected in photo.";
+    }
+
+    if (textLength > 40) {
+      const isDocument =
+        upperText.includes("MARKS") ||
+        upperText.includes("CERTIFICATE") ||
+        upperText.includes("BOARD OF") ||
+        upperText.includes("UNIVERSITY") ||
+        upperText.includes("INCOME TAX") ||
+        upperText.includes("UIDAI") ||
+        upperText.includes("GOVERNMENT OF INDIA") ||
+        upperText.includes("STATEMENT OF") ||
+        upperText.includes("MEMORANDUM");
+
+      if (isDocument) {
+        return "Invalid photo: Document detected instead of portrait.";
+      }
+    }
+    return null;
+  }
+
+  // 2. FOR ALL OTHER DOCUMENTS: MUST BE A REAL DOCUMENT
+  if (faceAnalysis.isPortrait && textLength < 25) {
+    return "Invalid file: Portrait photo uploaded instead of document.";
+  }
+
+  // Reject images with no readable document text (animals, trees, mountains, blank photos)
+  if (textLength < 12) {
+    return "Invalid document: No readable document text found.";
+  }
+
+  // Key Indicators
+  const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
+  const hasPanNumber = panRegex.test(upperText);
+  const hasPanKeywords =
+    hasPanNumber ||
+    upperText.includes("INCOME TAX") ||
+    upperText.includes("PERMANENT ACCOUNT") ||
+    upperText.includes("INCOMETAX") ||
+    upperText.includes("GOVT. OF INDIA") ||
+    (upperText.includes("GOVERNMENT OF INDIA") && upperText.includes("INCOME")) ||
+    upperText.includes("NSDL") ||
+    upperText.includes("UTIITSL");
+
+  const aadhaarRegex = /\b[2-9]\d{3}\s?\d{4}\s?\d{4}\b|XXXX\s?XXXX\s?\d{4}|\b[2-9]\d{11}\b/;
+  const hasAadhaarNumber = aadhaarRegex.test(upperText);
+  const hasAadhaarKeywords =
+    hasAadhaarNumber ||
+    upperText.includes("UIDAI") ||
+    upperText.includes("UNIQUE IDENTIFICATION") ||
+    upperText.includes("AADHAAR") ||
+    upperText.includes("AADHAR") ||
+    upperText.includes("MERA AADHAAR") ||
+    upperText.includes("BHARAT SARKAR") ||
+    upperText.includes("ENROLMENT") ||
+    upperText.includes("AUTHORITY OF INDIA") ||
+    upperText.includes("VID :") ||
+    upperText.includes("HELP@UIDAI") ||
+    (upperText.includes("GOVERNMENT OF INDIA") &&
+      (upperText.includes("DOB") ||
+        upperText.includes("YEAR OF BIRTH") ||
+        upperText.includes("MALE") ||
+        upperText.includes("FEMALE") ||
+        upperText.includes("ADDRESS")));
+
+  const passportKeywords =
+    upperText.includes("PASSPORT") ||
+    upperText.includes("REPUBLIC OF INDIA") ||
+    upperText.includes("PASSPORT NO") ||
+    upperText.includes("TYPE P");
+
+  const payslipKeywords =
+    upperText.includes("PAYSLIP") ||
+    upperText.includes("PAY SLIP") ||
+    upperText.includes("SALARY") ||
+    upperText.includes("BASIC PAY") ||
+    upperText.includes("NET SALARY") ||
+    upperText.includes("NET PAY") ||
+    upperText.includes("GROSS PAY") ||
+    upperText.includes("EARNINGS") ||
+    upperText.includes("DEDUCTIONS") ||
+    upperText.includes("PROVIDENT FUND") ||
+    upperText.includes("PAYMENT ADVICE");
+
+  const generalMarksheetKeywords =
+    upperText.includes("MARKS") ||
+    upperText.includes("MARKSHEET") ||
+    upperText.includes("MARK SHEET") ||
+    upperText.includes("STATEMENT OF") ||
+    upperText.includes("MEMORANDUM") ||
+    upperText.includes("GRADE") ||
+    upperText.includes("CGPA") ||
+    upperText.includes("SGPA") ||
+    upperText.includes("PERCENTAGE") ||
+    upperText.includes("PASSED") ||
+    upperText.includes("PASS") ||
+    upperText.includes("BOARD") ||
+    upperText.includes("COUNCIL") ||
+    upperText.includes("UNIVERSITY") ||
+    upperText.includes("INSTITUTE") ||
+    upperText.includes("COLLEGE") ||
+    upperText.includes("ROLL NO") ||
+    upperText.includes("REGISTER") ||
+    upperText.includes("REGISTRATION") ||
+    upperText.includes("HALL TICKET") ||
+    upperText.includes("SEMESTER") ||
+    upperText.includes("EXAMINATION") ||
+    upperText.includes("PROVISIONAL") ||
+    upperText.includes("DEGREE") ||
+    upperText.includes("BACHELOR") ||
+    upperText.includes("MASTER") ||
+    upperText.includes("MAX MARKS") ||
+    upperText.includes("SUBJECT") ||
+    upperText.includes("CREDITS") ||
+    upperText.includes("CONVOCATION");
+
+  const employmentLetterKeywords =
+    upperText.includes("OFFER") ||
+    upperText.includes("APPOINTMENT") ||
+    upperText.includes("RELIEVING") ||
+    upperText.includes("EXPERIENCE") ||
+    upperText.includes("DESIGNATION") ||
+    upperText.includes("EMPLOYMENT") ||
+    upperText.includes("SALARY") ||
+    upperText.includes("COMPENSATION") ||
+    upperText.includes("JOINING") ||
+    upperText.includes("TERMS") ||
+    upperText.includes("PVT") ||
+    upperText.includes("LTD") ||
+    upperText.includes("LIMITED") ||
+    upperText.includes("HUMAN RESOURCES");
+
+  // --- AADHAAR CARD ---
+  if (cleanDocType.includes("aadhaar") || cleanDocType.includes("aadhar") || cleanDocType.includes("adhar")) {
+    if (hasPanKeywords && !hasAadhaarKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (passportKeywords && !hasAadhaarKeywords) {
+      return "Document mismatch: Uploaded file is a Passport.";
+    }
+    if (payslipKeywords && !hasAadhaarKeywords) {
+      return "Document mismatch: Uploaded file is a Payslip.";
+    }
+    if (generalMarksheetKeywords && !hasAadhaarKeywords) {
+      return "Document mismatch: Uploaded file is an Education Certificate.";
+    }
+    if (!hasAadhaarKeywords) {
+      return "Invalid Aadhaar Card: Aadhaar details not detected.";
+    }
+  }
+
+  // --- PAN CARD ---
+  if (cleanDocType.includes("pan card") || cleanDocType === "pan") {
+    if (hasAadhaarKeywords && !hasPanKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (passportKeywords && !hasPanKeywords) {
+      return "Document mismatch: Uploaded file is a Passport.";
+    }
+    if (payslipKeywords && !hasPanKeywords) {
+      return "Document mismatch: Uploaded file is a Payslip.";
+    }
+    if (generalMarksheetKeywords && !hasPanKeywords) {
+      return "Document mismatch: Uploaded file is an Education Certificate.";
+    }
+    if (!hasPanKeywords) {
+      return "Invalid PAN Card: PAN number or Tax details not detected.";
+    }
+  }
+
+  // --- 10TH CERTIFICATE / MARKSHEET ---
+  if (cleanDocType.includes("10th") || cleanDocType.includes("ssc") || cleanDocType.includes("secondary")) {
+    if (hasPanKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (hasAadhaarKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (passportKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Passport.";
+    }
+    if (payslipKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Payslip.";
+    }
+
+    const tenthKeywords =
+      upperText.includes("10TH") ||
+      upperText.includes("TENTH") ||
+      upperText.includes("SSC") ||
+      upperText.includes("SECONDARY") ||
+      upperText.includes("MATRICULATION") ||
+      upperText.includes("CLASS X") ||
+      upperText.includes("CLASS 10") ||
+      upperText.includes("HIGH SCHOOL") ||
+      upperText.includes("SSLC") ||
+      upperText.includes("XTH");
+
+    if (!generalMarksheetKeywords && !tenthKeywords) {
+      return "Invalid 10th Certificate: Marksheet details not detected.";
+    }
+  }
+
+  // --- 12TH / INTERMEDIATE CERTIFICATE ---
+  if (
+    cleanDocType.includes("intermediate") ||
+    cleanDocType.includes("12th") ||
+    cleanDocType.includes("hsc") ||
+    cleanDocType.includes("higher secondary")
+  ) {
+    if (hasPanKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (hasAadhaarKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (passportKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Passport.";
+    }
+    if (payslipKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Payslip.";
+    }
+
+    const twelfthKeywords =
+      upperText.includes("12TH") ||
+      upperText.includes("TWELFTH") ||
+      upperText.includes("INTERMEDIATE") ||
+      upperText.includes("HIGHER SECONDARY") ||
+      upperText.includes("CLASS XII") ||
+      upperText.includes("CLASS 12") ||
+      upperText.includes("SENIOR SECONDARY") ||
+      upperText.includes("PLUS TWO") ||
+      upperText.includes("+2") ||
+      upperText.includes("HSC") ||
+      upperText.includes("PUC") ||
+      upperText.includes("PRE-UNIVERSITY") ||
+      upperText.includes("XIITH");
+
+    if (!generalMarksheetKeywords && !twelfthKeywords) {
+      return "Invalid 12th Certificate: Marksheet details not detected.";
+    }
+  }
+
+  // --- DEGREE CERTIFICATE ---
+  if (cleanDocType.includes("degree") || cleanDocType.includes("graduation") || cleanDocType.includes("bachelor")) {
+    if (hasPanKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (hasAadhaarKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (passportKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Passport.";
+    }
+    if (payslipKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Payslip.";
+    }
+
+    const degreeKeywords =
+      upperText.includes("DEGREE") ||
+      upperText.includes("BACHELOR") ||
+      upperText.includes("B.TECH") ||
+      upperText.includes("BTECH") ||
+      upperText.includes("B.E") ||
+      upperText.includes("BE") ||
+      upperText.includes("B.SC") ||
+      upperText.includes("BSC") ||
+      upperText.includes("B.COM") ||
+      upperText.includes("BCOM") ||
+      upperText.includes("B.A") ||
+      upperText.includes("BA") ||
+      upperText.includes("BBA") ||
+      upperText.includes("BCA") ||
+      upperText.includes("GRADUATION") ||
+      upperText.includes("UNDERGRADUATE") ||
+      upperText.includes("CONVOCATION") ||
+      upperText.includes("PROVISIONAL") ||
+      upperText.includes("CONSOLIDATED");
+
+    if (!generalMarksheetKeywords && !degreeKeywords) {
+      return "Invalid Degree Certificate: Degree details not detected.";
+    }
+  }
+
+  // --- POST-GRADUATION CERTIFICATE ---
+  if (
+    cleanDocType.includes("post-graduation") ||
+    cleanDocType.includes("post graduation") ||
+    cleanDocType.includes("master")
+  ) {
+    if (hasPanKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (hasAadhaarKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (passportKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Passport.";
+    }
+    if (payslipKeywords && !generalMarksheetKeywords) {
+      return "Document mismatch: Uploaded file is a Payslip.";
+    }
+
+    const pgKeywords =
+      upperText.includes("MASTER") ||
+      upperText.includes("POST GRADUATE") ||
+      upperText.includes("POSTGRADUATE") ||
+      upperText.includes("POST-GRADUATION") ||
+      upperText.includes("M.TECH") ||
+      upperText.includes("MTECH") ||
+      upperText.includes("M.E") ||
+      upperText.includes("ME") ||
+      upperText.includes("M.SC") ||
+      upperText.includes("MSC") ||
+      upperText.includes("M.COM") ||
+      upperText.includes("MCOM") ||
+      upperText.includes("M.A") ||
+      upperText.includes("MA") ||
+      upperText.includes("MBA") ||
+      upperText.includes("MCA") ||
+      upperText.includes("CONVOCATION");
+
+    if (!generalMarksheetKeywords && !pgKeywords) {
+      return "Invalid PG Certificate: Master's details not detected.";
+    }
+  }
+
+  // --- PASSPORT ---
+  if (cleanDocType.includes("passport") && !cleanDocType.includes("photo")) {
+    if (hasPanKeywords && !passportKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (hasAadhaarKeywords && !passportKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (generalMarksheetKeywords && !passportKeywords) {
+      return "Document mismatch: Uploaded file is an Education Certificate.";
+    }
+    if (!passportKeywords) {
+      return "Invalid Passport: Passport details not detected.";
+    }
+  }
+
+  // --- PAYSLIPS ---
+  if (cleanDocType.includes("payslip")) {
+    if (hasPanKeywords && !payslipKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (hasAadhaarKeywords && !payslipKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (generalMarksheetKeywords && !payslipKeywords) {
+      return "Document mismatch: Uploaded file is an Education Certificate.";
+    }
+    if (!payslipKeywords) {
+      return "Invalid Payslip: Salary/Payslip details not detected.";
+    }
+  }
+
+  // --- EMPLOYMENT LETTERS ---
+  if (cleanDocType.includes("letter") || cleanDocType.includes("offer") || cleanDocType.includes("appointment") || cleanDocType.includes("relieving")) {
+    if (hasPanKeywords && !employmentLetterKeywords) {
+      return "Document mismatch: Uploaded file is a PAN Card.";
+    }
+    if (hasAadhaarKeywords && !employmentLetterKeywords) {
+      return "Document mismatch: Uploaded file is an Aadhaar Card.";
+    }
+    if (!employmentLetterKeywords) {
+      return "Invalid Document: Employment letter details not detected.";
+    }
+  }
+
+  return null;
+};
+
 const BASE_DOCUMENT_TYPE_GROUPS = [
-{
-  label: "Education Certificates",
-  options: [
-  { value: "10th Certificate", label: "10th Certificate" },
   {
-    value: "Intermediate / 12th Certificate",
-    label: "Intermediate / 12th Certificate"
-  },
-  { value: "Degree Certificate", label: "Degree Certificate" },
-  {
-    value: "Post-Graduation Certificate",
-    label: "Post-Graduation Certificate"
-  }]
-
-},
-{
-  label: "Identity Documents",
-  options: [
-  { value: "Aadhaar Card", label: "Aadhaar Card" },
-  { value: "PAN Card", label: "PAN Card" },
-  { value: "Passport", label: "Passport" },
-  { value: "Passport-size Photo", label: "Passport-size Photo" }]
-
-},
-{
-  label: "Current Company",
-  options: [{ value: "Signed Offer Letter", label: "Signed Offer Letter" }]
-},
-{
-  label: "Previous Experience / Internship",
-  options: [
-  { value: "Previous Offer Letter", label: "Previous - Offer Letter" },
-  {
-    value: "Previous Appointment Letter",
-    label: "Previous - Appointment Letter"
+    label: "Education Certificates",
+    options: [
+      { value: "10th Certificate", label: "10th Certificate" },
+      { value: "Intermediate / 12th Certificate", label: "Intermediate / 12th Certificate" },
+      { value: "Degree Certificate", label: "Degree Certificate" },
+      { value: "Post-Graduation Certificate", label: "Post-Graduation Certificate" }
+    ]
   },
   {
-    value: "Previous Relieving Letter",
-    label: "Previous - Relieving / Experience Letter"
-  }]
-
-},
-{
-  label: "Last 3 Months Payslips",
-  options: [
-  { value: "Payslip Month 1", label: "Payslip - Month 1" },
-  { value: "Payslip Month 2", label: "Payslip - Month 2" },
-  { value: "Payslip Month 3", label: "Payslip - Month 3" }]
-
-}];
+    label: "Identity Documents",
+    options: [
+      { value: "Aadhaar Card", label: "Aadhaar Card" },
+      { value: "PAN Card", label: "PAN Card" },
+      { value: "Passport", label: "Passport" },
+      { value: "Passport-size Photo", label: "Passport-size Photo" }
+    ]
+  },
+  {
+    label: "Current Company",
+    options: [{ value: "Signed Offer Letter", label: "Signed Offer Letter" }]
+  },
+  {
+    label: "Previous Experience / Internship",
+    options: [
+      { value: "Previous Offer Letter", label: "Previous - Offer Letter" },
+      { value: "Previous Appointment Letter", label: "Previous - Appointment Letter" },
+      { value: "Previous Relieving Letter", label: "Previous - Relieving / Experience Letter" }
+    ]
+  },
+  {
+    label: "Last 3 Months Payslips",
+    options: [
+      { value: "Payslip Month 1", label: "Payslip - Month 1" },
+      { value: "Payslip Month 2", label: "Payslip - Month 2" },
+      { value: "Payslip Month 3", label: "Payslip - Month 3" }
+    ]
+  }
+];
 
 const getDocumentTypeScore = (document = {}) => {
   let score = 0;
-
-  if (document.serverId) {
-    score += 8;
-  }
-
-  if (document.documentType && normalizeDocumentTypeKey(document.documentType) !== "document") {
-    score += 6;
-  }
-
-  if (document.fileUrl || document.downloadUrl) {
-    score += 5;
-  }
-
-  if (document.fileName) {
-    score += 4;
-  }
-
-  if (Number(document.size) > 0) {
-    score += 3;
-  }
-
-  if (document.uploadedAt) {
-    score += 2;
-  }
-
+  if (document.serverId) score += 8;
+  if (document.documentType && normalizeDocumentTypeKey(document.documentType) !== "document") score += 6;
+  if (document.fileUrl || document.downloadUrl) score += 5;
+  if (document.fileName) score += 4;
+  if (Number(document.size) > 0) score += 3;
+  if (document.uploadedAt) score += 2;
   return score;
 };
 
 const getBestMatchingResponseDocument = (responseData, fallbackDocument) => {
-  const normalizedFallbackDocument = fallbackDocument ?
-  normalizeDocumentRecord(fallbackDocument, fallbackDocument.employeeKey) :
-  null;
-  const responseDocuments = extractDocumentRecords(responseData).map(
-    (document) =>
-    normalizeDocumentRecord(
-      document,
-      normalizedFallbackDocument?.employeeKey
-    )
+  const normalizedFallbackDocument = fallbackDocument
+    ? normalizeDocumentRecord(fallbackDocument, fallbackDocument.employeeKey)
+    : null;
+  const responseDocuments = extractDocumentRecords(responseData).map((document) =>
+    normalizeDocumentRecord(document, normalizedFallbackDocument?.employeeKey)
   );
 
-  if (responseDocuments.length === 0) {
-    return null;
-  }
+  if (responseDocuments.length === 0) return null;
 
   const mergedResponseDocuments = mergeDocumentRecords(
     responseDocuments,
@@ -166,109 +733,82 @@ const getBestMatchingResponseDocument = (responseData, fallbackDocument) => {
   );
 
   const matchedDocument =
-  mergedResponseDocuments.find((document) =>
-  normalizedFallbackDocument ?
-  areDocumentRecordsEquivalent(
-    document,
-    normalizedFallbackDocument
-  ) :
-  false
-  ) ||
-  mergedResponseDocuments.find(
-    (document) =>
-    fallbackDocumentTypeKey &&
-    normalizeDocumentTypeKey(document.documentType) ===
-    fallbackDocumentTypeKey
-  ) ||
-  null;
+    mergedResponseDocuments.find((document) =>
+      normalizedFallbackDocument
+        ? areDocumentRecordsEquivalent(document, normalizedFallbackDocument)
+        : false
+    ) ||
+    mergedResponseDocuments.find(
+      (document) =>
+        fallbackDocumentTypeKey &&
+        normalizeDocumentTypeKey(document.documentType) === fallbackDocumentTypeKey
+    ) ||
+    null;
 
-  if (matchedDocument) {
-    return matchedDocument;
-  }
+  if (matchedDocument) return matchedDocument;
 
-  return [...mergedResponseDocuments].sort(
-    (left, right) => getDocumentTypeScore(right) - getDocumentTypeScore(left)
-  )[0] || null;
+  return (
+    [...mergedResponseDocuments].sort(
+      (left, right) => getDocumentTypeScore(right) - getDocumentTypeScore(left)
+    )[0] || null
+  );
 };
 
 const buildDocumentTypeGroups = (uploadedDocumentTypes = new Set()) =>
-BASE_DOCUMENT_TYPE_GROUPS.map((group) => ({
-  label: group.label,
-  options: group.options.map((option) => {
-    const normalizedOptionType = normalizeDocumentTypeKey(option.value);
-    const isUploaded = uploadedDocumentTypes.has(normalizedOptionType);
+  BASE_DOCUMENT_TYPE_GROUPS.map((group) => ({
+    label: group.label,
+    options: group.options.map((option) => {
+      const normalizedOptionType = normalizeDocumentTypeKey(option.value);
+      const isUploaded = uploadedDocumentTypes.has(normalizedOptionType);
 
-    return {
-      ...option,
-      disabled: isUploaded,
-      label: isUploaded ?
-      `${option.label} (Uploaded)` :
-      option.label
-    };
-  })
-}));
+      return {
+        ...option,
+        disabled: isUploaded,
+        label: isUploaded ? `${option.label} (Uploaded)` : option.label
+      };
+    })
+  }));
 
 const getDocumentCategoryForType = (documentType) => {
   const normalizedDocumentType = normalizeDocumentTypeKey(documentType);
   const matchingGroup = BASE_DOCUMENT_TYPE_GROUPS.find((group) =>
-  group.options.some(
-    (option) => normalizeDocumentTypeKey(option.value) === normalizedDocumentType
-  )
+    group.options.some(
+      (option) => normalizeDocumentTypeKey(option.value) === normalizedDocumentType
+    )
   );
-
   return matchingGroup?.label || "Documents";
 };
 
 const getApiMessage = (data, fallback) =>
-data?.message ||
-data?.Message ||
-data?.error ||
-data?.Error ||
-data?.title ||
-data?.Title ||
-fallback;
+  data?.message ||
+  data?.Message ||
+  data?.error ||
+  data?.Error ||
+  data?.title ||
+  data?.Title ||
+  fallback;
 
 const hasExplicitUploadFailure = (data) => {
-  if (!data || typeof data !== "object") {
-    return false;
-  }
+  if (!data || typeof data !== "object") return false;
 
   const successValue =
-  data.success ??
-  data.Success ??
-  data.isSuccess ??
-  data.IsSuccess ??
-  data.succeeded ??
-  data.Succeeded;
+    data.success ??
+    data.Success ??
+    data.isSuccess ??
+    data.IsSuccess ??
+    data.succeeded ??
+    data.Succeeded;
 
   if (successValue === false || String(successValue).toLowerCase() === "false") {
     return true;
   }
 
   const statusValue = String(data.status ?? data.Status ?? "").toLowerCase();
-
   return ["failed", "failure", "error", "invalid", "rejected"].includes(statusValue);
 };
 
-const buildFormDataDebugPayload = (formData) =>
-Array.from(formData.entries()).map(([key, value]) => {
-  if (value instanceof File) {
-    return {
-      key,
-      fileName: value.name,
-      fileType: value.type,
-      fileSize: value.size
-    };
-  }
-
-  return {
-    key,
-    value
-  };
-});
-
 const getEmployeeKey = (employeeId, employeeCode) =>
-String(employeeCode || employeeId || "").trim();
+  String(employeeCode || employeeId || "").trim();
 
 const getFileExtension = (fileName = "") => {
   const parts = String(fileName).split(".");
@@ -276,13 +816,13 @@ const getFileExtension = (fileName = "") => {
 };
 
 const getDocumentServerId = (document) =>
-document?.serverId ||
-document?.id ||
-document?.documentId ||
-document?.employeeDocumentId ||
-document?.fileId ||
-document?.FileId ||
-null;
+  document?.serverId ||
+  document?.id ||
+  document?.documentId ||
+  document?.employeeDocumentId ||
+  document?.fileId ||
+  document?.FileId ||
+  null;
 
 const toText = (value, fallback = "") => {
   const normalizedValue = String(value ?? "").trim();
@@ -295,158 +835,137 @@ const toNumber = (value) => {
 };
 
 const getDocumentStatus = (document = {}) =>
-toText(
-  document.status ??
-  document.Status ??
-  document.documentStatus ??
-  document.DocumentStatus ??
-  document.verificationStatus ??
-  document.VerificationStatus,
-  "Uploaded"
-);
+  toText(
+    document.status ??
+      document.Status ??
+      document.documentStatus ??
+      document.DocumentStatus ??
+      document.verificationStatus ??
+      document.VerificationStatus,
+    "Uploaded"
+  );
 
 const normalizeAgreement = (agreement = {}) => {
   const agreementCode = toText(
     agreement.agreementCode ??
-    agreement.AgreementCode ??
-    agreement.code ??
-    agreement.Code
+      agreement.AgreementCode ??
+      agreement.code ??
+      agreement.Code
   );
 
   const agreementName = toText(
     agreement.agreementName ??
-    agreement.AgreementName ??
-    agreement.name ??
-    agreement.Name,
+      agreement.AgreementName ??
+      agreement.name ??
+      agreement.Name,
     agreementCode || "Agreement"
   );
 
   const assignedEmployees = toNumber(
     agreement.assignedEmployees ??
-    agreement.AssignedEmployees ??
-    agreement.assignExistingEmployees ??
-    agreement.AssignToExistingEmployees ??
-    agreement.totalEmployees
+      agreement.AssignedEmployees ??
+      agreement.assignExistingEmployees ??
+      agreement.AssignToExistingEmployees ??
+      agreement.totalEmployees
   );
 
   const signedEmployees = toNumber(
     agreement.signedEmployees ??
-    agreement.SignedEmployees ??
-    agreement.signedCount
+      agreement.SignedEmployees ??
+      agreement.signedCount
   );
 
   const pendingEmployees = toNumber(
     agreement.pendingEmployees ??
-    agreement.PendingEmployees ??
-    Math.max(0, assignedEmployees - signedEmployees)
+      agreement.PendingEmployees ??
+      Math.max(0, assignedEmployees - signedEmployees)
   );
 
   const status = toText(
     agreement.status ??
-    agreement.Status ?? (
-    pendingEmployees > 0 ? "Pending" : signedEmployees > 0 ? "Signed" : "")
+      agreement.Status ??
+      (pendingEmployees > 0 ? "Pending" : signedEmployees > 0 ? "Signed" : "")
   );
 
   return {
     ...agreement,
-
     agreementId:
-    agreement.agreementId ??
-    agreement.AgreementId ??
-    agreement.id ??
-    agreement.Id ??
-    "",
-
+      agreement.agreementId ??
+      agreement.AgreementId ??
+      agreement.id ??
+      agreement.Id ??
+      "",
     employeeAgreementId:
-    agreement.employeeAgreementId ??
-    agreement.EmployeeAgreementId ??
-    agreement.employeeAgreementID ??
-    agreement.EmployeeAgreementID ??
-    agreement.employeeagreementid ??
-    agreement.Employeeagreementid ??
-    agreement.employee_AgreementId ??
-    agreement.Employee_AgreementId ??
-    agreement.agreementId ??
-    agreement.AgreementId ??
-    agreement.id ??
-    agreement.Id ??
-    "",
-
+      agreement.employeeAgreementId ??
+      agreement.EmployeeAgreementId ??
+      agreement.employeeAgreementID ??
+      agreement.EmployeeAgreementID ??
+      agreement.employeeagreementid ??
+      agreement.Employeeagreementid ??
+      agreement.employee_AgreementId ??
+      agreement.Employee_AgreementId ??
+      agreement.agreementId ??
+      agreement.AgreementId ??
+      agreement.id ??
+      agreement.Id ??
+      "",
     agreementName,
     agreementCode,
-
-    description: toText(
-      agreement.description ??
-      agreement.Description
-    ),
-
+    description: toText(agreement.description ?? agreement.Description),
     assignedEmployees,
     signedEmployees,
     pendingEmployees,
-
     createdDate:
-    agreement.createdDate ??
-    agreement.CreatedDate ??
-    agreement.createdAt ??
-    agreement.CreatedAt ??
-    agreement.assignedDate ??
-    agreement.AssignedDate ??
-    "",
-
+      agreement.createdDate ??
+      agreement.CreatedDate ??
+      agreement.createdAt ??
+      agreement.CreatedAt ??
+      agreement.assignedDate ??
+      agreement.AssignedDate ??
+      "",
     assignedDate:
-    agreement.assignedDate ??
-    agreement.AssignedDate ??
-    agreement.createdDate ??
-    agreement.CreatedDate ??
-    "",
-
+      agreement.assignedDate ??
+      agreement.AssignedDate ??
+      agreement.createdDate ??
+      agreement.CreatedDate ??
+      "",
     status
   };
 };
 
-const normalizeAgreementIdentityValue = (value) =>
-String(value ?? "").trim();
+const normalizeAgreementIdentityValue = (value) => String(value ?? "").trim();
 
 const getAgreementIdentityCandidates = (
-agreement = {},
-preferredFields = [
-"pendingEmployeeAgreementId",
-"signedEmployeeAgreementId",
-"employeeAgreementId",
-"agreementId",
-"agreementCode",
-"documentId",
-"id"]) =>
-
-{
-  if (agreement === null || agreement === undefined) {
-    return [];
-  }
-
+  agreement = {},
+  preferredFields = [
+    "pendingEmployeeAgreementId",
+    "signedEmployeeAgreementId",
+    "employeeAgreementId",
+    "agreementId",
+    "agreementCode",
+    "documentId",
+    "id"
+  ]
+) => {
+  if (agreement === null || agreement === undefined) return [];
   if (typeof agreement !== "object") {
     const value = normalizeAgreementIdentityValue(agreement);
     return value ? [value] : [];
   }
 
   const fieldAliases = {
-    pendingEmployeeAgreementId: [
-    "pendingEmployeeAgreementId",
-    "PendingEmployeeAgreementId"],
-
-    signedEmployeeAgreementId: [
-    "signedEmployeeAgreementId",
-    "SignedEmployeeAgreementId"],
-
+    pendingEmployeeAgreementId: ["pendingEmployeeAgreementId", "PendingEmployeeAgreementId"],
+    signedEmployeeAgreementId: ["signedEmployeeAgreementId", "SignedEmployeeAgreementId"],
     employeeAgreementId: [
-    "employeeAgreementId",
-    "EmployeeAgreementId",
-    "employeeAgreementID",
-    "EmployeeAgreementID",
-    "employeeagreementid",
-    "Employeeagreementid",
-    "employee_AgreementId",
-    "Employee_AgreementId"],
-
+      "employeeAgreementId",
+      "EmployeeAgreementId",
+      "employeeAgreementID",
+      "EmployeeAgreementID",
+      "employeeagreementid",
+      "Employeeagreementid",
+      "employee_AgreementId",
+      "Employee_AgreementId"
+    ],
     agreementId: ["agreementId", "AgreementId"],
     agreementCode: ["agreementCode", "AgreementCode", "code", "Code"],
     documentId: ["documentId", "DocumentId"],
@@ -454,16 +973,11 @@ preferredFields = [
   };
 
   const candidates = [];
-
   preferredFields.forEach((field) => {
     const aliases = fieldAliases[field] || [field];
-
     aliases.forEach((alias) => {
       const candidate = normalizeAgreementIdentityValue(agreement[alias]);
-
-      if (candidate) {
-        candidates.push(candidate);
-      }
+      if (candidate) candidates.push(candidate);
     });
   });
 
@@ -472,87 +986,71 @@ preferredFields = [
 
 const buildAgreementIdentityIndex = (agreements = []) => {
   const index = new Map();
-
   agreements.forEach((agreement) => {
     const normalizedAgreement = normalizeAgreement(agreement);
-
     getAgreementIdentityCandidates(normalizedAgreement).forEach((candidate) => {
       if (!index.has(candidate)) {
         index.set(candidate, normalizedAgreement);
       }
     });
   });
-
   return index;
 };
 
 const findAgreementMatch = (agreementIndex, agreement) => {
   const candidates = getAgreementIdentityCandidates(agreement);
-
   for (const candidate of candidates) {
     if (agreementIndex.has(candidate)) {
       return agreementIndex.get(candidate);
     }
   }
-
   return null;
 };
 
 const hasSharedAgreementIdentity = (leftAgreement, rightAgreement) => {
   const leftCandidates = getAgreementIdentityCandidates(leftAgreement);
-
-  if (leftCandidates.length === 0) {
-    return false;
-  }
-
-  const rightCandidates = new Set(
-    getAgreementIdentityCandidates(rightAgreement)
-  );
-
+  if (leftCandidates.length === 0) return false;
+  const rightCandidates = new Set(getAgreementIdentityCandidates(rightAgreement));
   return leftCandidates.some((candidate) => rightCandidates.has(candidate));
 };
 
 const mergeAgreementLifecycleIds = (
-agreement,
-pendingMatch = null,
-signedMatch = null) =>
-{
+  agreement,
+  pendingMatch = null,
+  signedMatch = null
+) => {
   const normalizedAgreement = normalizeAgreement(agreement);
-  const normalizedPendingMatch = pendingMatch ?
-  normalizeAgreement(pendingMatch) :
-  null;
-  const normalizedSignedMatch = signedMatch ?
-  normalizeAgreement(signedMatch) :
-  null;
+  const normalizedPendingMatch = pendingMatch ? normalizeAgreement(pendingMatch) : null;
+  const normalizedSignedMatch = signedMatch ? normalizeAgreement(signedMatch) : null;
 
   const pendingEmployeeAgreementId =
-  normalizedPendingMatch?.employeeAgreementId ||
-  normalizedPendingMatch?.agreementId ||
-  "";
+    normalizedPendingMatch?.employeeAgreementId ||
+    normalizedPendingMatch?.agreementId ||
+    "";
 
   const signedEmployeeAgreementId =
-  normalizedSignedMatch?.employeeAgreementId ||
-  normalizedSignedMatch?.agreementId ||
-  "";
+    normalizedSignedMatch?.employeeAgreementId ||
+    normalizedSignedMatch?.agreementId ||
+    "";
 
   const employeeAgreementId =
-  signedEmployeeAgreementId ||
-  pendingEmployeeAgreementId ||
-  normalizedAgreement.employeeAgreementId ||
-  normalizedAgreement.agreementId ||
-  "";
+    signedEmployeeAgreementId ||
+    pendingEmployeeAgreementId ||
+    normalizedAgreement.employeeAgreementId ||
+    normalizedAgreement.agreementId ||
+    "";
 
   const agreementId =
-  normalizedAgreement.agreementId ||
-  normalizedPendingMatch?.agreementId ||
-  normalizedSignedMatch?.agreementId ||
-  "";
+    normalizedAgreement.agreementId ||
+    normalizedPendingMatch?.agreementId ||
+    normalizedSignedMatch?.agreementId ||
+    "";
 
   const agreementCode =
-  normalizedAgreement.agreementCode ||
-  normalizedPendingMatch?.agreementCode ||
-  normalizedSignedMatch?.agreementCode ||
-  "";
+    normalizedAgreement.agreementCode ||
+    normalizedPendingMatch?.agreementCode ||
+    normalizedSignedMatch?.agreementCode ||
+    "";
 
   return normalizeAgreement({
     ...normalizedAgreement,
@@ -565,45 +1063,37 @@ signedMatch = null) =>
 };
 
 const getAgreementFileName = (agreement) =>
-`${agreement?.agreementName || agreement?.agreementCode || "Agreement"}`;
+  `${agreement?.agreementName || agreement?.agreementCode || "Agreement"}`;
 
 const getAgreementDownloadFileName = (agreement) => {
   const agreementCode = String(
     agreement?.agreementCode ||
-    agreement?.AgreementCode ||
-    agreement?.code ||
-    agreement?.Code ||
-    ""
+      agreement?.AgreementCode ||
+      agreement?.code ||
+      agreement?.Code ||
+      ""
   ).trim();
 
-  return agreementCode ?
-  `Agreement_${agreementCode}.pdf` :
-  "Agreement.pdf";
+  return agreementCode ? `Agreement_${agreementCode}.pdf` : "Agreement.pdf";
 };
 
 const getResponseHeaderValue = (headers, key) =>
-headers?.[key] ||
-headers?.[key.toLowerCase()] ||
-headers?.[key.toUpperCase()] ||
-"";
+  headers?.[key] ||
+  headers?.[key.toLowerCase()] ||
+  headers?.[key.toUpperCase()] ||
+  "";
 
-const buildAgreementPreviewDocument = async (
-response,
-agreement,
-fallbackFileName) =>
-{
-  const rawContentType = getResponseHeaderValue(
-    response.headers,
-    "content-type"
-  );
+const buildAgreementPreviewDocument = async (response, agreement, fallbackFileName) => {
+  const rawContentType = getResponseHeaderValue(response.headers, "content-type");
   const initialFileName = extractDownloadFileName(
     response.headers,
     fallbackFileName,
     rawContentType
   );
-  const blob = response.data instanceof Blob ?
-  response.data :
-  new Blob([response.data], { type: rawContentType || "" });
+  const blob =
+    response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: rawContentType || "" });
   const contentType = await resolveDocumentMimeType({
     blob,
     fileName: initialFileName,
@@ -628,25 +1118,20 @@ fallbackFileName) =>
   };
 };
 
-const triggerAgreementBlobDownload = async (
-response,
-fallbackFileName) =>
-{
-  const rawContentType = getResponseHeaderValue(
-    response.headers,
-    "content-type"
-  );
-  const fileName = extractDownloadFileName(
+const triggerAgreementBlobDownload = async (response, fallbackFileName) => {
+  const rawContentType = getResponseHeaderValue(response.headers, "content-type");
+  const initialFileName = extractDownloadFileName(
     response.headers,
     fallbackFileName,
     rawContentType
   );
-  const blob = response.data instanceof Blob ?
-  response.data :
-  new Blob([response.data], { type: rawContentType || "" });
+  const blob =
+    response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: rawContentType || "" });
   const contentType = await resolveDocumentMimeType({
     blob,
-    fileName,
+    fileName: initialFileName,
     headerMimeType: rawContentType
   });
   const resolvedFileName = extractDownloadFileName(
@@ -660,15 +1145,13 @@ fallbackFileName) =>
 
 const buildAgreementPreviewFromResponse = async (response, agreement) => {
   const fallbackFileName = getAgreementDownloadFileName(agreement);
-  const rawContentType = getResponseHeaderValue(
-    response.headers,
-    "content-type"
-  );
-  const blob = response.data instanceof Blob ?
-  response.data :
-  new Blob([response.data], {
-    type: rawContentType || "application/pdf"
-  });
+  const rawContentType = getResponseHeaderValue(response.headers, "content-type");
+  const blob =
+    response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], {
+          type: rawContentType || "application/pdf"
+        });
 
   try {
     return await buildAgreementPreviewDocument(
@@ -680,7 +1163,6 @@ const buildAgreementPreviewFromResponse = async (response, agreement) => {
       fallbackFileName
     );
   } catch (error) {
-
     return {
       ...agreement,
       fileName: fallbackFileName,
@@ -695,31 +1177,27 @@ const buildAgreementPreviewFromResponse = async (response, agreement) => {
 };
 
 const buildLocalDocumentRecord = (file, documentType, employeeKey) =>
-normalizeDocumentRecord(
-  {
-    cacheKey: `local-${Date.now()}-${Math.random().
-    toString(16).
-    slice(2)}`,
-    employeeKey,
-    documentType: documentType || "Document",
-    fileName: file.name,
-    fileType: file.type || getFileExtension(file.name),
-    size: file.size,
-    uploadedAt: new Date().toISOString(),
-    lastModified: file.lastModified || 0,
-    blob: file,
-    source: "local"
-  },
-  employeeKey
-);
+  normalizeDocumentRecord(
+    {
+      cacheKey: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      employeeKey,
+      documentType: documentType || "Document",
+      fileName: file.name,
+      fileType: file.type || getFileExtension(file.name),
+      size: file.size,
+      uploadedAt: new Date().toISOString(),
+      lastModified: file.lastModified || 0,
+      blob: file,
+      source: "local"
+    },
+    employeeKey
+  );
 
 const downloadBlob = (blob, fileName) => {
   const url = window.URL.createObjectURL(blob);
   const anchor = document.createElement("a");
-
   anchor.href = url;
   anchor.download = fileName || "document";
-
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
@@ -729,46 +1207,51 @@ const downloadBlob = (blob, fileName) => {
   }, 1000);
 };
 
-const Documents = forwardRef(function Documents({
-  onBack,
-  onNext,
-  viewMode,
-  employeeId,
-  employeeCode,
-  onboardingId,
-  entityType = "employee",
-  mode,
-  onRefresh,
-  agreementReadOnly
-}, ref) {
+// =========================================================================
+// MAIN COMPONENT
+// =========================================================================
+const Documents = forwardRef(function Documents(
+  {
+    onBack,
+    onNext,
+    viewMode,
+    employeeId,
+    employeeCode,
+    onboardingId,
+    entityType = "employee",
+    mode,
+    onRefresh,
+    agreementReadOnly
+  },
+  ref
+) {
   const isOnboardingMode = entityType === "onboarding" || mode === "onboarding";
   const employeeKey = useMemo(
     () =>
-    isOnboardingMode ?
-    String(onboardingId || "").trim() :
-    getEmployeeKey(employeeId, employeeCode),
+      isOnboardingMode
+        ? String(onboardingId || "").trim()
+        : getEmployeeKey(employeeId, employeeCode),
     [employeeCode, employeeId, isOnboardingMode, onboardingId]
   );
   const entityLabel = isOnboardingMode ? "Onboarding Documents" : "Employee Documents";
   const entityIdLabel = isOnboardingMode ? "Onboarding ID" : "Employee ID";
-  const entityIdLogKey = isOnboardingMode ? "onboardingId" : "employeeId";
   const documentEndpoints = useMemo(
     () =>
-    isOnboardingMode ?
-    {
-      list: API_ENDPOINTS.onboardingDocuments.byOnboardingId,
-      upload: API_ENDPOINTS.onboardingDocuments.upload,
-      view: API_ENDPOINTS.onboardingDocuments.byId,
-      download: API_ENDPOINTS.onboardingDocuments.download,
-      delete: API_ENDPOINTS.onboardingDocuments.delete
-    } :
-    {
-      list: API_ENDPOINTS.employeeDocuments.byEmployeeId,
-      upload: API_ENDPOINTS.employeeDocuments.upload,
-      view: API_ENDPOINTS.employeeDocuments.view,
-      download: API_ENDPOINTS.employeeDocuments.download,
-      delete: API_ENDPOINTS.employeeDocuments.delete
-    },
+      isOnboardingMode
+        ? {
+            list: API_ENDPOINTS.onboardingDocuments.byOnboardingId,
+            upload: API_ENDPOINTS.onboardingDocuments.upload,
+            view: API_ENDPOINTS.onboardingDocuments.byId,
+            download: API_ENDPOINTS.onboardingDocuments.download,
+            delete: API_ENDPOINTS.onboardingDocuments.delete
+          }
+        : {
+            list: API_ENDPOINTS.employeeDocuments.byEmployeeId,
+            upload: API_ENDPOINTS.employeeDocuments.upload,
+            view: API_ENDPOINTS.employeeDocuments.view,
+            download: API_ENDPOINTS.employeeDocuments.download,
+            delete: API_ENDPOINTS.employeeDocuments.delete
+          },
     [isOnboardingMode]
   );
 
@@ -777,10 +1260,12 @@ const Documents = forwardRef(function Documents({
   const [selectedDocumentType, setSelectedDocumentType] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [validatingDoc, setValidatingDoc] = useState(false);
   const [savingNext, setSavingNext] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [apiError, setApiError] = useState("");
   const [fileValidationError, setFileValidationError] = useState("");
+  const [fileValidationWarning, setFileValidationWarning] = useState("");
   const [loadError, setLoadError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -804,9 +1289,11 @@ const Documents = forwardRef(function Documents({
   const signatureImageInputRef = useRef(null);
   const isMountedRef = useRef(true);
   const uploadInFlightRef = useRef(false);
+
   const clearSelectedFile = useCallback(() => {
     setSelectedFile(null);
     setFileValidationError("");
+    setFileValidationWarning("");
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -820,15 +1307,11 @@ const Documents = forwardRef(function Documents({
 
   const uploadedDocumentTypes = useMemo(
     () =>
-    new Set(
-      visibleDocuments.
-      map((document) =>
-      normalizeDocumentTypeKey(document.documentType)
-      ).
-      filter((documentTypeKey) =>
-      documentTypeKey && documentTypeKey !== "document"
-      )
-    ),
+      new Set(
+        visibleDocuments
+          .map((document) => normalizeDocumentTypeKey(document.documentType))
+          .filter((documentTypeKey) => documentTypeKey && documentTypeKey !== "document")
+      ),
     [visibleDocuments]
   );
   const documentTypeGroups = useMemo(
@@ -837,56 +1320,44 @@ const Documents = forwardRef(function Documents({
   );
   const documentProgressGroups = useMemo(
     () =>
-    BASE_DOCUMENT_TYPE_GROUPS.map((group) => {
-      const options = group.options.map((option) => {
-        const normalizedOptionType = normalizeDocumentTypeKey(
-          option.value
-        );
-        const isUploaded = Boolean(
-          normalizedOptionType &&
-          uploadedDocumentTypes.has(normalizedOptionType)
-        );
+      BASE_DOCUMENT_TYPE_GROUPS.map((group) => {
+        const options = group.options.map((option) => {
+          const normalizedOptionType = normalizeDocumentTypeKey(option.value);
+          const isUploaded = Boolean(
+            normalizedOptionType && uploadedDocumentTypes.has(normalizedOptionType)
+          );
+
+          return {
+            ...option,
+            key: normalizedOptionType || option.value,
+            isUploaded
+          };
+        });
+
+        const uploadedCount = options.filter((option) => option.isUploaded).length;
+        const totalCount = options.length;
 
         return {
-          ...option,
-          key: normalizedOptionType || option.value,
-          isUploaded
+          label: group.label,
+          options,
+          uploadedCount,
+          totalCount,
+          pendingCount: Math.max(0, totalCount - uploadedCount),
+          completionPercent: totalCount
+            ? Math.round((uploadedCount / totalCount) * 100)
+            : 0
         };
-      });
-
-      const uploadedCount = options.filter(
-        (option) => option.isUploaded
-      ).length;
-      const totalCount = options.length;
-
-      return {
-        label: group.label,
-        options,
-        uploadedCount,
-        totalCount,
-        pendingCount: Math.max(0, totalCount - uploadedCount),
-        completionPercent: totalCount ?
-        Math.round(uploadedCount / totalCount * 100) :
-        0
-      };
-    }),
+      }),
     [uploadedDocumentTypes]
   );
-  const selectedDocumentTypeKey = normalizeDocumentTypeKey(
-    selectedDocumentType
-  );
+  const selectedDocumentTypeKey = normalizeDocumentTypeKey(selectedDocumentType);
   const selectedDocumentTypeIsUploaded = Boolean(
-    selectedDocumentTypeKey &&
-    uploadedDocumentTypes.has(selectedDocumentTypeKey)
+    selectedDocumentTypeKey && uploadedDocumentTypes.has(selectedDocumentTypeKey)
   );
-  const selectedDocumentTypeError = selectedDocumentTypeIsUploaded ?
-  `${selectedDocumentType} has already been uploaded. Delete the existing document before uploading again.` :
-  "";
+  const selectedDocumentTypeError = selectedDocumentTypeIsUploaded
+    ? `${selectedDocumentType} has already been uploaded. Delete existing before uploading again.`
+    : "";
   const documentCount = visibleDocuments.length;
-
-  useEffect(() => {
-
-  }, [documentCount, documents, employeeKey, entityIdLogKey, entityLabel, visibleDocuments]);
 
   const isAgreementCategory = agreementCategory === "agreements";
   const normalizedAgreementList = useMemo(
@@ -894,45 +1365,39 @@ const Documents = forwardRef(function Documents({
     [agreementList]
   );
   const selectedAgreementDetails = useMemo(
-    () => selectedAgreement ? normalizeAgreement(selectedAgreement) : null,
+    () => (selectedAgreement ? normalizeAgreement(selectedAgreement) : null),
     [selectedAgreement]
   );
 
-  const isAgreementSelected = !!selectedAgreementDetails;
+  const isAgreementSelected = !selectedAgreementDetails;
 
   const isAgreementSigned = Boolean(
     selectedAgreementDetails &&
-    (
-      String(selectedAgreementDetails.status).
-      toLowerCase().
-      includes("signed") ||
-      selectedAgreementDetails.signedEmployeeAgreementId
-    )
+      (String(selectedAgreementDetails.status).toLowerCase().includes("signed") ||
+        selectedAgreementDetails.signedEmployeeAgreementId)
   );
-  const selectedAgreementStatus = isAgreementSigned ?
-  "Signed" :
-  selectedAgreementDetails?.status || "";
+  const selectedAgreementStatus = isAgreementSigned
+    ? "Signed"
+    : selectedAgreementDetails?.status || "";
 
   const isSignatureFormValid =
-  signatureName.trim() !== "" &&
-  signedLocation.trim() !== "" &&
-  signatureImage;
+    signatureName.trim() !== "" &&
+    signedLocation.trim() !== "" &&
+    signatureImage;
   const isAgreementReadOnly =
-  typeof agreementReadOnly === "boolean" ?
-  agreementReadOnly :
-  isOnboardingMode && viewMode;
+    typeof agreementReadOnly === "boolean"
+      ? agreementReadOnly
+      : isOnboardingMode && viewMode;
 
   const canViewAgreement = isAgreementSelected;
 
   const canSubmitAgreement =
-  isAgreementSelected &&
-  !isAgreementReadOnly &&
-  !isAgreementSigned &&
-  isSignatureFormValid;
+    isAgreementSelected &&
+    !isAgreementReadOnly &&
+    !isAgreementSigned &&
+    isSignatureFormValid;
 
-  // Enable ONLY after agreement is signed
   const canViewSigned = Boolean(isAgreementSigned);
-
   const canDownloadSigned = canViewSigned;
 
   useEffect(
@@ -943,16 +1408,12 @@ const Documents = forwardRef(function Documents({
   );
 
   useEffect(() => {
-    if (!successMsg) {
-      return undefined;
-    }
-
+    if (!successMsg) return undefined;
     const timer = window.setTimeout(() => {
       if (isMountedRef.current) {
         setSuccessMsg("");
       }
     }, 2800);
-
     return () => window.clearTimeout(timer);
   }, [successMsg]);
 
@@ -964,7 +1425,6 @@ const Documents = forwardRef(function Documents({
           setLoading(false);
           setLoadError("");
         }
-
         return [];
       }
 
@@ -978,39 +1438,29 @@ const Documents = forwardRef(function Documents({
 
       try {
         const documentsEndpoint = documentEndpoints.list(employeeKey);
-
         const response = await api.get(documentsEndpoint);
         const extractedDocuments = extractDocumentRecords(response.data);
         const mappedDocuments = mergeDocumentRecords(
           extractedDocuments.map((document) =>
-          normalizeDocumentRecord(document, employeeKey)
+            normalizeDocumentRecord(document, employeeKey)
           ),
           fallbackDocuments.map((document) =>
-          normalizeDocumentRecord(document, employeeKey)
+            normalizeDocumentRecord(document, employeeKey)
           )
         );
 
-        if (!isMountedRef.current) {
-          return mappedDocuments;
-        }
+        if (!isMountedRef.current) return mappedDocuments;
 
         setDocuments(mappedDocuments);
         setLoadError("");
         return mappedDocuments;
       } catch (error) {
-        if (!isMountedRef.current) {
-          return [];
-        }
+        if (!isMountedRef.current) return [];
 
-        const message =
-        error?.response?.data?.message || "Failed to load documents";
-
+        const message = error?.response?.data?.message || "Failed to load documents";
         setLoadError(message);
 
-        if (throwOnError) {
-          throw error;
-        }
-
+        if (throwOnError) throw error;
         return [];
       } finally {
         if (!silent && isMountedRef.current) {
@@ -1018,7 +1468,7 @@ const Documents = forwardRef(function Documents({
         }
       }
     },
-    [documentEndpoints, employeeKey, entityIdLabel, entityIdLogKey, entityLabel]
+    [documentEndpoints, employeeKey]
   );
 
   useEffect(() => {
@@ -1031,12 +1481,10 @@ const Documents = forwardRef(function Documents({
       forceRefresh = false,
       signedAgreementOverride = null
     } = {}) => {
-      if (!isAgreementCategory) {
-        return null;
-      }
+      if (!isAgreementCategory) return null;
 
-      const entityIdForAgreements = employeeKey ||
-      (isOnboardingMode ? "" : storedEmployeeId);
+      const entityIdForAgreements =
+        employeeKey || (isOnboardingMode ? "" : storedEmployeeId);
 
       if (!entityIdForAgreements) {
         setAgreementList([]);
@@ -1054,23 +1502,16 @@ const Documents = forwardRef(function Documents({
       }
 
       try {
-        const requestConfig = forceRefresh ? {
-          cacheTTL: 0,
-          dedupe: false
-        } : undefined;
+        const requestConfig = forceRefresh ? { cacheTTL: 0, dedupe: false } : undefined;
 
         const [pendingAgreements, signedAgreements, allAgreements] =
-        await Promise.all([
-        getPendingAgreementCount(entityIdForAgreements, requestConfig),
-        getSignedAgreementCount(entityIdForAgreements, requestConfig),
-        getAgreementTypes(requestConfig)]
-        );
-        const pendingAgreementIndex = buildAgreementIdentityIndex(
-          pendingAgreements
-        );
-        const signedAgreementIndex = buildAgreementIdentityIndex(
-          signedAgreements
-        );
+          await Promise.all([
+            getPendingAgreementCount(entityIdForAgreements, requestConfig),
+            getSignedAgreementCount(entityIdForAgreements, requestConfig),
+            getAgreementTypes(requestConfig)
+          ]);
+        const pendingAgreementIndex = buildAgreementIdentityIndex(pendingAgreements);
+        const signedAgreementIndex = buildAgreementIdentityIndex(signedAgreements);
 
         let normalizedAgreements = allAgreements.map((agreement) => {
           const normalizedAgreement = normalizeAgreement(agreement);
@@ -1078,24 +1519,19 @@ const Documents = forwardRef(function Documents({
             signedAgreementIndex,
             normalizedAgreement
           );
-
           const pendingMatch = findAgreementMatch(
             pendingAgreementIndex,
             normalizedAgreement
           );
 
-          const agreementStatus =
-          signedMatch ?
-          "Signed" :
-          pendingMatch ?
-          "Pending" :
-          normalizedAgreement.status || "Pending";
+          const agreementStatus = signedMatch
+            ? "Signed"
+            : pendingMatch
+            ? "Pending"
+            : normalizedAgreement.status || "Pending";
 
           const mergedAgreement = mergeAgreementLifecycleIds(
-            {
-              ...normalizedAgreement,
-              status: agreementStatus
-            },
+            { ...normalizedAgreement, status: agreementStatus },
             pendingMatch,
             signedMatch
           );
@@ -1112,111 +1548,85 @@ const Documents = forwardRef(function Documents({
             ...signedAgreementOverride,
             status: "Signed",
             signedEmployeeAgreementId:
-            signedAgreementOverride.signedEmployeeAgreementId ||
-            signedAgreementOverride.employeeAgreementId ||
-            signedAgreementOverride.agreementId ||
-            signedAgreementOverride.agreementCode ||
-            ""
+              signedAgreementOverride.signedEmployeeAgreementId ||
+              signedAgreementOverride.employeeAgreementId ||
+              signedAgreementOverride.agreementId ||
+              signedAgreementOverride.agreementCode ||
+              ""
           });
 
           const normalizedOverrideCode = String(
             normalizedOverride.agreementCode || ""
-          ).
-          trim().
-          toLowerCase();
+          )
+            .trim()
+            .toLowerCase();
 
           const overrideIndex = normalizedAgreements.findIndex((agreement) => {
             if (hasSharedAgreementIdentity(agreement, normalizedOverride)) {
               return true;
             }
 
-            const agreementCode = String(
-              agreement.agreementCode || ""
-            ).
-            trim().
-            toLowerCase();
+            const agreementCode = String(agreement.agreementCode || "")
+              .trim()
+              .toLowerCase();
 
             return Boolean(
               normalizedOverrideCode &&
-              agreementCode &&
-              agreementCode === normalizedOverrideCode
+                agreementCode &&
+                agreementCode === normalizedOverrideCode
             );
           });
 
           if (overrideIndex >= 0) {
             normalizedAgreements = normalizedAgreements.map((agreement, index) =>
-              index === overrideIndex ?
-              normalizeAgreement({
-                ...agreement,
-                ...normalizedOverride,
-                status: "Signed",
-                signedEmployeeAgreementId:
-                normalizedOverride.signedEmployeeAgreementId ||
-                agreement.signedEmployeeAgreementId ||
-                agreement.employeeAgreementId ||
-                agreement.agreementId ||
-                ""
-              }) :
-              agreement
+              index === overrideIndex
+                ? normalizeAgreement({
+                    ...agreement,
+                    ...normalizedOverride,
+                    status: "Signed",
+                    signedEmployeeAgreementId:
+                      normalizedOverride.signedEmployeeAgreementId ||
+                      agreement.signedEmployeeAgreementId ||
+                      agreement.employeeAgreementId ||
+                      agreement.agreementId ||
+                      ""
+                  })
+                : agreement
             );
           } else {
             normalizedAgreements = [
-            normalizeAgreement({
-              ...normalizedOverride,
-              status: "Signed"
-            }),
-            ...normalizedAgreements];
+              normalizeAgreement({ ...normalizedOverride, status: "Signed" }),
+              ...normalizedAgreements
+            ];
           }
         }
 
-        const agreementIdentityIndex = buildAgreementIdentityIndex(
-          normalizedAgreements
-        );
+        const agreementIdentityIndex = buildAgreementIdentityIndex(normalizedAgreements);
         const nextPendingAgreementCount = normalizedAgreements.filter(
-          (agreement) =>
-          !String(agreement.status || "").toLowerCase().includes("signed")
+          (agreement) => !String(agreement.status || "").toLowerCase().includes("signed")
         ).length;
-        const nextSignedAgreementCount = normalizedAgreements.filter(
-          (agreement) =>
+        const nextSignedAgreementCount = normalizedAgreements.filter((agreement) =>
           String(agreement.status || "").toLowerCase().includes("signed")
         ).length;
 
         if (!isMountedRef.current) {
-          return {
-            pendingAgreements,
-            signedAgreements,
-            normalizedAgreements
-          };
+          return { pendingAgreements, signedAgreements, normalizedAgreements };
         }
 
         setAgreementList(normalizedAgreements);
         setPendingAgreementCount(nextPendingAgreementCount);
         setSignedAgreementCount(nextSignedAgreementCount);
         setSelectedAgreement((currentAgreement) => {
-          if (!normalizedAgreements.length) {
-            return null;
-          }
-
-          return findAgreementMatch(
-            agreementIdentityIndex,
-            currentAgreement
-          ) || null;
-
+          if (!normalizedAgreements.length) return null;
+          return findAgreementMatch(agreementIdentityIndex, currentAgreement) || null;
         });
         setLoadError("");
 
-        return {
-          pendingAgreements,
-          signedAgreements,
-          normalizedAgreements
-        };
+        return { pendingAgreements, signedAgreements, normalizedAgreements };
       } catch (error) {
-        if (!isMountedRef.current) {
-          return null;
-        }
+        if (!isMountedRef.current) return null;
 
-        const message =
-        error?.response?.data?.message || "Failed to load agreements";
+        const message = error?.response?.data?.message || "Failed to load agreements";
 
         if (!silent) {
           setAgreementList([]);
@@ -1253,7 +1663,7 @@ const Documents = forwardRef(function Documents({
     }
   }, [selectedAgreementDetails?.agreementId]);
 
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -1262,7 +1672,6 @@ const Documents = forwardRef(function Documents({
     }
 
     const fileSizeValidation = validateFileSize(file);
-
     if (!fileSizeValidation.isValid) {
       clearSelectedFile();
       setFileValidationError(fileSizeValidation.message);
@@ -1271,14 +1680,44 @@ const Documents = forwardRef(function Documents({
       return;
     }
 
+    if (selectedDocumentType) {
+      try {
+        setValidatingDoc(true);
+        const ocrValidation = await validateOcrDocumentType(file, selectedDocumentType);
+        const insideContentMismatch = ocrValidation
+          ? ocrValidation.valid ? "" : ocrValidation.reason
+          : await validateInsideDocumentContent(file, selectedDocumentType);
+
+        if (insideContentMismatch) {
+          setSelectedFile(null);
+          event.target.value = "";
+          setFileValidationWarning("");
+          setFileValidationError(insideContentMismatch);
+          setApiError(insideContentMismatch);
+          toastError(insideContentMismatch);
+          return;
+        }
+
+        setFileValidationWarning(
+          ocrValidation?.warning
+            ? ocrValidation.reason
+            : ""
+        );
+      } finally {
+        setValidatingDoc(false);
+      }
+    }
+
     setSelectedFile(file);
     setFileValidationError("");
+    if (!selectedDocumentType) {
+      setFileValidationWarning("");
+    }
     setApiError("");
   };
 
   const handleSignatureImageChange = (event) => {
     const file = event.target.files?.[0];
-
     if (!file) {
       setSignatureImage(null);
       return;
@@ -1305,9 +1744,7 @@ const Documents = forwardRef(function Documents({
   };
 
   const handleUpload = async () => {
-    if (uploadInFlightRef.current) {
-      return;
-    }
+    if (uploadInFlightRef.current) return;
 
     if (!employeeKey) {
       const message = `${isOnboardingMode ? "Onboarding" : "Employee"} ID missing`;
@@ -1324,7 +1761,7 @@ const Documents = forwardRef(function Documents({
     }
 
     if (selectedDocumentTypeIsUploaded) {
-      const message = `${selectedDocumentType} has already been uploaded. Delete the existing document before uploading again.`;
+      const message = `${selectedDocumentType} has already been uploaded.`;
       setApiError(message);
       toastError(message);
       return;
@@ -1338,7 +1775,6 @@ const Documents = forwardRef(function Documents({
     }
 
     const fileSizeValidation = validateFileSize(selectedFile);
-
     if (!fileSizeValidation.isValid) {
       clearSelectedFile();
       setFileValidationError(fileSizeValidation.message);
@@ -1346,6 +1782,32 @@ const Documents = forwardRef(function Documents({
       toastError(fileSizeValidation.message);
       return;
     }
+
+    setValidatingDoc(true);
+    let insideMismatchError = "";
+    let ocrValidation = null;
+    try {
+      ocrValidation = await validateOcrDocumentType(selectedFile, selectedDocumentType);
+      insideMismatchError = ocrValidation
+        ? ocrValidation.valid ? "" : ocrValidation.reason
+        : await validateInsideDocumentContent(selectedFile, selectedDocumentType);
+    } finally {
+      setValidatingDoc(false);
+    }
+
+    if (insideMismatchError) {
+      setFileValidationError(insideMismatchError);
+      setFileValidationWarning("");
+      setApiError(insideMismatchError);
+      toastError(insideMismatchError);
+      return;
+    }
+
+    setFileValidationWarning(
+      ocrValidation?.warning
+        ? ocrValidation.reason
+        : ""
+    );
 
     try {
       uploadInFlightRef.current = true;
@@ -1373,23 +1835,14 @@ const Documents = forwardRef(function Documents({
         formData.append("Files", selectedFile);
       }
 
-      const response = await api.post(
-        documentEndpoints.upload,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data"
-          }
-        }
-      );
+      const response = await api.post(documentEndpoints.upload, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
 
-      if (!isMountedRef.current) {
-        return;
-      }
+      if (!isMountedRef.current) return;
 
       if (hasExplicitUploadFailure(response.data)) {
         const message = getApiMessage(response.data, "Upload failed");
-
         throw new Error(message);
       }
 
@@ -1403,19 +1856,17 @@ const Documents = forwardRef(function Documents({
       });
       const uploadedDocumentTypeKey = normalizeDocumentTypeKey(selectedDocumentType);
       const refreshedHasUploadedDocument = refreshedDocuments.some((document) =>
-      responseDocument ?
-      areDocumentRecordsEquivalent(document, responseDocument) :
-      normalizeDocumentTypeKey(document.documentType) === uploadedDocumentTypeKey
+        responseDocument
+          ? areDocumentRecordsEquivalent(document, responseDocument)
+          : normalizeDocumentTypeKey(document.documentType) === uploadedDocumentTypeKey
       );
-      const refreshedCountIncreased =
-      refreshedDocuments.length > previousDocumentCount;
+      const refreshedCountIncreased = refreshedDocuments.length > previousDocumentCount;
 
       if (!refreshedHasUploadedDocument && !refreshedCountIncreased) {
         const message = getApiMessage(
           response.data,
-          "Upload could not be verified. Please check the uploaded documents list."
+          "Upload verification failed. Please check the list."
         );
-
         throw new Error(message);
       }
 
@@ -1429,18 +1880,12 @@ const Documents = forwardRef(function Documents({
       toastSuccess(successMessage);
       await onRefresh?.();
     } catch (error) {
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      const message =
-      getApiMessage(error?.response?.data, error?.message || "Upload failed");
-
+      if (!isMountedRef.current) return;
+      const message = getApiMessage(error?.response?.data, error?.message || "Upload failed");
       setApiError(message);
       toastError(message);
     } finally {
       uploadInFlightRef.current = false;
-
       if (isMountedRef.current) {
         setUploading(false);
       }
@@ -1448,9 +1893,7 @@ const Documents = forwardRef(function Documents({
   };
 
   const handleDelete = async (documentToDelete) => {
-    if (!documentToDelete) {
-      return;
-    }
+    if (!documentToDelete) return;
 
     const snapshot = documents;
     const serverId = getDocumentServerId(documentToDelete);
@@ -1459,10 +1902,9 @@ const Documents = forwardRef(function Documents({
       setDeletingId(documentToDelete.cacheKey || serverId || "");
       setApiError("");
       setDocuments((currentDocuments) =>
-      currentDocuments.filter(
-        (document) =>
-        !areDocumentRecordsEquivalent(document, documentToDelete)
-      )
+        currentDocuments.filter(
+          (document) => !areDocumentRecordsEquivalent(document, documentToDelete)
+        )
       );
 
       if (!isOnboardingMode) {
@@ -1476,27 +1918,21 @@ const Documents = forwardRef(function Documents({
       await loadDocuments({ silent: true }).catch(() => {});
       await onRefresh?.();
 
-      if (!isMountedRef.current) {
-        return;
-      }
+      if (!isMountedRef.current) return;
 
       setSuccessMsg("Document deleted successfully.");
       toastSuccess("Document deleted successfully.");
       setShowDeleteModal(false);
       setSelectedDeleteDocument(null);
     } catch (error) {
-      if (!isMountedRef.current) {
-        return;
-      }
+      if (!isMountedRef.current) return;
 
       if (!isOnboardingMode) {
         await saveStoredDocument(employeeKey, documentToDelete).catch(() => {});
       }
       setDocuments(snapshot);
 
-      const message =
-      error?.response?.data?.message || "Failed to delete document";
-
+      const message = error?.response?.data?.message || "Failed to delete document";
       setApiError(message);
       toastError(message);
     } finally {
@@ -1507,13 +1943,10 @@ const Documents = forwardRef(function Documents({
   };
 
   const handleView = async (doc) => {
-    if (!doc) {
-      return;
-    }
+    if (!doc) return;
 
     if (isOnboardingMode) {
       const serverId = getDocumentServerId(doc);
-
       if (!serverId) {
         setPreviewDocument(doc);
         return;
@@ -1558,20 +1991,18 @@ const Documents = forwardRef(function Documents({
   };
 
   const handleDownload = (doc) => {
-    if (!doc) {
-      return;
-    }
+    if (!doc) return;
 
     if (doc.blob instanceof Blob) {
       downloadBlob(doc.blob, doc.fileName);
       return;
     }
 
-    const safeDocumentUrl = isSafeWebUrl(doc.fileUrl) ?
-    doc.fileUrl :
-    isSafeWebUrl(doc.downloadUrl) ?
-    doc.downloadUrl :
-    "";
+    const safeDocumentUrl = isSafeWebUrl(doc.fileUrl)
+      ? doc.fileUrl
+      : isSafeWebUrl(doc.downloadUrl)
+      ? doc.downloadUrl
+      : "";
 
     if (safeDocumentUrl) {
       const anchor = window.document.createElement("a");
@@ -1584,16 +2015,15 @@ const Documents = forwardRef(function Documents({
     }
 
     const serverId = getDocumentServerId(doc);
-
     if (!serverId) {
       toastError("Document ID missing");
       return;
     }
 
     const anchor = window.document.createElement("a");
-    anchor.href = isOnboardingMode ?
-    `${SERVER_URL}/api${documentEndpoints.download(serverId)}` :
-    `${SERVER_URL}/api/EmployeeDocuments/download/${serverId}`;
+    anchor.href = isOnboardingMode
+      ? `${SERVER_URL}/api${documentEndpoints.download(serverId)}`
+      : `${SERVER_URL}/api/EmployeeDocuments/download/${serverId}`;
     window.document.body.appendChild(anchor);
     anchor.click();
     window.document.body.removeChild(anchor);
@@ -1607,10 +2037,10 @@ const Documents = forwardRef(function Documents({
   const handleViewAgreement = async (agreement) => {
     const normalizedAgreement = normalizeAgreement(agreement);
     const viewKey =
-    normalizedAgreement.agreementId ||
-    normalizedAgreement.employeeAgreementId ||
-    normalizedAgreement.agreementCode ||
-    "";
+      normalizedAgreement.agreementId ||
+      normalizedAgreement.employeeAgreementId ||
+      normalizedAgreement.agreementCode ||
+      "";
 
     if (!viewKey) {
       toastError("Agreement ID missing");
@@ -1622,22 +2052,19 @@ const Documents = forwardRef(function Documents({
       setApiError("");
 
       const response = await viewAgreement(normalizedAgreement);
-
       if (!isMountedRef.current) return;
 
-      const previewDocument = await buildAgreementPreviewFromResponse(
+      const previewDoc = await buildAgreementPreviewFromResponse(
         response,
         normalizedAgreement
       );
-
       if (!isMountedRef.current) return;
 
-      setPreviewDocument(previewDocument);
+      setPreviewDocument(previewDoc);
     } catch (error) {
       if (!isMountedRef.current) return;
 
       const message = "Unable to preview this agreement.";
-
       setPreviewDocument({
         ...normalizedAgreement,
         fileName: getAgreementFileName(normalizedAgreement),
@@ -1657,10 +2084,10 @@ const Documents = forwardRef(function Documents({
   const handleViewSignedAgreement = async (agreement) => {
     const normalizedAgreement = normalizeAgreement(agreement);
     const previewKey =
-    normalizedAgreement.agreementId ||
-    normalizedAgreement.employeeAgreementId ||
-    normalizedAgreement.agreementCode ||
-    "";
+      normalizedAgreement.agreementId ||
+      normalizedAgreement.employeeAgreementId ||
+      normalizedAgreement.agreementCode ||
+      "";
 
     if (!previewKey) {
       toastError("Agreement ID missing");
@@ -1672,7 +2099,6 @@ const Documents = forwardRef(function Documents({
       setApiError("");
 
       const response = await viewSignedAgreement(normalizedAgreement);
-
       if (!isMountedRef.current) return;
 
       setPreviewDocument(
@@ -1685,11 +2111,6 @@ const Documents = forwardRef(function Documents({
     } catch (error) {
       if (!isMountedRef.current) return;
 
-      const message =
-      error?.response?.data?.message ||
-      error?.message ||
-      "Unable to load agreement.";
-
       setPreviewDocument({
         ...normalizedAgreement,
         fileName: `Signed-${getAgreementFileName(normalizedAgreement)}`,
@@ -1697,8 +2118,8 @@ const Documents = forwardRef(function Documents({
         errorMessage: "Unable to load agreement.",
         blob: null
       });
-      setApiError(message);
-      toastError(message);
+      setApiError("Unable to load agreement.");
+      toastError("Unable to load agreement.");
     } finally {
       if (isMountedRef.current) {
         setAgreementActionLoading("");
@@ -1709,10 +2130,10 @@ const Documents = forwardRef(function Documents({
   const handleDownloadSignedAgreement = async (agreement) => {
     const normalizedAgreement = normalizeAgreement(agreement);
     const downloadKey =
-    normalizedAgreement.agreementId ||
-    normalizedAgreement.employeeAgreementId ||
-    normalizedAgreement.agreementCode ||
-    "";
+      normalizedAgreement.agreementId ||
+      normalizedAgreement.employeeAgreementId ||
+      normalizedAgreement.agreementCode ||
+      "";
 
     if (!downloadKey) {
       toastError("Agreement ID missing");
@@ -1724,7 +2145,6 @@ const Documents = forwardRef(function Documents({
       setApiError("");
 
       const response = await downloadSignedAgreement(normalizedAgreement);
-
       await triggerAgreementBlobDownload(
         response,
         `Signed-${getAgreementFileName(normalizedAgreement)}`
@@ -1734,7 +2154,6 @@ const Documents = forwardRef(function Documents({
         error,
         "Signed agreement download failed"
       );
-
       setApiError(message);
       toastError(message);
     } finally {
@@ -1746,7 +2165,8 @@ const Documents = forwardRef(function Documents({
 
   const handleSubmitSignature = async () => {
     const agreement = selectedAgreementDetails;
-    const entityIdForSignature = employeeKey || (isOnboardingMode ? "" : storedEmployeeId);
+    const entityIdForSignature =
+      employeeKey || (isOnboardingMode ? "" : storedEmployeeId);
 
     if (!entityIdForSignature) {
       const message = `${isOnboardingMode ? "Onboarding" : "Employee"} ID missing`;
@@ -1796,46 +2216,46 @@ const Documents = forwardRef(function Documents({
         signatureImage
       });
 
-      if (!isMountedRef.current) {
-        return;
-      }
+      if (!isMountedRef.current) return;
 
       setSignatureName("");
       setSignedLocation("");
       setSignatureImage(null);
       setSuccessMsg("Agreement Signed Successfully");
       toastSuccess("Agreement Signed Successfully");
+
       const signedAgreementOverride = normalizeAgreement({
         ...agreement,
         status: "Signed",
         signedEmployeeAgreementId:
-        agreement.signedEmployeeAgreementId ||
-        agreement.employeeAgreementId ||
-        agreement.agreementId ||
-        agreement.agreementCode ||
-        ""
+          agreement.signedEmployeeAgreementId ||
+          agreement.employeeAgreementId ||
+          agreement.agreementId ||
+          agreement.agreementCode ||
+          ""
       });
 
       setSelectedAgreement(signedAgreementOverride);
       setAgreementList((currentList) =>
         currentList.map((item) =>
           hasSharedAgreementIdentity(item, signedAgreementOverride) ||
-          String(item.agreementCode || "").
-          trim().
-          toLowerCase() ===
-          String(signedAgreementOverride.agreementCode || "").
-          trim().
-          toLowerCase() ?
-          normalizeAgreement({
-            ...item,
-            ...signedAgreementOverride,
-            status: "Signed"
-          }) :
-          item
+          String(item.agreementCode || "")
+            .trim()
+            .toLowerCase() ===
+            String(signedAgreementOverride.agreementCode || "")
+              .trim()
+              .toLowerCase()
+            ? normalizeAgreement({
+                ...item,
+                ...signedAgreementOverride,
+                status: "Signed"
+              })
+            : item
         )
       );
       setPendingAgreementCount((currentCount) => Math.max(0, currentCount - 1));
       setSignedAgreementCount((currentCount) => currentCount + 1);
+
       await loadAgreements({
         silent: true,
         forceRefresh: true,
@@ -1843,13 +2263,8 @@ const Documents = forwardRef(function Documents({
       });
       await onRefresh?.();
     } catch (error) {
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      const message =
-      error?.response?.data?.message || "Agreement signing failed";
-
+      if (!isMountedRef.current) return;
+      const message = error?.response?.data?.message || "Agreement signing failed";
       setApiError(message);
       toastError(message);
     } finally {
@@ -1863,7 +2278,6 @@ const Documents = forwardRef(function Documents({
     if (isAgreementCategory) {
       loadAgreements();
     }
-
     loadDocuments();
   };
 
@@ -1881,30 +2295,17 @@ const Documents = forwardRef(function Documents({
       setLoadError("");
 
       await Promise.resolve(onNext?.());
-
-      if (!isMountedRef.current) {
-        return;
-      }
+      if (!isMountedRef.current) return;
 
       setSuccessMsg(
-        viewMode ?
-        "Moving to the next section." :
-        "Documents saved successfully."
+        viewMode ? "Moving to the next section." : "Documents saved successfully."
       );
       toastSuccess(
-        viewMode ?
-        "Moving to the next section." :
-        "Documents saved successfully."
+        viewMode ? "Moving to the next section." : "Documents saved successfully."
       );
     } catch (error) {
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      const message =
-      error?.response?.data?.message ||
-      "Unable to move to the next section.";
-
+      if (!isMountedRef.current) return;
+      const message = error?.response?.data?.message || "Unable to move to the next section.";
       setApiError(message);
       toastError(message);
     } finally {
@@ -1914,1147 +2315,782 @@ const Documents = forwardRef(function Documents({
     }
   };
 
-  const primaryActionLabel = savingNext ?
-  viewMode ?
-  "Moving..." :
-  "Saving & Moving..." :
-  viewMode ?
-  "Next" :
-  "Save & Next";
+  const primaryActionLabel = savingNext
+    ? viewMode
+      ? "Moving..."
+      : "Saving & Moving..."
+    : viewMode
+    ? "Next"
+    : "Save & Next";
 
   return (
     <div className="documents-wrapper">
+      <div className="documents-page-header">
+        <div>
+          <h5>{entityLabel}</h5>
+          <p>
+            Upload employee files, keep them searchable, and continue without losing progress.
+          </p>
+        </div>
 
-            <div className="documents-page-header">
+        <div className="documents-header-count">
+          {isAgreementCategory
+            ? `Agreements (${normalizedAgreementList.length})`
+            : `Uploaded Documents (${documentCount})`}
+        </div>
+      </div>
 
-                <div>
-
-                                <h5>{entityLabel}</h5>
-                    <p>Upload employee files, keep them searchable, and continue without losing progress.</p>
-
-                </div>
-
-
-
-                <div className="documents-header-count">
-
-                    {isAgreementCategory ?
-          `Agreements (${normalizedAgreementList.length})` :
-          `Uploaded Documents (${documentCount})`}
-
-                </div>
-
-            </div>
-
-
-
-            <div className="documents-card premium-upload-card">
-
-                <div className="premium-upload-grid">
-
-                    <div className="premium-input-group">
-
-                        <label>Category</label>
-
-                        <select
+      <div className="documents-card premium-upload-card">
+        <div className="premium-upload-grid">
+          <div className="premium-input-group">
+            <label>Category</label>
+            <select
               className="premium-input"
               value={agreementCategory}
               onChange={(event) => {
                 setAgreementCategory(event.target.value);
                 setApiError("");
                 setLoadError("");
-              }}>
-              
+              }}
+            >
+              <option value="documents">{entityLabel}</option>
+              <option value="agreements">Employee Agreements</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
-                            <option value="documents">{entityLabel}</option>
-                            <option value="agreements">Employee Agreements</option>
-                        </select>
+      {successMsg && (
+        <div className="success-message documents-inline-message">{successMsg}</div>
+      )}
 
-                    </div>
+      {apiError && (
+        <div className="error-message documents-inline-message">{apiError}</div>
+      )}
 
-                </div>
+      {loadError && (isAgreementCategory || documentCount > 0) && (
+        <div className="documents-retry-banner">
+          <div className="documents-retry-copy">
+            <strong>Document refresh issue</strong>
+            <span>{loadError}</span>
+          </div>
 
+          <button
+            type="button"
+            className="documents-retry-btn"
+            onClick={handleRetry}
+          >
+            <FaRedo aria-hidden="true" />
+            Retry
+          </button>
+        </div>
+      )}
+
+      {agreementCategory === "documents" && (
+        <>
+          <div className="documents-card documents-progress-card">
+            <div className="documents-progress-header">
+              <div>
+                <h4>Document Progress Tracker</h4>
+                <p>
+                  Auto-updated completion summary based on the visible,
+                  deduplicated employee files.
+                </p>
+              </div>
             </div>
 
-
-
-            {successMsg &&
-      <div className="success-message documents-inline-message">
-
-                    {successMsg}
-
-                </div>
-      }
-
-
-
-            {apiError &&
-      <div className="error-message documents-inline-message">
-
-                    {apiError}
-
-                </div>
-      }
-
-
-
-            {loadError && (isAgreementCategory || documentCount > 0) &&
-      <div className="documents-retry-banner">
-
-                    <div className="documents-retry-copy">
-
-                        <strong>Document refresh issue</strong>
-
-                        <span>{loadError}</span>
-
+            <div className="documents-progress-grid">
+              {documentProgressGroups.map((group) => (
+                <div className="documents-progress-category" key={group.label}>
+                  <div className="documents-progress-category-header">
+                    <div>
+                      <h5>{group.label}</h5>
+                      <p>
+                        {group.uploadedCount} of {group.totalCount} uploaded
+                      </p>
                     </div>
+                  </div>
 
+                  <div className="documents-progress-category-bar">
+                    <div
+                      className="documents-progress-category-fill"
+                      style={{
+                        width: `${group.completionPercent}%`
+                      }}
+                    />
+                  </div>
 
-
-                    <button
-          type="button"
-          className="documents-retry-btn"
-          onClick={handleRetry}>
-          
-
-                        <FaRedo aria-hidden="true" />
-
-                        Retry
-
-                    </button>
-
+                  <div className="documents-progress-type-list">
+                    {group.options.map((option) => (
+                      <div
+                        key={option.key}
+                        className={`documents-progress-type-chip ${
+                          option.isUploaded ? "is-uploaded" : "is-pending"
+                        }`}
+                      >
+                        <span>{option.label}</span>
+                        <small>{option.isUploaded ? "Uploaded" : "Pending"}</small>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-      }
+              ))}
+            </div>
+          </div>
 
+          {!viewMode && (
+            <div className="documents-card premium-upload-card">
+              <div className="premium-upload-top">
+                <div>
+                  <h4 className="upload-title">Upload Employee Documents</h4>
+                  <p className="upload-subtitle">
+                    Upload Aadhaar, PAN, certificates, resumes, passports, and more.
+                  </p>
+                </div>
+              </div>
 
+              <div className="premium-upload-grid premium-upload-grid--documents">
+                <div className="premium-input-group">
+                  <CompactSearchableDropdown
+                    label="Document Type"
+                    value={selectedDocumentType}
+                    onChange={async (value) => {
+                      setSelectedDocumentType(value);
+                      if (apiError) setApiError("");
 
-            {agreementCategory === "documents" &&
-      <>
+                      if (selectedFile && value) {
+                        try {
+                          setValidatingDoc(true);
+                          const ocrValidation = await validateOcrDocumentType(selectedFile, value);
+                          const insideMismatch = ocrValidation
+                            ? ocrValidation.valid ? "" : ocrValidation.reason
+                            : await validateInsideDocumentContent(selectedFile, value);
+                          if (insideMismatch) {
+                            setSelectedFile(null);
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                            setFileValidationWarning("");
+                            setFileValidationError(insideMismatch);
+                            setApiError(insideMismatch);
+                            toastError(insideMismatch);
+                            return;
+                          }
+                          setFileValidationError("");
+                          setFileValidationWarning(
+                            ocrValidation?.warning
+                              ? ocrValidation.reason
+                              : ""
+                          );
+                        } finally {
+                          setValidatingDoc(false);
+                        }
+                      }
+                    }}
+                    placeholder="Select Document Type"
+                    searchPlaceholder="Search document types"
+                    groups={documentTypeGroups}
+                    disabled={uploading || validatingDoc}
+                    error={selectedDocumentTypeError}
+                    menuMaxHeight={180}
+                  />
+                </div>
 
-                    <div className="documents-card documents-progress-card">
+                <div className="premium-input-group premium-input-group--file">
+                  <label>Choose File</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className={`premium-input premium-file-input ${
+                      fileValidationError ? "is-invalid" : ""
+                    }`}
+                    onChange={handleFileChange}
+                    disabled={uploading || validatingDoc}
+                    aria-invalid={Boolean(fileValidationError)}
+                  />
 
-                        <div className="documents-progress-header">
+                  <div className="premium-field-hint">
+                    {validatingDoc ? (
+                      <span style={{ color: "#2563eb", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <FaSpinner className="documents-button-spinner" /> Checking document content...
+                      </span>
+                    ) : (
+                      `Maximum file size: ${formatFileSize(MAX_DOCUMENT_FILE_SIZE_BYTES)}`
+                    )}
+                  </div>
+                  {fileValidationError && (
+                    <div className="premium-field-error">
+                      {fileValidationError}
+                    </div>
+                  )}
+                  {fileValidationWarning && (
+                    <div className="premium-field-hint" role="status">
+                      {fileValidationWarning}
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                            <div>
+              {selectedFile && (
+                <div className="selected-file-preview">
+                  <div className="selected-file-left">
+                    <span className="document-icon">
+                      <FaFileAlt aria-hidden="true" />
+                      <span
+                        className="document-remove-icon"
+                        onClick={clearSelectedFile}
+                      >
+                        ×
+                      </span>
+                    </span>
 
-                                <h4>Document Progress Tracker</h4>
+                    <div className="selected-file-body">
+                      <div className="selected-file-title">{selectedFile.name}</div>
+                      <div className="selected-file-meta">
+                        <span>{selectedDocumentType || "Document type not selected"}</span>
+                        <span>
+                          {getFileExtension(selectedFile.name) ||
+                            selectedFile.type ||
+                            "File"}
+                        </span>
+                        <span>{formatDocumentSize(selectedFile.size)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                                <p>
+              <div className="premium-upload-actions">
+                <button
+                  type="button"
+                  className="premium-upload-btn"
+                  onClick={handleUpload}
+                  disabled={
+                    uploading ||
+                    validatingDoc ||
+                    !selectedFile ||
+                    !selectedDocumentType ||
+                    Boolean(fileValidationError) ||
+                    selectedDocumentTypeIsUploaded
+                  }
+                >
+                  {uploading ? (
+                    <>
+                      <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                      Uploading...
+                    </>
+                  ) : validatingDoc ? (
+                    <>
+                      <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                      Validating Document...
+                    </>
+                  ) : (
+                    <>
+                      <FaCloudUploadAlt aria-hidden="true" />
+                      Upload Document
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
 
-                                    Auto-updated completion summary based on the visible,
+          <div className="documents-card documents-summary-card">
+            <div className="documents-summary-header">
+              <h4>Uploaded Documents ({documentCount})</h4>
+              <div className="documents-summary-pill">
+                {documentCount} {documentCount === 1 ? "file" : "files"} saved
+              </div>
+            </div>
 
-                                    deduplicated employee files.
+            {loading && documentCount === 0 ? (
+              <div className="documents-skeleton-list" aria-busy="true">
+                {[1, 2, 3].map((item) => (
+                  <div className="documents-skeleton-row" key={item}>
+                    <div className="documents-skeleton-icon" />
+                    <div className="documents-skeleton-body">
+                      <div className="documents-skeleton-line short" />
+                      <div className="documents-skeleton-line" />
+                    </div>
+                    <div className="documents-skeleton-actions">
+                      <div className="documents-skeleton-chip" />
+                      <div className="documents-skeleton-chip" />
+                      <div className="documents-skeleton-chip" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : loadError && documentCount === 0 ? (
+              <div className="documents-error-state">
+                <div className="documents-empty-icon error">
+                  <FaRedo aria-hidden="true" />
+                </div>
+                <h5>{loadError}</h5>
+                <p>
+                  We could not refresh documents from the server. Try again or
+                  continue with the cached copy if available.
+                </p>
+                <button
+                  type="button"
+                  className="documents-retry-btn"
+                  onClick={handleRetry}
+                >
+                  <FaRedo aria-hidden="true" />
+                  Retry
+                </button>
+              </div>
+            ) : documentCount === 0 ? (
+              <div className="documents-empty-state">
+                <div className="documents-empty-icon">
+                  <FaFolderOpen aria-hidden="true" />
+                </div>
+                <h5>No documents uploaded yet</h5>
+                <p>Upload documents to continue</p>
+              </div>
+            ) : (
+              <div className="uploaded-documents-list">
+                {visibleDocuments.map((document, index) => (
+                  <div
+                    key={document.cacheKey || getDocumentServerId(document) || index}
+                    className="uploaded-document-item"
+                  >
+                    <div className="uploaded-document-left">
+                      <span
+                        className="document-icon"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <FaFileAlt aria-hidden="true" style={{ display: "block" }} />
+                      </span>
 
-                                </p>
-
-                            </div>
-
+                      <div className="uploaded-document-body">
+                        <div className="document-title">
+                          {document.fileName || "Uploaded file"}
                         </div>
 
+                        <div className="document-filename">
+                          Type: {document.documentType || "Document"}
+                        </div>
 
+                        <div className="document-meta-row">
+                          <span className="document-meta-chip">
+                            Status: {getDocumentStatus(document)}
+                          </span>
+                          <span className="document-meta-chip">
+                            {document.fileType || "File"}
+                          </span>
+                          {(document.fileSize || document.size) > 0 && (
+                            <span className="document-meta-chip">
+                              {formatDocumentSize(document.fileSize || document.size)}
+                            </span>
+                          )}
+                          {document.uploadedAt && (
+                            <span className="document-meta-chip">
+                              Uploaded: {formatDateTime(document.uploadedAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-                        <div className="documents-progress-grid">
+                    <div className="uploaded-document-actions">
+                      <button
+                        type="button"
+                        className="document-action-btn view-btn"
+                        onClick={() => handleView(document)}
+                      >
+                        <FaEye aria-hidden="true" />
+                        View
+                      </button>
 
-                            {documentProgressGroups.map((group) =>
-            <div
-              className="documents-progress-category"
-              key={group.label}>
-              
+                      <button
+                        type="button"
+                        className="document-action-btn download-btn"
+                        onClick={() => handleDownload(document)}
+                      >
+                        <FaDownload aria-hidden="true" />
+                        Download
+                      </button>
 
-                                    <div className="documents-progress-category-header">
+                      <button
+                        type="button"
+                        className="document-action-btn delete-btn"
+                        onClick={() => {
+                          setSelectedDeleteDocument(document);
+                          setShowDeleteModal(true);
+                        }}
+                      >
+                        <FaTrash aria-hidden="true" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
-                                        <div>
+      {isAgreementCategory && (
+        <>
+          <div className="documents-card documents-summary-card">
+            <div className="documents-summary-header">
+              <div>
+                <h4>Employee Agreements</h4>
+                <p>Review and Sign Company Agreements assigned to you.</p>
+              </div>
 
-                                            <h5>{group.label}</h5>
+              <div className="uploaded-document-actions">
+                <div className="documents-summary-pill">
+                  Pending Agreements: {pendingAgreementCount}
+                </div>
+                <div className="documents-summary-pill">
+                  Signed Agreements: {signedAgreementCount}
+                </div>
+              </div>
+            </div>
 
-                                            <p>
+            {agreementLoading ? (
+              <div className="documents-skeleton-list" aria-busy="true">
+                {[1, 2, 3].map((item) => (
+                  <div className="documents-skeleton-row" key={item}>
+                    <div className="documents-skeleton-icon" />
+                    <div className="documents-skeleton-body">
+                      <div className="documents-skeleton-line short" />
+                      <div className="documents-skeleton-line" />
+                    </div>
+                    <div className="documents-skeleton-actions">
+                      <div className="documents-skeleton-chip" />
+                      <div className="documents-skeleton-chip" />
+                      <div className="documents-skeleton-chip" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : loadError && normalizedAgreementList.length === 0 ? (
+              <div className="documents-error-state">
+                <div className="documents-empty-icon error">
+                  <FaRedo aria-hidden="true" />
+                </div>
+                <h5>{loadError}</h5>
+                <p>We could not refresh agreements from the server.</p>
+                <button
+                  type="button"
+                  className="documents-retry-btn"
+                  onClick={handleRetry}
+                >
+                  <FaRedo aria-hidden="true" />
+                  Retry
+                </button>
+              </div>
+            ) : normalizedAgreementList.length === 0 ? (
+              <div className="documents-empty-state">
+                <div className="documents-empty-icon">
+                  <FaFolderOpen aria-hidden="true" />
+                </div>
+                <h5>No agreements found</h5>
+                <p>Assigned agreements will appear here.</p>
+              </div>
+            ) : (
+              <div>
+                <div className="premium-upload-grid" style={{ textAlign: "left" }}>
+                  <div className="premium-input-group premium-input-group--file">
+                    <label>Agreement Type</label>
+                    <select
+                      className="premium-input"
+                      value={selectedAgreementDetails?.agreementId || ""}
+                      onChange={(event) => {
+                        const selectedId = event.target.value;
+                        if (!selectedId) {
+                          setSelectedAgreement(null);
+                          setApiError("");
+                          return;
+                        }
 
-                                                {group.uploadedCount} of {group.totalCount} uploaded
+                        const nextAgreement =
+                          normalizedAgreementList.find(
+                            (agreement) =>
+                              String(agreement.agreementId) === String(selectedId)
+                          ) || null;
 
-                                            </p>
+                        setSelectedAgreement(nextAgreement);
+                        setApiError("");
+                      }}
+                      disabled={agreementLoading || signingAgreement}
+                    >
+                      <option value="">Select Agreement</option>
+                      {normalizedAgreementList.map((agreement) => (
+                        <option
+                          key={agreement.agreementId}
+                          value={agreement.agreementId}
+                        >
+                          {agreement.agreementName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                                        </div>
+                  <div className="premium-input-group">
+                    <label>Agreement Name</label>
+                    <input
+                      className="premium-input"
+                      value={selectedAgreementDetails?.agreementName || ""}
+                      readOnly
+                    />
+                  </div>
 
+                  <div className="premium-input-group">
+                    <label>{entityIdLabel}</label>
+                    <input
+                      className="premium-input"
+                      value={employeeKey || storedEmployeeId || ""}
+                      readOnly
+                    />
+                  </div>
 
+                  <div className="premium-input-group">
+                    <label>Agreement Code</label>
+                    <input
+                      className="premium-input"
+                      value={selectedAgreementDetails?.agreementCode || ""}
+                      readOnly
+                    />
+                  </div>
 
-                                    </div>
+                  <div className="premium-input-group">
+                    <label>Status</label>
+                    <input
+                      className="premium-input"
+                      value={selectedAgreementStatus}
+                      readOnly
+                    />
+                  </div>
 
+                  <div className="premium-input-group">
+                    <label>
+                      Signature Name <span className="required">*</span>
+                    </label>
+                    <input
+                      className="premium-input"
+                      value={signatureName}
+                      required
+                      onChange={(event) => setSignatureName(event.target.value)}
+                      disabled={
+                        !selectedAgreementDetails ||
+                        isAgreementReadOnly ||
+                        signingAgreement ||
+                        isAgreementSigned
+                      }
+                      placeholder="Signature Name"
+                    />
+                  </div>
 
+                  <div className="premium-input-group">
+                    <label>
+                      Signed Location <span className="required">*</span>
+                    </label>
+                    <input
+                      className="premium-input"
+                      value={signedLocation}
+                      required
+                      onChange={(event) => setSignedLocation(event.target.value)}
+                      disabled={
+                        !selectedAgreementDetails ||
+                        isAgreementReadOnly ||
+                        signingAgreement ||
+                        isAgreementSigned
+                      }
+                      placeholder="Signed Location"
+                    />
+                  </div>
 
-                                    <div className="documents-progress-category-bar">
+                  <div className="premium-input-group premium-input-group--file">
+                    <label>
+                      Upload Signature Image <span className="required">*</span>
+                    </label>
+                    <input
+                      ref={signatureImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      required
+                      className="premium-input premium-file-input"
+                      onChange={handleSignatureImageChange}
+                      disabled={
+                        !selectedAgreementDetails ||
+                        isAgreementReadOnly ||
+                        signingAgreement ||
+                        isAgreementSigned
+                      }
+                    />
+                  </div>
+                </div>
 
-                                        <div
-                  className="documents-progress-category-fill"
-                  style={{
-                    width: `${group.completionPercent}%`
-                  }} />
-                
-
-                                    </div>
-
-
-
-                                    <div className="documents-progress-type-list">
-
-                                        {group.options.map((option) =>
-                <div
-                  key={option.key}
-                  className={`documents-progress-type-chip ${option.isUploaded ?
-                  "is-uploaded" :
-                  "is-pending"}`
-                  }>
-                  
-
-                                                <span>{option.label}</span>
-
-                                                <small>
-
-                                                    {option.isUploaded ?
-                    "Uploaded" :
-                    "Pending"}
-
-                                                </small>
-
-                                            </div>
+                {isAgreementSigned && (
+                  <div className="documents-inline-message success-message">
+                    Signed Badge
+                  </div>
                 )}
 
-                                    </div>
+                {signatureImage && (
+                  <p>
+                    {signatureImage.name} ({formatDocumentSize(signatureImage.size)})
+                  </p>
+                )}
 
-                                </div>
+                <div className="uploaded-document-actions">
+                  <button
+                    type="button"
+                    className="document-action-btn view-btn"
+                    disabled={!canViewAgreement}
+                    onClick={() => handleViewAgreement(selectedAgreementDetails)}
+                  >
+                    {agreementActionLoading === `view-${selectedAgreementDetails?.agreementId}` ? (
+                      <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                    ) : (
+                      <FaEye aria-hidden="true" />
+                    )}
+                    View Agreement
+                  </button>
+
+                  <button
+                    type="button"
+                    className="document-action-btn view-btn"
+                    disabled={!canViewSigned}
+                    onClick={() => handleViewSignedAgreement(selectedAgreementDetails)}
+                  >
+                    {agreementActionLoading === `signed-${selectedAgreementDetails?.agreementId}` ? (
+                      <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                    ) : (
+                      <FaEye aria-hidden="true" />
+                    )}
+                    View Signed
+                  </button>
+
+                  <button
+                    type="button"
+                    className="document-action-btn download-btn"
+                    disabled={!canDownloadSigned}
+                    onClick={() => handleDownloadSignedAgreement(selectedAgreementDetails)}
+                  >
+                    {agreementDownloadLoading === selectedAgreementDetails?.agreementId ? (
+                      <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                    ) : (
+                      <FaDownload aria-hidden="true" />
+                    )}
+                    Download Signed
+                  </button>
+
+                  <button
+                    type="button"
+                    className="document-action-btn download-btn"
+                    disabled={!canSubmitAgreement || signingAgreement}
+                    onClick={handleSubmitSignature}
+                  >
+                    {signingAgreement ? (
+                      <>
+                        <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <FaFileAlt aria-hidden="true" />
+                        Submit Agreement
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
+          </div>
+        </>
+      )}
 
-                        </div>
+      {showDeleteModal && selectedDeleteDocument && (
+        <div className="delete-modal-overlay">
+          <div className="delete-modal">
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this document?</p>
 
-                    </div>
-
-
-
-                    {!viewMode &&
-        <div className="documents-card premium-upload-card">
-
-                            <div className="premium-upload-top">
-
-                                <div>
-
-                                    <h4 className="upload-title">Upload Employee Documents</h4>
-
-                                    <p className="upload-subtitle">
-
-                                        Upload Aadhaar, PAN, certificates, resumes, passports, and more.
-
-                                    </p>
-
-                                </div>
-
-
-
-                                {/* <div className="upload-badge">
-
-              Uploaded Documents ({documentCount})
-
-              </div> */}
-
-                            </div>
-
-
-
-                            <div className="premium-upload-grid premium-upload-grid--documents">
-                                <div className="premium-input-group">
-                                    <CompactSearchableDropdown
-                label="Document Type"
-                value={selectedDocumentType}
-                onChange={(value) => {
-                  setSelectedDocumentType(value);
-                  if (apiError) {
-                    setApiError("");
-                  }
+            <div className="delete-modal-actions">
+              <button
+                type="button"
+                className="delete-cancel-btn"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setSelectedDeleteDocument(null);
                 }}
-                placeholder="Select Document Type"
-                searchPlaceholder="Search document types"
-                groups={documentTypeGroups}
-                disabled={uploading}
-                error={selectedDocumentTypeError}
-                menuMaxHeight={180} />
-              
-
-                                </div>
-
-
-
-                                <div className="premium-input-group premium-input-group--file">
-                                    <label>Choose File</label>
-                                    <input
-                ref={fileInputRef}
-                type="file"
-                className={`premium-input premium-file-input ${fileValidationError ? "is-invalid" : ""}`}
-                onChange={handleFileChange}
-                disabled={uploading}
-                aria-invalid={Boolean(fileValidationError)} />
-              
-                                    <div className="premium-field-hint">
-                                        Maximum file size: {formatFileSize(MAX_DOCUMENT_FILE_SIZE_BYTES)}
-                                    </div>
-                                    {fileValidationError &&
-              <div className="premium-field-error">
-                                            {fileValidationError}
-                                        </div>
-              }
-                                </div>
-                            </div>
-
-
-
-                            {selectedFile &&
-          <div className="selected-file-preview">
-
-                                    <div className="selected-file-left">
-
-                                        <span className="document-icon">
-
-                                            <FaFileAlt aria-hidden="true" />
-
-
-
-                                            <span
-                  className="document-remove-icon"
-                  onClick={clearSelectedFile}>
-                  
-                                                ×
-
-                                            </span>
-
-                                        </span>
-
-
-
-                                        <div className="selected-file-body">
-
-                                            <div className="selected-file-title">{selectedFile.name}</div>
-
-
-
-                                            <div className="selected-file-meta">
-
-                                                <span>{selectedDocumentType || "Document type not selected"}</span>
-
-                                                <span>{getFileExtension(selectedFile.name) || selectedFile.type || "File"}</span>
-
-                                                <span>{formatDocumentSize(selectedFile.size)}</span>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </div>
-          }
-
-
-
-                            <div className="premium-upload-actions">
-
-                                <button
-              type="button"
-              className="premium-upload-btn"
-              onClick={handleUpload}
-              disabled={
-              uploading ||
-              !selectedFile ||
-              !selectedDocumentType ||
-              selectedDocumentTypeIsUploaded
-              }>
-              
-
-                                    {uploading ?
-              <>
-
-                                            <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-
-                                            Uploading...
-
-                                        </> :
-
-              <>
-
-                                            <FaCloudUploadAlt aria-hidden="true" />
-
-                                            Upload Document
-
-                                        </>
-              }
-
-                                </button>
-
-                            </div>
-
-                        </div>
-        }
-
-
-
-                    <div className="documents-card documents-summary-card">
-
-                        <div className="documents-summary-header">
-
-                            <h4>Uploaded Documents ({documentCount})</h4>
-
-                            <div className="documents-summary-pill">
-
-                                {documentCount} {documentCount === 1 ? "file" : "files"} saved
-
-                            </div>
-
-                        </div>
-
-
-
-                        {loading && documentCount === 0 ?
-          <div className="documents-skeleton-list" aria-busy="true">
-
-                                {[1, 2, 3].map((item) =>
-            <div className="documents-skeleton-row" key={item}>
-
-                                        <div className="documents-skeleton-icon" />
-
-                                        <div className="documents-skeleton-body">
-
-                                            <div className="documents-skeleton-line short" />
-
-                                            <div className="documents-skeleton-line" />
-
-                                        </div>
-
-                                        <div className="documents-skeleton-actions">
-
-                                            <div className="documents-skeleton-chip" />
-
-                                            <div className="documents-skeleton-chip" />
-
-                                            <div className="documents-skeleton-chip" />
-
-                                        </div>
-
-                                    </div>
-            )}
-
-                            </div> :
-          loadError && documentCount === 0 ?
-          <div className="documents-error-state">
-
-                                <div className="documents-empty-icon error">
-
-                                    <FaRedo aria-hidden="true" />
-
-                                </div>
-
-
-
-                                <h5>{loadError}</h5>
-
-                                <p>We could not refresh documents from the server. Try again or continue with the cached copy if available.</p>
-
-
-
-                                <button
-              type="button"
-              className="documents-retry-btn"
-              onClick={handleRetry}>
-              
-
-                                    <FaRedo aria-hidden="true" />
-
-                                    Retry
-
-                                </button>
-
-                            </div> :
-          documentCount === 0 ?
-          <div className="documents-empty-state">
-
-                                <div className="documents-empty-icon">
-
-                                    <FaFolderOpen aria-hidden="true" />
-
-                                </div>
-
-
-
-                                <h5>No documents uploaded yet</h5>
-
-                                <p>Upload documents to continue</p>
-
-                            </div> :
-
-          <div className="uploaded-documents-list">
-
-                                {visibleDocuments.map((document, index) =>
-            <div
-              key={document.cacheKey || getDocumentServerId(document) || index}
-              className="uploaded-document-item">
-              
-
-                                        <div className="uploaded-document-left">
-
-                                            <span
-                  className="document-icon"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}>
-                  
-
-                                                <FaFileAlt
-                    aria-hidden="true"
-                    style={{
-                      display: "block"
-                    }} />
-                  
-
-                                            </span>
-
-
-
-                                            <div className="uploaded-document-body">
-
-                                                <div className="document-title">
-                                                    {document.fileName || "Uploaded file"}
-                                                </div>
-
-                                                <div className="document-filename">
-                                                    Type: {document.documentType || "Document"}
-                                                </div>
-
-                                                <div className="document-meta-row">
-                                                    <span className="document-meta-chip">
-                                                        Status: {getDocumentStatus(document)}
-                                                    </span>
-                                                    <span className="document-meta-chip">
-                                                        {document.fileType || "File"}
-                                                    </span>
-                                                    {(document.fileSize || document.size) > 0 &&
-                    <span className="document-meta-chip">
-                                                            {formatDocumentSize(document.fileSize || document.size)}
-
-                                                        </span>
-                    }
-
-
-
-                                                    {document.uploadedAt &&
-                    <span className="document-meta-chip">
-                                                            Uploaded: {formatDateTime(document.uploadedAt)}
-                                                        </span>
-                    }
-                                                </div>
-                                            </div>
-
-                                        </div>
-
-
-
-                                        <div className="uploaded-document-actions">
-
-                                            <button
-                  type="button"
-                  className="document-action-btn view-btn"
-                  onClick={() => handleView(document)}>
-                  
-
-                                                <FaEye aria-hidden="true" />
-
-                                                View
-
-                                            </button>
-
-
-
-                                            <button
-                  type="button"
-                  className="document-action-btn download-btn"
-                  onClick={() => handleDownload(document)}>
-                  
-
-                                                <FaDownload aria-hidden="true" />
-
-                                                Download
-
-                                            </button>
-
-
-
-                                            <button
-                  type="button"
-                  className="document-action-btn delete-btn"
-                  onClick={() => {
-                    setSelectedDeleteDocument(document);
-                    setShowDeleteModal(true);
-                  }}>
-                  
-
-                                                <FaTrash aria-hidden="true" />
-
-                                                Delete
-
-                                            </button>
-
-                                        </div>
-
-                                    </div>
-            )}
-
-                            </div>
-          }
-
-                    </div>
-
-                </>
-      }
-
-
-
-            {isAgreementCategory &&
-      <>
-
-                    <div className="documents-card documents-summary-card">
-
-                        <div className="documents-summary-header">
-
-                            <div>
-
-                                <h4>Employee Agreements</h4>
-
-                                <p>Review and Sign Company Agreements assigned to you.</p>
-
-                            </div>
-
-                            <div className="uploaded-document-actions">
-
-                                <div className="documents-summary-pill">
-
-                                    Pending Agreements: {pendingAgreementCount}
-
-                                </div>
-
-                                <div className="documents-summary-pill">
-
-                                    Signed Agreements: {signedAgreementCount}
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-
-
-                        {agreementLoading ?
-          <div className="documents-skeleton-list" aria-busy="true">
-
-                                {[1, 2, 3].map((item) =>
-            <div className="documents-skeleton-row" key={item}>
-
-                                        <div className="documents-skeleton-icon" />
-
-                                        <div className="documents-skeleton-body">
-
-                                            <div className="documents-skeleton-line short" />
-
-                                            <div className="documents-skeleton-line" />
-
-                                        </div>
-
-                                        <div className="documents-skeleton-actions">
-
-                                            <div className="documents-skeleton-chip" />
-
-                                            <div className="documents-skeleton-chip" />
-
-                                            <div className="documents-skeleton-chip" />
-
-                                        </div>
-
-                                    </div>
-            )}
-
-                            </div> :
-          loadError && normalizedAgreementList.length === 0 ?
-          <div className="documents-error-state">
-
-                                <div className="documents-empty-icon error">
-
-                                    <FaRedo aria-hidden="true" />
-
-                                </div>
-
-                                <h5>{loadError}</h5>
-
-                                <p>We could not refresh agreements from the server.</p>
-
-                                <button
-              type="button"
-              className="documents-retry-btn"
-              onClick={handleRetry}>
-              
-
-                                    <FaRedo aria-hidden="true" />
-
-                                    Retry
-
-                                </button>
-
-                            </div> :
-          normalizedAgreementList.length === 0 ?
-          <div className="documents-empty-state">
-
-                                <div className="documents-empty-icon">
-
-                                    <FaFolderOpen aria-hidden="true" />
-
-                                </div>
-
-                                <h5>No agreements found</h5>
-
-                                <p>Assigned agreements will appear here.</p>
-
-                            </div> :
-
-          <div>
-
-                                <div className="premium-upload-grid" style={{ textAlign: "left" }}>
-
-                                    <div className="premium-input-group premium-input-group--file">
-                                        <label>Agreement Type</label>
-
-                                        <select
-                  className="premium-input"
-                  value={selectedAgreementDetails?.agreementId || ""}
-                  onChange={(event) => {
-                    const selectedId = event.target.value;
-
-                    // Reset when placeholder is selected
-                    if (!selectedId) {
-                      setSelectedAgreement(null);
-                      setApiError("");
-                      return;
-                    }
-
-                    const nextAgreement =
-                    normalizedAgreementList.find(
-                      (agreement) =>
-                      String(agreement.agreementId) === String(selectedId)
-                    ) || null;
-
-                    setSelectedAgreement(nextAgreement);
-                    setApiError("");
-                  }}
-                  disabled={agreementLoading || signingAgreement}>
-                  
-
-                                            <option value="">Select Agreement</option>
-
-
-
-                                            {normalizedAgreementList.map((agreement) =>
-                  <option
-                    key={agreement.agreementId}
-                    value={agreement.agreementId}>
-                    
-
-                                                    {agreement.agreementName}
-
-                                                </option>
-                  )}
-
-                                        </select>
-
-                                    </div>
-
-
-
-                                    <div className="premium-input-group">
-
-                                        <label>Agreement Name</label>
-
-                                        <input
-                  className="premium-input"
-                  value={selectedAgreementDetails?.agreementName || ""}
-                  readOnly />
-                
-
-                                    </div>
-
-
-
-                                    <div className="premium-input-group">
-
-                                        <label>{entityIdLabel}</label>
-                                        <input
-                  className="premium-input"
-                  value={employeeKey || storedEmployeeId || ""}
-                  readOnly />
-                
-
-                                    </div>
-
-
-
-                                    <div className="premium-input-group">
-
-                                        <label>Agreement Code</label>
-
-                                        <input
-                  className="premium-input"
-                  value={selectedAgreementDetails?.agreementCode || ""}
-                  readOnly />
-                
-
-                                    </div>
-
-
-
-                                    <div className="premium-input-group">
-
-                                        <label>Status</label>
-
-                                        <input
-                  className="premium-input"
-                  value={selectedAgreementStatus}
-                  readOnly />
-                
-
-                                    </div>
-
-
-
-                                    <div className="premium-input-group">
-
-                                        <label>
-
-                                            Signature Name <span className="required">*</span>
-
-                                        </label>
-
-
-
-                                        <input
-                  className="premium-input"
-                  value={signatureName}
-                  required
-                  onChange={(event) => setSignatureName(event.target.value)}
-                  disabled={
-                  !selectedAgreementDetails ||
-                  isAgreementReadOnly ||
-                  signingAgreement ||
-                  isAgreementSigned
-                  }
-                  placeholder="Signature Name" />
-                
-
-                                    </div>
-
-
-
-                                    <div className="premium-input-group">
-
-                                        <label>
-
-                                            Signed Location <span className="required">*</span>
-
-                                        </label>
-
-
-
-                                        <input
-                  className="premium-input"
-                  value={signedLocation}
-                  required
-                  onChange={(event) => setSignedLocation(event.target.value)}
-                  disabled={
-                  !selectedAgreementDetails ||
-                  isAgreementReadOnly ||
-                  signingAgreement ||
-                  isAgreementSigned
-                  }
-                  placeholder="Signed Location" />
-                
-
-                                    </div>
-
-
-
-                                    <div className="premium-input-group premium-input-group--file">
-                                        <label>
-                                            Upload Signature Image <span className="required">*</span>
-                                        </label>
-
-
-                                        <input
-                  ref={signatureImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  required
-                  className="premium-input premium-file-input"
-                  onChange={handleSignatureImageChange}
-                  disabled={
-                  !selectedAgreementDetails ||
-                  isAgreementReadOnly ||
-                  signingAgreement ||
-                  isAgreementSigned
-                  } />
-                
-
-                                    </div>
-
-                                </div>
-
-
-
-                                {isAgreementSigned &&
-            <div className="documents-inline-message success-message">
-                                        Signed Badge
-
-                                    </div>
-            }
-
-
-
-                                {signatureImage &&
-            <p>
-
-                                        {signatureImage.name} ({formatDocumentSize(signatureImage.size)})
-
-                                    </p>
-            }
-
-
-
-                                <div className="uploaded-document-actions">
-
-                                    <button
+                disabled={Boolean(deletingId)}
+              >
+                Cancel
+              </button>
+
+              <button
                 type="button"
-                className="document-action-btn view-btn"
-                disabled={!canViewAgreement}
-                onClick={() => handleViewAgreement(selectedAgreementDetails)}>
-                
-
-                                        {agreementActionLoading === `view-${selectedAgreementDetails?.agreementId}` ?
-                <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
-
-                <FaEye aria-hidden="true" />
-                }
-
-                                        View Agreement
-
-                                    </button>
-
-
-
-                                    <button
-                type="button"
-                className="document-action-btn view-btn"
-                disabled={!canViewSigned}
-                onClick={() => handleViewSignedAgreement(selectedAgreementDetails)}>
-                
-
-                                        {agreementActionLoading === `signed-${selectedAgreementDetails?.agreementId}` ?
-                <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
-
-                <FaEye aria-hidden="true" />
-                }
-
-                                        View Signed
-
-                                    </button>
-
-
-
-                                    <button
-                type="button"
-                className="document-action-btn download-btn"
-                disabled={!canDownloadSigned}
-                onClick={() => handleDownloadSignedAgreement(selectedAgreementDetails)}>
-                
-
-                                        {agreementDownloadLoading === selectedAgreementDetails?.agreementId ?
-                <FaSpinner className="documents-button-spinner" aria-hidden="true" /> :
-
-                <FaDownload aria-hidden="true" />
-                }
-
-                                        Download Signed
-
-                                    </button>
-
-
-
-                                    <button
-                type="button"
-                className="document-action-btn download-btn"
-                disabled={!canSubmitAgreement || signingAgreement}
-                onClick={handleSubmitSignature}>
-
-                
-
-                                        {signingAgreement ?
-                <>
-
-                                                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-
-                                                Submitting...
-
-                                            </> :
-
-                <>
-
-                                                <FaFileAlt aria-hidden="true" />
-
-                                                Submit Agreement
-
-                                            </>
-                }
-
-                                    </button>
-
-                                </div>
-
-                            </div>
-          }
-
-                    </div>
-
-                </>
-
-      }
-
-
-
-            {
-      showDeleteModal && selectedDeleteDocument &&
-      <div className="delete-modal-overlay">
-
-                        <div className="delete-modal">
-
-                            <h3>Confirm Delete</h3>
-
-                            <p>
-
-                                Are you sure you want to delete this document?
-
-                            </p>
-
-
-
-                            <div className="delete-modal-actions">
-
-                                <button
-              type="button"
-              className="delete-cancel-btn"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedDeleteDocument(null);
-              }}
-              disabled={Boolean(deletingId)}>
-              
-
-                                    Cancel
-
-                                </button>
-
-
-
-                                <button
-              type="button"
-              className="delete-confirm-btn"
-              onClick={() => handleDelete(selectedDeleteDocument)}
-              disabled={Boolean(deletingId)}>
-              
-
-                                    {deletingId ?
-              <>
-
-                                            <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-
-                                            Deleting...
-
-                                        </> :
-
-              "Yes, Delete"
-              }
-
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-      }
-
-
-
-            <DocumentPreviewModal
+                className="delete-confirm-btn"
+                onClick={() => handleDelete(selectedDeleteDocument)}
+                disabled={Boolean(deletingId)}
+              >
+                {deletingId ? (
+                  <>
+                    <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Yes, Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <DocumentPreviewModal
         open={Boolean(previewDocument)}
         document={previewDocument}
-        onClose={() => setPreviewDocument(null)} />
-      
+        onClose={() => setPreviewDocument(null)}
+      />
 
+      <div className="documents-footer">
+        <div className="progress-info">
+          {isAgreementCategory
+            ? `${isOnboardingMode ? "Employee Agreements" : "Employee Agreements"} (${normalizedAgreementList.length})`
+            : `Uploaded Documents (${documentCount})`}
+        </div>
 
+        <div className="footer-actions">
+          <button type="button" className="secondary-btn" onClick={onBack}>
+            Back
+          </button>
 
-            <div className="documents-footer">
-
-                <div className="progress-info">
-                    {isAgreementCategory ?
-          `${isOnboardingMode ? "Employee Agreements" : "Employee Agreements"} (${normalizedAgreementList.length})` :
-          `Uploaded Documents (${documentCount})`}
-                </div>
-
-
-                <div className="footer-actions">
-
-                    <button type="button" className="secondary-btn" onClick={onBack}>
-
-                        Back
-
-                    </button>
-
-
-
-                    <button
+          <button
             type="button"
             className="submit-document-btn"
             onClick={handleSaveAndNext}
             disabled={
-            agreementCategory === "documents" && documentCount === 0 ||
-            loading ||
-            uploading ||
-            agreementLoading ||
-            signingAgreement ||
-            savingNext
-            }>
-            
-
-                        {savingNext ?
-            <>
-
-                                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
-
-                                {primaryActionLabel}
-
-                            </> :
-
-            primaryActionLabel
+              (agreementCategory === "documents" && documentCount === 0) ||
+              loading ||
+              uploading ||
+              validatingDoc ||
+              agreementLoading ||
+              signingAgreement ||
+              savingNext
             }
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>);
-
+          >
+            {savingNext ? (
+              <>
+                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                {primaryActionLabel}
+              </>
+            ) : (
+              primaryActionLabel
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 });
+
 export default Documents;

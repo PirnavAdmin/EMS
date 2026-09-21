@@ -535,13 +535,11 @@ function LeaveManagement() {
       return true;
 
     } catch (error) {
-
       toast.error(
         error?.response?.data?.message ||
         error?.response?.data ||
         "Unable to update leave request."
       );
-
       return false;
 
     } finally {
@@ -557,11 +555,8 @@ function LeaveManagement() {
     approvalRemark = ""
   ) => {
     const requestStatus = String(status ?? "").trim();
-
     try {
-
       setActionLoading(`${id}-${requestStatus}`);
-
       await updateWfhStatus(
         id,
         null,
@@ -580,34 +575,25 @@ function LeaveManagement() {
           }
         }
       );
-
       await Promise.all([
         fetchLeaves(),
         fetchWFH()
       ]);
-
       toast.success(
         requestStatus === "Reject" ?
           "Work From Home request rejected successfully." :
           "Work From Home request updated successfully."
       );
-
       return true;
-
     } catch (err) {
-
       toast.error(
         err?.response?.data?.message ||
         err?.response?.data ||
         "Unable to update Work From Home request."
       );
-
       return false;
-
     } finally {
-
       setActionLoading("");
-
     }
   };
 
@@ -707,7 +693,6 @@ function LeaveManagement() {
   const filteredLeaves = combinedData.filter((item) => {
     const itemStatus = normalizeStatusToken(item.status);
     const itemLeaveType = normalizeLeaveType(item.leaveType);
-
     let matchesFilter = true;
 
     if (filter === "Leave") {
@@ -763,40 +748,28 @@ function LeaveManagement() {
     }
   }, [currentPage, totalPages]);
 
-  
   const openAttachment = (leave) => {
     if (!leave?.attachmentPath) {
       toast.error("Attachment not available");
       return;
     }
-
     const url = leave.attachmentPath.startsWith("http")
       ? leave.attachmentPath
       : `${buildApiUrl(leave.attachmentPath).replace("/api", "")}`;
-
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
   if (loading) {
     return (
       <div className="leave-page">
-
         <div className="leave-header">
-
           <div>
-
             <h2>Leave Management</h2>
-
             <p>Manage employee leave requests</p>
-
           </div>
-
         </div>
 
-
-
         <div className="leave-filter-tabs" aria-label="Leave request filters">
-
           {FILTER_OPTIONS.map((tab) =>
             <button
               key={tab}
@@ -804,16 +777,10 @@ function LeaveManagement() {
               className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
               aria-pressed={filter === tab}
               disabled>
-
-
               {tab}
-
             </button>
           )}
-
         </div>
-
-
 
         <TableSkeleton
           rows={10}
@@ -827,37 +794,22 @@ function LeaveManagement() {
             { width: "120px", type: "status", headerWidth: "54%" },
             { width: "160px", type: "actions", headerWidth: "54%" }]
           } />
-
-
       </div>);
-
   }
 
   return (
     <div className="leave-page">
-
       {/* HEADER */}
-
       <div className="leave-header">
-
         <div>
-
           <h2>Leave Management</h2>
-
           <p>Manage employee leave requests</p>
-
         </div>
-
       </div>
 
-
-
       {/* ✅ NEW: SEARCH BAR */}
-
       <div className="leave-toolbar" aria-label="Leave search and filters">
-
         <div className="search-bar-container">
-
           <input
             type="text"
             placeholder="Search by name, ID, type, or reason..."
@@ -870,21 +822,13 @@ function LeaveManagement() {
             <button
               className="clear-search-btn"
               onClick={() => setSearchQuery("")}>
-
-
               ✕
-
             </button>
           }
-
         </div>
-
-
-
         {/* FILTERS */}
 
         <div className="leave-filter-tabs" aria-label="Leave request filters">
-
           {FILTER_OPTIONS.map((tab) =>
             <button
               key={tab}
@@ -892,63 +836,35 @@ function LeaveManagement() {
               className={filter === tab ? "leave-filter-tab is-active" : "leave-filter-tab"}
               onClick={() => setFilter(tab)}
               aria-pressed={filter === tab}>
-
-
               {tab}
-
             </button>
           )}
-
         </div>
-
-
-
       </div>
-
-
 
       {/* TABLE */}
 
       <div className="leave-table">
-
         <div className="table-scroll">
-
           <table>
-
             <thead>
-
               <tr>
-
                 <th>EMPLOYEE</th>
-
                 <th>LEAVE TYPE</th>
-
                 <th>DURATION</th>
-
                 <th>DAYS</th>
-
                 <th>REASON</th>
-
                 <th>STATUS</th>
-
                 <th>ACTIONS</th>
-
               </tr>
-
             </thead>
-
-
-
             <tbody>
 
               {filteredLeaves.length === 0 ?
                 <tr>
-
                   <td colSpan="7" style={{ textAlign: "center", padding: "20px" }}>
                     {searchQuery ? "No matching records found" : "No leave records found"}
-
                   </td>
-
                 </tr> :
 
                 paginatedLeaves.map((leave) => {
@@ -962,10 +878,6 @@ function LeaveManagement() {
                   return (
                     <tr
                       key={`${leave.requestType}-${leave.id}`}>
-
-
-
-
                       <td className="leave-employee-cell">
                         <div className="leave-employee-content">
                           <span
@@ -979,25 +891,13 @@ function LeaveManagement() {
                         </div>
                       </td>
 
-
                       <td>{leave.leaveType || "-"}</td>
-
-
-
                       <td>
-
                         {formatDate(leave.fromDate)} — {formatDate(leave.toDate)}
-
                       </td>
 
-
-
                       <td className="center">{days}</td>
-
-
-
                       {/* ✅ FIXED: Short reason in table */}
-
                       <td
                         className="leave-reason-cell"
                         onClick={() => setSelectedLeave(leave)}
@@ -1007,8 +907,6 @@ function LeaveManagement() {
                           {reasonText || "-"}
                         </span>
                       </td>
-
-
                       <td>
 
                         {(() => {
@@ -1028,24 +926,17 @@ function LeaveManagement() {
                         })()}
                       </td>
 
-
-
                       <td
                         className="action-cell"
                         onClick={(e) => e.stopPropagation()}>
-
-
                         <button
                           className="approve-btn"
                           onClick={() => !isRowActionDisabled && setPendingApproval(leave)}
                           disabled={isRowActionDisabled}>
-
-
                           {isRowActionLoading ?
                             "Processing..." :
                             "Approve"}
                         </button>
-
 
                         <button
                           className="reject-btn"
@@ -1059,23 +950,14 @@ function LeaveManagement() {
                         >
                           Reject
                         </button>
-
                       </td>
-
                     </tr>);
-
                 })
               }
-
             </tbody>
-
           </table>
-
         </div>
-
       </div>
-
-
 
       {/* PAGINATION */}
 
@@ -1085,9 +967,6 @@ function LeaveManagement() {
         pageSize={ROWS_PER_PAGE}
         onPageChange={setCurrentPage}
         itemLabel="leave requests" />
-
-
-
 
       {/* APPROVAL MODAL */}
 
@@ -1320,110 +1199,73 @@ function LeaveManagement() {
       {/* DETAILS MODAL */}
       {selectedLeave &&
         <div className="leave-details-overlay">
-
           <div className="leave-details-container">
-
-
-
             <button
               className="leave-details-close-icon"
               onClick={() => setSelectedLeave(null)}>
-
-
               ×
-
             </button>
 
             <h3 className="leave-details-title">Leave Details</h3>
-
-
-
             <div className="leave-details-row">
-
               <span className="leave-details-label">Emp ID</span>
-
               <span className="leave-details-value">
-
                 {selectedLeave.employeeId}
-
               </span>
-
             </div>
 
-
-
             <div className="leave-details-row">
-
               <span className="leave-details-label">Name</span>
-
               <span className="leave-details-value">
-
                 {selectedLeave.employeeName}
-
               </span>
 
             </div>
 
-
-
             <div className="leave-details-row">
-
               <span className="leave-details-label">Type</span>
-
               <span className="leave-details-value">
-
                 {selectedLeave.leaveType}
-
               </span>
-
             </div>
 
+            <div className="leave-details-row">
+              <span className="leave-details-label">Project Name</span>
 
+              <span className="leave-details-value">
+                {selectedLeave.projectName || "-"}
+              </span>
+            </div>
 
             <div className="leave-details-row">
+              <span className="leave-details-label">Probation Status</span>
 
+              <span className="leave-details-value">
+                {selectedLeave.probationStatus || "-"}
+              </span>
+            </div>
+
+            <div className="leave-details-row">
               <span className="leave-details-label">Duration</span>
-
               <span className="leave-details-value">
-
                 {formatDate(selectedLeave.fromDate)} —{" "}
-
                 {formatDate(selectedLeave.toDate)}
-
               </span>
-
             </div>
-
-
 
             <div className="leave-details-row">
-
               <span className="leave-details-label">Days</span>
-
               <span className="leave-details-value">
-
                 {calculateDays(selectedLeave.fromDate, selectedLeave.toDate)}
-
               </span>
-
             </div>
-
-
 
             {/* ✅ FULL reason stays in popup */}
-
             <div className="leave-details-reason">
-
               <span className="leave-details-label">Reason</span>
-
-
-
               <div className="leave-details-reason-text">
-
                 {selectedLeave.reason || "-"}
-
               </div>
-
             </div>
 
             {selectedLeave.attachmentPath && (
@@ -1491,233 +1333,117 @@ function LeaveManagement() {
 
       {selectedEmployee &&
         <div className="employee-history-overlay">
-
           <div className="employee-history-modal">
-
-
-
             <button
               className="history-close-icon"
               onClick={() => setSelectedEmployee(null)}>
-
-
               ×
-
             </button>
 
-
-
             <div className="history-header">
-
-
-
               <div className="history-avatar">
-
                 {selectedEmployee.employeeName?.charAt(0)?.toUpperCase()}
-
               </div>
-
-
 
               <div>
-
                 <h2>{selectedEmployee.employeeName}</h2>
-
                 <p>Emp ID: {selectedEmployee.employeeId}</p>
-
               </div>
-
-
-
             </div>
 
-
-
             {/* LEAVE BALANCE
-
             <div className="leave-balance-section">
-
              <h4>LEAVE BALANCE</h4>
-
                <div className="leave-balance-grid">
-
                  <div className="balance-card">
-
                  <div className="balance-header">
-
                    <span>Casual</span>
-
                    <span>
-
                      {selectedEmployee?.leaveBalances?.casual?.used || 0}/
-
                      {selectedEmployee?.leaveBalances?.casual?.total || 0}
-
                    </span>
-
                  </div>
-
                    <div className="progress-bar">
-
                    <div
-
                      className="progress-fill"
-
                      style={{
-
                        width: `${Math.min(
-
                          (
-
                            (selectedEmployee?.leaveBalances?.casual?.used || 0) /
-
                            (selectedEmployee?.leaveBalances?.casual?.total || 1)
-
                          ) * 100,
-
                          100
-
                        )}%`
-
                      }}
-
                    />
-
                  </div>
-
                    <p>
-
                    {selectedEmployee?.leaveBalances?.casual?.remaining || 0} remaining
-
                  </p>
-
                </div>
-
                  <div className="balance-card">
-
                  <div className="balance-header">
-
                    <span>Sick</span>
-
                    <span>
-
                      {selectedEmployee?.leaveBalances?.sick?.used || 0}/
-
                      {selectedEmployee?.leaveBalances?.sick?.total || 0}
-
                    </span>
-
                  </div>
-
                    <div className="progress-bar">
-
                    <div
-
                      className="progress-fill"
-
                      style={{
-
                        width: `${Math.min(
-
                          (
-
                            (selectedEmployee?.leaveBalances?.sick?.used || 0) /
-
                            (selectedEmployee?.leaveBalances?.sick?.total || 1)
-
                          ) * 100,
-
                          100
-
                        )}%`
-
                      }}
-
                    />
-
                  </div>
-
                    <p>
-
                    {selectedEmployee?.leaveBalances?.sick?.remaining || 0} remaining
-
                  </p>
-
                </div>
-
                  <div className="balance-card">
-
                  <div className="balance-header">
-
                    <span>Earned</span>
-
                    <span>
-
                      {selectedEmployee?.leaveBalances?.earned?.used || 0}/
-
                      {selectedEmployee?.leaveBalances?.earned?.total || 0}
-
                    </span>
-
                  </div>
-
                    <div className="progress-bar">
-
                    <div
-
                      className="progress-fill"
-
                      style={{
-
                        width: `${Math.min(
-
                          (
-
                            (selectedEmployee?.leaveBalances?.earned?.used || 0) /
-
                            (selectedEmployee?.leaveBalances?.earned?.total || 1)
-
                          ) * 100,
-
                          100
-
                        )}%`
-
                      }}
-
                    />
-
                  </div>
-
                    <p>
-
                    {selectedEmployee?.leaveBalances?.earned?.remaining || 0} remaining
-
                  </p>
-
                </div>
-
                </div>
-
             </div> */
 
             }
 
-
-
             {/* SUMMARY CARDS */}
             <div className="leave-summary-grid">
-
-
-
               <div className="summary-card applied">
-
                 <h2>{selectedEmployee.totalLeavesApplied || 0}</h2>
-
                 <span>Applied</span>
-
               </div>
-
               <div className="summary-card approved">
                 <h2>
                   {
@@ -1729,8 +1455,6 @@ function LeaveManagement() {
                 <span>Approved</span>
               </div>
 
-
-
               <div className="summary-card rejected">
                 <h2>
                   {
@@ -1738,101 +1462,53 @@ function LeaveManagement() {
                       (x) => getStatusGroup(x.status) === "rejected"
                     ).length
                   }
-
                 </h2>
-
                 <span>Rejected</span>
-
               </div>
 
-
-
               <div className="summary-card pending">
-
                 <h2>
-
                   {
                     selectedEmployee.history.filter(
                       (x) => getStatusGroup(x.status) === "pending"
                     ).length
                   }
-
                 </h2>
-
                 <span>Pending</span>
-
               </div>
-
-
-
             </div>
-
-
 
             <div className="history-section-title">
-
               FULL HISTORY
-
             </div>
 
-
-
             {employeeHistoryLoading ?
-
               <div className="history-loading">
-
                 Loading leave history...
-
               </div> :
-
               <div className="history-table-wrapper">
-
-
-
                 <table className="history-table">
-
                   <thead>
-
                     <tr>
-
                       <th>APPLIED</th>
-
                       <th>TYPE</th>
-
                       <th>DAYS</th>
-
                       <th>DURATION</th>
-
                       <th>REASON</th>
-
                       <th>STATUS</th>
-
                     </tr>
-
                   </thead>
-
-
-
                   <tbody>
                     {selectedEmployee.history.map((item) => {
                       const reasonValue = String(item.reason ?? "");
                       const reasonText = reasonValue.trim();
-
                       return (
                         <tr key={`${item.requestType}-${item.id}`}>
                           <td>{formatDate(item.createdAt)}</td>
-
                           <td>{item.leaveType}</td>
-
-
                           <td>
-
                             {formatDate(item.fromDate)} — {formatDate(item.toDate)}
-
                           </td>
-
-
-
                           <td>
                             {calculateDays(
                               item.fromDate,
@@ -1858,35 +1534,23 @@ function LeaveManagement() {
                     })}
                   </tbody>
                 </table>
-
               </div>
             }
-
-
 
             <div className="history-footer">
 
               <button
                 className="history-close-btn"
                 onClick={() => setSelectedEmployee(null)}>
-
-
                 Close
 
               </button>
 
             </div>
-
-
-
           </div>
-
         </div>
       }
-
     </div>);
-
 }
 
 export default LeaveManagement;
-

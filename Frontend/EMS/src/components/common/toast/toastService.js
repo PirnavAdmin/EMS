@@ -32,6 +32,8 @@ const VARIANT_TITLES = {
 };
 
 const GLOBAL_TOAST_ID = "ems-global-toast";
+const ERROR_TOAST_FALLBACK = "Something went wrong. Please try again.";
+const MAX_ERROR_TOAST_MESSAGE_LENGTH = 320;
 
 const resolveAutoClose = (variant, options = {}) =>
   options.autoClose ??
@@ -45,13 +47,25 @@ const dismissVisibleToasts = () => {
   }
 };
 
-const normalizeToastMessage = (value) => {
+const normalizeToastMessage = (value, { isError = false } = {}) => {
   if (value === null || value === undefined || value === "") {
     return "";
   }
 
   if (typeof value === "string") {
-    return value;
+    const message = value.trim();
+
+    if (
+      isError &&
+      (
+        message.length > MAX_ERROR_TOAST_MESSAGE_LENGTH ||
+        /\b(stack trace|developerexceptionpagemiddleware|authorization:|bearer\s+|system\.[a-z]+exception|at\s+.+:\s*line\s+\d+)\b/i.test(message)
+      )
+    ) {
+      return ERROR_TOAST_FALLBACK;
+    }
+
+    return message;
   }
 
   if (
@@ -63,7 +77,7 @@ const normalizeToastMessage = (value) => {
   }
 
   if (value instanceof Error) {
-    return value.message || "Something went wrong.";
+    return normalizeToastMessage(value.message || ERROR_TOAST_FALLBACK, { isError });
   }
 
   if (typeof value === "object") {
@@ -76,7 +90,11 @@ const normalizeToastMessage = (value) => {
       "";
 
     if (typeof message === "string" && message.trim()) {
-      return message;
+      return normalizeToastMessage(message, { isError });
+    }
+
+    if (isError) {
+      return ERROR_TOAST_FALLBACK;
     }
 
     try {
@@ -96,7 +114,7 @@ const createToastNode = (variant, title, message) =>
   ({ closeToast }) =>
     React.createElement(AppToast, {
       closeToast,
-      message: normalizeToastMessage(message),
+      message: normalizeToastMessage(message, { isError: variant === "error" }),
       title,
       variant,
     });

@@ -1,6 +1,7 @@
 ﻿using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -105,32 +106,71 @@ namespace EmployeeManagementSystem.Services
                 }
 
                 // Get active subscription for this admin
-                var today = DateTime.UtcNow;
+                //var today = DateTime.UtcNow;
 
-                var subscription = await _context.AdminSubscriptions
-                    .Where(x =>
-                        x.AdminId == adminId &&
-                        x.IsActive &&
-                        x.StartDate <= today &&
-                        x.EndDate >= today)
-                    .OrderByDescending(x => x.SubscriptionId)
-                    .FirstOrDefaultAsync();
+                //var subscription = await _context.AdminSubscriptions
+                //    .Where(x =>
+                //        x.AdminId == adminId &&
+                //        x.IsActive &&
+                //        x.StartDate <= today &&
+                //        x.EndDate >= today)
+                //    .OrderByDescending(x => x.SubscriptionId)
+                //    .FirstOrDefaultAsync();
 
-                if (subscription == null)
+                //if (subscription == null)
+                //{
+                //    throw new Exception(
+                //        "No active subscription found for this admin.");
+                //}
+
+                //var currentUserCount = await _context.Employees
+                //    .CountAsync(x => x.AdminId == adminId);
+
+                //if (currentUserCount >= subscription.MaxUsers)
+                //{
+                //    throw new Exception(
+                //        $"Subscription limit reached. " +
+                //        $"Your plan allows only {subscription.MaxUsers} users.");
+                //}
+
+
+                var admin = await _context.Admins
+
+.FirstOrDefaultAsync(a => a.Id == adminId);
+
+                if (admin == null)
+
+                    throw new UnauthorizedAccessException("Admin not found.");
+
+                var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
+
+                    _context,
+
+                    adminId,
+
+                    admin.OrganizationId);
+
+                if (!effectiveSub.IsActive)
+
                 {
-                    throw new Exception(
-                        "No active subscription found for this admin.");
+
+                    throw new InvalidOperationException(
+
+                        "No active subscription found or subscription has expired for this Admin/Organization.");
+
                 }
 
-                var currentUserCount = await _context.Employees
-                    .CountAsync(x => x.AdminId == adminId);
+                if (effectiveSub.CurrentUsers >= effectiveSub.MaxUsers)
 
-                if (currentUserCount >= subscription.MaxUsers)
                 {
-                    throw new Exception(
-                        $"Subscription limit reached. " +
-                        $"Your plan allows only {subscription.MaxUsers} users.");
+
+                    throw new InvalidOperationException(
+
+                        $"Subscription limit reached. Your effective plan allows only {effectiveSub.MaxUsers} users (Current users: {effectiveSub.CurrentUsers}).");
+
                 }
+
+
                 // 1. Check duplicate
                 // 1. Check duplicate
                 var exists = await _context.Employees
@@ -182,7 +222,8 @@ namespace EmployeeManagementSystem.Services
                     Password = password,
 
                     // Subscription owner
-                    AdminId = adminId
+                    AdminId = adminId,
+                    OrganizationId= admin.OrganizationId
                 };
 
                 // ✅ STEP 1: SAVE EMPLOYEE FIRST
@@ -661,25 +702,70 @@ namespace EmployeeManagementSystem.Services
             // =========================================================
             // 2. CHECK ACTIVE SUBSCRIPTION
             // =========================================================
-            var today = DateTime.UtcNow;
+            //var today = DateTime.UtcNow;
 
-            var subscription = await _context.AdminSubscriptions
-                .Where(x =>
-                    x.AdminId == adminId &&
-                    x.IsActive &&
-                    x.StartDate <= today &&
-                    x.EndDate >= today)
-                .OrderByDescending(x => x.SubscriptionId)
-                .FirstOrDefaultAsync();
+            //var subscription = await _context.AdminSubscriptions
+            //    .Where(x =>
+            //        x.AdminId == adminId &&
+            //        x.IsActive &&
+            //        x.StartDate <= today &&
+            //        x.EndDate >= today)
+            //    .OrderByDescending(x => x.SubscriptionId)
+            //    .FirstOrDefaultAsync();
 
-            if (subscription == null)
+            //if (subscription == null)
+            //{
+            //    return new
+            //    {
+            //        Status = false,
+            //        Message = "No active subscription found."
+            //    };
+            //}
+
+            var admin = await _context.Admins
+
+.FirstOrDefaultAsync(a => a.Id == adminId);
+
+            if (admin == null)
+
             {
+
                 return new
+
                 {
+
                     Status = false,
-                    Message = "No active subscription found."
+
+                    Message = "Admin not found."
+
                 };
+
             }
+
+            var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
+
+                _context,
+
+                adminId,
+
+                admin.OrganizationId);
+
+            if (!effectiveSub.IsActive)
+
+            {
+
+                return new
+
+                {
+
+                    Status = false,
+
+                    Message = "Your subscription is inactive or expired. Please contact Super Admin."
+
+                };
+
+            }
+
 
             // =========================================================
             // 3. VALIDATE FILE
@@ -845,68 +931,154 @@ namespace EmployeeManagementSystem.Services
                     // =================================================
                     else
                     {
-                        // ---------------------------------------------
-                        // CHECK SUBSCRIPTION LIMIT
-                        // ---------------------------------------------
-                        var currentUserCount =
-                            await _context.Employees
-                                .CountAsync(x =>
-                                    x.AdminId == adminId);
+                        //// ---------------------------------------------
+                        //// CHECK SUBSCRIPTION LIMIT
+                        //// ---------------------------------------------
+                        //var currentUserCount =
+                        //    await _context.Employees
+                        //        .CountAsync(x =>
+                        //            x.AdminId == adminId);
 
-                        if (currentUserCount >= subscription.MaxUsers)
-                        {
-                            failed++;
+                        //if (currentUserCount >= subscription.MaxUsers)
+                        //{
+                        //    failed++;
 
-                            errors.Add(
-                                $"Row {row}: Subscription limit reached. " +
-                                $"Maximum {subscription.MaxUsers} users allowed.");
+                        //    errors.Add(
+                        //        $"Row {row}: Subscription limit reached. " +
+                        //        $"Maximum {subscription.MaxUsers} users allowed.");
 
-                            continue;
-                        }
+                        //    continue;
+                        //}
 
                         // ---------------------------------------------
                         // CHECK ROLE
                         // ---------------------------------------------
-                        var role = await _context.Roles
-                            .FirstOrDefaultAsync(r =>
-                                r.Name == roleName);
+                        //var role = await _context.Roles
+                        //    .FirstOrDefaultAsync(r =>
+                        //        r.Name == roleName);
 
-                        if (role == null)
+                        //if (role == null)
+                        //{
+                        //    failed++;
+
+                        //    errors.Add(
+                        //        $"Row {row}: Invalid Role Name.");
+
+                        //    continue;
+                        //}
+
+                        //// ---------------------------------------------
+                        //// CREATE EMPLOYEE
+                        //// ---------------------------------------------
+                        //var newEmployee = new Employee
+                        //{
+                        //    Employee_Id = employeeId,
+                        //    Name = name,
+                        //    Email = email,
+                        //    Department = department,
+                        //    RoleName = roleName,
+                        //    RoleId = role.RoleId,
+                        //    Status = status,
+                        //    JoiningDate = joiningDate,
+                        //    CTC = ctc,
+
+                        //    // IMPORTANT:
+                        //    // Employee belongs to logged-in Admin
+                        //    AdminId = adminId
+                        //};
+
+                        //await _context.Employees
+                        //    .AddAsync(newEmployee);
+
+                        //// Save here because subscription count
+                        //// for the next row must include this employee
+                        //await _context.SaveChangesAsync();
+
+                        int currentUserCount = admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0
+
+     ? await _context.Employees.CountAsync(x => x.OrganizationId == admin.OrganizationId.Value)
+
+     : await _context.Employees.CountAsync(x => x.AdminId == adminId);
+
+                        if (currentUserCount >= effectiveSub.MaxUsers)
+
                         {
+
                             failed++;
 
                             errors.Add(
-                                $"Row {row}: Invalid Role Name.");
+
+                                $"Row {row}: Subscription limit reached. Maximum {effectiveSub.MaxUsers} users allowed.");
 
                             continue;
+
                         }
 
                         // ---------------------------------------------
-                        // CREATE EMPLOYEE
+
+                        // CHECK ROLE
+
                         // ---------------------------------------------
-                        var newEmployee = new Employee
+
+                        var role = await _context.Roles
+
+                             .FirstOrDefaultAsync(r => r.Name == roleName);
+
+                        if (role == null)
+
                         {
+
+                            failed++;
+
+                            errors.Add($"Row {row}: Invalid Role Name.");
+
+                            continue;
+
+                        }
+
+                        // ---------------------------------------------
+
+                        // CREATE EMPLOYEE (Inherit OrganizationId and keep AdminId)
+
+                        // ---------------------------------------------
+
+                        var newEmployee = new Employee
+
+                        {
+
                             Employee_Id = employeeId,
+
                             Name = name,
+
                             Email = email,
+
                             Department = department,
+
                             RoleName = roleName,
+
                             RoleId = role.RoleId,
+
                             Status = status,
+
                             JoiningDate = joiningDate,
+
                             CTC = ctc,
 
-                            // IMPORTANT:
-                            // Employee belongs to logged-in Admin
-                            AdminId = adminId
+                            AdminId = adminId,
+
+                            OrganizationId = admin.OrganizationId
+
                         };
 
-                        await _context.Employees
-                            .AddAsync(newEmployee);
+                        await _context.Employees.AddAsync(newEmployee);
+
 
                         // Save here because subscription count
+
                         // for the next row must include this employee
+
                         await _context.SaveChangesAsync();
+
 
                         // ---------------------------------------------
                         // UPDATE DEPARTMENT COUNT
@@ -1073,27 +1245,57 @@ namespace EmployeeManagementSystem.Services
             // =========================================================
             // 5. RETURN RESULT
             // =========================================================
+            //return new
+            //{
+            //    Status = true,
+
+            //    Inserted = inserted,
+            //    Updated = updated,
+            //    Failed = failed,
+
+            //    MaxUsers = subscription.MaxUsers,
+
+            //    CurrentUsers = await _context.Employees
+            //        .CountAsync(x => x.AdminId == adminId),
+
+            //    RemainingUsers = Math.Max(
+            //        0,
+            //        subscription.MaxUsers -
+            //        await _context.Employees.CountAsync(
+            //            x => x.AdminId == adminId)),
+
+            //    Errors = errors
+            //};
+
+            int finalCurrentUsers = admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0
+
+? await _context.Employees.CountAsync(x => x.OrganizationId == admin.OrganizationId.Value)
+
+: await _context.Employees.CountAsync(x => x.AdminId == adminId);
+
             return new
+
             {
+
                 Status = true,
 
                 Inserted = inserted,
+
                 Updated = updated,
+
                 Failed = failed,
 
-                MaxUsers = subscription.MaxUsers,
+                MaxUsers = effectiveSub.MaxUsers,
 
-                CurrentUsers = await _context.Employees
-                    .CountAsync(x => x.AdminId == adminId),
+                CurrentUsers = finalCurrentUsers,
 
-                RemainingUsers = Math.Max(
-                    0,
-                    subscription.MaxUsers -
-                    await _context.Employees.CountAsync(
-                        x => x.AdminId == adminId)),
+                RemainingUsers = Math.Max(0, effectiveSub.MaxUsers - finalCurrentUsers),
 
                 Errors = errors
+
             };
+
+
         }
         public async Task<OnboardingDetailsDto?> GetOnboardingDetailsAsync(string onboardingId)
         {

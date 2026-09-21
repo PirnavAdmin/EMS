@@ -82,7 +82,7 @@ This OTP is confidential. Please do not share it with anyone.
 Regards,
 Pirnav EMS Team";
 
-                message.IsBodyHtml = false;
+                message.IsBodyHtml = true;
 
                 await smtp.SendMailAsync(message);
             }
@@ -98,65 +98,54 @@ Pirnav EMS Team";
         } // ✅ New Method For Offer Letter Attachment
 
         public async Task SendEmailWithAttachment(
-
-            string toEmail,
-
-            string subject,
-
-            string body,
-
-            string attachmentPath)
-
+       string toEmail,
+       string subject,
+       string body,
+       string attachmentPath)
         {
-
             var settings = GetEmailSettings();
 
-            using (var smtp = new SmtpClient(settings.SmtpHost, settings.SmtpPort))
-
+            using (var smtp = new SmtpClient(
+                settings.SmtpHost,
+                settings.SmtpPort))
             {
-
                 smtp.EnableSsl = settings.EnableSSL;
-
                 smtp.UseDefaultCredentials = false;
 
                 smtp.Credentials = new NetworkCredential(
-
-     settings.SenderEmail,
-
-     settings.SenderPassword);
+                    settings.SenderEmail,
+                    settings.SenderPassword);
 
                 smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                smtp.Timeout = 60000;
 
-                var message = new MailMessage();
+                using var message = new MailMessage();
 
                 message.From = new MailAddress(
-
-    settings.SenderEmail,
-
-    settings.DisplayName);
+                    settings.SenderEmail,
+                    settings.DisplayName);
 
                 message.To.Add(toEmail);
 
                 message.Subject = subject;
-
                 message.Body = body;
 
-                message.IsBodyHtml = false;
+                // Your WFH email body contains HTML
+                message.IsBodyHtml = true;
 
-                if (File.Exists(attachmentPath))
-
+                // Attachment is OPTIONAL
+                if (!string.IsNullOrWhiteSpace(attachmentPath) &&
+                    File.Exists(attachmentPath))
                 {
-
-                    message.Attachments.Add(new Attachment(attachmentPath));
-
+                    message.Attachments.Add(
+                        new Attachment(attachmentPath));
                 }
 
+                // IMPORTANT:
+                // Email is ALWAYS sent, even when attachment is null/empty
                 await smtp.SendMailAsync(message);
-
             }
-
         }
-
         public async Task SendEmployeeCredentials(
      string toEmail,
      string employeeName)

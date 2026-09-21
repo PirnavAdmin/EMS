@@ -1672,14 +1672,35 @@ StringComparison.OrdinalIgnoreCase))
 
             return allResults;
         }   //--------------------------------
-        // GET RECENT
-        //--------------------------------
+            // GET RECENT
+            //--------------------------------
+            //--------------------------------
+            // GET RECENT
+            //--------------------------------
         public async Task<List<PaySlip>> GetRecentPayslips()
         {
-            return await _context.PaySlips
+            var payslips = await _context.PaySlips
                 .AsNoTracking()
                 .OrderByDescending(x => x.Id)
                 .ToListAsync();
+
+            foreach (var payslip in payslips)
+            {
+                var salaryStructure = await _context.EmployeeSalaryStructures
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.Employee_Id == payslip.EmployeeId &&
+                        x.IsActive)
+                    .OrderByDescending(x => x.EffectiveFrom)
+                    .FirstOrDefaultAsync();
+
+                if (salaryStructure != null)
+                {
+                    payslip.CTC = salaryStructure.AnnualCTC;
+                }
+            }
+
+            return payslips;
         }
 
         //--------------------------------

@@ -916,10 +916,10 @@ const getPermissionScopeForRole = (roleValue = "") => {
   const normalizedRole = normalizeStoredRole(roleValue);
   const normalizedLoginType = normalizeLoginTypeValue(
     getStoredAuthValue("loginType") ||
-      getStoredAuthValue("userType") ||
-      getStoredAuthValue("accountType") ||
-      getStoredAuthValue("type") ||
-      ""
+    getStoredAuthValue("userType") ||
+    getStoredAuthValue("accountType") ||
+    getStoredAuthValue("type") ||
+    ""
   );
 
   if (["admin", "super-admin"].includes(normalizedLoginType)) {
@@ -1374,10 +1374,10 @@ export const getAuthenticatedUserSnapshot = () => {
 
   const resolvedRole = normalizeStoredRole(
     storedRole ||
-      getStoredRoles()[0] ||
-      getStoredValueFromSources(ROLE_KEYS) ||
-      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
-      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/name"]
+    getStoredRoles()[0] ||
+    getStoredValueFromSources(ROLE_KEYS) ||
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/name"]
   );
 
   return {
@@ -1421,15 +1421,19 @@ const getStorageTargets = () => {
 };
 
 export const getActiveAuthStorage = () => {
-  if (sessionStorage.getItem("token")) {
-    return sessionStorage;
+  if (typeof window === "undefined") {
+    return null;
   }
 
-  if (localStorage.getItem("token")) {
-    return localStorage;
+  if (window.sessionStorage.getItem("token")) {
+    return window.sessionStorage;
   }
 
-  return sessionStorage;
+  if (window.localStorage.getItem("token")) {
+    return window.localStorage;
+  }
+
+  return window.sessionStorage;
 };
 
 export const clearAuthData = () => {
@@ -1446,8 +1450,17 @@ export const clearAuthData = () => {
   }
 };
 
-export const getStoredAuthValue = (key, fallback = "") =>
-  sessionStorage.getItem(key) || localStorage.getItem(key) || fallback;
+export const getStoredAuthValue = (key, fallback = "") => {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  return (
+    window.sessionStorage.getItem(key) ||
+    window.localStorage.getItem(key) ||
+    fallback
+  );
+};
 
 const normalizeAuthTokenValue = (value) => {
   const normalizedValue = String(value ?? "").trim();
@@ -1467,8 +1480,8 @@ export const normalizeAuthToken = (value) => normalizeAuthTokenValue(value);
 export const getStoredToken = () =>
   normalizeAuthTokenValue(
     getStoredAuthValue("token") ||
-      getStoredAuthValue("authToken") ||
-      getStoredAuthValue("jwtToken")
+    getStoredAuthValue("authToken") ||
+    getStoredAuthValue("jwtToken")
   );
 
 export const getStoredRefreshToken = () =>
@@ -1502,9 +1515,9 @@ export const getStoredRoles = () =>
 export const getStoredRole = () =>
   normalizeStoredRole(
     getStoredValueFromSources(ROLE_KEYS) ||
-      getStoredRoles()[0] ||
-      getStoredJwtRole() ||
-      getStoredAuthValue("role")
+    getStoredRoles()[0] ||
+    getStoredJwtRole() ||
+    getStoredAuthValue("role")
   );
 
 export const getStoredRoleName = () =>
@@ -1519,12 +1532,12 @@ export const getStoredRoleName = () =>
 export const getStoredLoginType = () =>
   normalizeLoginTypeValue(
     getStoredAuthValue("loginType") ||
-      getStoredAuthValue("userType") ||
-      getStoredAuthValue("accountType") ||
-      getStoredAuthValue("type") ||
-      getStoredJwtRole() ||
-      getStoredRole() ||
-      getStoredRoleName()
+    getStoredAuthValue("userType") ||
+    getStoredAuthValue("accountType") ||
+    getStoredAuthValue("type") ||
+    getStoredJwtRole() ||
+    getStoredRole() ||
+    getStoredRoleName()
   );
 
 export const getStoredPermissions = (roleHint = "") => {

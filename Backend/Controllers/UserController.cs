@@ -528,6 +528,31 @@ namespace EmployeeManagementSystem.Controllers
                     });
                 }
 
+                var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
+
+_context,
+
+employee.AdminId,
+
+employee.OrganizationId);
+
+                if (!effectiveSub.IsActive)
+
+                {
+
+                    return Unauthorized(new
+
+                    {
+
+                        Status = false,
+
+                        Message = "Your organization subscription has expired or is inactive. Please contact your administrator."
+
+                    });
+
+                }
+
+
                 // ====================================================
                 // EMPLOYEE ID
                 // ====================================================

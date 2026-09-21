@@ -81,44 +81,45 @@ namespace EmployeeManagementSystem.Services
         // =====================================================
         public async Task<object> GetSubscription(int adminId)
         {
-            var subscription = await _context.AdminSubscriptions
-                .Where(x => x.AdminId == adminId)
-                .OrderByDescending(x => x.SubscriptionId)
-                .FirstOrDefaultAsync();
-
-            if (subscription == null)
-                throw new Exception("Subscription not found.");
+            // Existing single-subscription code (commented out):
+            // var subscription = await _context.AdminSubscriptions
+            //     .Where(x => x.AdminId == adminId)
+            //     .OrderByDescending(x => x.SubscriptionId)
+            //     .FirstOrDefaultAsync();
+            // if (subscription == null)
+            //     throw new Exception("Subscription not found.");
+            // var admin = await _context.Admins
+            //     .FirstOrDefaultAsync(x => x.Id == adminId);
+            // var currentUsers = await _context.Employees
+            //     .CountAsync(x => x.AdminId == adminId);
 
             var admin = await _context.Admins
                 .FirstOrDefaultAsync(x => x.Id == adminId);
 
-            var currentUsers = await _context.Employees
-                .CountAsync(x => x.AdminId == adminId);
+            if (admin == null)
+                throw new Exception("Admin not found.");
+
+            var effectiveSub = await Helpers.SubscriptionHelper.GetEffectiveSubscriptionAsync(
+                _context,
+                adminId,
+                admin.OrganizationId);
 
             return new
             {
-                subscription.SubscriptionId,
-
-                subscription.AdminId,
-
-                AdminEmail = admin?.Email,
-
-                subscription.MaxUsers,
-
-                CurrentUsers = currentUsers,
-
-                RemainingUsers = Math.Max(
-                    0,
-                    subscription.MaxUsers - currentUsers),
-
-                subscription.StartDate,
-
-                subscription.EndDate,
-
-                subscription.IsActive,
-
-                IsExpired =
-                    subscription.EndDate < DateTime.UtcNow
+                SubscriptionId = effectiveSub.AdminSubscription?.SubscriptionId ?? effectiveSub.OrganizationSubscription?.Id ?? 0,
+                AdminId = adminId,
+                AdminEmail = admin.Email,
+                OrganizationId = admin.OrganizationId,
+                OrganizationName = admin.OrganizationName,
+                MaxUsers = effectiveSub.MaxUsers,
+                CurrentUsers = effectiveSub.CurrentUsers,
+                RemainingUsers = effectiveSub.RemainingUsers,
+                StartDate = effectiveSub.StartDate,
+                EndDate = effectiveSub.EndDate,
+                IsActive = effectiveSub.IsActive,
+                Source = effectiveSub.Source,
+                PlanName = effectiveSub.PlanName,
+                IsExpired = !effectiveSub.IsActive || effectiveSub.EndDate < DateTime.UtcNow
             };
         }
 
@@ -141,34 +142,27 @@ namespace EmployeeManagementSystem.Services
                     .FirstOrDefaultAsync(x =>
                         x.Id == subscription.AdminId);
 
-                var currentUsers = await _context.Employees
-                    .CountAsync(x =>
-                        x.AdminId == subscription.AdminId);
+                var effectiveSub = await Helpers.SubscriptionHelper.GetEffectiveSubscriptionAsync(
+                    _context,
+                    subscription.AdminId,
+                    admin?.OrganizationId);
 
                 result.Add(new
                 {
                     subscription.SubscriptionId,
-
                     subscription.AdminId,
-
                     AdminEmail = admin?.Email,
-
-                    subscription.MaxUsers,
-
-                    CurrentUsers = currentUsers,
-
-                    RemainingUsers = Math.Max(
-                        0,
-                        subscription.MaxUsers - currentUsers),
-
-                    subscription.StartDate,
-
-                    subscription.EndDate,
-
-                    subscription.IsActive,
-
-                    IsExpired =
-                        subscription.EndDate < DateTime.UtcNow
+                    OrganizationId = admin?.OrganizationId,
+                    OrganizationName = admin?.OrganizationName,
+                    MaxUsers = effectiveSub.IsActive ? effectiveSub.MaxUsers : subscription.MaxUsers,
+                    CurrentUsers = effectiveSub.CurrentUsers,
+                    RemainingUsers = effectiveSub.IsActive ? effectiveSub.RemainingUsers : Math.Max(0, subscription.MaxUsers - effectiveSub.CurrentUsers),
+                    StartDate = effectiveSub.IsActive ? effectiveSub.StartDate : subscription.StartDate,
+                    EndDate = effectiveSub.IsActive ? effectiveSub.EndDate : subscription.EndDate,
+                    IsActive = effectiveSub.IsActive,
+                    Source = effectiveSub.Source,
+                    PlanName = effectiveSub.PlanName,
+                    IsExpired = !effectiveSub.IsActive || effectiveSub.EndDate < DateTime.UtcNow
                 });
             }
 
@@ -243,39 +237,41 @@ namespace EmployeeManagementSystem.Services
         // =====================================================
         public async Task<object> GetUsage(int adminId)
         {
-            var subscription =
-                await _context.AdminSubscriptions
-                    .Where(x => x.AdminId == adminId)
-                    .OrderByDescending(x => x.SubscriptionId)
-                    .FirstOrDefaultAsync();
+            // Existing single-subscription code (commented out):
+            // var subscription =
+            //     await _context.AdminSubscriptions
+            //         .Where(x => x.AdminId == adminId)
+            //         .OrderByDescending(x => x.SubscriptionId)
+            //         .FirstOrDefaultAsync();
+            // if (subscription == null)
+            //     throw new Exception("Subscription not found.");
+            // var currentUsers = await _context.Employees
+            //     .CountAsync(x => x.AdminId == adminId);
 
-            if (subscription == null)
-                throw new Exception(
-                    "Subscription not found.");
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Id == adminId);
 
-            var currentUsers = await _context.Employees
-                .CountAsync(x => x.AdminId == adminId);
+            if (admin == null)
+                throw new Exception("Admin not found.");
+
+            var effectiveSub = await Helpers.SubscriptionHelper.GetEffectiveSubscriptionAsync(
+                _context,
+                adminId,
+                admin.OrganizationId);
 
             return new
             {
                 AdminId = adminId,
-
-                MaxUsers = subscription.MaxUsers,
-
-                CurrentUsers = currentUsers,
-
-                RemainingUsers = Math.Max(
-                    0,
-                    subscription.MaxUsers - currentUsers),
-
-                subscription.StartDate,
-
-                subscription.EndDate,
-
-                subscription.IsActive,
-
-                IsExpired =
-                    subscription.EndDate < DateTime.UtcNow
+                OrganizationId = admin.OrganizationId,
+                MaxUsers = effectiveSub.MaxUsers,
+                CurrentUsers = effectiveSub.CurrentUsers,
+                RemainingUsers = effectiveSub.RemainingUsers,
+                StartDate = effectiveSub.StartDate,
+                EndDate = effectiveSub.EndDate,
+                IsActive = effectiveSub.IsActive,
+                Source = effectiveSub.Source,
+                PlanName = effectiveSub.PlanName,
+                IsExpired = !effectiveSub.IsActive || effectiveSub.EndDate < DateTime.UtcNow
             };
         }
     }

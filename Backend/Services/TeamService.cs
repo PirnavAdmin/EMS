@@ -55,55 +55,69 @@ namespace EmployeeManagementSystem.Services
 
 
             // ==========================================
-            // 3. GET PROJECT
+            // 3. GET PROJECT ONLY IF PROJECT ID IS PROVIDED
             // ==========================================
 
-            var project = await _context.Projects
-                .FirstOrDefaultAsync(x =>
-                    x.Id == dto.ProjectId);
+            Project? project = null;
 
-            if (project == null)
+            if (dto.ProjectId.HasValue && dto.ProjectId.Value > 0)
             {
-                return new BadRequestObjectResult(
-                    "Project not found.");
+                project = await _context.Projects
+                    .FirstOrDefaultAsync(x =>
+                        x.Id == dto.ProjectId.Value);
+
+                if (project == null)
+                {
+                    return new BadRequestObjectResult(
+                        "Project not found.");
+                }
             }
 
 
             // ==========================================
             // 4. CHECK WHETHER TEAM ALREADY EXISTS
             //    FOR THIS PROJECT
+            //
+            //    ONLY DO THIS WHEN PROJECT IS PROVIDED
             // ==========================================
 
-            var existingTeam = await _context.Teams
-                .FirstOrDefaultAsync(x =>
-                    x.ProjectId == dto.ProjectId);
-
-            if (existingTeam != null)
+            if (project != null)
             {
-                return new BadRequestObjectResult(
-                    $"A team already exists for project '{project.Project_Name}'.");
+                var existingTeam = await _context.Teams
+                    .FirstOrDefaultAsync(x =>
+                        x.ProjectId == project.Id);
+
+                if (existingTeam != null)
+                {
+                    return new BadRequestObjectResult(
+                        $"A team already exists for project '{project.Project_Name}'.");
+                }
             }
 
 
             // ==========================================
             // 5. CREATE TEAM
             //
-            // Team Name comes from Project Name
+            // IF PROJECT EXISTS:
+            //     TeamName = Project Name
+            //
+            // IF NO PROJECT:
+            //     TeamName = Frontend TeamName
             // ==========================================
 
             var team = new Team
             {
                 TeamNumber = dto.TeamNumber,
 
-                // IMPORTANT:
-                // Do NOT take TeamName from frontend
-                TeamName = project.Project_Name,
+                TeamName = project != null
+                    ? project.Project_Name
+                    : dto.TeamName,
 
                 ReportingManagerId = dto.ReportingManagerId,
 
                 EngagementType = dto.EngagementType,
 
-                ProjectId = dto.ProjectId,
+                ProjectId = project?.Id,
 
                 IsActive = true,
 
@@ -119,7 +133,7 @@ namespace EmployeeManagementSystem.Services
             // 6. SAVE TEAM REPORTING DAYS
             // ==========================================
 
-            foreach (var day in dto.ReportingDays.Distinct())
+            foreach (var day in (dto.ReportingDays ?? new List<string>()).Distinct())
             {
                 _context.TeamReportingDays.Add(
                     new TeamReportingDay
@@ -132,26 +146,35 @@ namespace EmployeeManagementSystem.Services
 
             // ==========================================
             // 7. GET EXISTING PROJECT MEMBERS
-            // ==========================================
-
-            var projectMembers = await _context.ProjectTeamMembers
-                .Where(x => x.ProjectId == dto.ProjectId)
-                .Select(x => x.EmployeeId)
-                .Distinct()
-                .ToListAsync();
-
-
-            // ==========================================
-            // 8. IF PROJECT HAS MEMBERS
-            //    USE EXISTING PROJECT MEMBERS
             //
-            //    IF PROJECT HAS NO MEMBERS
-            //    USE MANUALLY SELECTED EMPLOYEES
+            // ONLY WHEN PROJECT EXISTS
+            // ==========================================
+
+            var projectMembers = new List<string>();
+
+            if (project != null)
+            {
+                projectMembers = await _context.ProjectTeamMembers
+                    .Where(x => x.ProjectId == project.Id)
+                    .Select(x => x.EmployeeId)
+                    .Distinct()
+                    .ToListAsync();
+            }
+
+
+            // ==========================================
+            // 8. DETERMINE MEMBERS
+            //
+            // PROJECT MEMBERS EXIST
+            //     -> USE PROJECT MEMBERS
+            //
+            // NO PROJECT / NO PROJECT MEMBERS
+            //     -> USE MANUALLY SELECTED EMPLOYEES
             // ==========================================
 
             var membersToAdd = projectMembers.Any()
                 ? projectMembers
-                : dto.EmployeeIds
+                : (dto.EmployeeIds ?? new List<string>())
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct()
                     .ToList();
@@ -189,25 +212,31 @@ namespace EmployeeManagementSystem.Services
                 }
             }
 
+
             // ==========================================
-            // 9. SAVE EVERYTHING
+            // 10. SAVE EVERYTHING
             // ==========================================
 
             await _context.SaveChangesAsync();
 
 
             // ==========================================
-            // 10. RESPONSE
+            // 11. RESPONSE
             // ==========================================
 
             return new OkObjectResult(
                 new
                 {
                     Message = "Team Created Successfully.",
+
                     TeamId = team.Id,
+
                     TeamName = team.TeamName,
+
                     ProjectId = team.ProjectId,
-                    ProjectName = project.Project_Name,
+
+                    ProjectName = project?.Project_Name,
+
                     MemberCount = membersToAdd.Count
                 });
         }
@@ -268,11 +297,45 @@ namespace EmployeeManagementSystem.Services
                 })
                 .ToListAsync();
 
+            // ==========================================
+            // GET EMPLOYEES PRESENT IN EACH PROJECT
+            // ==========================================
+
+            var projectEmployees = await _context.ProjectTeamMembers
+                .AsNoTracking()
+                .Join(
+                    _context.Employees,
+                    ptm => ptm.EmployeeId,
+                    e => e.Employee_Id,
+                    (ptm, e) => new
+                    {
+                        ptm.ProjectId,
+                        EmployeeId = e.Employee_Id,
+                        EmployeeName = e.Name,
+                        EmployeeStatus = e.Status
+                    })
+                .Where(x => x.EmployeeStatus == "Active")
+                .ToListAsync();
+
+            // ==========================================
+            // BUILD RESPONSE
+            // ==========================================
+
             var result = projects
                 .Select(project =>
                 {
                     var team = teams.FirstOrDefault(
                         t => t.ProjectId == project.ProjectId);
+
+                    var employees = projectEmployees
+                        .Where(x => x.ProjectId == project.ProjectId)
+                        .Select(x => new
+                        {
+                            x.EmployeeId,
+                            x.EmployeeName
+                        })
+                        .Distinct()
+                        .ToList();
 
                     return new
                     {
@@ -294,7 +357,15 @@ namespace EmployeeManagementSystem.Services
                             team?.EngagementType,
 
                         IsActive =
-                            team?.IsActive ?? true
+                            team?.IsActive ?? true,
+
+                        // ==========================================
+                        // PROJECT EMPLOYEES
+                        // ==========================================
+
+                        EmployeeCount = employees.Count,
+
+                        Employees = employees
                     };
                 })
                 .OrderBy(x => x.ProjectName)
@@ -302,7 +373,6 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult(result);
         }
-
         private static string GetShortDayName(string day)
         {
             return day switch

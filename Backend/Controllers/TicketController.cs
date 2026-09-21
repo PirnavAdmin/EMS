@@ -70,19 +70,36 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPut("UpdateStatus/{ticketId}")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateStatus(
      int ticketId,
-     [FromQuery] string status,
-     [FromQuery] string? remarks)
+     [FromForm] string status,
+     [FromForm] string? remarks,
+     [FromForm] List<IFormFile>? files)
         {
-            return Ok(
-                await _ticketService.UpdateTicketStatus(
+            try
+            {
+                var result = await _ticketService.UpdateTicketStatus(
                     ticketId,
                     status,
                     remarks,
-                    User));
-        }
+                    User);
 
+                return Ok(new
+                {
+                    Success = true,
+                    Message = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
         [HttpDelete("{ticketId}")]
         public async Task<IActionResult> DeleteTicket(int ticketId)
         {

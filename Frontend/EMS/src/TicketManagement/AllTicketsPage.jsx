@@ -45,12 +45,10 @@ import {
   compareDatesAsc,
   compareDatesDesc,
   formatDate,
-  formatDateTime,
   getInputDateValue,
   getTodayInputValue,
   parseDate
-} from
-  "../utils/date";
+} from "../utils/date";
 import {
   buildTicketPayload,
   createEmptyTicketForm,
@@ -90,7 +88,7 @@ import {
   stopTicketWork,
   updateTicket,
   updateTicketStatus,
-  uploadTicketBulkFile
+  uploadTicketBulkFile,
 } from
   "../services/ticketService";
 import { getEmployees } from "../services/employeeService";
@@ -123,6 +121,68 @@ const ACCEPTED_EXTENSIONS = [".xls", ".xlsx"];
 
 const ACTIVE_WORK_STATUSES = new Set(["In Progress", "On Hold"]);
 const EMPLOYEE_WORK_STATUS_OPTIONS = getTicketStatusOptions("user");
+
+const formatTicketDateTime = (value) => {
+  if (!value) {
+    return "-";
+  }
+
+  try {
+    const text = String(value).trim();
+
+    // Backend ticket API returns values like:
+    // 2026-09-16T10:58:10
+    //
+    // Keep the time exactly as returned by the API.
+    // Do NOT let the browser convert it through UTC.
+    const match = text.match(
+      /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/
+    );
+
+    if (match) {
+      const [, year, month, day, hours, minutes, seconds = "0"] = match;
+
+      const localDate = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hours),
+        Number(minutes),
+        Number(seconds)
+      );
+
+      if (!Number.isNaN(localDate.getTime())) {
+        return localDate.toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true
+        });
+      }
+    }
+
+    // Fallback for timestamps that contain Z or an explicit timezone offset
+    const date = new Date(text);
+
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+  } catch (error) {
+    console.error("Ticket date/time formatting error:", error);
+    return "-";
+  }
+};
 
 const isExcelFile = (file) => {
   if (!file) {
@@ -342,6 +402,8 @@ function TicketEditorModal({
   ticketId,
   employees,
   loadingEmployees,
+  statusChangeMode = false,
+  requestedStatus = "",
   onClose,
   onSaved
 }) {
@@ -353,7 +415,7 @@ function TicketEditorModal({
   const [ticketRecord, setTicketRecord] = useState(null);
   const [formData, setFormData] = useState(() => createEmptyTicketForm("admin"));
   const [errors, setErrors] = useState({});
-  const [attachmentLabel, setAttachmentLabel] = useState("");
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
 
   const categoryOptions = useMemo(() => getTicketCategoryOptions(), []);
   const today = getTodayInputValue();
@@ -365,7 +427,7 @@ function TicketEditorModal({
       setTicketRecord(null);
       setFormData(createEmptyTicketForm("admin"));
       setErrors({});
-      setAttachmentLabel("");
+      setAttachmentFiles([]);
       return undefined;
     }
 
@@ -374,7 +436,7 @@ function TicketEditorModal({
       setTicketRecord(null);
       setFormData(createEmptyTicketForm("admin"));
       setErrors({});
-      setAttachmentLabel("");
+      setAttachmentFiles([]);
       return undefined;
     }
 
@@ -390,7 +452,17 @@ function TicketEditorModal({
       try {
         setLoadingTicket(true);
         const record = await fetchTicketById(ticketId);
-        const normalized = normalizeTicketRecord(record.raw || record);
+        const rawTicket = record.raw || record;
+
+        const normalized = {
+          ...normalizeTicketRecord(rawTicket),
+          remarks:
+            rawTicket?.remarks ??
+            rawTicket?.Remarks ??
+            record?.remarks ??
+            record?.Remarks ??
+            ""
+        };
 
         if (!active) {
           return;
@@ -400,9 +472,9 @@ function TicketEditorModal({
         setFormData({
           projectId: normalized.projectId || 0,
           technology: normalized.technology || "",
-          startDate: normalized.startDate ?
-            getInputDateValue(normalized.startDate) :
-            "",
+          startDate: normalized.startDate
+            ? getInputDateValue(normalized.startDate)
+            : "",
           estimatedHours: normalized.estimatedHours || "",
 
           title: normalized.title || "",
@@ -416,22 +488,17 @@ function TicketEditorModal({
           assignedToEmployeeId:
             normalized.assignedToId || normalized.createdById || "",
 
-          dueDate: normalized.dueDate ?
-            getInputDateValue(normalized.dueDate) :
-            "",
+          dueDate: normalized.dueDate
+            ? getInputDateValue(normalized.dueDate)
+            : "",
 
           attachmentFile: null,
           notes: "",
-          status: normalized.status || "Open"
+          status:
+            statusChangeMode && requestedStatus
+              ? normalizeTicketStatus(requestedStatus)
+              : normalizeTicketStatus(normalized.status || "Open")
         });
-
-        const existingAttachment =
-          normalized.attachments?.[0]?.fileName ||
-          normalized.attachments?.[0]?.name ||
-          normalized.attachments?.[0]?.FileName ||
-          "";
-
-        setAttachmentLabel(existingAttachment);
       } catch (error) {
 
         const message = await getTicketApiErrorMessage(
@@ -454,7 +521,13 @@ function TicketEditorModal({
     return () => {
       active = false;
     };
-  }, [isEditMode, open, ticketId]);
+  }, [
+    isEditMode,
+    open,
+    ticketId,
+    statusChangeMode,
+    requestedStatus
+  ]);
 
   useEffect(() => {
     if (open && !loadingTicket) {
@@ -563,34 +636,72 @@ function TicketEditorModal({
   };
 
   const handleAttachmentChange = (event) => {
-    const file = event.target.files?.[0] || null;
-    setFormData((current) => ({
+    const files = Array.from(event.target.files || []);
+
+    if (!files.length) {
+      return;
+    }
+
+    setAttachmentFiles((current) => [
       ...current,
-      attachmentFile: file
-    }));
-    setAttachmentLabel(file?.name || ticketRecord?.attachments?.[0]?.name || "");
+      ...files
+    ]);
+
+    // Allow selecting the same file again later
+    event.target.value = "";
+  };
+
+  const removeAttachmentFile = (index) => {
+    setAttachmentFiles((current) =>
+      current.filter((_, fileIndex) => fileIndex !== index)
+    );
   };
 
   const validateForm = () => {
     const nextErrors = {};
 
-    ["title", "description", "category", "priority", "assignedToEmployee", "dueDate"].forEach(
-      (fieldName) => {
-        const fieldError = validateField(fieldName, formData[fieldName]);
-        if (fieldError) {
-          nextErrors[fieldName] = fieldError;
-        }
+    [
+      "title",
+      "description",
+      "category",
+      "priority",
+      "assignedToEmployee",
+      "dueDate"
+    ].forEach((fieldName) => {
+      const fieldError = validateField(
+        fieldName,
+        formData[fieldName]
+      );
+
+      if (fieldError) {
+        nextErrors[fieldName] = fieldError;
       }
-    );
+    });
+
+    if (statusChangeMode) {
+      if (!normalizeTicketFieldText(formData.status)) {
+        nextErrors.status = "Please select a status.";
+      }
+
+      if (!normalizeTicketFieldText(formData.notes)) {
+        nextErrors.notes =
+          "Please enter remarks before changing the ticket status.";
+      }
+    }
 
     setErrors(nextErrors);
+
     return Object.keys(nextErrors).length === 0;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (saving || !validateForm()) {
+    if (saving) {
+      return;
+    }
+
+    if (!validateForm()) {
       toast.error("Please fix the highlighted fields.");
       return;
     }
@@ -598,33 +709,94 @@ function TicketEditorModal({
     setSaving(true);
 
     try {
-      const payload = buildTicketPayload(formData, {
-        status: ticketRecord?.status || "Open"
-      });
+      const currentStatus = normalizeTicketStatus(
+        ticketRecord?.status || "Open"
+      );
 
-      if (isEditMode) {
+      const nextStatus = normalizeTicketStatus(
+        formData.status || currentStatus
+      );
+
+      /*
+       * STATUS CHANGE FLOW
+       *
+       * Status dropdown
+       *      ↓
+       * Edit Ticket modal
+       *      ↓
+       * Status + Remarks + Attachments
+       *      ↓
+       * UpdateStatus API
+       */
+      if (isEditMode && statusChangeMode) {
+        await updateTicketStatus(
+          ticketId,
+          nextStatus,
+          formData.notes?.trim() || "",
+          attachmentFiles
+        );
+
+        toast.success(
+          "Ticket status updated successfully."
+        );
+      }
+
+      /*
+       * NORMAL EDIT FLOW
+       */
+      else if (isEditMode) {
+        const payload = buildTicketPayload(formData, {
+          status: currentStatus
+        });
+
         await updateTicket(ticketId, payload);
-        toast.success("Ticket updated successfully.");
-      } else {
+
+        if (
+          attachmentFiles.length > 0 ||
+          formData.notes?.trim()
+        ) {
+          await updateTicketStatus(
+            ticketId,
+            currentStatus,
+            formData.notes?.trim() || "",
+            attachmentFiles
+          );
+        }
+
+        toast.success(
+          "Ticket updated successfully."
+        );
+      }
+
+      /*
+       * CREATE FLOW
+       */
+      else {
+        const payload = buildTicketPayload(formData, {
+          status: formData.status || "Open"
+        });
 
         await createTicket(payload);
-        toast.success("Ticket created successfully.");
+
+        toast.success(
+          "Ticket created successfully."
+        );
       }
 
       await onSaved?.();
       onClose?.();
+
     } catch (error) {
-
-      if (error.response) {
-
-      }
-
-      const errorMessage = await getTicketApiErrorMessage(
-        error,
-        "We could not save the ticket right now."
-      );
+      const errorMessage =
+        await getTicketApiErrorMessage(
+          error,
+          statusChangeMode
+            ? "Unable to update the ticket status right now."
+            : "We could not save the ticket right now."
+        );
 
       toast.error(errorMessage);
+
     } finally {
       setSaving(false);
     }
@@ -644,9 +816,11 @@ function TicketEditorModal({
       open={open}
       title={isEditMode ? "Edit Ticket" : "Create Ticket"}
       subtitle={
-        isEditMode ?
-          "Replace or add an attachment to this ticket." :
-          "Capture the request and assign it to an employee."
+        statusChangeMode
+          ? "Update the status, add remarks, and attach supporting documents."
+          : isEditMode
+            ? "Replace or add an attachment to this ticket."
+            : "Capture the request and assign it to an employee."
       }
       headerActions={headerActions}
       onClose={onClose}
@@ -673,10 +847,11 @@ function TicketEditorModal({
                 <FaSpinner className="ticket-button-spinner" />
                 Saving...
               </> :
-              isEditMode ?
-                "Update Ticket" :
-
-                "Create Ticket"
+              statusChangeMode
+                ? "Update Ticket"
+                : isEditMode
+                  ? "Update Ticket"
+                  : "Create Ticket"
             }
           </button>
         </>
@@ -692,222 +867,540 @@ function TicketEditorModal({
           id="ticket-editor-form"
           className="ticket-form-grid ticket-modal-form"
           onSubmit={handleSubmit}
-          noValidate>
-
+          noValidate
+        >
+          {/* TITLE */}
           <div className="ticket-field">
-            <label htmlFor="ticket-title">Title</label>
+            <label htmlFor="ticket-title">
+              Title
+            </label>
+
             <input
               ref={firstInputRef}
               id="ticket-title"
               type="text"
               name="title"
               value={formData.title}
-              onChange={(event) => updateField("title", event.target.value)}
-              readOnly={isEditMode}
+              onChange={(event) =>
+                updateField("title", event.target.value)
+              }
+              disabled={isEditMode}
               className={errors.title ? "has-error" : ""}
               aria-invalid={Boolean(errors.title)}
-              aria-describedby={errors.title ? "ticket-title-error" : undefined}
+              aria-describedby={
+                errors.title
+                  ? "ticket-title-error"
+                  : undefined
+              }
               maxLength={TICKET_FORM_LIMITS.title}
-              autoComplete="off" />
+              autoComplete="off"
+            />
 
-            {errors.title ?
-              <p id="ticket-title-error" className="ticket-error">
+            {errors.title ? (
+              <p
+                id="ticket-title-error"
+                className="ticket-error"
+              >
                 {errors.title}
-              </p> :
-
+              </p>
+            ) : (
               <p className="ticket-help">
                 Keep the title short, specific, and action focused.
               </p>
-            }
+            )}
           </div>
 
+
+          {/* CATEGORY */}
           <div className="ticket-field">
-            <label htmlFor="ticket-category">Category</label>
+            <label htmlFor="ticket-category">
+              Category
+            </label>
+
             <select
               id="ticket-category"
               name="category"
               value={formData.category}
-              onChange={(event) => updateField("category", event.target.value)}
+              onChange={(event) =>
+                updateField(
+                  "category",
+                  event.target.value
+                )
+              }
               disabled={isEditMode}
               className={errors.category ? "has-error" : ""}
               aria-invalid={Boolean(errors.category)}
-              aria-describedby={errors.category ? "ticket-category-error" : undefined}>
+              aria-describedby={
+                errors.category
+                  ? "ticket-category-error"
+                  : undefined
+              }
+            >
+              <option value="">
+                Select category
+              </option>
 
-              <option value="">Select category</option>
-              {categoryOptions.map((category) =>
-                <option key={category} value={category}>
+              {categoryOptions.map((category) => (
+                <option
+                  key={category}
+                  value={category}
+                >
                   {category}
                 </option>
-              )}
+              ))}
             </select>
-            {errors.category ?
-              <p id="ticket-category-error" className="ticket-error">
-                {errors.category}
-              </p> :
 
+            {errors.category ? (
+              <p
+                id="ticket-category-error"
+                className="ticket-error"
+              >
+                {errors.category}
+              </p>
+            ) : (
               <p className="ticket-help">
                 Route the request to the right queue from the start.
               </p>
-            }
+            )}
           </div>
 
+
+          {/* DESCRIPTION */}
           <div className="ticket-field ticket-field-full">
-            <label htmlFor="ticket-description">Description</label>
+            <label htmlFor="ticket-description">
+              Description
+            </label>
+
             <textarea
               id="ticket-description"
               name="description"
               value={formData.description}
               onChange={(event) =>
-                updateField("description", event.target.value)
+                updateField(
+                  "description",
+                  event.target.value
+                )
               }
-              readOnly={isEditMode}
-              className={errors.description ? "has-error" : ""}
+              disabled={isEditMode}
+              className={
+                errors.description
+                  ? "has-error"
+                  : ""
+              }
               aria-invalid={Boolean(errors.description)}
               aria-describedby={
-                errors.description ? "ticket-description-error" : undefined
+                errors.description
+                  ? "ticket-description-error"
+                  : undefined
               }
-              maxLength={TICKET_FORM_LIMITS.description} />
+              maxLength={
+                TICKET_FORM_LIMITS.description
+              }
+            />
 
-            {errors.description ?
-              <p id="ticket-description-error" className="ticket-error">
+            {errors.description ? (
+              <p
+                id="ticket-description-error"
+                className="ticket-error"
+              >
                 {errors.description}
-              </p> :
-
+              </p>
+            ) : (
               <p className="ticket-help">
                 Explain the issue, request, or outcome you need.
               </p>
-            }
+            )}
           </div>
 
+
+          {/* PRIORITY */}
           <div className="ticket-field">
-            <label htmlFor="ticket-priority">Priority</label>
+            <label htmlFor="ticket-priority">
+              Priority
+            </label>
+
             <select
               id="ticket-priority"
               name="priority"
               value={formData.priority}
-              onChange={(event) => updateField("priority", event.target.value)}
+              onChange={(event) =>
+                updateField(
+                  "priority",
+                  event.target.value
+                )
+              }
               disabled={isEditMode}
-              className={errors.priority ? "has-error" : ""}
+              className={
+                errors.priority
+                  ? "has-error"
+                  : ""
+              }
               aria-invalid={Boolean(errors.priority)}
-              aria-describedby={errors.priority ? "ticket-priority-error" : undefined}>
-
-              {TICKET_PRIORITY_OPTIONS.map((priority) =>
-                <option key={priority} value={priority}>
-                  {priority}
-                </option>
+              aria-describedby={
+                errors.priority
+                  ? "ticket-priority-error"
+                  : undefined
+              }
+            >
+              {TICKET_PRIORITY_OPTIONS.map(
+                (priority) => (
+                  <option
+                    key={priority}
+                    value={priority}
+                  >
+                    {priority}
+                  </option>
+                )
               )}
             </select>
-            {errors.priority ?
-              <p id="ticket-priority-error" className="ticket-error">
-                {errors.priority}
-              </p> :
 
+            {errors.priority ? (
+              <p
+                id="ticket-priority-error"
+                className="ticket-error"
+              >
+                {errors.priority}
+              </p>
+            ) : (
               <p className="ticket-help">
                 Pick the urgency level that matches the request.
               </p>
-            }
+            )}
           </div>
 
+
+          {/* STATUS - ONLY FOR STATUS CHANGE */}
+          {statusChangeMode && (
+            <div className="ticket-field">
+              <label htmlFor="ticket-status">
+                Status
+              </label>
+
+              <select
+                id="ticket-status"
+                name="status"
+                value={formData.status || ""}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    status: normalizeTicketStatus(
+                      event.target.value
+                    )
+                  }))
+                }
+                disabled={saving}
+                className={
+                  errors.status
+                    ? "has-error"
+                    : ""
+                }
+              >
+                {getTicketStatusOptions("admin").map(
+                  (status) => (
+                    <option
+                      key={status}
+                      value={status}
+                    >
+                      {getTicketStatusLabel(status)}
+                    </option>
+                  )
+                )}
+              </select>
+
+              {errors.status ? (
+                <p className="ticket-error">
+                  {errors.status}
+                </p>
+              ) : (
+                <p className="ticket-help">
+                  Select the new status for this ticket.
+                </p>
+              )}
+            </div>
+          )}
+
+
+          {/* DUE DATE */}
           <div className="ticket-field">
-            <label htmlFor="ticket-due-date">Due Date</label>
+            <label htmlFor="ticket-due-date">
+              Due Date
+            </label>
+
             <AppDatePicker
               id="ticket-due-date"
               name="dueDate"
               value={formData.dueDate}
-              onChange={(event) => updateField("dueDate", event.target.value)}
+              onChange={(event) =>
+                updateField(
+                  "dueDate",
+                  event.target.value
+                )
+              }
               disabled={isEditMode}
               minDate={today}
-              className={errors.dueDate ? "has-error" : ""}
+              className={
+                errors.dueDate
+                  ? "has-error"
+                  : ""
+              }
               aria-invalid={Boolean(errors.dueDate)}
-              aria-describedby={errors.dueDate ? "ticket-due-date-error" : undefined}
-              placeholder="Select due date" />
+              aria-describedby={
+                errors.dueDate
+                  ? "ticket-due-date-error"
+                  : undefined
+              }
+              placeholder="Select due date"
+            />
 
-            {errors.dueDate ?
-              <p id="ticket-due-date-error" className="ticket-error">
+            {errors.dueDate ? (
+              <p
+                id="ticket-due-date-error"
+                className="ticket-error"
+              >
                 {errors.dueDate}
-              </p> :
-
+              </p>
+            ) : (
               <p className="ticket-help">
                 Optional, but useful when the ticket needs follow-up.
               </p>
-            }
+            )}
           </div>
 
+
+          {/* ASSIGNED EMPLOYEE */}
           <div className="ticket-field ticket-field-full">
-            <label htmlFor="ticket-assignee">Assign To Employee</label>
+            <label htmlFor="ticket-assignee">
+              Assign To Employee
+            </label>
+
             <CompactSearchableDropdown
               id="ticket-assignee"
               value={
-                formData.assignedToEmployeeId || formData.assignedToEmployee
+                formData.assignedToEmployeeId ||
+                formData.assignedToEmployee
               }
               onChange={handleEmployeeSelect}
               groups={[
                 {
                   label: "Employees",
-                  options: employees.map((employee) => ({
-                    value: employee.id || employee.name,
-                    label: employee.label
-                  }))
-                }]
-              }
+                  options: employees.map(
+                    (employee) => ({
+                      value:
+                        employee.id ||
+                        employee.name,
+                      label: employee.label
+                    })
+                  )
+                }
+              ]}
               placeholder={
-                loadingEmployees ? "Loading employees..." : "Select employee"
+                loadingEmployees
+                  ? "Loading employees..."
+                  : "Select employee"
               }
               searchPlaceholder="Search employee name or ID"
-              disabled={loadingEmployees}
+              disabled={loadingEmployees || statusChangeMode}
               helperText="Choose the employee who will receive the ticket."
-              error={errors.assignedToEmployee} />
-
+              error={errors.assignedToEmployee}
+            />
           </div>
 
+
+          {/* ATTACHMENT */}
           <div className="ticket-field ticket-field-full">
-            <label htmlFor="ticket-attachment">Attachment</label>
+            <label htmlFor="ticket-attachment">
+              Attachment
+            </label>
+
             <div className="ticket-upload-row">
-              <label className="ticket-upload-button" htmlFor="ticket-attachment">
+              <label
+                className="ticket-upload-button"
+                htmlFor="ticket-attachment"
+              >
                 <FaPaperclip aria-hidden="true" />
-                {attachmentLabel ? "Replace attachment" : "Upload attachment"}
+
+                {attachmentFiles.length > 0
+                  ? "Add more attachments"
+                  : "Upload attachment"}
               </label>
 
               <input
                 id="ticket-attachment"
                 type="file"
+                multiple
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
-                onChange={handleAttachmentChange} />
-
+                onChange={handleAttachmentChange}
+              />
 
               <div className="ticket-upload-meta">
                 <strong>
-                  {attachmentLabel || "No attachment selected"}
+                  {attachmentFiles.length
+                    ? `${attachmentFiles.length} file${attachmentFiles.length > 1
+                      ? "s"
+                      : ""
+                    } selected`
+                    : "No new attachment selected"}
                 </strong>
+
                 <span>
-                  Attach a supporting file if the ticket needs one.
+                  You can select multiple supporting files.
                 </span>
               </div>
             </div>
-          </div>
 
-          {isEditMode && ticketRecord?.attachments?.length ?
-            <div className="ticket-field ticket-field-full">
-              <label>Existing Attachment</label>
-              <div className="ticket-attachment-list">
-                {ticketRecord.attachments.map((attachment, index) =>
-                  <div
-                    className="ticket-attachment-item"
-                    key={`${attachment?.name || attachment?.fileName || index}`}>
+            {attachmentFiles.length > 0 && (
+              <div className="ticket-attachment-list ticket-new-attachment-list">
+                {attachmentFiles.map(
+                  (file, index) => (
+                    <div
+                      className="ticket-attachment-item"
+                      key={`${file.name}-${file.lastModified}-${index}`}
+                    >
+                      <span>
+                        {file.name}
+                      </span>
 
-                    <span>
-                      {attachment?.name ||
-                        attachment?.fileName ||
-                        attachment?.FileName ||
-                        `Attachment ${index + 1}`}
-                    </span>
-                    <small>{attachment?.size || attachment?.length || ""}</small>
-                  </div>
+                      <div className="ticket-attachment-item-actions">
+                        <small>
+                          {(file.size / 1024).toFixed(1)} KB
+                        </small>
+
+                        <button
+                          type="button"
+                          className="ticket-attachment-remove"
+                          onClick={() =>
+                            removeAttachmentFile(index)
+                          }
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
-            </div> :
-            null}
+            )}
+          </div>
+
+
+          {/* REMARKS */}
+          <div className="ticket-field ticket-field-full">
+            <label htmlFor="ticket-remarks">
+              Remarks{" "}
+              {statusChangeMode && (
+                <span className="required-mark">
+                  *
+                </span>
+              )}
+            </label>
+
+            <textarea
+              id="ticket-remarks"
+              name="remarks"
+              value={formData.notes || ""}
+              onChange={(event) =>
+                setFormData((current) => ({
+                  ...current,
+                  notes: event.target.value
+                }))
+              }
+              placeholder={
+                statusChangeMode
+                  ? "Enter remarks for this status change..."
+                  : "Enter remarks"
+              }
+              className={`ticket-remarks-textarea ${errors.notes
+                ? "has-error"
+                : ""
+                }`}
+              aria-invalid={Boolean(errors.notes)}
+            />
+
+            {errors.notes ? (
+              <p className="ticket-error">
+                {errors.notes}
+              </p>
+            ) : (
+              <p className="ticket-help">
+                {statusChangeMode
+                  ? "Explain why the ticket status is being changed."
+                  : "Add remarks related to this ticket update."}
+              </p>
+            )}
+          </div>
+
+
+          {/* EXISTING ATTACHMENTS */}
+          {isEditMode &&
+            ticketRecord?.attachments?.length ? (
+            <div className="ticket-field ticket-field-full">
+              <label>
+                Existing Attachment
+              </label>
+
+              <div className="ticket-attachment-list">
+                {ticketRecord.attachments.map(
+                  (attachment, index) => {
+                    const fileName =
+                      attachment?.fileName ||
+                      attachment?.name ||
+                      attachment?.FileName ||
+                      `Attachment ${index + 1}`;
+
+                    const filePath =
+                      attachment?.filePath ||
+                      attachment?.FilePath ||
+                      attachment?.url ||
+                      attachment?.fileUrl ||
+                      attachment?.downloadUrl ||
+                      "";
+
+                    const fileUrl = filePath
+                      ? buildServerUrl(filePath)
+                      : "";
+
+                    return (
+                      <div
+                        className="ticket-attachment-item"
+                        key={
+                          attachment?.id ||
+                          attachment?.attachmentId ||
+                          `${fileName}-${index}`
+                        }
+                      >
+                        {fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ticket-attachment-link"
+                          >
+                            {fileName}
+                          </a>
+                        ) : (
+                          <span>
+                            {fileName}
+                          </span>
+                        )}
+
+                        <small>
+                          {attachment?.fileSize
+                            ? `${(
+                              Number(
+                                attachment.fileSize
+                              ) / 1024
+                            ).toFixed(1)} KB`
+                            : ""}
+                        </small>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+          ) : null}
         </form>
+
       }
     </ModalShell>);
 
@@ -1231,33 +1724,6 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
     };
   }, [open, ticketId, refreshKey]);
 
-  const commentItems = useMemo(() => {
-    if (!ticket) {
-      return [];
-    }
-
-    return (ticket.comments || []).map((comment, index) => ({
-      key: comment?.id || comment?.commentId || `${index}`,
-      author:
-        comment?.author ||
-        comment?.createdBy ||
-        comment?.userName ||
-        comment?.name ||
-        "Comment",
-      message:
-        comment?.message ||
-        comment?.comment ||
-        comment?.text ||
-        comment?.description ||
-        "",
-      date:
-        comment?.createdAt ||
-        comment?.date ||
-        comment?.timestamp ||
-        ""
-    }));
-  }, [ticket]);
-
   const attachmentItems = useMemo(() => {
     if (!ticket) {
       return [];
@@ -1281,12 +1747,7 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
           attachment?.fileName ||
           attachment?.FileName ||
           `Attachment ${index + 1}`,
-        url: rawPath ? buildServerUrl(rawPath) : "",
-        size:
-          attachment?.size ||
-          attachment?.fileSize ||
-          attachment?.FileSize ||
-          ""
+        url: rawPath ? buildServerUrl(rawPath) : ""
       };
     });
   }, [ticket]);
@@ -1327,7 +1788,7 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
     return [
       {
         label: "Created",
-        detail: ticket.createdBy || "Ticket submitted",
+        detail: ticket.createdBy || "Ticket Created",
         date: ticket.createdDate
       },
       {
@@ -1362,10 +1823,14 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
                 Ticket ID: {ticket.ticketId || "-"}
               </span>
               <span className="ticket-pill detail-chip">
-                <strong>Priority</strong> {getTicketPriorityLabel(ticket.priority)}
+                <strong>Priority: </strong> {getTicketPriorityLabel(ticket.priority)}
               </span>
               <span className="ticket-pill detail-chip">
-                <strong>Category</strong> {ticket.category || "-"}
+                <strong>Category: </strong> {ticket.category || "-"}
+              </span>
+              <span className="ticket-pill detail-chip">
+                <strong>Actual Hours: </strong>{" "}
+                {ticket.actualHours ?? 0}h
               </span>
             </div>
 
@@ -1394,8 +1859,7 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
                     key={attachment.key}>
 
                     <span>{attachment.label}</span>
-                    <small>{attachment.size || "File"}</small>
-                    {attachment.url ? <FaDownload aria-hidden="true" /> : null}
+                    {attachment.url ? <FaEye aria-hidden="true" /> : null}
                   </a>
                 )}
               </div>
@@ -1404,24 +1868,58 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
 
           <div className="ticket-details-section">
             <div className="ticket-section-heading">
-              <h3>Comments</h3>
+              <h3>Remarks</h3>
             </div>
 
-            {commentItems.length === 0 ?
+            {Array.isArray(ticket?.remarks) && ticket.remarks.length > 0 ? (
+              <div className="ticket-remarks-list">
+                {ticket.remarks.map((remark, index) => (
+                  <div
+                    className="ticket-remark-item"
+                    key={`${remark?.createdAt || "remark"}-${index}`}
+                  >
+                    <div className="ticket-remark-header">
+                      <strong>
+                        {remark?.employeeId || "System"}
+                      </strong>
+
+                      <small>
+                        {formatTicketDateTime(remark?.createdAt)}
+                      </small>
+                    </div>
+
+                    <p>
+                      {remark?.remark || "-"}
+                    </p>
+
+                    {(remark?.oldStatus || remark?.newStatus) && (
+                      <div className="ticket-remark-status">
+                        {remark?.oldStatus && (
+                          <span>
+                            {remark.oldStatus}
+                          </span>
+                        )}
+
+                        {remark?.oldStatus && remark?.newStatus && (
+                          <span> → </span>
+                        )}
+
+                        {remark?.newStatus && (
+                          <span>
+                            {remark.newStatus}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
               <EmptyState
                 className="ticket-empty-state compact"
-                message="No comments are available for this ticket." /> :
-
-              <div className="ticket-comment-list">
-                {commentItems.map((comment) =>
-                  <div className="ticket-comment-card" key={comment.key}>
-                    <strong>{comment.author}</strong>
-                    <span>{formatDateTime(comment.date)}</span>
-                    <p>{comment.message || "No comment text provided."}</p>
-                  </div>
-                )}
-              </div>
-            }
+                message="No remarks are available for this ticket."
+              />
+            )}
           </div>
         </div>
 
@@ -1435,15 +1933,15 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
               </div>
               <div>
                 <span>Created Date</span>
-                <strong>{formatDateTime(ticket.createdDate)}</strong>
+                <strong>{formatTicketDateTime(ticket.createdDate)}</strong>
               </div>
               <div>
                 <span>Updated Date</span>
-                <strong>{formatDateTime(ticket.updatedDate)}</strong>
+                <strong>{formatTicketDateTime(ticket.updatedDate)}</strong>
               </div>
               <div>
                 <span>Due Date</span>
-                <strong>{formatDate(ticket.dueDate)}</strong>
+                <strong>{formatTicketDateTime(ticket.dueDate)}</strong>
               </div>
               <div>
                 <span>Current Status</span>
@@ -1463,7 +1961,7 @@ function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
                   <div>
                     <strong>{item.label}</strong>
                     <span>{item.detail || "-"}</span>
-                    <small>{formatDateTime(item.date)}</small>
+                    <small>{formatTicketDateTime(item.date)}</small>
                   </div>
                 </div>
               )}
@@ -1518,10 +2016,13 @@ function AllTicketsPage({ scope = "admin" }) {
   const [actionTicketId, setActionTicketId] = useState("");
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [exporting, setExporting] = useState(false);
+
   const [editorState, setEditorState] = useState({
     open: false,
     mode: "create",
-    ticketId: ""
+    ticketId: "",
+    statusChangeMode: false,
+    requestedStatus: ""
   });
   const [detailsState, setDetailsState] = useState({
     open: false,
@@ -1768,32 +2269,36 @@ function AllTicketsPage({ scope = "admin" }) {
     }
   };
 
-  const handleStatusUpdate = async (ticket, nextStatus) => {
-    const normalizedStatus = normalizeTicketStatus(nextStatus);
-
-    if (normalizedStatus === ticket.status) {
+  const handleStatusUpdate = (ticket, nextStatus) => {
+    if (!ticket?.ticketId) {
       return;
     }
 
-    try {
-      setActionTicketId(ticket.ticketId);
-      await updateTicketStatus(ticket.ticketId, normalizedStatus);
-      toast.success("Ticket status updated.");
-      await refreshTicketsAndDetails(ticket.ticketId);
-      if (isEmployeeScope && normalizedStatus === "Completed") {
-        await runAutoAssignAfterCompletion(ticket);
-        await loadTickets();
-      }
-    } catch (error) {
+    const currentStatus = normalizeTicketStatus(
+      ticket.status
+    );
 
-      const errorMessage = await getTicketApiErrorMessage(
-        error,
-        "Unable to update the ticket status right now."
-      );
-      toast.error(errorMessage);
-    } finally {
-      setActionTicketId("");
+    const normalizedStatus = normalizeTicketStatus(
+      nextStatus
+    );
+
+    // Same status - do nothing
+    if (normalizedStatus === currentStatus) {
+      return;
     }
+
+    /*
+     * Do NOT update the API here.
+     *
+     * Open the existing Edit Ticket modal instead.
+     */
+    setEditorState({
+      open: true,
+      mode: "edit",
+      ticketId: ticket.ticketId,
+      statusChangeMode: true,
+      requestedStatus: normalizedStatus
+    });
   };
 
   const handleStartWork = async (ticket) => {
@@ -2329,22 +2834,24 @@ function AllTicketsPage({ scope = "admin" }) {
                             <FaEye aria-hidden="true" />
                           </button>
 
-                          
-                            <button
-                              type="button"
-                              className="ticket-action-button edit"
-                              onClick={() =>
-                                setEditorState({
-                                  open: true,
-                                  mode: "edit",
-                                  ticketId: ticket.ticketId
-                                })
-                              }
-                              title="Edit ticket"
-                            >
-                              <FaPen aria-hidden="true" />
-                            </button>
-                          )
+
+                          <button
+                            type="button"
+                            className="ticket-action-button edit"
+                            onClick={() =>
+                              setEditorState({
+                                open: true,
+                                mode: "edit",
+                                ticketId: ticket.ticketId,
+                                statusChangeMode: false,
+                                requestedStatus: ""
+                              })
+                            }
+                            title="Edit ticket"
+                          >
+                            <FaPen aria-hidden="true" />
+                          </button>
+
 
                           {/* <button
                             type="button"
@@ -2429,14 +2936,19 @@ function AllTicketsPage({ scope = "admin" }) {
         ticketId={editorState.ticketId}
         employees={employees}
         loadingEmployees={employeesLoading}
+        statusChangeMode={editorState.statusChangeMode}
+        requestedStatus={editorState.requestedStatus}
         onClose={() =>
           setEditorState({
             open: false,
             mode: "create",
-            ticketId: ""
+            ticketId: "",
+            statusChangeMode: false,
+            requestedStatus: ""
           })
         }
-        onSaved={loadTickets} />
+        onSaved={loadTickets}
+      />
 
 
       <TicketDetailsModal

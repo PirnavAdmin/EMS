@@ -173,27 +173,26 @@ namespace EmployeeManagementSystem.Services
                 .AsNoTracking()
                 .ToListAsync();
 
-            // ✅ Employee counts grouped by Organization
-            var employeeCounts = await _context.Employees
+            var allAdmins = await _context.Admins
                 .AsNoTracking()
-                .Where(e => e.AdminId != null)
-                .Join(
-                    _context.Admins,
-                    e => e.AdminId,
-                    a => a.Id,
-                    (e, a) => new
-                    {
-                        e.Id,
-                        a.OrganizationId
-                    })
-                .Where(x => x.OrganizationId != null)
-                .GroupBy(x => x.OrganizationId)
+                .Where(a => a.OrganizationId != null)
+                .ToListAsync();
+
+            var allAdminSubs = await _context.AdminSubscriptions
+                .AsNoTracking()
+                .Where(s => s.IsActive)
+                .ToListAsync();
+
+            var employeeCounts = await _context.Employees
+                .Where(e => e.OrganizationId != null)
+                .GroupBy(e => e.OrganizationId)
                 .Select(g => new
                 {
                     OrganizationId = g.Key,
                     Count = g.Count()
                 })
                 .ToListAsync();
+
 
             var result = new SuperAdminDashboardDto
             {
@@ -212,6 +211,9 @@ namespace EmployeeManagementSystem.Services
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
 
+                var orgAdminIds = allAdmins.Where(a => a.OrganizationId == organization.Id).Select(a => a.Id).ToList();
+                var orgAdminSubs = allAdminSubs.Where(s => orgAdminIds.Contains(s.AdminId)).ToList();
+
                 var currentUsers = employeeCounts
                     .FirstOrDefault(x => x.OrganizationId == organization.Id)
                     ?.Count ?? 0;
@@ -225,31 +227,45 @@ namespace EmployeeManagementSystem.Services
 
                 string subscriptionStatus = "No Subscription";
 
-                if (subscription != null)
+                if (subscription != null || orgAdminSubs.Any())
                 {
-                    maxUsers = subscription.MaxUsers;
+                    int effectiveMaxUsers = subscription?.MaxUsers ?? 0;
+                    DateTime effectiveStartDate = subscription?.StartDate ?? DateTime.MaxValue;
+                    DateTime effectiveEndDate = subscription?.EndDate ?? DateTime.MinValue;
+
+                    foreach (var aSub in orgAdminSubs)
+                    {
+                        effectiveMaxUsers = Math.Max(effectiveMaxUsers, aSub.MaxUsers);
+                        if (aSub.StartDate < effectiveStartDate) effectiveStartDate = aSub.StartDate;
+                        if (aSub.EndDate > effectiveEndDate) effectiveEndDate = aSub.EndDate;
+                    }
+
+                    if (effectiveStartDate == DateTime.MaxValue) effectiveStartDate = subscription?.StartDate ?? DateTime.UtcNow;
+                    if (effectiveEndDate == DateTime.MinValue) effectiveEndDate = subscription?.EndDate ?? DateTime.UtcNow;
+
+                    maxUsers = effectiveMaxUsers;
 
                     remainingUsers = Math.Max(
                         0,
                         maxUsers - currentUsers);
 
-                    startDate = subscription.StartDate;
-                    endDate = subscription.EndDate;
+                    startDate = effectiveStartDate;
+                    endDate = effectiveEndDate;
 
                     daysRemaining = Math.Max(
                         0,
-                        (subscription.EndDate.Date - today).Days);
+                        (effectiveEndDate.Date - today).Days);
 
                     // ✅ Correct subscription status
-                    if (subscription.EndDate.Date < today)
+                    if (effectiveEndDate.Date < today)
                     {
                         subscriptionStatus = "Expired";
                     }
-                    else if (subscription.StartDate.Date > today)
+                    else if (effectiveStartDate.Date > today)
                     {
                         subscriptionStatus = "Upcoming";
                     }
-                    else if (!subscription.IsActive)
+                    else if (subscription != null && !subscription.IsActive && !orgAdminSubs.Any())
                     {
                         subscriptionStatus = "Inactive";
                     }
@@ -571,11 +587,12 @@ namespace EmployeeManagementSystem.Services
                     AdminCount = _context.Admins.Count(a =>
       a.OrganizationId == o.Id),
 
-                    EmployeeCount = _context.Employees.Count(e =>
-                        e.AdminId != null &&
-                        _context.Admins.Any(a =>
-                            a.Id == e.AdminId &&
-                            a.OrganizationId == o.Id)),
+                    //EmployeeCount = _context.Employees.Count(e =>
+                    //    e.AdminId != null &&
+                    //    _context.Admins.Any(a =>
+                    //        a.Id == e.AdminId &&
+                    //        a.OrganizationId == o.Id)),
+                    EmployeeCount = _context.Employees.Count(e => e.OrganizationId == o.Id),
 
                     Admins = _context.Admins
     .Where(a => a.OrganizationId == o.Id)
@@ -651,7 +668,8 @@ namespace EmployeeManagementSystem.Services
                 Country = o.Country,
                 Status = o.Status,
                 AdminCount = admins.Count,
-                EmployeeCount = await _context.Employees.CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == o.Id)),
+                //EmployeeCount = await _context.Employees.CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == o.Id)),
+                EmployeeCount = await _context.Employees.CountAsync(e => e.OrganizationId == o.Id),
                 CreatedDate = o.CreatedDate,
                 UpdatedDate = o.UpdatedDate,
                 Admins = admins
@@ -762,12 +780,646 @@ namespace EmployeeManagementSystem.Services
         //    return await GetOrganizationById(org.Id);
         //}
 
+        //public async Task<SuperAdminOrgDto?> UpdateOrganization(
+        //    int id,
+        //    UpdateOrganizationDto dto,
+        //    ClaimsPrincipal? user,
+        //    string? ipAddress)
+        //{
+        //    var org = await _context.Organizations
+        //        .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+
+        //    if (org == null)
+        //        return null;
+
+        //    // Store old organization values for audit log
+        //    string oldValue = JsonSerializer.Serialize(new
+        //    {
+        //        org.OrganizationName,
+        //        org.OrganizationCode,
+        //        org.ContactPerson,
+        //        org.Email,
+        //        org.PhoneNumber,
+        //        org.Address,
+        //        org.City,
+        //        org.State,
+        //        org.Country,
+        //        org.Status
+        //    });
+
+        //    // ==========================================
+        //    // 1. UPDATE ORGANIZATION
+        //    // ==========================================
+
+        //    var oldOrganizationName = org.OrganizationName;
+
+        //    org.OrganizationName = dto.OrganizationName.Trim();
+        //    org.OrganizationCode = dto.OrganizationCode?.Trim();
+        //    org.ContactPerson = dto.ContactPerson?.Trim();
+        //    org.Email = dto.Email?.Trim();
+        //    org.PhoneNumber = dto.PhoneNumber?.Trim();
+        //    org.Address = dto.Address?.Trim();
+        //    org.City = dto.City?.Trim();
+        //    org.State = dto.State?.Trim();
+        //    org.Country = dto.Country?.Trim();
+
+        //    if (!string.IsNullOrWhiteSpace(dto.Status))
+        //    {
+        //        org.Status = dto.Status.Trim();
+        //    }
+
+        //    org.UpdatedDate = DateTime.UtcNow;
+
+        //    // ==========================================
+        //    // 2. SYNC (REMOVE / UPDATE / CREATE) ORGANIZATION ADMINS
+        //    // ==========================================
+
+        //    bool hasAdminSync = (dto.Admins != null && dto.Admins.Any())
+        //        || (dto.AdminIds != null && dto.AdminIds.Any())
+        //        || (dto.DeletedAdminIds != null && dto.DeletedAdminIds.Any())
+        //        || (dto.RemovedAdminIds != null && dto.RemovedAdminIds.Any());
+
+        //    if (hasAdminSync)
+        //    {
+        //        // Fetch all admins currently linked to this organization in the database
+        //        var existingOrgAdmins = await _context.Admins
+        //            .Where(a => a.OrganizationId == id)
+        //            .ToListAsync();
+
+        //        // 1. Explicitly requested deletions
+        //        var explicitDeleteIds = new HashSet<int>();
+        //        if (dto.DeletedAdminIds != null)
+        //        {
+        //            foreach (var delId in dto.DeletedAdminIds.Where(x => x > 0)) explicitDeleteIds.Add(delId);
+        //        }
+        //        if (dto.RemovedAdminIds != null)
+        //        {
+        //            foreach (var remId in dto.RemovedAdminIds.Where(x => x > 0)) explicitDeleteIds.Add(remId);
+        //        }
+        //        if (dto.Admins != null)
+        //        {
+        //            foreach (var delAdmin in dto.Admins.Where(a => a.IsDeleted && a.Id.HasValue && a.Id.Value > 0))
+        //            {
+        //                explicitDeleteIds.Add(delAdmin.Id!.Value);
+        //            }
+        //        }
+
+        //        // 2. Retained admin identifiers
+        //        var retainedAdminIds = new HashSet<int>();
+        //        var retainedEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        //        if (dto.AdminIds != null)
+        //        {
+        //            foreach (var adminId in dto.AdminIds.Where(x => x > 0))
+        //            {
+        //                if (!explicitDeleteIds.Contains(adminId))
+        //                {
+        //                    retainedAdminIds.Add(adminId);
+        //                }
+        //            }
+        //        }
+
+        //        if (dto.Admins != null)
+        //        {
+        //            foreach (var adminDto in dto.Admins.Where(a => !a.IsDeleted))
+        //            {
+        //                if (adminDto.Id.HasValue && adminDto.Id.Value > 0 && !explicitDeleteIds.Contains(adminDto.Id.Value))
+        //                {
+        //                    retainedAdminIds.Add(adminDto.Id.Value);
+        //                }
+        //                if (!string.IsNullOrWhiteSpace(adminDto.Email))
+        //                {
+        //                    retainedEmails.Add(adminDto.Email.Trim().ToLower());
+        //                }
+        //            }
+        //        }
+
+        //        // 3. Find admins to remove
+        //        var removedAdmins = new List<Admin>();
+
+        //        // A) Explicitly deleted admins
+        //        if (explicitDeleteIds.Any())
+        //        {
+        //            var matchingExplicit = existingOrgAdmins.Where(a => explicitDeleteIds.Contains(a.Id)).ToList();
+        //            removedAdmins.AddRange(matchingExplicit);
+        //        }
+
+        //        // B) Admins omitted from the retained list (only when a non-empty retained list was provided)
+        //        if (retainedAdminIds.Any() || retainedEmails.Any())
+        //        {
+        //            var omitted = existingOrgAdmins.Where(a =>
+        //                !retainedAdminIds.Contains(a.Id) &&
+        //                !retainedEmails.Contains(a.Email.Trim().ToLower()) &&
+        //                !removedAdmins.Contains(a)
+        //            ).ToList();
+
+        //            removedAdmins.AddRange(omitted);
+        //        }
+
+        //        var remainingAdmins = existingOrgAdmins
+        //            .Where(a => !removedAdmins.Contains(a))
+        //            .ToList();
+
+        //        var fallbackAdmin = remainingAdmins.FirstOrDefault();
+
+        //        // 4. Safely delete removed admins
+        //        //if (removedAdmins.Any())
+        //        //{
+        //        //    foreach (var removedAdmin in removedAdmins)
+        //        //    {
+        //        //        // Clean up admin permissions
+        //        //        var adminPerms = await _context.AdminPermissions
+        //        //            .Where(p => p.AdminId == removedAdmin.Id)
+        //        //            .ToListAsync();
+        //        //        if (adminPerms.Any())
+        //        //        {
+        //        //            _context.AdminPermissions.RemoveRange(adminPerms);
+        //        //        }
+
+        //        //        // Clean up admin notifications
+        //        //        var adminNotifs = await _context.AdminNotifications
+        //        //            .Where(n => n.AdminId == removedAdmin.Id)
+        //        //            .ToListAsync();
+        //        //        if (adminNotifs.Any())
+        //        //        {
+        //        //            _context.AdminNotifications.RemoveRange(adminNotifs);
+        //        //        }
+
+        //        //        // Clean up admin subscriptions
+        //        //        var adminSubs = await _context.AdminSubscriptions
+        //        //            .Where(s => s.AdminId == removedAdmin.Id)
+        //        //            .ToListAsync();
+        //        //        if (adminSubs.Any())
+        //        //        {
+        //        //            _context.AdminSubscriptions.RemoveRange(adminSubs);
+        //        //        }
+
+        //        //        // Reassign any linked employees to a remaining admin
+        //        //        var linkedEmployees = await _context.Employees
+        //        //            .Where(e => e.AdminId == removedAdmin.Id)
+        //        //            .ToListAsync();
+        //        //        foreach (var emp in linkedEmployees)
+        //        //        {
+        //        //            emp.AdminId = fallbackAdmin?.Id;
+        //        //        }
+
+        //        //        // Reassign any linked branches to a remaining admin
+        //        //        var linkedBranches = await _context.Branches
+        //        //            .Where(b => b.AdminId == removedAdmin.Id)
+        //        //            .ToListAsync();
+        //        //        foreach (var branch in linkedBranches)
+        //        //        {
+        //        //            branch.AdminId = fallbackAdmin?.Id;
+        //        //        }
+
+        //        //        // Delete the admin record
+        //        //        _context.Admins.Remove(removedAdmin);
+        //        //    }
+        //        //}
+
+        //        // 4. Safely unassign (detach) removed admins instead of deleting them
+        //        if (removedAdmins.Any())
+        //        {
+        //            foreach (var removedAdmin in removedAdmins)
+        //            {
+        //                removedAdmin.OrganizationId = null;
+        //                removedAdmin.OrganizationName = null;
+
+        //                // Unlink employees from the organization, keeping their AdminId intact
+        //                var linkedEmployees = await _context.Employees
+        //                    .Where(e => e.AdminId == removedAdmin.Id)
+        //                    .ToListAsync();
+
+        //                foreach (var emp in linkedEmployees)
+        //                {
+        //                    emp.OrganizationId = null;
+        //                }
+        //            }
+        //        }
+
+
+        //        // 5. Process updates for remaining admins and creation of new admins
+        //        if (dto.Admins != null)
+        //        {
+        //            //foreach (var adminDto in dto.Admins.Where(a => !a.IsDeleted))
+        //            //{
+        //            //    string? trimmedEmail = adminDto.Email?.Trim().ToLower();
+
+        //            //    // Find if this corresponds to an existing admin by ID or by Email
+        //            //    //Admin? admin = null;
+        //            //    //if (adminDto.Id.HasValue && adminDto.Id.Value > 0)
+        //            //    //{
+        //            //    //    admin = existingOrgAdmins.FirstOrDefault(a => a.Id == adminDto.Id.Value);
+        //            //    //}
+        //            //    //if (admin == null && !string.IsNullOrWhiteSpace(trimmedEmail))
+        //            //    //{
+        //            //    //    admin = existingOrgAdmins.FirstOrDefault(a => a.Email.Trim().ToLower() == trimmedEmail);
+        //            //    //}
+
+        //            //    Admin? admin = null;
+
+        //            //    // ==========================================================
+        //            //    // FIRST: If an Admin ID is provided, ALWAYS search globally
+        //            //    // ==========================================================
+        //            //    if (adminDto.Id.HasValue && adminDto.Id.Value > 0)
+        //            //    {
+        //            //        admin = await _context.Admins
+        //            //            .FirstOrDefaultAsync(a => a.Id == adminDto.Id.Value);
+        //            //    }
+
+        //            //    // ==========================================================
+        //            //    // SECOND: Only use email to find an existing admin if ID
+        //            //    // was not supplied.
+        //            //    // ==========================================================
+        //            //    if (admin == null &&
+        //            //        !adminDto.Id.HasValue &&
+        //            //        !string.IsNullOrWhiteSpace(trimmedEmail))
+        //            //    {
+        //            //        admin = await _context.Admins
+        //            //            .FirstOrDefaultAsync(a =>
+        //            //                a.Email.ToLower() == trimmedEmail);
+        //            //    }
+
+        //            //    // ==========================================
+        //            //    // CASE 1: EXISTING ADMIN -> UPDATE
+        //            //    // ==========================================
+        //            //    if (admin != null)
+        //            //    {
+        //            //        if (!string.IsNullOrWhiteSpace(trimmedEmail))
+        //            //        {
+        //            //            // Check duplicate email across OTHER admins
+        //            //            var emailExists = await _context.Admins
+        //            //                .AnyAsync(a => a.Email.ToLower() == trimmedEmail && a.Id != admin.Id);
+
+        //            //            if (emailExists)
+        //            //            {
+        //            //                throw new InvalidOperationException(
+        //            //                    $"An admin with email '{adminDto.Email}' already exists.");
+        //            //            }
+
+        //            //            admin.Email = adminDto.Email!.Trim();
+        //            //        }
+
+        //            //        if (!string.IsNullOrWhiteSpace(adminDto.FullName))
+        //            //        {
+        //            //            admin.FullName = adminDto.FullName.Trim();
+        //            //        }
+
+        //            //        if (adminDto.PhoneNumber != null)
+        //            //        {
+        //            //            admin.PhoneNumber = adminDto.PhoneNumber.Trim();
+        //            //        }
+
+        //            //        admin.IsActive = adminDto.IsActive;
+
+        //            //        // Update password ONLY if a new password is provided
+        //            //        if (!string.IsNullOrWhiteSpace(adminDto.Password))
+        //            //        {
+        //            //            admin.Password = BCrypt.Net.BCrypt.HashPassword(adminDto.Password.Trim());
+        //            //        }
+
+        //            //        admin.OrganizationId = org.Id;
+        //            //        admin.OrganizationName = org.OrganizationName;
+        //            //        admin.Role = "Admin";
+        //            //    }
+        //            //    // ==========================================
+        //            //    // CASE 2: NEW ADMIN -> CREATE
+        //            //    // ==========================================
+        //            //    else if (!string.IsNullOrWhiteSpace(adminDto.Email))
+        //            //    {
+        //            //        var emailExists = await _context.Admins
+        //            //            .AnyAsync(a => a.Email.ToLower() == trimmedEmail);
+
+        //            //        if (emailExists)
+        //            //        {
+        //            //            throw new InvalidOperationException(
+        //            //                $"An admin with email '{adminDto.Email}' already exists.");
+        //            //        }
+
+        //            //        string passwordToUse = !string.IsNullOrWhiteSpace(adminDto.Password)
+        //            //            ? adminDto.Password.Trim()
+        //            //            : "Admin@123";
+
+        //            //        string fullNameToUse = !string.IsNullOrWhiteSpace(adminDto.FullName)
+        //            //            ? adminDto.FullName.Trim()
+        //            //            : adminDto.Email!.Split('@')[0];
+
+        //            //        var newAdmin = new Admin
+        //            //        {
+        //            //            FullName = fullNameToUse,
+        //            //            Email = adminDto.Email!.Trim(),
+        //            //            Password = BCrypt.Net.BCrypt.HashPassword(passwordToUse),
+        //            //            PhoneNumber = adminDto.PhoneNumber?.Trim(),
+        //            //            IsActive = adminDto.IsActive,
+        //            //            Role = "Admin",
+        //            //            OrganizationId = org.Id,
+        //            //            OrganizationName = org.OrganizationName,
+        //            //            CreatedAt = DateTime.UtcNow
+        //            //        };
+
+        //            //        await _context.Admins.AddAsync(newAdmin);
+        //            //    }
+        //            //}
+        //            //    foreach (var adminDto in dto.Admins.Where(a => !a.IsDeleted))
+        //            //    {
+        //            //        string? trimmedEmail = adminDto.Email?.Trim().ToLower();
+
+        //            //        Admin? admin = null;
+
+        //            //        // EXISTING ADMIN: identify by ID globally
+        //            //        if (adminDto.Id.HasValue && adminDto.Id.Value > 0)
+        //            //        {
+        //            //            admin = await _context.Admins
+        //            //                .FirstOrDefaultAsync(a => a.Id == adminDto.Id.Value);
+        //            //        }
+
+        //            //        // Optional fallback: identify by email only when no ID exists
+        //            //        if (admin == null &&
+        //            //            !adminDto.Id.HasValue &&
+        //            //            !string.IsNullOrWhiteSpace(trimmedEmail))
+        //            //        {
+        //            //            admin = await _context.Admins
+        //            //                .FirstOrDefaultAsync(a =>
+        //            //                    a.Email.ToLower() == trimmedEmail);
+        //            //        }
+
+        //            //        // ==========================================
+        //            //        // EXISTING ADMIN
+        //            //        // ==========================================
+        //            //        if (admin != null)
+        //            //        {
+        //            //            // Only check email if the email is actually being changed
+        //            //            if (!string.IsNullOrWhiteSpace(trimmedEmail) &&
+        //            //                !string.Equals(
+        //            //                    admin.Email?.Trim(),
+        //            //                    adminDto.Email?.Trim(),
+        //            //                    StringComparison.OrdinalIgnoreCase))
+        //            //            {
+        //            //                var emailExists = await _context.Admins
+        //            //                    .AnyAsync(a =>
+        //            //                        a.Email.ToLower() == trimmedEmail &&
+        //            //                        a.Id != admin.Id);
+
+        //            //                if (emailExists)
+        //            //                {
+        //            //                    throw new InvalidOperationException(
+        //            //                        $"An admin with email '{adminDto.Email}' already exists.");
+        //            //                }
+
+        //            //                admin.Email = adminDto.Email!.Trim();
+        //            //            }
+
+        //            //            if (!string.IsNullOrWhiteSpace(adminDto.FullName))
+        //            //                admin.FullName = adminDto.FullName.Trim();
+
+        //            //            if (adminDto.PhoneNumber != null)
+        //            //                admin.PhoneNumber = adminDto.PhoneNumber.Trim();
+
+        //            //            admin.IsActive = adminDto.IsActive;
+
+        //            //            if (!string.IsNullOrWhiteSpace(adminDto.Password))
+        //            //            {
+        //            //                admin.Password =
+        //            //                    BCrypt.Net.BCrypt.HashPassword(
+        //            //                        adminDto.Password.Trim());
+        //            //            }
+
+        //            //            // THIS IS THE IMPORTANT PART
+        //            //            admin.OrganizationId = org.Id;
+        //            //            admin.OrganizationName = org.OrganizationName;
+        //            //            admin.Role = "Admin";
+        //            //        }
+
+        //            //        // ==========================================
+        //            //        // NEW ADMIN
+        //            //        // ==========================================
+        //            //        else if (!string.IsNullOrWhiteSpace(adminDto.Email))
+        //            //        {
+        //            //            var emailExists = await _context.Admins
+        //            //                .AnyAsync(a =>
+        //            //                    a.Email.ToLower() == trimmedEmail);
+
+        //            //            if (emailExists)
+        //            //            {
+        //            //                throw new InvalidOperationException(
+        //            //                    $"An admin with email '{adminDto.Email}' already exists.");
+        //            //            }
+
+        //            //            string passwordToUse =
+        //            //                !string.IsNullOrWhiteSpace(adminDto.Password)
+        //            //                    ? adminDto.Password.Trim()
+        //            //                    : "Admin@123";
+
+        //            //            string fullNameToUse =
+        //            //                !string.IsNullOrWhiteSpace(adminDto.FullName)
+        //            //                    ? adminDto.FullName.Trim()
+        //            //                    : adminDto.Email!.Split('@')[0];
+
+        //            //            var newAdmin = new Admin
+        //            //            {
+        //            //                FullName = fullNameToUse,
+        //            //                Email = adminDto.Email!.Trim(),
+        //            //                Password = BCrypt.Net.BCrypt.HashPassword(passwordToUse),
+        //            //                PhoneNumber = adminDto.PhoneNumber?.Trim(),
+        //            //                IsActive = adminDto.IsActive,
+        //            //                Role = "Admin",
+        //            //                OrganizationId = org.Id,
+        //            //                OrganizationName = org.OrganizationName,
+        //            //                CreatedAt = DateTime.UtcNow
+        //            //            };
+
+        //            //            await _context.Admins.AddAsync(newAdmin);
+        //            //        }
+        //            //    }
+        //            //}
+        //            foreach (var adminDto in dto.Admins.Where(a => !a.IsDeleted))
+        //            {
+        //                string? trimmedEmail = adminDto.Email?.Trim().ToLower();
+        //                Admin? admin = null;
+
+        //                // 1. Identify by ID if valid
+        //                if (adminDto.Id.HasValue && adminDto.Id.Value > 0)
+        //                {
+        //                    admin = await _context.Admins
+        //                        .FirstOrDefaultAsync(a => a.Id == adminDto.Id.Value);
+        //                }
+
+        //                // 2. Fallback: Identify existing admin globally by email
+        //                if (admin == null && !string.IsNullOrWhiteSpace(trimmedEmail))
+        //                {
+        //                    admin = await _context.Admins
+        //                        .FirstOrDefaultAsync(a => a.Email.ToLower() == trimmedEmail);
+        //                }
+
+        //                // ==========================================
+        //                // EXISTING ADMIN -> UPDATE & REASSIGN
+        //                // ==========================================
+        //                if (admin != null)
+        //                {
+        //                    // Only check duplicate if email is actively being changed to another email
+        //                    if (!string.IsNullOrWhiteSpace(trimmedEmail) &&
+        //                        !string.Equals(admin.Email?.Trim(), adminDto.Email?.Trim(), StringComparison.OrdinalIgnoreCase))
+        //                    {
+        //                        var emailExists = await _context.Admins
+        //                            .AnyAsync(a => a.Email.ToLower() == trimmedEmail && a.Id != admin.Id);
+
+        //                        if (emailExists)
+        //                        {
+        //                            throw new InvalidOperationException($"An admin with email '{adminDto.Email}' already exists.");
+        //                        }
+
+        //                        admin.Email = adminDto.Email!.Trim();
+        //                    }
+
+        //                    if (!string.IsNullOrWhiteSpace(adminDto.FullName))
+        //                        admin.FullName = adminDto.FullName.Trim();
+
+        //                    if (adminDto.PhoneNumber != null)
+        //                        admin.PhoneNumber = adminDto.PhoneNumber.Trim();
+
+        //                    admin.IsActive = adminDto.IsActive;
+
+        //                    if (!string.IsNullOrWhiteSpace(adminDto.Password))
+        //                    {
+        //                        admin.Password = adminDto.Password.Trim();
+        //                    }
+
+        //                    // Assign to organization
+        //                    admin.OrganizationId = org.Id;
+        //                    admin.OrganizationName = org.OrganizationName;
+        //                    admin.Role = "Admin";
+
+        //                    // PRESERVE EMPLOYEES: Update all existing employees of this Admin to the new OrganizationId
+        //                    var adminEmployees = await _context.Employees
+        //                        .Where(e => e.AdminId == admin.Id)
+        //                        .ToListAsync();
+
+        //                    foreach (var emp in adminEmployees)
+        //                    {
+        //                        emp.OrganizationId = org.Id;
+        //                    }
+        //                }
+        //                // ==========================================
+        //                // NEW ADMIN -> CREATE
+        //                // ==========================================
+        //                else if (!string.IsNullOrWhiteSpace(adminDto.Email))
+        //                {
+        //                    var emailExists = await _context.Admins
+        //                        .AnyAsync(a => a.Email.ToLower() == trimmedEmail);
+
+        //                    if (emailExists)
+        //                    {
+        //                        throw new InvalidOperationException($"An admin with email '{adminDto.Email}' already exists.");
+        //                    }
+
+        //                    string passwordToUse = !string.IsNullOrWhiteSpace(adminDto.Password)
+        //                        ? adminDto.Password.Trim()
+        //                        : "Admin@123";
+
+        //                    string fullNameToUse = !string.IsNullOrWhiteSpace(adminDto.FullName)
+        //                        ? adminDto.FullName.Trim()
+        //                        : adminDto.Email!.Split('@')[0];
+
+        //                    var newAdmin = new Admin
+        //                    {
+        //                        FullName = fullNameToUse,
+        //                        Email = adminDto.Email!.Trim(),
+        //                        Password = passwordToUse,
+        //                        PhoneNumber = adminDto.PhoneNumber?.Trim(),
+        //                        IsActive = adminDto.IsActive,
+        //                        Role = "Admin",
+        //                        OrganizationId = org.Id,
+        //                        OrganizationName = org.OrganizationName,
+        //                        CreatedAt = DateTime.UtcNow
+        //                    };
+
+        //                    await _context.Admins.AddAsync(newAdmin);
+        //                }
+        //            }
+
+        //            // Also process any standalone AdminIds passed in dto
+        //            if (dto.AdminIds != null && dto.AdminIds.Any())
+        //            {
+        //                var explicitAdmins = await _context.Admins
+        //                    .Where(a => dto.AdminIds.Contains(a.Id))
+        //                    .ToListAsync();
+
+        //                foreach (var extraAdmin in explicitAdmins)
+        //                {
+        //                    extraAdmin.OrganizationId = org.Id;
+        //                    extraAdmin.OrganizationName = org.OrganizationName;
+
+        //                    var extraAdminEmployees = await _context.Employees
+        //                        .Where(e => e.AdminId == extraAdmin.Id)
+        //                        .ToListAsync();
+
+        //                    foreach (var emp in extraAdminEmployees)
+        //                    {
+        //                        emp.OrganizationId = org.Id;
+        //                    }
+        //                }
+        //                 }
+        //        }
+        //    }
+
+        //    // ==========================================
+        //    // 3. SYNC ORGANIZATION NAME WITH ALL ADMINS
+        //    // ============================================================
+
+        //        if (!string.Equals(oldOrganizationName, org.OrganizationName, StringComparison.Ordinal))
+        //    {
+        //        var organizationAdmins = await _context.Admins
+        //            .Where(a => a.OrganizationId == org.Id)
+        //            .ToListAsync();
+
+        //        foreach (var admin in organizationAdmins)
+        //        {
+        //            admin.OrganizationName = org.OrganizationName;
+        //        }
+        //    }
+
+        //    // ==========================================
+        //    // 4. SAVE CHANGES
+        //    // ==========================================
+
+        //    await _context.SaveChangesAsync();
+
+        //    // ==========================================
+        //    // 5. AUDIT LOG
+        //    // ==========================================
+
+        //    await _auditLogService.LogAsync(
+        //        action: "Update",
+        //        module: "Organizations",
+        //        entityId: org.Id.ToString(),
+        //        description: $"Updated organization '{org.OrganizationName}' (ID: {org.Id})",
+        //        oldValue: oldValue,
+        //        newValue: JsonSerializer.Serialize(new
+        //        {
+        //            Organization = dto.OrganizationName,
+        //            AdminUpdated = hasAdminSync
+        //        }),
+        //        user: user,
+        //        ipAddress: ipAddress);
+
+
+        //    // ==========================================
+        //    // 6. RETURN UPDATED ORGANIZATION
+        //    // ==========================================
+
+        //    return await GetOrganizationById(org.Id);
+        //}
+
         public async Task<SuperAdminOrgDto?> UpdateOrganization(
-            int id,
-            UpdateOrganizationDto dto,
-            ClaimsPrincipal? user,
-            string? ipAddress)
+    int id,
+    UpdateOrganizationDto dto,
+    ClaimsPrincipal? user,
+    string? ipAddress)
         {
+            // ==========================================
+            // 1. FIND ORGANIZATION
+            // ==========================================
+
             var org = await _context.Organizations
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
@@ -789,11 +1441,175 @@ namespace EmployeeManagementSystem.Services
                 org.Status
             });
 
+            var oldOrganizationName = org.OrganizationName;
+
             // ==========================================
-            // 1. UPDATE ORGANIZATION
+            // 2. DETERMINE WHETHER ADMIN SYNC IS REQUIRED
             // ==========================================
 
-            var oldOrganizationName = org.OrganizationName;
+            bool hasAdminSync =
+                (dto.Admins != null && dto.Admins.Any()) ||
+                (dto.AdminIds != null && dto.AdminIds.Any()) ||
+                (dto.DeletedAdminIds != null && dto.DeletedAdminIds.Any()) ||
+                (dto.RemovedAdminIds != null && dto.RemovedAdminIds.Any());
+
+            // ==========================================
+            // 3. VALIDATE ALL ADMIN ASSIGNMENTS FIRST
+            // ==========================================
+            // IMPORTANT:
+            // Do this BEFORE changing the organization or
+            // assigning any admins.
+            //
+            // Rule:
+            // - Admin.OrganizationId == null
+            //      -> ALLOW
+            //
+            // - Admin.OrganizationId == current org.Id
+            //      -> ALLOW
+            //
+            // - Admin.OrganizationId != null AND
+            //   Admin.OrganizationId != current org.Id
+            //      -> BLOCK
+            // ==========================================
+
+            if (hasAdminSync)
+            {
+                // ------------------------------------------
+                // Validate admins coming through dto.Admins
+                // ------------------------------------------
+
+                if (dto.Admins != null)
+                {
+                    foreach (var adminDto in dto.Admins.Where(a => !a.IsDeleted))
+                    {
+                        string? trimmedEmail =
+                            adminDto.Email?.Trim().ToLower();
+
+                        Admin? admin = null;
+
+                        // ------------------------------------------
+                        // 1. Identify existing admin by ID
+                        // ------------------------------------------
+
+                        if (adminDto.Id.HasValue && adminDto.Id.Value > 0)
+                        {
+                            admin = await _context.Admins
+                                .FirstOrDefaultAsync(a =>
+                                    a.Id == adminDto.Id.Value);
+                        }
+
+                        // ------------------------------------------
+                        // 2. If no ID match, identify by email
+                        // ------------------------------------------
+
+                        if (admin == null &&
+                            !string.IsNullOrWhiteSpace(trimmedEmail))
+                        {
+                            admin = await _context.Admins
+                                .FirstOrDefaultAsync(a =>
+                                    a.Email != null &&
+                                    a.Email.ToLower() == trimmedEmail);
+                        }
+
+                        // ------------------------------------------
+                        // EXISTING ADMIN
+                        // ------------------------------------------
+
+                        if (admin != null)
+                        {
+                            // ==========================================
+                            // BLOCK ADMIN REASSIGNMENT
+                            // ==========================================
+
+                            if (admin.OrganizationId.HasValue &&
+                                admin.OrganizationId.Value != org.Id)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Admin '{admin.Email}' is already present in another organization.");
+                            }
+
+                            // ==========================================
+                            // CHECK DUPLICATE EMAIL
+                            // ==========================================
+
+                            if (!string.IsNullOrWhiteSpace(trimmedEmail) &&
+                                !string.Equals(
+                                    admin.Email?.Trim(),
+                                    adminDto.Email?.Trim(),
+                                    StringComparison.OrdinalIgnoreCase))
+                            {
+                                var emailExists = await _context.Admins
+                                    .AnyAsync(a =>
+                                        a.Email != null &&
+                                        a.Email.ToLower() == trimmedEmail &&
+                                        a.Id != admin.Id);
+
+                                if (emailExists)
+                                {
+                                    throw new InvalidOperationException(
+                                        $"An admin with email '{adminDto.Email}' already exists.");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // ==========================================
+                            // NEW ADMIN
+                            // ==========================================
+                            //
+                            // If there is no existing admin record,
+                            // it is safe to create one.
+                            //
+                            // However, check email once more globally
+                            // to prevent duplicate email records.
+                            // ==========================================
+
+                            if (!string.IsNullOrWhiteSpace(trimmedEmail))
+                            {
+                                var emailExists = await _context.Admins
+                                    .AnyAsync(a =>
+                                        a.Email != null &&
+                                        a.Email.ToLower() == trimmedEmail);
+
+                                if (emailExists)
+                                {
+                                    throw new InvalidOperationException(
+                                        $"An admin with email '{adminDto.Email}' already exists.");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ------------------------------------------
+                // Validate admins coming through dto.AdminIds
+                // ------------------------------------------
+
+                if (dto.AdminIds != null && dto.AdminIds.Any())
+                {
+                    var explicitAdmins = await _context.Admins
+                        .Where(a => dto.AdminIds.Contains(a.Id))
+                        .ToListAsync();
+
+                    foreach (var extraAdmin in explicitAdmins)
+                    {
+                        // ==========================================
+                        // BLOCK ADMIN REASSIGNMENT
+                        // ==========================================
+
+                        if (extraAdmin.OrganizationId.HasValue &&
+                            extraAdmin.OrganizationId.Value != org.Id)
+                        {
+                            throw new InvalidOperationException(
+                                $"Admin '{extraAdmin.Email}' is already present in another organization.");
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 4. UPDATE ORGANIZATION
+            // ==========================================
 
             org.OrganizationName = dto.OrganizationName.Trim();
             org.OrganizationCode = dto.OrganizationCode?.Trim();
@@ -813,46 +1629,70 @@ namespace EmployeeManagementSystem.Services
             org.UpdatedDate = DateTime.UtcNow;
 
             // ==========================================
-            // 2. SYNC (REMOVE / UPDATE / CREATE) ORGANIZATION ADMINS
+            // 5. SYNC ORGANIZATION ADMINS
             // ==========================================
-
-            bool hasAdminSync = (dto.Admins != null && dto.Admins.Any())
-                || (dto.AdminIds != null && dto.AdminIds.Any())
-                || (dto.DeletedAdminIds != null && dto.DeletedAdminIds.Any())
-                || (dto.RemovedAdminIds != null && dto.RemovedAdminIds.Any());
 
             if (hasAdminSync)
             {
-                // Fetch all admins currently linked to this organization in the database
+                // ------------------------------------------
+                // Fetch all admins currently linked to
+                // this organization
+                // ------------------------------------------
+
                 var existingOrgAdmins = await _context.Admins
                     .Where(a => a.OrganizationId == id)
                     .ToListAsync();
 
+                // ------------------------------------------
                 // 1. Explicitly requested deletions
+                // ------------------------------------------
+
                 var explicitDeleteIds = new HashSet<int>();
+
                 if (dto.DeletedAdminIds != null)
                 {
-                    foreach (var delId in dto.DeletedAdminIds.Where(x => x > 0)) explicitDeleteIds.Add(delId);
+                    foreach (var delId in dto.DeletedAdminIds
+                        .Where(x => x > 0))
+                    {
+                        explicitDeleteIds.Add(delId);
+                    }
                 }
+
                 if (dto.RemovedAdminIds != null)
                 {
-                    foreach (var remId in dto.RemovedAdminIds.Where(x => x > 0)) explicitDeleteIds.Add(remId);
+                    foreach (var remId in dto.RemovedAdminIds
+                        .Where(x => x > 0))
+                    {
+                        explicitDeleteIds.Add(remId);
+                    }
                 }
+
                 if (dto.Admins != null)
                 {
-                    foreach (var delAdmin in dto.Admins.Where(a => a.IsDeleted && a.Id.HasValue && a.Id.Value > 0))
+                    foreach (var delAdmin in dto.Admins
+                        .Where(a =>
+                            a.IsDeleted &&
+                            a.Id.HasValue &&
+                            a.Id.Value > 0))
                     {
                         explicitDeleteIds.Add(delAdmin.Id!.Value);
                     }
                 }
 
+                // ------------------------------------------
                 // 2. Retained admin identifiers
+                // ------------------------------------------
+
                 var retainedAdminIds = new HashSet<int>();
-                var retainedEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                var retainedEmails =
+                    new HashSet<string>(
+                        StringComparer.OrdinalIgnoreCase);
 
                 if (dto.AdminIds != null)
                 {
-                    foreach (var adminId in dto.AdminIds.Where(x => x > 0))
+                    foreach (var adminId in dto.AdminIds
+                        .Where(x => x > 0))
                     {
                         if (!explicitDeleteIds.Contains(adminId))
                         {
@@ -863,37 +1703,53 @@ namespace EmployeeManagementSystem.Services
 
                 if (dto.Admins != null)
                 {
-                    foreach (var adminDto in dto.Admins.Where(a => !a.IsDeleted))
+                    foreach (var adminDto in dto.Admins
+                        .Where(a => !a.IsDeleted))
                     {
-                        if (adminDto.Id.HasValue && adminDto.Id.Value > 0 && !explicitDeleteIds.Contains(adminDto.Id.Value))
+                        if (adminDto.Id.HasValue &&
+                            adminDto.Id.Value > 0 &&
+                            !explicitDeleteIds.Contains(adminDto.Id.Value))
                         {
                             retainedAdminIds.Add(adminDto.Id.Value);
                         }
+
                         if (!string.IsNullOrWhiteSpace(adminDto.Email))
                         {
-                            retainedEmails.Add(adminDto.Email.Trim().ToLower());
+                            retainedEmails.Add(
+                                adminDto.Email.Trim().ToLower());
                         }
                     }
                 }
 
+                // ------------------------------------------
                 // 3. Find admins to remove
+                // ------------------------------------------
+
                 var removedAdmins = new List<Admin>();
 
-                // A) Explicitly deleted admins
+                // A. Explicitly deleted admins
                 if (explicitDeleteIds.Any())
                 {
-                    var matchingExplicit = existingOrgAdmins.Where(a => explicitDeleteIds.Contains(a.Id)).ToList();
+                    var matchingExplicit =
+                        existingOrgAdmins
+                            .Where(a =>
+                                explicitDeleteIds.Contains(a.Id))
+                            .ToList();
+
                     removedAdmins.AddRange(matchingExplicit);
                 }
 
-                // B) Admins omitted from the retained list (only when a non-empty retained list was provided)
-                if (retainedAdminIds.Any() || retainedEmails.Any())
+                // B. Admins omitted from retained list
+                if (retainedAdminIds.Any() ||
+                    retainedEmails.Any())
                 {
-                    var omitted = existingOrgAdmins.Where(a =>
-                        !retainedAdminIds.Contains(a.Id) &&
-                        !retainedEmails.Contains(a.Email.Trim().ToLower()) &&
-                        !removedAdmins.Contains(a)
-                    ).ToList();
+                    var omitted = existingOrgAdmins
+                        .Where(a =>
+                            !retainedAdminIds.Contains(a.Id) &&
+                            !retainedEmails.Contains(
+                                a.Email.Trim().ToLower()) &&
+                            !removedAdmins.Contains(a))
+                        .ToList();
 
                     removedAdmins.AddRange(omitted);
                 }
@@ -902,91 +1758,133 @@ namespace EmployeeManagementSystem.Services
                     .Where(a => !removedAdmins.Contains(a))
                     .ToList();
 
+                var activeIncomingAdmins = dto.Admins?
+                    .Where(a => !a.IsDeleted)
+                    .ToList() ?? new List<UpdateOrganizationAdminDto>();
+
+                // RULE: Cannot leave organization with 0 admins
+                if (!remainingAdmins.Any() && !activeIncomingAdmins.Any() && existingOrgAdmins.Any())
+                {
+                    throw new InvalidOperationException("Cannot remove the last admin in the organization. Please keep or add at least one admin for the organization.");
+                }
+
                 var fallbackAdmin = remainingAdmins.FirstOrDefault();
 
-                // 4. Safely delete removed admins
+                // ------------------------------------------
+                // 4. Safely unassign removed admins and reassign employees (Option A)
+                // ------------------------------------------
+
                 if (removedAdmins.Any())
                 {
                     foreach (var removedAdmin in removedAdmins)
                     {
-                        // Clean up admin permissions
-                        var adminPerms = await _context.AdminPermissions
-                            .Where(p => p.AdminId == removedAdmin.Id)
-                            .ToListAsync();
-                        if (adminPerms.Any())
-                        {
-                            _context.AdminPermissions.RemoveRange(adminPerms);
-                        }
+                        removedAdmin.OrganizationId = null;
+                        removedAdmin.OrganizationName = null;
 
-                        // Clean up admin notifications
-                        var adminNotifs = await _context.AdminNotifications
-                            .Where(n => n.AdminId == removedAdmin.Id)
-                            .ToListAsync();
-                        if (adminNotifs.Any())
-                        {
-                            _context.AdminNotifications.RemoveRange(adminNotifs);
-                        }
-
-                        // Clean up admin subscriptions
-                        var adminSubs = await _context.AdminSubscriptions
-                            .Where(s => s.AdminId == removedAdmin.Id)
-                            .ToListAsync();
-                        if (adminSubs.Any())
-                        {
-                            _context.AdminSubscriptions.RemoveRange(adminSubs);
-                        }
-
-                        // Reassign any linked employees to a remaining admin
+                        // Reassign employees to fallback admin, keeping OrganizationId intact
                         var linkedEmployees = await _context.Employees
-                            .Where(e => e.AdminId == removedAdmin.Id)
+                            .Where(e => e.AdminId == removedAdmin.Id && e.OrganizationId == org.Id)
                             .ToListAsync();
+
                         foreach (var emp in linkedEmployees)
                         {
-                            emp.AdminId = fallbackAdmin?.Id;
+                            if (fallbackAdmin != null)
+                            {
+                                emp.AdminId = fallbackAdmin.Id;
+                            }
+                            // emp.OrganizationId remains org.Id
                         }
 
-                        // Reassign any linked branches to a remaining admin
                         var linkedBranches = await _context.Branches
-                            .Where(b => b.AdminId == removedAdmin.Id)
+                            .Where(b => b.AdminId == removedAdmin.Id && b.OrganizationId == org.Id)
                             .ToListAsync();
+
                         foreach (var branch in linkedBranches)
                         {
-                            branch.AdminId = fallbackAdmin?.Id;
+                            if (fallbackAdmin != null)
+                            {
+                                branch.AdminId = fallbackAdmin.Id;
+                            }
                         }
-
-                        // Delete the admin record
-                        _context.Admins.Remove(removedAdmin);
                     }
                 }
 
-                // 5. Process updates for remaining admins and creation of new admins
+                // ------------------------------------------
+                // 5. Process dto.Admins
+                // ------------------------------------------
+
                 if (dto.Admins != null)
                 {
-                    foreach (var adminDto in dto.Admins.Where(a => !a.IsDeleted))
+                    foreach (var adminDto in dto.Admins
+                        .Where(a => !a.IsDeleted))
                     {
-                        string? trimmedEmail = adminDto.Email?.Trim().ToLower();
+                        string? trimmedEmail =
+                            adminDto.Email?.Trim().ToLower();
 
-                        // Find if this corresponds to an existing admin by ID or by Email
                         Admin? admin = null;
-                        if (adminDto.Id.HasValue && adminDto.Id.Value > 0)
+
+                        // ------------------------------------------
+                        // Identify by ID
+                        // ------------------------------------------
+
+                        if (adminDto.Id.HasValue &&
+                            adminDto.Id.Value > 0)
                         {
-                            admin = existingOrgAdmins.FirstOrDefault(a => a.Id == adminDto.Id.Value);
+                            admin = await _context.Admins
+                                .FirstOrDefaultAsync(a =>
+                                    a.Id == adminDto.Id.Value);
                         }
-                        if (admin == null && !string.IsNullOrWhiteSpace(trimmedEmail))
+
+                        // ------------------------------------------
+                        // Fallback: identify by email
+                        // ------------------------------------------
+
+                        if (admin == null &&
+                            !string.IsNullOrWhiteSpace(trimmedEmail))
                         {
-                            admin = existingOrgAdmins.FirstOrDefault(a => a.Email.Trim().ToLower() == trimmedEmail);
+                            admin = await _context.Admins
+                                .FirstOrDefaultAsync(a =>
+                                    a.Email != null &&
+                                    a.Email.ToLower() == trimmedEmail);
                         }
 
                         // ==========================================
-                        // CASE 1: EXISTING ADMIN -> UPDATE
+                        // EXISTING ADMIN
                         // ==========================================
+
                         if (admin != null)
                         {
-                            if (!string.IsNullOrWhiteSpace(trimmedEmail))
+                            // ==========================================
+                            // FINAL SAFETY CHECK
+                            // ==========================================
+                            //
+                            // This prevents an admin from Organization A
+                            // being moved to Organization B.
+                            // ==========================================
+
+                            if (admin.OrganizationId.HasValue &&
+                                admin.OrganizationId.Value != org.Id)
                             {
-                                // Check duplicate email across OTHER admins
+                                throw new InvalidOperationException(
+                                    $"Admin '{admin.Email}' is already present in another organization.");
+                            }
+
+                            // ------------------------------------------
+                            // Check duplicate email only when changing
+                            // the email
+                            // ------------------------------------------
+
+                            if (!string.IsNullOrWhiteSpace(trimmedEmail) &&
+                                !string.Equals(
+                                    admin.Email?.Trim(),
+                                    adminDto.Email?.Trim(),
+                                    StringComparison.OrdinalIgnoreCase))
+                            {
                                 var emailExists = await _context.Admins
-                                    .AnyAsync(a => a.Email.ToLower() == trimmedEmail && a.Id != admin.Id);
+                                    .AnyAsync(a =>
+                                        a.Email != null &&
+                                        a.Email.ToLower() == trimmedEmail &&
+                                        a.Id != admin.Id);
 
                                 if (emailExists)
                                 {
@@ -997,35 +1895,69 @@ namespace EmployeeManagementSystem.Services
                                 admin.Email = adminDto.Email!.Trim();
                             }
 
+                            // ------------------------------------------
+                            // Update admin details
+                            // ------------------------------------------
+
                             if (!string.IsNullOrWhiteSpace(adminDto.FullName))
                             {
-                                admin.FullName = adminDto.FullName.Trim();
+                                admin.FullName =
+                                    adminDto.FullName.Trim();
                             }
 
                             if (adminDto.PhoneNumber != null)
                             {
-                                admin.PhoneNumber = adminDto.PhoneNumber.Trim();
+                                admin.PhoneNumber =
+                                    adminDto.PhoneNumber.Trim();
                             }
 
                             admin.IsActive = adminDto.IsActive;
 
-                            // Update password ONLY if a new password is provided
                             if (!string.IsNullOrWhiteSpace(adminDto.Password))
                             {
-                                admin.Password = BCrypt.Net.BCrypt.HashPassword(adminDto.Password.Trim());
+                                admin.Password =
+                                    adminDto.Password.Trim();
                             }
+
+                            // ------------------------------------------
+                            // Assign to current organization
+                            // ------------------------------------------
+                            //
+                            // Safe because the organization conflict
+                            // check was already performed.
+                            // ------------------------------------------
 
                             admin.OrganizationId = org.Id;
                             admin.OrganizationName = org.OrganizationName;
                             admin.Role = "Admin";
+
+                            // ------------------------------------------
+                            // Preserve employees
+                            // ------------------------------------------
+
+                            var adminEmployees =
+                                await _context.Employees
+                                    .Where(e => e.AdminId == admin.Id)
+                                    .ToListAsync();
+
+                            foreach (var emp in adminEmployees)
+                            {
+                                emp.OrganizationId = org.Id;
+                            }
                         }
+
                         // ==========================================
-                        // CASE 2: NEW ADMIN -> CREATE
+                        // NEW ADMIN
                         // ==========================================
+
                         else if (!string.IsNullOrWhiteSpace(adminDto.Email))
                         {
-                            var emailExists = await _context.Admins
-                                .AnyAsync(a => a.Email.ToLower() == trimmedEmail);
+                            var emailExists =
+                                await _context.Admins
+                                    .AnyAsync(a =>
+                                        a.Email != null &&
+                                        a.Email.ToLower() ==
+                                        trimmedEmail);
 
                             if (emailExists)
                             {
@@ -1033,19 +1965,22 @@ namespace EmployeeManagementSystem.Services
                                     $"An admin with email '{adminDto.Email}' already exists.");
                             }
 
-                            string passwordToUse = !string.IsNullOrWhiteSpace(adminDto.Password)
-                                ? adminDto.Password.Trim()
-                                : "Admin@123";
+                            string passwordToUse =
+                                !string.IsNullOrWhiteSpace(adminDto.Password)
+                                    ? adminDto.Password.Trim()
+                                    : "Admin@123";
 
-                            string fullNameToUse = !string.IsNullOrWhiteSpace(adminDto.FullName)
-                                ? adminDto.FullName.Trim()
-                                : adminDto.Email!.Split('@')[0];
+                            string fullNameToUse =
+                                !string.IsNullOrWhiteSpace(adminDto.FullName)
+                                    ? adminDto.FullName.Trim()
+                                    : adminDto.Email!
+                                        .Split('@')[0];
 
                             var newAdmin = new Admin
                             {
                                 FullName = fullNameToUse,
                                 Email = adminDto.Email!.Trim(),
-                                Password = BCrypt.Net.BCrypt.HashPassword(passwordToUse),
+                                Password = passwordToUse,
                                 PhoneNumber = adminDto.PhoneNumber?.Trim(),
                                 IsActive = adminDto.IsActive,
                                 Role = "Admin",
@@ -1058,39 +1993,94 @@ namespace EmployeeManagementSystem.Services
                         }
                     }
                 }
-            }
 
-            // ==========================================
-            // 3. SYNC ORGANIZATION NAME WITH ALL ADMINS
-            // ==========================================
+                // ------------------------------------------
+                // 6. Process standalone AdminIds
+                // ------------------------------------------
 
-            if (!string.Equals(oldOrganizationName, org.OrganizationName, StringComparison.Ordinal))
-            {
-                var organizationAdmins = await _context.Admins
-                    .Where(a => a.OrganizationId == org.Id)
-                    .ToListAsync();
-
-                foreach (var admin in organizationAdmins)
+                if (dto.AdminIds != null &&
+                    dto.AdminIds.Any())
                 {
-                    admin.OrganizationName = org.OrganizationName;
+                    var explicitAdmins =
+                        await _context.Admins
+                            .Where(a =>
+                                dto.AdminIds.Contains(a.Id))
+                            .ToListAsync();
+
+                    foreach (var extraAdmin in explicitAdmins)
+                    {
+                        // ==========================================
+                        // FINAL SAFETY CHECK
+                        // ==========================================
+
+                        if (extraAdmin.OrganizationId.HasValue &&
+                            extraAdmin.OrganizationId.Value != org.Id)
+                        {
+                            throw new InvalidOperationException(
+                                $"Admin '{extraAdmin.Email}' is already present in another organization.");
+                        }
+
+                        // Safe assignment
+                        extraAdmin.OrganizationId = org.Id;
+                        extraAdmin.OrganizationName =
+                            org.OrganizationName;
+
+                        // ------------------------------------------
+                        // Preserve employees
+                        // ------------------------------------------
+
+                        var extraAdminEmployees =
+                            await _context.Employees
+                                .Where(e =>
+                                    e.AdminId == extraAdmin.Id)
+                                .ToListAsync();
+
+                        foreach (var emp in extraAdminEmployees)
+                        {
+                            emp.OrganizationId = org.Id;
+                        }
+                    }
                 }
             }
 
             // ==========================================
-            // 4. SAVE CHANGES
+            // 7. SYNC ORGANIZATION NAME WITH ALL ADMINS
+            // ==========================================
+
+            if (!string.Equals(
+                oldOrganizationName,
+                org.OrganizationName,
+                StringComparison.Ordinal))
+            {
+                var organizationAdmins =
+                    await _context.Admins
+                        .Where(a =>
+                            a.OrganizationId == org.Id)
+                        .ToListAsync();
+
+                foreach (var admin in organizationAdmins)
+                {
+                    admin.OrganizationName =
+                        org.OrganizationName;
+                }
+            }
+
+            // ==========================================
+            // 8. SAVE CHANGES
             // ==========================================
 
             await _context.SaveChangesAsync();
 
             // ==========================================
-            // 5. AUDIT LOG
+            // 9. AUDIT LOG
             // ==========================================
 
             await _auditLogService.LogAsync(
                 action: "Update",
                 module: "Organizations",
                 entityId: org.Id.ToString(),
-                description: $"Updated organization '{org.OrganizationName}' (ID: {org.Id})",
+                description:
+                    $"Updated organization '{org.OrganizationName}' (ID: {org.Id})",
                 oldValue: oldValue,
                 newValue: JsonSerializer.Serialize(new
                 {
@@ -1100,9 +2090,8 @@ namespace EmployeeManagementSystem.Services
                 user: user,
                 ipAddress: ipAddress);
 
-
             // ==========================================
-            // 6. RETURN UPDATED ORGANIZATION
+            // 10. RETURN UPDATED ORGANIZATION
             // ==========================================
 
             return await GetOrganizationById(org.Id);
@@ -1162,7 +2151,8 @@ namespace EmployeeManagementSystem.Services
 
             // Check if organization has active admins or employees
             int linkedAdmins = await _context.Admins.CountAsync(a => a.OrganizationId == id);
-            int linkedEmployees = await _context.Employees.CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == id));
+            // int linkedEmployees = await _context.Employees.CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == id));
+            int linkedEmployees = await _context.Employees.CountAsync(e => e.OrganizationId == id);
 
             if (linkedAdmins > 0 || linkedEmployees > 0)
             {
@@ -1218,8 +2208,11 @@ namespace EmployeeManagementSystem.Services
                 throw new KeyNotFoundException($"Organization with ID {dto.OrganizationId} not found.");
 
             // Calculate existing employees in organization
+            //int currentUsers = await _context.Employees
+            //    .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == dto.OrganizationId));
             int currentUsers = await _context.Employees
-                .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == dto.OrganizationId));
+    .CountAsync(e => e.OrganizationId == dto.OrganizationId);
+
 
             if (dto.MaxUsers < currentUsers)
             {
@@ -1306,36 +2299,62 @@ namespace EmployeeManagementSystem.Services
                 .OrderByDescending(s => s.Id)
                 .FirstOrDefaultAsync();
 
-            if (sub == null) return null;
+            var assignedAdminIds = await _context.Admins
+                .AsNoTracking()
+                .Where(a => a.OrganizationId == organizationId)
+                .Select(a => a.Id)
+                .ToListAsync();
+
+            var adminSubs = await _context.AdminSubscriptions
+                .AsNoTracking()
+                .Where(s => assignedAdminIds.Contains(s.AdminId) && s.IsActive)
+                .ToListAsync();
+
+            if (sub == null && !adminSubs.Any()) return null;
 
             int currentUsers = await _context.Employees
-                .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == organizationId));
+                .CountAsync(e => e.OrganizationId == organizationId);
 
-            int remainingUsers = Math.Max(0, sub.MaxUsers - currentUsers);
-            double usagePct = sub.MaxUsers > 0 ? Math.Round(((double)currentUsers / sub.MaxUsers) * 100, 2) : 0;
-            bool isExpired = sub.EndDate < DateTime.UtcNow;
+            int effectiveMaxUsers = sub?.MaxUsers ?? 0;
+            DateTime effectiveStartDate = sub?.StartDate ?? DateTime.MaxValue;
+            DateTime effectiveEndDate = sub?.EndDate ?? DateTime.MinValue;
+
+            foreach (var aSub in adminSubs)
+            {
+                effectiveMaxUsers = Math.Max(effectiveMaxUsers, aSub.MaxUsers);
+                if (aSub.StartDate < effectiveStartDate) effectiveStartDate = aSub.StartDate;
+                if (aSub.EndDate > effectiveEndDate) effectiveEndDate = aSub.EndDate;
+            }
+
+            if (effectiveStartDate == DateTime.MaxValue) effectiveStartDate = sub?.StartDate ?? DateTime.UtcNow;
+            if (effectiveEndDate == DateTime.MinValue) effectiveEndDate = sub?.EndDate ?? DateTime.UtcNow;
+
+            int remainingUsers = Math.Max(0, effectiveMaxUsers - currentUsers);
+            double usagePct = effectiveMaxUsers > 0 ? Math.Round(((double)currentUsers / effectiveMaxUsers) * 100, 2) : 0;
+            bool isExpired = effectiveEndDate < DateTime.UtcNow;
+            bool isActive = effectiveEndDate >= DateTime.UtcNow;
 
             return new OrganizationSubscriptionDto
             {
-                Id = sub.Id,
-                OrganizationId = sub.OrganizationId,
+                Id = sub?.Id ?? adminSubs.FirstOrDefault()?.SubscriptionId ?? 0,
+                OrganizationId = organizationId,
                 OrganizationName = org.OrganizationName,
                 OrganizationCode = org.OrganizationCode,
-                MaxUsers = sub.MaxUsers,
+                MaxUsers = effectiveMaxUsers,
                 CurrentUsers = currentUsers,
                 RemainingUsers = remainingUsers,
                 UsagePercentage = usagePct,
-                StartDate = sub.StartDate,
-                EndDate = sub.EndDate,
-                IsActive = sub.IsActive,
+                StartDate = effectiveStartDate,
+                EndDate = effectiveEndDate,
+                IsActive = isActive,
                 IsExpired = isExpired,
-                PlanName = sub.PlanName,
-                BillingCycle = sub.BillingCycle,
-                Price = sub.Price,
-                CreatedDate = sub.CreatedDate,
-                UpdatedDate = sub.UpdatedDate,
-                CreatedBy = sub.CreatedBy,
-                UpdatedBy = sub.UpdatedBy
+                PlanName = sub?.PlanName ?? "Combined Plan",
+                BillingCycle = sub?.BillingCycle ?? "Custom",
+                Price = sub?.Price ?? 0,
+                CreatedDate = sub?.CreatedDate ?? org.CreatedDate,
+                UpdatedDate = sub?.UpdatedDate,
+                CreatedBy = sub?.CreatedBy,
+                UpdatedBy = sub?.UpdatedBy
             };
         }
 
@@ -1358,8 +2377,11 @@ namespace EmployeeManagementSystem.Services
                 .OrderByDescending(s => s.Id)
                 .FirstOrDefaultAsync();
 
+            //int currentUsers = await _context.Employees
+            //    .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == organizationId));
+
             int currentUsers = await _context.Employees
-                .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == organizationId));
+    .CountAsync(e => e.OrganizationId == organizationId);
 
             if (dto.MaxUsers < currentUsers)
             {
@@ -1391,12 +2413,34 @@ namespace EmployeeManagementSystem.Services
                 sub.MaxUsers = dto.MaxUsers;
                 sub.StartDate = dto.StartDate;
                 sub.EndDate = dto.EndDate;
-                sub.IsActive = dto.IsActive;
+                //sub.IsActive = dto.IsActive;
+                sub.IsActive = sub.EndDate >= DateTime.UtcNow;
                 if (!string.IsNullOrWhiteSpace(dto.PlanName)) sub.PlanName = dto.PlanName.Trim();
                 if (!string.IsNullOrWhiteSpace(dto.BillingCycle)) sub.BillingCycle = dto.BillingCycle.Trim();
                 if (dto.Price.HasValue) sub.Price = dto.Price.Value;
                 sub.UpdatedDate = DateTime.UtcNow;
                 sub.UpdatedBy = userEmail;
+            }
+
+            // Rewrite all assigned Admins' subscriptions to match the updated Organization subscription
+            var orgAdminIds = await _context.Admins
+                .Where(a => a.OrganizationId == organizationId)
+                .Select(a => a.Id)
+                .ToListAsync();
+
+            if (orgAdminIds.Any())
+            {
+                var assignedAdminSubs = await _context.AdminSubscriptions
+                    .Where(s => orgAdminIds.Contains(s.AdminId))
+                    .ToListAsync();
+
+                foreach (var aSub in assignedAdminSubs)
+                {
+                    aSub.MaxUsers = sub.MaxUsers;
+                    aSub.StartDate = sub.StartDate;
+                    aSub.EndDate = sub.EndDate;
+                    aSub.IsActive = sub.IsActive;
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -1412,7 +2456,10 @@ namespace EmployeeManagementSystem.Services
 
             int remainingUsers = Math.Max(0, sub.MaxUsers - currentUsers);
             double usagePct = sub.MaxUsers > 0 ? Math.Round(((double)currentUsers / sub.MaxUsers) * 100, 2) : 0;
+            //bool isExpired = sub.EndDate < DateTime.UtcNow;
             bool isExpired = sub.EndDate < DateTime.UtcNow;
+
+            bool isActive = sub.EndDate >= DateTime.UtcNow;
 
             return new OrganizationSubscriptionDto
             {
@@ -1426,7 +2473,9 @@ namespace EmployeeManagementSystem.Services
                 UsagePercentage = usagePct,
                 StartDate = sub.StartDate,
                 EndDate = sub.EndDate,
-                IsActive = sub.IsActive,
+                //IsActive = sub.IsActive,
+                //IsExpired = isExpired,
+                IsActive = isActive,
                 IsExpired = isExpired,
                 PlanName = sub.PlanName,
                 BillingCycle = sub.BillingCycle,
@@ -1453,13 +2502,22 @@ namespace EmployeeManagementSystem.Services
                 .OrderByDescending(s => s.Id)
                 .FirstOrDefaultAsync();
 
-            int totalAdmins = await _context.Admins
-                .CountAsync(a => a.OrganizationId == organizationId);
+            var assignedAdminIds = await _context.Admins
+                .AsNoTracking()
+                .Where(a => a.OrganizationId == organizationId)
+                .Select(a => a.Id)
+                .ToListAsync();
 
+            var adminSubs = await _context.AdminSubscriptions
+                .AsNoTracking()
+                .Where(s => assignedAdminIds.Contains(s.AdminId) && s.IsActive)
+                .ToListAsync();
+
+            int totalAdmins = assignedAdminIds.Count;
             int currentUsers = await _context.Employees
-                .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == organizationId));
+                .CountAsync(e => e.OrganizationId == organizationId);
 
-            if (sub == null)
+            if (sub == null && !adminSubs.Any())
             {
                 return new OrganizationSubscriptionUsageDto
                 {
@@ -1481,27 +2539,46 @@ namespace EmployeeManagementSystem.Services
                 };
             }
 
-            int remainingUsers = Math.Max(0, sub.MaxUsers - currentUsers);
-            double usagePct = sub.MaxUsers > 0 ? Math.Round(((double)currentUsers / sub.MaxUsers) * 100, 2) : 0;
-            bool isExpired = sub.EndDate < DateTime.UtcNow;
+            int effectiveMaxUsers = sub?.MaxUsers ?? 0;
+            DateTime effectiveStartDate = sub?.StartDate ?? DateTime.MaxValue;
+            DateTime effectiveEndDate = sub?.EndDate ?? DateTime.MinValue;
+
+            foreach (var aSub in adminSubs)
+            {
+                effectiveMaxUsers = Math.Max(effectiveMaxUsers, aSub.MaxUsers);
+                if (aSub.StartDate < effectiveStartDate) effectiveStartDate = aSub.StartDate;
+                if (aSub.EndDate > effectiveEndDate) effectiveEndDate = aSub.EndDate;
+            }
+
+            if (effectiveStartDate == DateTime.MaxValue) effectiveStartDate = sub?.StartDate ?? DateTime.UtcNow;
+            if (effectiveEndDate == DateTime.MinValue) effectiveEndDate = sub?.EndDate ?? DateTime.UtcNow;
+
+            int remainingUsers = Math.Max(0, effectiveMaxUsers - currentUsers);
+            double usagePct = effectiveMaxUsers > 0
+                ? Math.Round(((double)currentUsers / effectiveMaxUsers) * 100, 2)
+                : 0;
+
+            var now = DateTime.UtcNow;
+            bool isExpired = effectiveEndDate < now;
+            bool isActive = effectiveEndDate >= now;
 
             return new OrganizationSubscriptionUsageDto
             {
                 OrganizationId = org.Id,
                 OrganizationName = org.OrganizationName,
                 OrganizationCode = org.OrganizationCode,
-                SubscriptionId = sub.Id,
-                MaxUsers = sub.MaxUsers,
+                SubscriptionId = sub?.Id ?? adminSubs.FirstOrDefault()?.SubscriptionId ?? 0,
+                MaxUsers = effectiveMaxUsers,
                 CurrentUsers = currentUsers,
                 RemainingUsers = remainingUsers,
                 UsagePercentage = usagePct,
-                StartDate = sub.StartDate,
-                EndDate = sub.EndDate,
-                IsActive = sub.IsActive,
+                StartDate = effectiveStartDate,
+                EndDate = effectiveEndDate,
+                IsActive = isActive,
                 IsExpired = isExpired,
                 TotalAdmins = totalAdmins,
-                PlanName = sub.PlanName,
-                BillingCycle = sub.BillingCycle
+                PlanName = sub?.PlanName ?? "Combined Plan",
+                BillingCycle = sub?.BillingCycle
             };
         }
 
@@ -1529,27 +2606,49 @@ namespace EmployeeManagementSystem.Services
                 .OrderByDescending(s => s.Id)
                 .ToListAsync();
 
+            var allAdmins = await _context.Admins
+                .AsNoTracking()
+                .Where(a => a.OrganizationId != null)
+                .ToListAsync();
+
+            var allAdminSubs = await _context.AdminSubscriptions
+                .AsNoTracking()
+                .Where(s => s.IsActive)
+                .ToListAsync();
+
             var list = new List<OrganizationSubscriptionDto>();
 
             foreach (var org in orgs)
             {
-                var sub = allSubs.FirstOrDefault(s =>
-                    s.OrganizationId == org.Id);
+                var sub = allSubs.FirstOrDefault(s => s.OrganizationId == org.Id);
+                var orgAdminIds = allAdmins.Where(a => a.OrganizationId == org.Id).Select(a => a.Id).ToList();
+                var orgAdminSubs = allAdminSubs.Where(s => orgAdminIds.Contains(s.AdminId)).ToList();
 
-                // ✅ ONLY SHOW ORGANIZATIONS THAT HAVE A SUBSCRIPTION
-                if (sub == null)
+                // ✅ SHOW ORGANIZATIONS THAT HAVE AN ORG SUBSCRIPTION OR ASSIGNED ADMIN SUBSCRIPTION
+                if (sub == null && !orgAdminSubs.Any())
                     continue;
 
                 int currentUsers = await _context.Employees
-                    .CountAsync(e => e.AdminId != null &&
-                        _context.Admins.Any(a =>
-                            a.Id == e.AdminId &&
-                            a.OrganizationId == org.Id));
+                    .CountAsync(e => e.OrganizationId == org.Id);
 
-                int maxUsers = sub.MaxUsers; int remainingUsers = sub != null ? Math.Max(0, sub.MaxUsers - currentUsers) : 0;
-                double usagePct = maxUsers > 0 ? Math.Round(((double)currentUsers / maxUsers) * 100, 2) : 0;
-                bool isExpired = sub == null || sub.EndDate < now;
-                bool isActive = sub?.IsActive ?? false;
+                int effectiveMaxUsers = sub?.MaxUsers ?? 0;
+                DateTime effectiveStartDate = sub?.StartDate ?? DateTime.MaxValue;
+                DateTime effectiveEndDate = sub?.EndDate ?? DateTime.MinValue;
+
+                foreach (var aSub in orgAdminSubs)
+                {
+                    effectiveMaxUsers = Math.Max(effectiveMaxUsers, aSub.MaxUsers);
+                    if (aSub.StartDate < effectiveStartDate) effectiveStartDate = aSub.StartDate;
+                    if (aSub.EndDate > effectiveEndDate) effectiveEndDate = aSub.EndDate;
+                }
+
+                if (effectiveStartDate == DateTime.MaxValue) effectiveStartDate = sub?.StartDate ?? DateTime.UtcNow;
+                if (effectiveEndDate == DateTime.MinValue) effectiveEndDate = sub?.EndDate ?? DateTime.UtcNow;
+
+                int remainingUsers = Math.Max(0, effectiveMaxUsers - currentUsers);
+                double usagePct = effectiveMaxUsers > 0 ? Math.Round(((double)currentUsers / effectiveMaxUsers) * 100, 2) : 0;
+                bool isExpired = effectiveEndDate < now;
+                bool isActive = effectiveEndDate >= now;
 
                 // Apply filter criteria
                 if (filter.IsActive.HasValue && isActive != filter.IsActive.Value)
@@ -1560,21 +2659,21 @@ namespace EmployeeManagementSystem.Services
 
                 list.Add(new OrganizationSubscriptionDto
                 {
-                    Id = sub?.Id ?? 0,
+                    Id = sub?.Id ?? orgAdminSubs.FirstOrDefault()?.SubscriptionId ?? 0,
                     OrganizationId = org.Id,
                     OrganizationName = org.OrganizationName,
                     OrganizationCode = org.OrganizationCode,
-                    MaxUsers = maxUsers,
+                    MaxUsers = effectiveMaxUsers,
                     CurrentUsers = currentUsers,
                     RemainingUsers = remainingUsers,
                     UsagePercentage = usagePct,
-                    StartDate = sub?.StartDate ?? DateTime.MinValue,
-                    EndDate = sub?.EndDate ?? DateTime.MinValue,
+                    StartDate = effectiveStartDate,
+                    EndDate = effectiveEndDate,
                     IsActive = isActive,
                     IsExpired = isExpired,
-                    PlanName = sub?.PlanName ?? "Unassigned",
+                    PlanName = sub?.PlanName ?? "Combined Plan",
                     BillingCycle = sub?.BillingCycle,
-                    Price = sub?.Price,
+                    Price = sub?.Price ?? 0,
                     CreatedDate = sub?.CreatedDate ?? org.CreatedDate,
                     UpdatedDate = sub?.UpdatedDate,
                     CreatedBy = sub?.CreatedBy,
@@ -1681,25 +2780,135 @@ namespace EmployeeManagementSystem.Services
             };
         }
 
+        //public async Task<SuperAdminAdminDto> CreateAdmin(CreateSuperAdminAdminDto dto, ClaimsPrincipal? user, string? ipAddress)
+        //{
+        //    bool exists = await _context.Admins.AnyAsync(x => x.Email.ToLower() == dto.Email.Trim().ToLower());
+        //    if (exists)
+        //    {
+        //        throw new InvalidOperationException("An Admin with this email already exists.");
+        //    }
+
+        //    string? orgName = null;
+        //    if (dto.OrganizationId.HasValue)
+        //    {
+        //        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value);
+        //        orgName = org?.OrganizationName;
+        //    }
+
+        //    var admin = new Admin
+        //    {
+        //        Email = dto.Email.Trim(),
+        //        Password = dto.Password, // Preserves compatibility with existing Admin login flow
+        //        FullName = dto.FullName?.Trim(),
+        //        PhoneNumber = dto.PhoneNumber?.Trim(),
+        //        OrganizationId = dto.OrganizationId,
+        //        OrganizationName = orgName,
+        //        Role = "Admin",
+        //        IsActive = dto.IsActive,
+        //        CreatedAt = DateTime.UtcNow
+        //    };
+
+        //    _context.Admins.Add(admin);
+        //    await _context.SaveChangesAsync();
+
+        //    await _auditLogService.LogAsync(
+        //        action: "Create",
+        //        module: "Admins",
+        //        entityId: admin.Id.ToString(),
+        //        description: $"Created Admin '{admin.Email}' assigned to Org: {orgName ?? "None"}",
+        //        user: user,
+        //        ipAddress: ipAddress);
+
+        //    await _auditLogService.CreateSuperAdminNotificationAsync(
+        //        title: "New Admin Account Created",
+        //        message: $"Admin '{admin.Email}' was created for organization '{orgName ?? "Unassigned"}'.",
+        //        type: "Info");
+
+        //    return new SuperAdminAdminDto
+        //    {
+        //        Id = admin.Id,
+        //        Email = admin.Email,
+        //        FullName = admin.FullName,
+        //        PhoneNumber = admin.PhoneNumber,
+        //        Role = admin.Role,
+        //        IsActive = admin.IsActive,
+        //        OrganizationId = admin.OrganizationId,
+        //        OrganizationName = admin.OrganizationName,
+        //        EmployeeCount = 0,
+        //        CreatedAt = admin.CreatedAt
+        //    };
+        //}
+
         public async Task<SuperAdminAdminDto> CreateAdmin(CreateSuperAdminAdminDto dto, ClaimsPrincipal? user, string? ipAddress)
         {
-            bool exists = await _context.Admins.AnyAsync(x => x.Email.ToLower() == dto.Email.Trim().ToLower());
-            if (exists)
-            {
-                throw new InvalidOperationException("An Admin with this email already exists.");
-            }
+            string trimmedEmail = dto.Email.Trim().ToLower();
+            var existingAdmin = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Email.ToLower() == trimmedEmail);
 
             string? orgName = null;
-            if (dto.OrganizationId.HasValue)
+            if (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0)
             {
-                var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value);
+                var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value && !o.IsDeleted);
                 orgName = org?.OrganizationName;
             }
 
-            var admin = new Admin
+            // ========================================================
+            // CASE 1: EXISTING ADMIN -> UPDATE & REASSIGN ORGANIZATION
+            // ========================================================
+            if (existingAdmin != null)
+            {
+                existingAdmin.OrganizationId = dto.OrganizationId;
+                existingAdmin.OrganizationName = orgName;
+                existingAdmin.IsActive = dto.IsActive;
+
+                if (!string.IsNullOrWhiteSpace(dto.FullName))
+                    existingAdmin.FullName = dto.FullName.Trim();
+
+                if (dto.PhoneNumber != null)
+                    existingAdmin.PhoneNumber = dto.PhoneNumber.Trim();
+
+                // Update all existing employees belonging to this Admin
+                var adminEmployees = await _context.Employees
+                    .Where(e => e.AdminId == existingAdmin.Id)
+                    .ToListAsync();
+
+                foreach (var emp in adminEmployees)
+                {
+                    emp.OrganizationId = dto.OrganizationId;
+                }
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogAsync(
+                    action: "Update",
+                    module: "Admins",
+                    entityId: existingAdmin.Id.ToString(),
+                    description: $"Assigned existing Admin '{existingAdmin.Email}' (ID: {existingAdmin.Id}) to Organization: {orgName ?? "Unassigned"} and updated {adminEmployees.Count} employees.",
+                    user: user,
+                    ipAddress: ipAddress);
+
+                return await GetAdminById(existingAdmin.Id) ?? new SuperAdminAdminDto
+                {
+                    Id = existingAdmin.Id,
+                    Email = existingAdmin.Email,
+                    FullName = existingAdmin.FullName,
+                    PhoneNumber = existingAdmin.PhoneNumber,
+                    Role = existingAdmin.Role,
+                    IsActive = existingAdmin.IsActive,
+                    OrganizationId = existingAdmin.OrganizationId,
+                    OrganizationName = existingAdmin.OrganizationName,
+                    EmployeeCount = adminEmployees.Count,
+                    CreatedAt = existingAdmin.CreatedAt
+                };
+            }
+
+            // ========================================================
+            // CASE 2: NEW ADMIN -> CREATE
+            // ========================================================
+            var newAdmin = new Admin
             {
                 Email = dto.Email.Trim(),
-                Password = dto.Password, // Preserves compatibility with existing Admin login flow
+                Password = dto.Password,
                 FullName = dto.FullName?.Trim(),
                 PhoneNumber = dto.PhoneNumber?.Trim(),
                 OrganizationId = dto.OrganizationId,
@@ -1709,36 +2918,130 @@ namespace EmployeeManagementSystem.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.Admins.Add(admin);
+            _context.Admins.Add(newAdmin);
             await _context.SaveChangesAsync();
 
             await _auditLogService.LogAsync(
                 action: "Create",
                 module: "Admins",
-                entityId: admin.Id.ToString(),
-                description: $"Created Admin '{admin.Email}' assigned to Org: {orgName ?? "None"}",
+                entityId: newAdmin.Id.ToString(),
+                description: $"Created Admin '{newAdmin.Email}' assigned to Org: {orgName ?? "None"}",
                 user: user,
                 ipAddress: ipAddress);
 
             await _auditLogService.CreateSuperAdminNotificationAsync(
                 title: "New Admin Account Created",
-                message: $"Admin '{admin.Email}' was created for organization '{orgName ?? "Unassigned"}'.",
+                message: $"Admin '{newAdmin.Email}' was created for organization '{orgName ?? "Unassigned"}'.",
                 type: "Info");
 
             return new SuperAdminAdminDto
             {
-                Id = admin.Id,
-                Email = admin.Email,
-                FullName = admin.FullName,
-                PhoneNumber = admin.PhoneNumber,
-                Role = admin.Role,
-                IsActive = admin.IsActive,
-                OrganizationId = admin.OrganizationId,
-                OrganizationName = admin.OrganizationName,
+                Id = newAdmin.Id,
+                Email = newAdmin.Email,
+                FullName = newAdmin.FullName,
+                PhoneNumber = newAdmin.PhoneNumber,
+                Role = newAdmin.Role,
+                IsActive = newAdmin.IsActive,
+                OrganizationId = newAdmin.OrganizationId,
+                OrganizationName = newAdmin.OrganizationName,
                 EmployeeCount = 0,
-                CreatedAt = admin.CreatedAt
+                CreatedAt = newAdmin.CreatedAt
             };
         }
+
+
+        //public async Task<SuperAdminAdminDto?> UpdateAdmin(int id, UpdateSuperAdminAdminDto dto, ClaimsPrincipal? user, string? ipAddress)
+        //{
+        //    var admin = await _context.Admins.FirstOrDefaultAsync(x => x.Id == id);
+        //    if (admin == null) return null;
+
+        //    string? orgName = null;
+        //    if (dto.OrganizationId.HasValue)
+        //    {
+        //        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value);
+        //        orgName = org?.OrganizationName;
+        //    }
+
+        //    string oldValue = JsonSerializer.Serialize(new
+        //    {
+        //        admin.Email,
+        //        admin.FullName,
+        //        admin.PhoneNumber,
+        //        admin.OrganizationId,
+        //        admin.OrganizationName,
+        //        admin.IsActive
+        //    });
+
+        //    admin.Email = dto.Email.Trim();
+        //    admin.FullName = dto.FullName?.Trim();
+        //    admin.PhoneNumber = dto.PhoneNumber?.Trim();
+        //    admin.OrganizationId = dto.OrganizationId;
+        //    admin.OrganizationName = orgName;
+        //    admin.IsActive = dto.IsActive;
+
+        //    await _context.SaveChangesAsync();
+
+        //    await _auditLogService.LogAsync(
+        //        action: "Update",
+        //        module: "Admins",
+        //        entityId: admin.Id.ToString(),
+        //        description: $"Updated Admin '{admin.Email}' (ID: {admin.Id})",
+        //        oldValue: oldValue,
+        //        newValue: JsonSerializer.Serialize(dto),
+        //        user: user,
+        //        ipAddress: ipAddress);
+
+        //    return await GetAdminById(admin.Id);
+        //}
+
+        //public async Task<SuperAdminAdminDto?> AssignAdminOrganization(int id, AssignAdminOrganizationDto dto, ClaimsPrincipal? user, string? ipAddress)
+        //{
+        //    var admin = await _context.Admins.FirstOrDefaultAsync(x => x.Id == id);
+        //    if (admin == null) return null;
+
+        //    string? orgName = null;
+        //    if (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0)
+        //    {
+        //        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value && !o.IsDeleted);
+        //        if (org == null)
+        //        {
+        //            throw new InvalidOperationException($"Organization with ID {dto.OrganizationId.Value} not found.");
+        //        }
+        //        orgName = org.OrganizationName;
+        //    }
+
+        //    string oldValue = JsonSerializer.Serialize(new
+        //    {
+        //        admin.OrganizationId,
+        //        admin.OrganizationName
+        //    });
+
+        //    admin.OrganizationId = (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0) ? dto.OrganizationId : null;
+        //    admin.OrganizationName = orgName;
+
+        //    await _context.SaveChangesAsync();
+
+        //    await _auditLogService.LogAsync(
+        //        action: "AssignOrganization",
+        //        module: "Admins",
+        //        entityId: admin.Id.ToString(),
+        //        description: orgName != null
+        //            ? $"Assigned Admin '{admin.Email}' (ID: {admin.Id}) to Organization '{orgName}' (ID: {admin.OrganizationId})"
+        //            : $"Unassigned Admin '{admin.Email}' (ID: {admin.Id}) from Organization",
+        //        oldValue: oldValue,
+        //        newValue: JsonSerializer.Serialize(new { admin.OrganizationId, admin.OrganizationName }),
+        //        user: user,
+        //        ipAddress: ipAddress);
+
+        //    await _auditLogService.CreateSuperAdminNotificationAsync(
+        //        title: "Admin Organization Assignment Updated",
+        //        message: orgName != null
+        //            ? $"Admin '{admin.Email}' was assigned to organization '{orgName}'."
+        //            : $"Admin '{admin.Email}' was unassigned from organization.",
+        //        type: "Info");
+
+        //    return await GetAdminById(admin.Id);
+        //}
 
         public async Task<SuperAdminAdminDto?> UpdateAdmin(int id, UpdateSuperAdminAdminDto dto, ClaimsPrincipal? user, string? ipAddress)
         {
@@ -1746,9 +3049,9 @@ namespace EmployeeManagementSystem.Services
             if (admin == null) return null;
 
             string? orgName = null;
-            if (dto.OrganizationId.HasValue)
+            if (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0)
             {
-                var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value);
+                var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value && !o.IsDeleted);
                 orgName = org?.OrganizationName;
             }
 
@@ -1762,6 +3065,43 @@ namespace EmployeeManagementSystem.Services
                 admin.IsActive
             });
 
+            // If admin was in an organization and is now being unassigned or moved to another organization
+            if (admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0 &&
+                (!dto.OrganizationId.HasValue || dto.OrganizationId.Value != admin.OrganizationId.Value))
+            {
+                var remainingOldOrgAdmins = await _context.Admins
+                    .Where(a => a.OrganizationId == admin.OrganizationId.Value && a.Id != admin.Id)
+                    .OrderBy(a => a.Id)
+                    .ToListAsync();
+
+                if (!remainingOldOrgAdmins.Any())
+                {
+                    throw new InvalidOperationException(
+                        "Cannot remove or unassign the only admin in the organization. Please add or assign another admin before unassigning this admin.");
+                }
+
+                var nextAdmin = remainingOldOrgAdmins.First();
+
+                // Reassign employees in old organization to nextAdmin, keeping OrganizationId intact
+                var oldOrgEmployees = await _context.Employees
+                    .Where(e => e.AdminId == admin.Id && e.OrganizationId == admin.OrganizationId.Value)
+                    .ToListAsync();
+
+                foreach (var emp in oldOrgEmployees)
+                {
+                    emp.AdminId = nextAdmin.Id;
+                }
+
+                var oldOrgBranches = await _context.Branches
+                    .Where(b => b.AdminId == admin.Id && b.OrganizationId == admin.OrganizationId.Value)
+                    .ToListAsync();
+
+                foreach (var branch in oldOrgBranches)
+                {
+                    branch.AdminId = nextAdmin.Id;
+                }
+            }
+
             admin.Email = dto.Email.Trim();
             admin.FullName = dto.FullName?.Trim();
             admin.PhoneNumber = dto.PhoneNumber?.Trim();
@@ -1769,13 +3109,26 @@ namespace EmployeeManagementSystem.Services
             admin.OrganizationName = orgName;
             admin.IsActive = dto.IsActive;
 
+            // If assigning this admin to a new organization, update their standalone employees to that organization
+            if (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0)
+            {
+                var standaloneEmployees = await _context.Employees
+                    .Where(e => e.AdminId == admin.Id && (e.OrganizationId == null || e.OrganizationId == 0))
+                    .ToListAsync();
+
+                foreach (var employee in standaloneEmployees)
+                {
+                    employee.OrganizationId = dto.OrganizationId;
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             await _auditLogService.LogAsync(
                 action: "Update",
                 module: "Admins",
                 entityId: admin.Id.ToString(),
-                description: $"Updated Admin '{admin.Email}' (ID: {admin.Id})",
+                description: $"Updated Admin '{admin.Email}' (ID: {admin.Id}) and synced Organization status.",
                 oldValue: oldValue,
                 newValue: JsonSerializer.Serialize(dto),
                 user: user,
@@ -1784,53 +3137,319 @@ namespace EmployeeManagementSystem.Services
             return await GetAdminById(admin.Id);
         }
 
-        public async Task<SuperAdminAdminDto?> AssignAdminOrganization(int id, AssignAdminOrganizationDto dto, ClaimsPrincipal? user, string? ipAddress)
+
+        //    public async Task<SuperAdminAdminDto?> AssignAdminOrganization(
+        //int id,
+        //AssignAdminOrganizationDto dto,
+        //ClaimsPrincipal? user,
+        //string? ipAddress)
+        //    {
+        //        var admin = await _context.Admins
+        //            .FirstOrDefaultAsync(x => x.Id == id);
+
+        //        if (admin == null)
+        //            return null;
+
+        //        string? orgName = null;
+        //        int? newOrganizationId = null;
+
+        //        if (dto.OrganizationId.HasValue &&
+        //            dto.OrganizationId.Value > 0)
+        //        {
+        //            var org = await _context.Organizations
+        //                .FirstOrDefaultAsync(o =>
+        //                    o.Id == dto.OrganizationId.Value &&
+        //                    !o.IsDeleted);
+
+        //            if (org == null)
+        //            {
+        //                throw new InvalidOperationException(
+        //                    $"Organization with ID {dto.OrganizationId.Value} not found.");
+        //            }
+
+        //            newOrganizationId = org.Id;
+        //            orgName = org.OrganizationName;
+        //        }
+
+        //        string oldValue = JsonSerializer.Serialize(new
+        //        {
+        //            admin.OrganizationId,
+        //            admin.OrganizationName
+        //        });
+
+        //        // ============================================================
+        //        // UPDATE ADMIN ORGANIZATION
+        //        // ============================================================
+
+        //        admin.OrganizationId = newOrganizationId;
+        //        admin.OrganizationName = orgName;
+
+        //        // ============================================================
+        //        // UPDATE ALL EMPLOYEES BELONGING TO THIS ADMIN
+        //        // ============================================================
+
+        //        var adminEmployees = await _context.Employees
+        //            .Where(e => e.AdminId == admin.Id)
+        //            .ToListAsync();
+
+        //        foreach (var employee in adminEmployees)
+        //        {
+        //            employee.OrganizationId = newOrganizationId;
+        //        }
+
+        //        await _context.SaveChangesAsync();
+
+        //        // ============================================================
+        //        // AUDIT LOG
+        //        // ============================================================
+
+        //        await _auditLogService.LogAsync(
+        //            action: "AssignOrganization",
+        //            module: "Admins",
+        //            entityId: admin.Id.ToString(),
+        //            description: orgName != null
+        //                ? $"Assigned Admin '{admin.Email}' (ID: {admin.Id}) to Organization '{orgName}' (ID: {newOrganizationId}) and moved {adminEmployees.Count} employees."
+        //                : $"Unassigned Admin '{admin.Email}' (ID: {admin.Id}) from Organization and removed organization assignment from {adminEmployees.Count} employees.",
+        //            oldValue: oldValue,
+        //            newValue: JsonSerializer.Serialize(new
+        //            {
+        //                admin.OrganizationId,
+        //                admin.OrganizationName,
+        //                EmployeeCount = adminEmployees.Count
+        //            }),
+        //            user: user,
+        //            ipAddress: ipAddress);
+
+        //        await _auditLogService.CreateSuperAdminNotificationAsync(
+        //            title: "Admin Organization Assignment Updated",
+        //            message: orgName != null
+        //                ? $"Admin '{admin.Email}' was assigned to organization '{orgName}'. {adminEmployees.Count} employees were moved to the organization."
+        //                : $"Admin '{admin.Email}' was unassigned from organization. {adminEmployees.Count} employees were unassigned from the organization.",
+        //            type: "Info");
+
+        //        return await GetAdminById(admin.Id);
+        //    }
+        public async Task<SuperAdminAdminDto?> AssignAdminOrganization(
+            int id,
+            AssignAdminOrganizationDto dto,
+            ClaimsPrincipal? user,
+            string? ipAddress)
         {
-            var admin = await _context.Admins.FirstOrDefaultAsync(x => x.Id == id);
-            if (admin == null) return null;
+            // 1. FIND ADMIN
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (admin == null)
+                return null;
 
             string? orgName = null;
-            if (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0)
+            int? newOrganizationId = null;
+
+            // 2. VALIDATE TARGET ORGANIZATION
+            if (dto.OrganizationId.HasValue &&
+                dto.OrganizationId.Value > 0)
             {
-                var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value && !o.IsDeleted);
+                var org = await _context.Organizations
+                    .FirstOrDefaultAsync(o =>
+                        o.Id == dto.OrganizationId.Value &&
+                        !o.IsDeleted);
+
                 if (org == null)
                 {
-                    throw new InvalidOperationException($"Organization with ID {dto.OrganizationId.Value} not found.");
+                    throw new InvalidOperationException(
+                        $"Organization with ID {dto.OrganizationId.Value} not found.");
                 }
+
+                newOrganizationId = org.Id;
                 orgName = org.OrganizationName;
+
+                // 3. PREVENT ADMIN FROM BEING REASSIGNED
+                //    TO A DIFFERENT ORGANIZATION
+                if (admin.OrganizationId.HasValue &&
+                    admin.OrganizationId.Value != newOrganizationId.Value)
+                {
+                    throw new InvalidOperationException(
+                        $"Admin '{admin.Email}' is already present in another organization.");
+                }
             }
 
+            // 4. IF UNASSIGNING ADMIN FROM AN ORGANIZATION
+            if (!newOrganizationId.HasValue && admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0)
+            {
+                var remainingAdmins = await _context.Admins
+                    .Where(a => a.OrganizationId == admin.OrganizationId.Value && a.Id != admin.Id)
+                    .OrderBy(a => a.Id)
+                    .ToListAsync();
+
+                if (!remainingAdmins.Any())
+                {
+                    throw new InvalidOperationException(
+                        "Cannot remove or unassign the only admin in the organization. Please add or assign another admin before unassigning this admin.");
+                }
+
+                var nextAdmin = remainingAdmins.First();
+
+                // Reassign all employees in this organization to nextAdmin, keeping OrganizationId intact
+                var currentOrgEmployees = await _context.Employees
+                    .Where(e => e.AdminId == admin.Id && e.OrganizationId == admin.OrganizationId.Value)
+                    .ToListAsync();
+
+                foreach (var emp in currentOrgEmployees)
+                {
+                    emp.AdminId = nextAdmin.Id;
+                }
+
+                var linkedBranches = await _context.Branches
+                    .Where(b => b.AdminId == admin.Id && b.OrganizationId == admin.OrganizationId.Value)
+                    .ToListAsync();
+
+                foreach (var branch in linkedBranches)
+                {
+                    branch.AdminId = nextAdmin.Id;
+                }
+            }
+
+            // 5. STORE OLD VALUE FOR AUDIT
             string oldValue = JsonSerializer.Serialize(new
             {
                 admin.OrganizationId,
                 admin.OrganizationName
             });
 
-            admin.OrganizationId = (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0) ? dto.OrganizationId : null;
+            // 6. UPDATE ADMIN ORGANIZATION
+            admin.OrganizationId = newOrganizationId;
             admin.OrganizationName = orgName;
 
+            // 7. IF ASSIGNING TO AN ORGANIZATION -> Update this admin's standalone employees
+            if (newOrganizationId.HasValue && newOrganizationId.Value > 0)
+            {
+                var standaloneEmployees = await _context.Employees
+                    .Where(e => e.AdminId == admin.Id && (e.OrganizationId == null || e.OrganizationId == 0))
+                    .ToListAsync();
+
+                foreach (var employee in standaloneEmployees)
+                {
+                    employee.OrganizationId = newOrganizationId;
+                }
+            }
+
+            // 7b. MERGE ADMIN SUBSCRIPTION INTO ORGANIZATION SUBSCRIPTION
+            if (newOrganizationId.HasValue && newOrganizationId.Value > 0)
+            {
+                var adminSub = await _context.AdminSubscriptions
+                    .Where(s => s.AdminId == admin.Id && s.IsActive)
+                    .OrderByDescending(s => s.SubscriptionId)
+                    .FirstOrDefaultAsync();
+
+                if (adminSub != null)
+                {
+                    var orgSub = await _context.OrganizationSubscriptions
+                        .Where(s => s.OrganizationId == newOrganizationId.Value)
+                        .OrderByDescending(s => s.Id)
+                        .FirstOrDefaultAsync();
+
+                    string userEmail = user?.FindFirst(ClaimTypes.Email)?.Value ?? "SuperAdmin";
+
+                    if (orgSub != null)
+                    {
+                        orgSub.MaxUsers = Math.Max(orgSub.MaxUsers, adminSub.MaxUsers);
+                        orgSub.EndDate = adminSub.EndDate > orgSub.EndDate ? adminSub.EndDate : orgSub.EndDate;
+                        orgSub.StartDate = adminSub.StartDate < orgSub.StartDate ? adminSub.StartDate : orgSub.StartDate;
+                        orgSub.IsActive = true;
+                        orgSub.UpdatedDate = DateTime.UtcNow;
+                        orgSub.UpdatedBy = userEmail;
+
+                        // Rewrite admin subscription to match merged organization subscription
+                        adminSub.MaxUsers = orgSub.MaxUsers;
+                        adminSub.EndDate = orgSub.EndDate;
+                        adminSub.StartDate = orgSub.StartDate;
+                        adminSub.IsActive = orgSub.IsActive;
+                    }
+                    else
+                    {
+                        var newOrgSub = new OrganizationSubscription
+                        {
+                            OrganizationId = newOrganizationId.Value,
+                            MaxUsers = adminSub.MaxUsers,
+                            StartDate = adminSub.StartDate,
+                            EndDate = adminSub.EndDate,
+                            IsActive = adminSub.IsActive,
+                            PlanName = "Admin Assigned Plan",
+                            BillingCycle = "Custom",
+                            Price = 0,
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedBy = userEmail
+                        };
+                        await _context.OrganizationSubscriptions.AddAsync(newOrgSub);
+                    }
+                }
+            }
+
+            // 8. SAVE CHANGES
             await _context.SaveChangesAsync();
 
+            int empCount = await _context.Employees.CountAsync(e => e.AdminId == admin.Id);
+
+            // 9. CREATE AUDIT LOG
             await _auditLogService.LogAsync(
                 action: "AssignOrganization",
                 module: "Admins",
                 entityId: admin.Id.ToString(),
                 description: orgName != null
-                    ? $"Assigned Admin '{admin.Email}' (ID: {admin.Id}) to Organization '{orgName}' (ID: {admin.OrganizationId})"
-                    : $"Unassigned Admin '{admin.Email}' (ID: {admin.Id}) from Organization",
+                    ? $"Assigned Admin '{admin.Email}' (ID: {admin.Id}) to Organization '{orgName}' (ID: {newOrganizationId}) and moved {empCount} employees."
+                    : $"Unassigned Admin '{admin.Email}' (ID: {admin.Id}) from Organization and reassigned employees to next admin.",
                 oldValue: oldValue,
-                newValue: JsonSerializer.Serialize(new { admin.OrganizationId, admin.OrganizationName }),
+                newValue: JsonSerializer.Serialize(new
+                {
+                    admin.OrganizationId,
+                    admin.OrganizationName,
+                    EmployeeCount = empCount
+                }),
                 user: user,
                 ipAddress: ipAddress);
 
+            // 10. CREATE SUPER ADMIN NOTIFICATION
             await _auditLogService.CreateSuperAdminNotificationAsync(
                 title: "Admin Organization Assignment Updated",
                 message: orgName != null
-                    ? $"Admin '{admin.Email}' was assigned to organization '{orgName}'."
-                    : $"Admin '{admin.Email}' was unassigned from organization.",
+                    ? $"Admin '{admin.Email}' was assigned to organization '{orgName}'. {empCount} employees were moved to the organization."
+                    : $"Admin '{admin.Email}' was unassigned from organization. Employees were reassigned to next admin.",
                 type: "Info");
 
+            // 11. RETURN UPDATED ADMIN
             return await GetAdminById(admin.Id);
+        }
+
+        public async Task<List<SuperAdminAdminDto>> GetAssignableAdmins(int organizationId)
+        {
+            var organizationExists = await _context.Organizations
+                .AnyAsync(o => o.Id == organizationId && !o.IsDeleted);
+
+            if (!organizationExists)
+                throw new KeyNotFoundException("Organization not found.");
+
+            var admins = await _context.Admins
+                .AsNoTracking()
+                .Where(a => a.OrganizationId == null)
+                .OrderBy(a => a.FullName)
+                .ThenBy(a => a.Email)
+                .Select(a => new SuperAdminAdminDto
+                {
+                    Id = a.Id,
+                    Email = a.Email,
+                    FullName = a.FullName,
+                    PhoneNumber = a.PhoneNumber,
+                    Role = a.Role,
+                    IsActive = a.IsActive,
+                    OrganizationId = a.OrganizationId,
+                    OrganizationName = a.OrganizationName,
+                    EmployeeCount = _context.Employees.Count(e => e.AdminId == a.Id),
+                    CreatedAt = a.CreatedAt,
+                    LastLogin = a.LastLogin
+                })
+                .ToListAsync();
+
+            return admins;
         }
 
         public async Task<bool> UpdateAdminStatus(int id, UpdateEntityStatusDto dto, ClaimsPrincipal? user, string? ipAddress)
@@ -2001,10 +3620,19 @@ namespace EmployeeManagementSystem.Services
 
             // Find a fallback admin in the same organization to take over employees & branches
             Admin? fallbackAdmin = null;
-            if (admin.OrganizationId.HasValue)
+            if (admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0)
             {
-                fallbackAdmin = await _context.Admins
-                    .FirstOrDefaultAsync(a => a.OrganizationId == admin.OrganizationId.Value && a.Id != admin.Id);
+                var remainingAdmins = await _context.Admins
+                    .Where(a => a.OrganizationId == admin.OrganizationId.Value && a.Id != admin.Id)
+                    .OrderBy(a => a.Id)
+                    .ToListAsync();
+
+                if (!remainingAdmins.Any())
+                {
+                    return (false, "Cannot delete the only admin in the organization. Please add or assign another admin before deleting this admin.");
+                }
+
+                fallbackAdmin = remainingAdmins.First();
             }
 
             // 1. Clean up AdminPermissions
@@ -2058,20 +3686,79 @@ namespace EmployeeManagementSystem.Services
             return (true, "Admin deleted successfully.");
         }
 
-        public async Task<(bool Success, string Message)> RemoveAdminFromOrganization(int organizationId, int adminId, ClaimsPrincipal? user, string? ipAddress)
+        // =========================================================
+        // 6. EMPLOYEE MONITORING (Organization-Scoped)
+        // =========================================================
+
+        public async Task<(bool Success, string Message)> RemoveAdminFromOrganization(
+    int organizationId,
+    int adminId,
+    ClaimsPrincipal? user,
+    string? ipAddress)
         {
-            var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Id == adminId && a.OrganizationId == organizationId);
+            // 1. Find the Admin in this organization
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(a => a.Id == adminId && a.OrganizationId == organizationId);
+
             if (admin == null)
             {
                 return (false, "Admin not found in this organization.");
             }
 
-            return await DeleteAdmin(adminId, user, ipAddress);
+            // 2. Find remaining admins in the organization
+            var remainingAdmins = await _context.Admins
+                .Where(a => a.OrganizationId == organizationId && a.Id != adminId)
+                .OrderBy(a => a.Id) // Picks the next available admin
+                .ToListAsync();
+
+            // 3. RULE: Prevent removal if this is the ONLY admin left
+            if (!remainingAdmins.Any())
+            {
+                return (false, "Cannot remove the last admin in the organization. Please add or assign another admin before removing this admin.");
+            }
+
+            // 4. Select the next successor admin
+            var nextAdmin = remainingAdmins.First();
+
+            // 5. Reassign all employees of the removed admin to the next admin (keep OrganizationId intact)
+            var adminEmployees = await _context.Employees
+                .Where(e => e.AdminId == admin.Id && e.OrganizationId == organizationId)
+                .ToListAsync();
+
+            foreach (var emp in adminEmployees)
+            {
+                emp.AdminId = nextAdmin.Id; // Reassign to next Admin
+            }
+
+            // 6. Reassign linked branches to next admin
+            var linkedBranches = await _context.Branches
+                .Where(b => b.AdminId == admin.Id)
+                .ToListAsync();
+
+            foreach (var branch in linkedBranches)
+            {
+                branch.AdminId = nextAdmin.Id;
+            }
+
+            // 7. Unlink the removed Admin from the organization
+            admin.OrganizationId = null;
+            admin.OrganizationName = null;
+
+            await _context.SaveChangesAsync();
+
+            // 8. Log the handover in Audit Trail
+            await _auditLogService.LogAsync(
+                action: "RemoveAdminFromOrganization",
+                module: "Admins",
+                entityId: admin.Id.ToString(),
+                description: $"Removed Admin '{admin.Email}' (ID: {admin.Id}) from Organization ID {organizationId}. Handed over {adminEmployees.Count} employees to Admin '{nextAdmin.Email}' (ID: {nextAdmin.Id}).",
+                user: user,
+                ipAddress: ipAddress);
+
+            return (true, $"Admin removed successfully. All {adminEmployees.Count} employees have been reassigned to Admin '{nextAdmin.Email}'.");
         }
 
-        // =========================================================
-        // 6. EMPLOYEE MONITORING (Organization-Scoped)
-        // =========================================================
+
         public async Task<PagedResultDto<SuperAdminEmployeeItemDto>> GetEmployeesByOrganization(int organizationId, SuperAdminEmployeeFilterDto filter)
         {
             var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted);
@@ -2089,10 +3776,13 @@ namespace EmployeeManagementSystem.Services
             if (string.Equals(filter.OnboardingStatus, "string", StringComparison.OrdinalIgnoreCase)) filter.OnboardingStatus = null;
             if (filter.RoleId.HasValue && filter.RoleId.Value <= 0) filter.RoleId = null;
 
+            // var query = _context.Employees
+            //     .AsNoTracking()
+            //     .Where(e => e.AdminId != null &&
+            //         _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == organizationId));
             var query = _context.Employees
                 .AsNoTracking()
-                .Where(e => e.AdminId != null &&
-                    _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == organizationId));
+                .Where(e => e.OrganizationId == organizationId);
 
             if (!string.IsNullOrWhiteSpace(filter.Search))
             {
@@ -2158,20 +3848,25 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<SuperAdminEmployeeDetailDto?> GetEmployeeByOrganizationAndId(int organizationId, string employeeId)
         {
-            var match = await (
-                from emp in _context.Employees.AsNoTracking()
-                join admin in _context.Admins.AsNoTracking() on emp.AdminId equals admin.Id
-                where emp.Employee_Id == employeeId && admin.OrganizationId == organizationId
-                select new { Employee = emp, Admin = admin }
-            ).FirstOrDefaultAsync();
+            // var match = await (
+            //     from emp in _context.Employees.AsNoTracking()
+            //     join admin in _context.Admins.AsNoTracking() on emp.AdminId equals admin.Id
+            //     where emp.Employee_Id == employeeId && admin.OrganizationId == organizationId
+            //     select new { Employee = emp, Admin = admin }
+            // ).FirstOrDefaultAsync();
+            var e = await _context.Employees.AsNoTracking()
+                .FirstOrDefaultAsync(emp => emp.Employee_Id == employeeId && emp.OrganizationId == organizationId);
 
-            if (match == null) return null;
+            if (e == null) return null;
 
-            var e = match.Employee;
-            var a = match.Admin;
+            Admin? a = null;
+            if (e.AdminId.HasValue)
+            {
+                a = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(adm => adm.Id == e.AdminId.Value);
+            }
 
             var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == organizationId);
-            string? orgName = org?.OrganizationName ?? a.OrganizationName;
+            string? orgName = org?.OrganizationName ?? a?.OrganizationName;
 
             var personal = await _context.EmployeePersonalInfos
                 .AsNoTracking()
@@ -2196,7 +3891,7 @@ namespace EmployeeManagementSystem.Services
                 CTC = e.CTC,
                 JoiningDate = e.JoiningDate,
                 AdminId = e.AdminId,
-                AdminEmail = a.Email,
+                AdminEmail = a?.Email,
                 OrganizationName = orgName,
                 PersonalInfo = personal != null ? new EmployeePersonalInfoDto
                 {
@@ -2232,12 +3927,14 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<bool> UpdateEmployeeStatusByOrganization(int organizationId, string employeeId, UpdateEntityStatusDto dto, ClaimsPrincipal? user, string? ipAddress)
         {
-            var emp = await (
-                from employee in _context.Employees
-                join admin in _context.Admins on employee.AdminId equals admin.Id
-                where employee.Employee_Id == employeeId && admin.OrganizationId == organizationId
-                select employee
-            ).FirstOrDefaultAsync();
+            // var emp = await (
+            //     from employee in _context.Employees
+            //     join admin in _context.Admins on employee.AdminId equals admin.Id
+            //     where employee.Employee_Id == employeeId && admin.OrganizationId == organizationId
+            //     select employee
+            // ).FirstOrDefaultAsync();
+            var emp = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId && e.OrganizationId == organizationId);
 
             if (emp == null) return false;
 

@@ -268,6 +268,7 @@ namespace EmployeeManagementSystem.Data
         public DbSet<SuperAdminNotification> SuperAdminNotifications { get; set; }
 
         public DbSet<StatusChangeLog> StatusChangeLogs { get; set; }
+        public DbSet<TicketAttachment> TicketAttachments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
@@ -346,8 +347,6 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<TicketTimer>().ToTable("tickettimer");
             modelBuilder.Entity<TicketHistory>().ToTable("tickethistory");
             modelBuilder.Entity<TicketWorkLog>().ToTable("ticketworklogs");
-            modelBuilder.Entity<TicketAssignment>().ToTable("ticketassignments");
-
 
             modelBuilder.Entity<SchedulerLog>().ToTable("schedulerlog");
             modelBuilder.Entity<SchedulerSetting>().ToTable("schedulersettings");
@@ -388,7 +387,7 @@ namespace EmployeeManagementSystem.Data
 
     .HasKey(x => x.SubscriptionId);
             modelBuilder.Entity<EmployeeResignation>()
-     .ToTable("EmployeeResignation");
+    .ToTable("employeeresignation");
             modelBuilder.Entity<EmployeeGoal>()
     .ToTable("employeegoal");
             modelBuilder.Entity<Appraisal>()
@@ -455,6 +454,11 @@ namespace EmployeeManagementSystem.Data
                 .HasForeignKey(x => x.EmployeeId)
                 .HasPrincipalKey(x => x.Employee_Id)
                 .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<TicketAttachment>()
+    .HasOne(x => x.Ticket)
+    .WithMany()
+    .HasForeignKey(x => x.TicketId)
+    .OnDelete(DeleteBehavior.Cascade);
             // Optimization: safe read-path indexes for dashboard, attendance, payroll, and report filters.
             modelBuilder.Entity<Attendance>()
                 .HasIndex(a => new { a.Employee_Id, a.Attendance_Date });

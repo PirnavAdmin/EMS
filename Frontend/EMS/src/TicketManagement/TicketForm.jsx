@@ -52,7 +52,7 @@ function TicketForm({
   const [employees, setEmployees] = useState([]);
   const [formData, setFormData] = useState(() => createEmptyTicketForm(role));
   const [errors, setErrors] = useState({});
-  const [attachmentLabel, setAttachmentLabel] = useState("");
+ const [attachmentFiles, setAttachmentFiles] = useState([]);
 
   const categoryOptions = useMemo(() => getTicketCategoryOptions(), []);
   const today = getTodayInputValue();

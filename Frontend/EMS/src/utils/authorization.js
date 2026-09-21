@@ -340,9 +340,7 @@ export const hasModulePermission = (moduleName, action = "canAccess") => {
   const onboardingRole = isOnboardingUser();
   const adminPermissionRole =
     loginType === "admin" || (!loginType && isAdmin(activeRole));
-  const userRole = activeRole || loginType || "";
-  const userId = getStoredUserId() || "";
-  const employeeId = getStoredEmployeeId() || "";
+
   const permissions =
     superAdminRole || adminPermissionRole
       ? getCurrentAdminAllowedModules()

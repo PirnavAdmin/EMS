@@ -210,9 +210,6 @@ function Header({ collapsed = false, onToggle }) {
               >
                 <GreetingIcon className="app-header-greeting-icon" />
                 <span className="app-header-greeting">{greetingMeta.text}</span>
-                {isSuperAdminUser && (
-                  <span className="app-header-greeting">Super Admin Portal</span>
-                )}
               </div>
             </div>
           </div>

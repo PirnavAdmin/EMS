@@ -121,8 +121,21 @@ export const normalizeAdmin = (admin = {}) => ({
         )
     ),
     email: firstDefined(admin.email, admin.Email, admin.officialEmail, admin.OfficialEmail, ""),
+    role: firstDefined(admin.role, admin.Role, admin.roleName, admin.RoleName, ""),
     phone: firstDefined(admin.phone, admin.Phone, admin.phoneNumber, admin.PhoneNumber, ""),
-    organizationId: firstDefined(admin.organizationId, admin.OrganizationId, ""),
+    organizationId: firstDefined(
+        admin.organizationId,
+        admin.OrganizationId,
+        admin.organization_Id,
+        admin.Organization_Id,
+        admin.organizationID,
+        admin.OrganizationID,
+        admin.adminOrganizationId,
+        admin.AdminOrganizationId,
+        admin.orgId,
+        admin.OrgId,
+        ""
+    ),
     organizationName: firstDefined(admin.organizationName, admin.OrganizationName, ""),
     employeeCount: toNumber(firstDefined(admin.employeeCount, admin.EmployeeCount)),
     company: firstDefined(admin.company, admin.Company, admin.companyName, admin.CompanyName, ""),
@@ -292,31 +305,56 @@ export const getEnhancedSuperAdminDashboard = async () => {
 };
 
 export const getAdminsPage = async ({ search = "", isActive, organizationId, page = 1, pageSize = 100 } = {}) => {
-    const params = {
-        page: Math.max(Number(page) || 1, 1),
-        pageSize: Math.max(Number(pageSize) || 1, 1),
-    };
-
-    if (String(search).trim()) params.search = String(search).trim();
-    if (typeof isActive === "boolean") params.isActive = isActive;
-    if (organizationId !== undefined && organizationId !== null && organizationId !== "") {
-        params.organizationId = Number(organizationId);
-    }
-
-    const response = await api.get(API_ENDPOINTS.superAdmin.admins, { params });
+    // GET /Admin has no query parameters. Keep the screen's search, status,
+    // organization, and pagination support by applying those filters locally.
+    const requestedPage = Math.max(Number(page) || 1, 1);
+    const requestedPageSize = Math.max(Number(pageSize) || 1, 1);
+    const response = await api.get(API_ENDPOINTS.adminManagement.list);
     const payload = response.data?.data || response.data || {};
-    const items = extractCollection(payload.items ?? payload.Items ?? payload).map(normalizeAdmin);
+    const allItems = extractCollection(payload.items ?? payload.Items ?? payload).map(normalizeAdmin);
+    const normalizedSearch = String(search).trim().toLowerCase();
+    const filteredItems = allItems.filter((admin) => {
+        const matchesSearch = !normalizedSearch || [
+            admin.adminId,
+            admin.name,
+            admin.email,
+            admin.phone,
+            admin.role,
+            admin.organizationName,
+        ].join(" ").toLowerCase().includes(normalizedSearch);
+        const matchesStatus = typeof isActive !== "boolean" || admin.isActive === isActive;
+        const matchesOrganization = organizationId === undefined || organizationId === null || organizationId === "" ||
+            String(admin.organizationId) === String(organizationId);
+
+        return matchesSearch && matchesStatus && matchesOrganization;
+    });
+    const startIndex = (requestedPage - 1) * requestedPageSize;
+    const items = filteredItems.slice(startIndex, startIndex + requestedPageSize);
 
     return {
         items,
-        totalCount: toNumber(payload.totalCount ?? payload.TotalCount, items.length),
-        pageNumber: toNumber(payload.pageNumber ?? payload.PageNumber, params.page),
-        pageSize: toNumber(payload.pageSize ?? payload.PageSize, params.pageSize),
-        totalPages: toNumber(payload.totalPages ?? payload.TotalPages, Math.ceil(items.length / params.pageSize)),
+        totalCount: filteredItems.length,
+        pageNumber: requestedPage,
+        pageSize: requestedPageSize,
+        totalPages: Math.ceil(filteredItems.length / requestedPageSize),
     };
 };
 
-export const getAdmins = async () => (await getAdminsPage()).items;
+export const getAdmins = async () => (await getAdminsPage({ pageSize: Number.MAX_SAFE_INTEGER })).items;
+
+// The organization-scoped endpoint is authoritative: it returns only legacy,
+// unassigned administrators eligible for the requested organization.
+export const getAvailableAdmins = async (organizationId) => {
+    const normalizedOrganizationId = String(organizationId ?? "").trim();
+
+    if (!normalizedOrganizationId) {
+        return getAdmins();
+    }
+
+    const response = await api.get(API_ENDPOINTS.organizations.assignableAdmins(normalizedOrganizationId));
+    const payload = response.data?.data || response.data || {};
+    return extractCollection(payload.items ?? payload.Items ?? payload).map(normalizeAdmin);
+};
 
 export const createAdmin = async (payload) => {
     const response = await api.post(API_ENDPOINTS.superAdmin.admins, payload, {
@@ -348,9 +386,23 @@ export const deleteAdmin = async (adminId) => {
 };
 
 export const assignAdminOrganization = async (adminId, organizationId) => {
+    const normalizedAdminId = Number(adminId);
+    const normalizedOrganizationId = Number(organizationId);
+
+    if (!Number.isInteger(normalizedAdminId) || normalizedAdminId <= 0) {
+        throw new Error("A valid administrator ID is required to assign an organization.");
+    }
+
+    // The API uses organizationId: 0 to remove the current organization assignment.
+    if (!Number.isInteger(normalizedOrganizationId) || normalizedOrganizationId < 0) {
+        throw new Error("A valid organization ID is required.");
+    }
+
+    // Assignment is distinct from a profile update: send only organizationId
+    // to the dedicated endpoint.
     const response = await api.put(
-        API_ENDPOINTS.superAdmin.assignAdminOrganization(adminId),
-        { organizationId: Number(organizationId) || 0 },
+        API_ENDPOINTS.superAdmin.assignAdminOrganization(normalizedAdminId),
+        { organizationId: normalizedOrganizationId },
         { headers: { "Content-Type": "application/json" } }
     );
 
@@ -471,7 +523,21 @@ export const createOrganization = async (payload) => {
 
 export const getOrganizationById = async (organizationId) => {
     const response = await api.get(API_ENDPOINTS.organizations.byId(organizationId));
-    return normalizeOrganization(response.data?.data || response.data || {});
+    const payload = response.data?.data || response.data || {};
+    const administratorPayload =
+        payload.administrators ??
+        payload.Administrators ??
+        payload.admins ??
+        payload.Admins ??
+        payload.organizationAdmins ??
+        payload.OrganizationAdmins;
+    const administrators = extractCollection(administratorPayload).map(normalizeAdmin);
+
+    return {
+        ...normalizeOrganization(payload),
+        administrators,
+        hasAdministrators: administratorPayload !== undefined && administratorPayload !== null,
+    };
 };
 
 export const updateOrganization = async (organizationId, payload) => {

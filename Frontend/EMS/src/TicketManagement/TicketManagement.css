@@ -269,6 +269,28 @@
   background: var(--input-bg);
   color: var(--input-text);
   box-shadow: none;
+  box-sizing: border-box;
+}
+
+/* Disabled fields in Edit Ticket */
+.ticket-field input:disabled,
+.ticket-field select:disabled,
+.ticket-field textarea:disabled {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  border-color: var(--border-soft);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.ticket-field input:disabled,
+.ticket-field select:disabled {
+  cursor: not-allowed;
+}
+
+.ticket-field input:disabled::placeholder,
+.ticket-field textarea:disabled::placeholder {
+  color: var(--text-muted);
 }
 
 .ticket-filter-row select,
@@ -673,8 +695,9 @@
 }
 
 .ticket-field textarea {
-  min-height: 150px;
+  min-height: 120px;
   resize: vertical;
+  box-sizing: border-box;
 }
 
 .ticket-field .has-error,
@@ -1233,22 +1256,45 @@
 
 .ticket-remarks-textarea {
   width: 100%;
-  min-height: 160px;
+  min-height: 120px;
   padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--input-text);
   resize: vertical;
+  box-sizing: border-box;
+  font: inherit;
+  outline: none;
 }
 
 .ticket-remarks-textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 4px var(--sidebar-accent-soft);
+  outline: none;
+}
+
+.ticket-remarks-textarea.has-error {
+  border-color: var(--theme-danger);
+  box-shadow: 0 0 0 3px var(--surface-danger-soft);
 }
 
 .ticket-remarks-block {
   margin-bottom: 0;
+}
+
+.ticket-remarks-block {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-soft);
+}
+
+.ticket-remarks-block p {
+  margin: 0;
+  color: var(--text-body);
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .ticket-delete-message {
@@ -1766,4 +1812,111 @@
   .ticket-toolbar-new .ticket-filter-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.ticket-attachment-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.ticket-attachment-remove {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--theme-danger);
+  cursor: pointer;
+}
+
+.ticket-attachment-remove:hover {
+  background: var(--surface-danger-soft);
+}
+
+.ticket-new-attachment-list {
+  margin-top: 10px;
+}
+
+.ticket-new-attachment-list .ticket-attachment-item {
+  background: var(--surface-info-soft);
+}
+
+.ticket-attachment-link {
+  color: var(--theme-info-strong);
+  font-weight: 700;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticket-attachment-link:hover {
+  text-decoration: underline;
+}
+
+.ticket-remarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ticket-remark-item {
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: var(--input-bg);
+}
+
+.ticket-remark-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ticket-remark-header strong {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ticket-remark-header small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.ticket-remark-item p {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ticket-remark-status {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.required-mark {
+  color: var(--theme-danger-strong);
+  margin-left: 3px;
+}
+
+.ticket-remarks-textarea.has-error {
+  border-color: var(--theme-danger);
+  box-shadow: 0 0 0 3px var(--surface-danger-soft);
+}
+
+.ticket-status-change-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }

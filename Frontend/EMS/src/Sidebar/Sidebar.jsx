@@ -186,7 +186,7 @@ const EXPANDABLE_MENUS = [
       { to: "/settings/employee-clearance", icon: FaShieldAlt, label: "Employee Clearance", adminOnly: true },
       { to: "/settings/exit-interview", icon: FaUserTie, label: "Exit Interview", adminOnly: true },
       { to: "/settings/full-final-settlement", icon: FaMoneyBillWave, label: "Full Final Settlement", adminOnly: true },
-      { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
+      // { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
       { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true }]
 
   }];

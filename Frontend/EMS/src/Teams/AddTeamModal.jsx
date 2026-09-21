@@ -46,6 +46,23 @@ const getProjectId = (project) =>
 const getProjectName = (project) =>
   project?.projectName || project?.project_Name || project?.name || "";
 
+/*
+ * /api/Team/project-teams returns employees[] for each project.
+ * Keep those employees so they can be pre-selected in Add Team.
+ */
+const getProjectEmployees = (project) => {
+  const source =
+    project?.employees ??
+    project?.Employees ??
+    project?.raw?.employees ??
+    project?.raw?.Employees ??
+    [];
+
+  return normalizeCollection(source)
+    .map((employee) => normalizeEmployeeRecord(employee))
+    .filter(Boolean);
+};
+
 const createInitialForm = (defaultTeamNumber = "") => ({
   teamNumber: defaultTeamNumber,
   teamName: "",
@@ -91,6 +108,21 @@ function AddTeamModal({
 
   const hasExistingTeam = Boolean(selectedProject?.teamExists);
   const canOpenExistingTeam = Boolean(selectedProject?.teamId != null);
+
+  const projectMembers = useMemo(
+    () => getProjectEmployees(selectedProject),
+    [selectedProject]
+  );
+
+  const projectMemberIds = useMemo(
+    () =>
+      new Set(
+        projectMembers
+          .map((employee) => getEmployeeId(employee))
+          .filter((id) => id !== "")
+      ),
+    [projectMembers]
+  );
 
   const selectedMemberIds = useMemo(
     () =>
@@ -168,8 +200,41 @@ function AddTeamModal({
         const managerList = managerSource.map((item) =>
           normalizeEmployeeRecord(item)
         );
-        const projectList = normalizeCollection(projectRes.data).map((item) =>
-          normalizeProjectTeamRecord(item)
+
+        // Preserve employees[] returned by /api/Team/project-teams.
+        const projectList = normalizeCollection(projectRes.data).map((item) => {
+          const normalizedProject = normalizeProjectTeamRecord(item);
+
+          const projectEmployees = normalizeCollection(
+            item?.employees ??
+              item?.Employees ??
+              item?.employees?.$values ??
+              item?.Employees?.$values ??
+              []
+          )
+            .map((employee) => normalizeEmployeeRecord(employee))
+            .filter(Boolean);
+
+          return {
+            ...normalizedProject,
+            employees: projectEmployees,
+            raw: item
+          };
+        });
+
+        // A project member may not be returned by the "available employees"
+        // endpoint, so merge project members into the selectable employee list.
+        const mergedEmployees = [
+          ...employeeList.filter(Boolean),
+          ...projectList.flatMap((project) => project.employees || [])
+        ];
+
+        const uniqueEmployees = Array.from(
+          new Map(
+            mergedEmployees
+              .filter((employee) => getEmployeeId(employee) !== "")
+              .map((employee) => [getEmployeeId(employee), employee])
+          ).values()
         );
 
         const normalizedManagers = managerList.filter(Boolean);
@@ -183,7 +248,7 @@ function AddTeamModal({
         logAddTeamDebug("MANAGERS ARRAY:", managerSource);
         logAddTeamDebug("MANAGER DROPDOWN OPTIONS:", managerDropdownOptions);
 
-        setEmployees(employeeList.filter(Boolean));
+        setEmployees(uniqueEmployees);
         setManagers(normalizedManagers);
         setProjects(projectList.filter(Boolean));
       } catch (error) {
@@ -211,6 +276,30 @@ function AddTeamModal({
       window.removeEventListener("keydown", handleEscape);
     };
   }, [defaultTeamNumber, onClose, open]);
+
+  /*
+   * When a project is selected, all employees already related to that
+   * project are selected automatically. Extra employees can still be added.
+   */
+  useEffect(() => {
+    if (!selectedProject) {
+      return;
+    }
+
+    const existingProjectMemberIds = getProjectEmployees(selectedProject)
+      .map((employee) => getEmployeeId(employee))
+      .filter((id) => id !== "");
+
+    setForm((current) => ({
+      ...current,
+      employeeIds: Array.from(
+        new Set([
+          ...existingProjectMemberIds,
+          ...current.employeeIds.map(normalizeSelectionId)
+        ])
+      )
+    }));
+  }, [selectedProject]);
 
   useEffect(() => {
     if (!open) {
@@ -259,6 +348,12 @@ function AddTeamModal({
       return;
     }
 
+    // Employees already belonging to the selected project are mandatory
+    // members of the new team and cannot be unchecked.
+    if (projectMemberIds.has(normalizedEmployeeId)) {
+      return;
+    }
+
     setForm((current) => {
       const isSelected = current.employeeIds
         .map((id) => normalizeSelectionId(id))
@@ -279,6 +374,10 @@ function AddTeamModal({
 
   const removeMember = (employeeId) => {
     const normalizedEmployeeId = normalizeSelectionId(employeeId);
+
+    if (projectMemberIds.has(normalizedEmployeeId)) {
+      return;
+    }
 
     setForm((current) => ({
       ...current,
@@ -309,9 +408,9 @@ function AddTeamModal({
       nextErrors.reportingManagerId = "Reporting Manager is required";
     }
 
-    if (!form.projectId.trim()) {
-      nextErrors.projectId = "Project is required";
-    }
+    // if (!form.projectId.trim()) {
+    //   nextErrors.projectId = "Project is required";
+    // }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -606,12 +705,20 @@ function AddTeamModal({
                     return (
                       <label
                         key={`${employeeId || "employee"}-${index}`}
-                        className="team-member-option"
+                        className={`team-member-option ${
+                          projectMemberIds.has(employeeId) ? "is-project-member" : ""
+                        }`}
                       >
                         <input
                           type="checkbox"
                           checked={selectedMemberIds.has(employeeId)}
                           onChange={() => toggleMember(employeeId)}
+                          disabled={projectMemberIds.has(employeeId)}
+                          aria-label={
+                            projectMemberIds.has(employeeId)
+                              ? `${getEmployeeName(employee)} is already assigned to this project`
+                              : `Select ${getEmployeeName(employee)}`
+                          }
                         />
 
                         <div className="team-member-info">

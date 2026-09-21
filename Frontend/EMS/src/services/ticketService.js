@@ -1,33 +1,39 @@
 import api from "../api/axiosInstance";
 import { API_ENDPOINTS } from "../api/endpoints";
-import { extractCollection, sortByRecency } from "../utils/collections";
-import { downloadBinaryFile, getDownloadErrorMessage } from "../utils/downloadUtils";
+import {
+  extractCollection,
+  sortByRecency
+} from "../utils/collections";
+import {
+  downloadBinaryFile,
+  getDownloadErrorMessage
+} from "../utils/downloadUtils";
 import {
   getStoredToken,
-  getStoredEmployeeId } from
-"../utils/authStorage";
+  getStoredEmployeeId
+} from "../utils/authStorage";
 import {
   normalizeTicketRecord,
-  normalizeTicketStatus } from
-"../TicketManagement/ticketConfig";
+  normalizeTicketStatus
+} from "../TicketManagement/ticketConfig";
 
 const pickFirstMessage = (value) =>
-[
-value?.message,
-value?.Message,
-value?.error,
-value?.Error,
-value?.title,
-value?.Title,
-value?.detail,
-value?.Detail,
-value?.exceptionMessage].
-find(Boolean) || "";
+  [
+    value?.message,
+    value?.Message,
+    value?.error,
+    value?.Error,
+    value?.title,
+    value?.Title,
+    value?.detail,
+    value?.Detail,
+    value?.exceptionMessage
+  ].find(Boolean) || "";
 
 export const getTicketApiErrorMessage = async (
-error,
-fallbackMessage = "Unable to complete the ticket request.") =>
-{
+  error,
+  fallbackMessage = "Unable to complete the ticket request."
+) => {
   const status = error?.response?.status;
   const data = error?.response?.data;
   const parsedMessage = pickFirstMessage(data);
@@ -68,119 +74,192 @@ fallbackMessage = "Unable to complete the ticket request.") =>
 };
 
 export const normalizeTicketCollection = (payload) =>
-sortByRecency(
-  extractCollection(payload).map((ticket) => normalizeTicketRecord(ticket))
-);
+  sortByRecency(
+    extractCollection(payload).map((ticket) =>
+      normalizeTicketRecord(ticket)
+    )
+  );
 
 export const normalizeTicketDetails = (payload) => {
   const source =
-  payload?.data?.data ||
-  payload?.data ||
-  payload ||
-  {};
+    payload?.data?.data ||
+    payload?.data ||
+    payload ||
+    {};
 
   return normalizeTicketRecord(source);
 };
 
 export const fetchTickets = async () => {
-  const response = await api.get(API_ENDPOINTS.tickets.list);
+  const response = await api.get(
+    API_ENDPOINTS.tickets.list
+  );
+
   return normalizeTicketCollection(response.data);
 };
 
 export const fetchMyTickets = async () => {
-  const response = await api.get(API_ENDPOINTS.tickets.myTickets);
+  const response = await api.get(
+    API_ENDPOINTS.tickets.myTickets
+  );
+
   return normalizeTicketCollection(response.data);
 };
 
 export const fetchProjectTickets = async (projectId) => {
   const tickets = await fetchTickets();
-  const targetId = String(projectId || "").trim().toLowerCase();
+
+  const targetId = String(projectId || "")
+    .trim()
+    .toLowerCase();
 
   if (!targetId) {
     return [];
   }
 
   return tickets.filter((ticket) =>
-  String(ticket.projectId || ticket.raw?.projectId || ticket.raw?.ProjectId || "").
-  trim().
-  toLowerCase() === targetId
+    String(
+      ticket.projectId ||
+      ticket.raw?.projectId ||
+      ticket.raw?.ProjectId ||
+      ""
+    )
+      .trim()
+      .toLowerCase() === targetId
   );
 };
 
 export const fetchEmployeeTickets = async (employeeId) => {
-  const response = await api.get(API_ENDPOINTS.tickets.byEmployee(employeeId));
+  const response = await api.get(
+    API_ENDPOINTS.tickets.byEmployee(employeeId)
+  );
+
   return normalizeTicketCollection(response.data);
 };
 
 export const fetchTicketById = async (ticketId) => {
-  const normalizedTicketId = String(ticketId ?? "").trim();
-  const token = getStoredToken();
-  const url = API_ENDPOINTS.tickets.byId(ticketId);
+  const normalizedTicketId = String(
+    ticketId ?? ""
+  ).trim();
 
-  if (!normalizedTicketId || ["undefined", "null"].includes(normalizedTicketId.toLowerCase())) {
+  if (
+    !normalizedTicketId ||
+    ["undefined", "null"].includes(
+      normalizedTicketId.toLowerCase()
+    )
+  ) {
     throw new Error("Ticket ID is missing.");
   }
 
-  const response = await api.get(url);
+  const response = await api.get(
+    API_ENDPOINTS.tickets.byId(ticketId)
+  );
+
   return normalizeTicketDetails(response.data);
 };
 
 export const createTicket = (payload) =>
-api.post(API_ENDPOINTS.tickets.create, payload);
+  api.post(
+    API_ENDPOINTS.tickets.create,
+    payload
+  );
 
-export const updateTicket = async (ticketId, payload) => {
-  try {
-    const response = await api.put(
-      API_ENDPOINTS.tickets.update(ticketId),
-      payload
-    );
-    return response;
-  } catch (error) {
-
-    // ADD THIS LINE
-
-    throw error;
-  }
+export const updateTicket = async (
+  ticketId,
+  payload
+) => {
+  return api.put(
+    API_ENDPOINTS.tickets.update(ticketId),
+    payload
+  );
 };
 
 export const deleteTicket = (ticketId) =>
-api.delete(API_ENDPOINTS.tickets.delete(ticketId));
+  api.delete(
+    API_ENDPOINTS.tickets.delete(ticketId)
+  );
 
-export const updateTicketStatus = (ticketId, status) =>
-api.put(
-  `${API_ENDPOINTS.tickets.updateStatus(ticketId)}?status=${encodeURIComponent(
+/*
+ * Update status + remarks + attachments
+ */
+export const updateTicketStatus = (
+  ticketId,
+  status,
+  remarks = "",
+  files = []
+) => {
+  const formData = new FormData();
+
+  formData.append(
+    "status",
     normalizeTicketStatus(status)
-  )}`
-);
+  );
+
+  formData.append(
+    "remarks",
+    String(remarks || "")
+  );
+
+  (Array.isArray(files) ? files : []).forEach(
+    (file) => {
+      if (file instanceof File) {
+        formData.append("files", file);
+      }
+    }
+  );
+
+  return api.put(
+    API_ENDPOINTS.tickets.updateStatus(ticketId),
+    formData
+  );
+};
 
 const buildActionPayload = (ticket = {}) => {
   const employeeId =
-  ticket.assignedToId ||
-  ticket.raw?.assignedToId ||
-  ticket.raw?.AssignedToId ||
-  getStoredEmployeeId();
+    ticket.assignedToId ||
+    ticket.raw?.assignedToId ||
+    ticket.raw?.AssignedToId ||
+    getStoredEmployeeId();
 
   return {
-    ticketId: Number(ticket.ticketId || ticket.id || 0),
-    employeeId: String(employeeId || "")
+    ticketId: Number(
+      ticket.ticketId ||
+      ticket.id ||
+      0
+    ),
+    employeeId: String(
+      employeeId || ""
+    )
   };
 };
 
 export const startTicketWork = (ticket) => {
   const payload = buildActionPayload(ticket);
 
-  return api.post(API_ENDPOINTS.tickets.startWork, payload);
+  return api.post(
+    API_ENDPOINTS.tickets.startWork,
+    payload
+  );
 };
 
 export const stopTicketWork = (ticket) =>
-api.post(API_ENDPOINTS.tickets.stopWork, buildActionPayload(ticket));
+  api.post(
+    API_ENDPOINTS.tickets.stopWork,
+    buildActionPayload(ticket)
+  );
 
-export const AUTO_ASSIGN_SUCCESS_MESSAGE = "Tickets assigned successfully.";
-export const AUTO_ASSIGN_FAILURE_MESSAGE = "Unable to auto assign tickets.";
+export const AUTO_ASSIGN_SUCCESS_MESSAGE =
+  "Tickets assigned successfully.";
+
+export const AUTO_ASSIGN_FAILURE_MESSAGE =
+  "Unable to auto assign tickets.";
+
 export const AUTO_ASSIGN_NETWORK_ERROR_MESSAGE =
-"Something went wrong. Please try again.";
+  "Something went wrong. Please try again.";
 
-export const buildAutoAssignPayload = (projectId) => {
+export const buildAutoAssignPayload = (
+  projectId
+) => {
   if (!projectId) {
     return {};
   }
@@ -192,22 +271,35 @@ export const buildAutoAssignPayload = (projectId) => {
   };
 };
 
-export const getAutoAssignErrorMessage = async (error) => {
-  if (!error?.response) {
-    return AUTO_ASSIGN_NETWORK_ERROR_MESSAGE;
-  }
+export const getAutoAssignErrorMessage =
+  async (error) => {
+    if (!error?.response) {
+      return AUTO_ASSIGN_NETWORK_ERROR_MESSAGE;
+    }
 
-  return getTicketApiErrorMessage(error, AUTO_ASSIGN_FAILURE_MESSAGE);
-};
+    return getTicketApiErrorMessage(
+      error,
+      AUTO_ASSIGN_FAILURE_MESSAGE
+    );
+  };
 
-export const autoAssignTickets = (payload = {}) =>
-api.post(API_ENDPOINTS.tickets.autoAssign, payload);
+export const autoAssignTickets = (
+  payload = {}
+) =>
+  api.post(
+    API_ENDPOINTS.tickets.autoAssign,
+    payload
+  );
 
-export const exportTickets = async (params = {}) => {
+export const exportTickets = async (
+  params = {}
+) => {
   const token = getStoredToken();
 
   if (!token) {
-    throw new Error("Your session expired. Please sign in again.");
+    throw new Error(
+      "Your session expired. Please sign in again."
+    );
   }
 
   await downloadBinaryFile({
@@ -222,17 +314,27 @@ export const downloadTicketTemplate = async () => {
   const token = getStoredToken();
 
   if (!token) {
-    throw new Error("Your session expired. Please sign in again.");
+    throw new Error(
+      "Your session expired. Please sign in again."
+    );
   }
 
   await downloadBinaryFile({
-    endpoint: API_ENDPOINTS.tickets.downloadTemplate,
+    endpoint:
+      API_ENDPOINTS.tickets.downloadTemplate,
     token,
     fallbackFileName: "TicketTemplate.xlsx"
   });
 };
 
-export const uploadTicketBulkFile = (formData) =>
-api.post(API_ENDPOINTS.tickets.bulkUpload, formData);
+export const uploadTicketBulkFile = (
+  formData
+) =>
+  api.post(
+    API_ENDPOINTS.tickets.bulkUpload,
+    formData
+  );
 
-export { getDownloadErrorMessage };
+export {
+  getDownloadErrorMessage
+};

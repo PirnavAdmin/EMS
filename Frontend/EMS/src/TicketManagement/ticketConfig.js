@@ -574,25 +574,41 @@ export const normalizeTicketRecord = (ticket = {}) => {
     ticket.IsWorking ??
     false;
 
-  const spentHours =
+const spentHours =
     ticket.spentHours ??
     ticket.SpentHours ??
     ticket.timeSpent ??
     ticket.TimeSpent ??
-    ticket.actualHours ??
-    ticket.ActualHours ??
     ticket.workHours ??
     ticket.WorkHours ??
     "";
 
-  const notes =
-    ticket.notes ??
-    ticket.Notes ??
+  const actualHours =
+    ticket.actualHours ??
+    ticket.ActualHours ??
+    spentHours ??
+    0;
+
+  const remainingHours =
+    ticket.remainingHours ??
+    ticket.RemainingHours ??
+    0;
+
+  const rawRemarks =
     ticket.remarks ??
     ticket.Remarks ??
-    ticket.remark ??
-    ticket.Remark ??
-    "";
+    [];
+
+  const notes =
+    typeof ticket.notes === "string"
+      ? ticket.notes
+      : typeof ticket.Notes === "string"
+        ? ticket.Notes
+        : typeof ticket.remark === "string"
+          ? ticket.remark
+          : typeof ticket.Remark === "string"
+            ? ticket.Remark
+            : "";
 
   return {
     raw: ticket,
@@ -642,8 +658,11 @@ export const normalizeTicketRecord = (ticket = {}) => {
     workStarted: Boolean(workStarted || startedDate),
     workActive: Boolean(workActive),
     spentHours,
+    actualHours,
     notes: normalizeSpace(notes),
-    remarks: normalizeSpace(notes),
+    remarks: Array.isArray(rawRemarks)
+      ? rawRemarks
+      : [],
     comments: Array.isArray(ticket.comments)
       ? ticket.comments
       : Array.isArray(ticket.Comments)

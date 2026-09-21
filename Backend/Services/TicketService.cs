@@ -418,13 +418,16 @@ EMS Team
                     from t in _context.Tickets
 
                     join p in _context.Projects
-                        on t.ProjectId equals p.Id
+     on t.ProjectId equals p.Id into projectGroup
+                    from p in projectGroup.DefaultIfEmpty()
 
                     join e1 in _context.Employees
-                        on t.AssignedTo equals e1.Employee_Id
+                        on t.AssignedTo equals e1.Employee_Id into assignedToGroup
+                    from e1 in assignedToGroup.DefaultIfEmpty()
 
                     join e2 in _context.Employees
-                        on t.AssignedBy equals e2.Employee_Id
+                        on t.AssignedBy equals e2.Employee_Id into assignedByGroup
+                    from e2 in assignedByGroup.DefaultIfEmpty()
 
                     where t.Id == id && t.IsActive
 
@@ -433,7 +436,7 @@ EMS Team
                         Id = t.Id,
                         TicketNumber = t.TicketNumber,
                         ProjectId = t.ProjectId,
-                        ProjectName = p.Project_Name,
+                        ProjectName = p != null ? p.Project_Name : null,
                         Title = t.Title,
                         Description = t.Description,
                         Technology = t.Technology,
@@ -449,10 +452,10 @@ EMS Team
                             : t.Status,
 
                         AssignedTo = t.AssignedTo,
-                        AssignedToName = e1.Name,
+                        AssignedToName = e1 != null ? e1.Name : null,
 
                         AssignedBy = t.AssignedBy,
-                        AssignedByName = e2.Name,
+                        AssignedByName = e2 != null ? e2.Name : null,
 
                         // Ticket timestamps
                         AssignedDate = t.AssignedDate,
@@ -463,19 +466,14 @@ EMS Team
                         DueDate = t.DueDate,
                         EstimatedHours = t.EstimatedHours,
 
+                        ActualHours = t.ActualHours,
+                        RemainingHours = t.RemainingHours,
+
                         CreatedAt = t.CreatedAt,
                         UpdatedAt = t.UpdatedAt,
 
                         // Latest status-change remark
-                        Remarks = _context.TicketHistory
-                            .Where(x =>
-                                x.TicketId == t.Id &&
-                                x.Action == "Status Change" &&
-                                x.Remarks != null &&
-                                x.Remarks != "")
-                            .OrderByDescending(x => x.CreatedAt)
-                            .Select(x => x.Remarks)
-                            .FirstOrDefault()
+                       
                     }
                 )
                 .FirstOrDefaultAsync();
@@ -502,6 +500,94 @@ EMS Team
             if (ticket.UpdatedAt.HasValue)
                 ticket.UpdatedAt =
                     ConvertUtcToIst(ticket.UpdatedAt.Value);
+            // ==========================================
+            // GET ALL TICKET REMARKS
+            // ==========================================
+
+            // ==========================================
+            // GET ALL TICKET REMARKS
+            // Latest remark/date-time first
+            // ==========================================
+
+            var remarks = await _context.TicketHistory
+                .AsNoTracking()
+                .Where(x =>
+                    x.TicketId == id &&
+                    x.Remarks != null &&
+                    x.Remarks != "")
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            ticket.Remarks = remarks
+                .Select(x => new TicketRemarkDto
+                {
+                    EmployeeId = x.CreatedBy,
+                    Remark = x.Remarks,
+                    OldStatus = x.OldStatus,
+                    NewStatus = x.NewStatus,
+                    CreatedAt = ConvertUtcToIst(x.CreatedAt)
+                })
+                .ToList();
+            // ==========================================
+            // CALCULATE ACTUAL & REMAINING HOURS
+            // ==========================================
+            var workLogs = await _context.TicketWorkLogs
+    .AsNoTracking()
+    .Where(x => x.TicketId == id)
+    .ToListAsync();
+
+            var totalWorkedMinutes = workLogs
+                .Where(x => !x.IsRunning)
+                .Sum(x => x.WorkedMinutes);
+
+            var runningLog = workLogs
+                .FirstOrDefault(x => x.IsRunning);
+
+            if (runningLog != null)
+            {
+                var runningMinutes = (int)(
+                    DateTime.UtcNow - runningLog.StartTime
+                ).TotalMinutes;
+
+                if (runningMinutes > 0)
+                    totalWorkedMinutes += runningMinutes;
+            }
+
+            ticket.ActualHours =
+                Math.Round(totalWorkedMinutes / 60m, 2);
+
+            if (ticket.EstimatedHours.HasValue)
+            {
+                ticket.RemainingHours =
+                    Math.Max(
+                        0,
+                        ticket.EstimatedHours.Value -
+                        ticket.ActualHours);
+            }
+            // ==========================================
+            // GET TICKET ATTACHMENTS
+            // ==========================================
+
+            var attachments = await _context.TicketAttachments
+                .AsNoTracking()
+                .Where(x => x.TicketId == id)
+                .OrderByDescending(x => x.UploadedAt)
+                .ToListAsync();
+
+            ticket.Attachments = attachments
+                .Select(x => new TicketAttachmentDto
+                {
+                    Id = x.Id,
+                    EmployeeId = x.EmployeeId,
+                    TicketId = x.TicketId,
+                    FileName = x.FileName,
+                    FilePath = x.FilePath,
+                    ContentType = x.ContentType,
+                    FileSize = x.FileSize,
+                    UploadedAt = ConvertUtcToIst(x.UploadedAt)
+                })
+                .ToList();
+
 
             return ticket;
         }
@@ -582,6 +668,9 @@ EMS Team
                         DueDate = t.DueDate,
                         EstimatedHours = t.EstimatedHours,
 
+                        ActualHours = t.ActualHours,
+                        RemainingHours = t.RemainingHours,
+
                         CreatedAt = t.CreatedAt,
                         UpdatedAt = t.UpdatedAt
                     }
@@ -612,6 +701,46 @@ EMS Team
                 if (ticket.UpdatedAt.HasValue)
                     ticket.UpdatedAt =
                         ConvertUtcToIst(ticket.UpdatedAt.Value);
+            }
+            // ==========================================
+            // CALCULATE ACTUAL & REMAINING HOURS
+            // ==========================================
+
+            foreach (var ticket in tickets)
+            {
+                var workLogs = await _context.TicketWorkLogs
+                    .AsNoTracking()
+                    .Where(x => x.TicketId == ticket.Id)
+                    .ToListAsync();
+
+                var totalWorkedMinutes = workLogs
+                    .Where(x => !x.IsRunning)
+                    .Sum(x => x.WorkedMinutes);
+
+                var runningLog = workLogs
+                    .FirstOrDefault(x => x.IsRunning);
+
+                if (runningLog != null)
+                {
+                    var runningMinutes = (int)(
+                        DateTime.UtcNow - runningLog.StartTime
+                    ).TotalMinutes;
+
+                    if (runningMinutes > 0)
+                        totalWorkedMinutes += runningMinutes;
+                }
+
+                ticket.ActualHours =
+                    Math.Round(totalWorkedMinutes / 60m, 2);
+
+                if (ticket.EstimatedHours.HasValue)
+                {
+                    ticket.RemainingHours =
+                        Math.Max(
+                            0,
+                            ticket.EstimatedHours.Value -
+                            ticket.ActualHours);
+                }
             }
 
             return tickets;
@@ -662,6 +791,103 @@ EMS Team
 
             if (loggedInEmployee == null)
                 throw new Exception("Employee not found.");
+            // ==========================================
+            // TICKET ATTACHMENT UPLOAD
+            // ==========================================
+
+            var files = _httpContextAccessor.HttpContext?
+                .Request.Form.Files;
+
+            if (files != null && files.Count > 0)
+            {
+                var allowedExtensions = new[]
+                {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".bmp",
+
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".txt",
+
+        ".xls",
+        ".xlsx",
+
+        ".ppt",
+        ".pptx",
+
+        ".csv",
+        ".zip"
+    };
+
+                var uploadFolder = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot",
+                    "uploads",
+                    "tickets",
+                    loggedInEmployee.Employee_Id);
+
+                if (!Directory.Exists(uploadFolder))
+                {
+                    Directory.CreateDirectory(uploadFolder);
+                }
+
+                foreach (var file in files)
+                {
+                    if (file == null || file.Length == 0)
+                        continue;
+
+                    var extension = Path.GetExtension(file.FileName)
+                        .ToLowerInvariant();
+
+                    if (!allowedExtensions.Contains(extension))
+                    {
+                        throw new Exception(
+                            $"File type '{extension}' is not allowed.");
+                    }
+
+                    // Maximum 10 MB per file
+                    if (file.Length > 10 * 1024 * 1024)
+                    {
+                        throw new Exception(
+                            $"File '{file.FileName}' exceeds the maximum size of 10 MB.");
+                    }
+
+                    var uniqueFileName =
+                        $"{Guid.NewGuid()}{extension}";
+
+                    var physicalPath = Path.Combine(
+                        uploadFolder,
+                        uniqueFileName);
+
+                    using (var stream = new FileStream(
+                        physicalPath,
+                        FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    var attachment = new TicketAttachment
+                    {
+                        TicketId = ticket.Id,
+                        EmployeeId = loggedInEmployee.Employee_Id,
+                        FileName = file.FileName,
+                        FilePath =
+                            $"/uploads/tickets/{loggedInEmployee.Employee_Id}/{uniqueFileName}",
+                        ContentType = file.ContentType,
+                        FileSize = file.Length,
+                        UploadedAt = DateTime.UtcNow
+                    };
+
+                    _context.TicketAttachments.Add(attachment);
+                }
+
+                await _context.SaveChangesAsync();
+            }
 
             // Save status-change history with remarks
             var history = new TicketHistory
@@ -700,6 +926,7 @@ EMS Team
 
             if (loggedInEmployee == null)
                 throw new Exception("Employee not found.");
+
 
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x => x.Id == ticketId && x.IsActive);
@@ -1280,7 +1507,10 @@ EMS Team
 
         public async Task<bool> StartWorkAsync(StartWorkDto dto)
         {
-            // Get logged-in employee from JWT
+            // ==========================================
+            // GET LOGGED-IN EMPLOYEE FROM JWT
+            // ==========================================
+
             var email = _httpContextAccessor.HttpContext?
                 .User
                 .FindFirst(ClaimTypes.Email)?
@@ -1299,8 +1529,11 @@ EMS Team
             if (employee == null)
                 return false;
 
-            // Employee ID from JWT user
             var employeeId = employee.Employee_Id;
+
+            // ==========================================
+            // GET TICKET
+            // ==========================================
 
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(t =>
@@ -1309,6 +1542,10 @@ EMS Team
 
             if (ticket == null)
                 return false;
+
+            // ==========================================
+            // CHECK ASSIGNMENT
+            // ==========================================
 
             if (ticket.Technology.Equals(
                 "Training",
@@ -1321,23 +1558,41 @@ EMS Team
 
                 if (assignment == null)
                     return false;
-
-                assignment.Status = "In Progress";
             }
             else
             {
+                // Normal ticket
                 if (ticket.AssignedTo != employeeId)
                     return false;
             }
+            // ==========================================
+            // STATUS CHECK
+            // ==========================================
 
-            if (ticket.Status == "Completed")
+            // Overdue tickets cannot be started
+            if (string.Equals(
+                    ticket.Status,
+                    "Overdue",
+                    StringComparison.OrdinalIgnoreCase))
+            {
                 return false;
+            }
 
-            if (ticket.Status == "Overdue")
+            // Already running
+            if (string.Equals(
+                    ticket.Status,
+                    "In Progress",
+                    StringComparison.OrdinalIgnoreCase))
+            {
                 return false;
+            }
 
-            if (ticket.Status == "In Progress")
-                return false;
+            // Completed / Hold / Pending / Assigned
+            // tickets are allowed to be started again.
+
+            // ==========================================
+            // CHECK RUNNING WORK LOG
+            // ==========================================
 
             var runningLog = await _context.TicketWorkLogs
                 .AnyAsync(x =>
@@ -1347,6 +1602,21 @@ EMS Team
 
             if (runningLog)
                 return false;
+
+            // ==========================================
+            // CHECK PREVIOUS WORK LOGS
+            // ==========================================
+
+            var hasPreviousWorkLogs = await _context.TicketWorkLogs
+                .AnyAsync(x =>
+                    x.TicketId == dto.TicketId &&
+                    x.EmployeeId == employeeId &&
+                    !x.IsRunning &&
+                    x.WorkedMinutes > 0);
+
+            // ==========================================
+            // CREATE NEW WORK LOG
+            // ==========================================
 
             var workLog = new TicketWorkLog
             {
@@ -1358,25 +1628,67 @@ EMS Team
 
             _context.TicketWorkLogs.Add(workLog);
 
+            // ==========================================
+            // START / RESTART TICKET
+            // ==========================================
+
             ticket.Status = "In Progress";
 
-            ticket.OpenedDate = DateTime.UtcNow;
-
-            if (ticket.EstimatedHours.HasValue)
+            // Only set OpenedDate when ticket is started
+            // for the first time.
+            if (!hasPreviousWorkLogs)
             {
-                ticket.Deadline = ticket.OpenedDate.Value.AddHours(
-                    (double)ticket.EstimatedHours.Value);
+                ticket.OpenedDate = DateTime.UtcNow;
+
+                if (ticket.EstimatedHours.HasValue)
+                {
+                    ticket.Deadline =
+                        ticket.OpenedDate.Value.AddHours(
+                            (double)ticket.EstimatedHours.Value);
+                }
             }
 
+            // Ticket is no longer completed because
+            // employee has reopened it for changes.
+            ticket.CompletedDate = null;
+
             ticket.UpdatedAt = DateTime.UtcNow;
+
+            // ==========================================
+            // TRAINING TICKET ASSIGNMENT STATUS
+            // ==========================================
+
+            if (ticket.Technology.Equals(
+                "Training",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                var assignment = await _context.TicketAssignments
+                    .FirstOrDefaultAsync(x =>
+                        x.TicketId == dto.TicketId &&
+                        x.EmployeeId == employeeId);
+
+                if (assignment != null)
+                {
+                    assignment.Status = "In Progress";
+                }
+            }
+
+            // ==========================================
+            // SAVE
+            // ==========================================
 
             await _context.SaveChangesAsync();
 
             return true;
         }
+
+
         public async Task<bool> StopWorkAsync(StopWorkDto dto)
         {
-            // Get logged-in employee from JWT
+            // ==========================================
+            // GET LOGGED-IN EMPLOYEE FROM JWT
+            // ==========================================
+
             var email = _httpContextAccessor.HttpContext?
                 .User
                 .FindFirst(ClaimTypes.Email)?
@@ -1395,8 +1707,11 @@ EMS Team
             if (employee == null)
                 return false;
 
-            // Employee ID from JWT
             var employeeId = employee.Employee_Id;
+
+            // ==========================================
+            // GET CURRENTLY RUNNING WORK LOG
+            // ==========================================
 
             var workLog = await _context.TicketWorkLogs
                 .FirstOrDefaultAsync(x =>
@@ -1404,8 +1719,14 @@ EMS Team
                     x.EmployeeId == employeeId &&
                     x.IsRunning);
 
+            // If there is no running work log,
+            // employee has not started this ticket
             if (workLog == null)
                 return false;
+
+            // ==========================================
+            // GET TICKET
+            // ==========================================
 
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x =>
@@ -1415,7 +1736,12 @@ EMS Team
             if (ticket == null)
                 return false;
 
-            if (ticket.Technology.Equals(
+            // ==========================================
+            // CHECK ASSIGNMENT
+            // ==========================================
+
+            if (string.Equals(
+                ticket.Technology,
                 "Training",
                 StringComparison.OrdinalIgnoreCase))
             {
@@ -1431,12 +1757,14 @@ EMS Team
             }
             else
             {
+                // Normal ticket
                 if (ticket.AssignedTo != employeeId)
                     return false;
             }
 
-            if (ticket.Status != "In Progress")
-                return false;
+            // ==========================================
+            // STOP CURRENT WORK LOG
+            // ==========================================
 
             workLog.EndTime = DateTime.UtcNow;
             workLog.IsRunning = false;
@@ -1446,7 +1774,14 @@ EMS Team
                 (int)(workLog.EndTime.Value - workLog.StartTime)
                 .TotalMinutes;
 
-            // Calculate total worked minutes for this ticket
+            // Prevent negative worked minutes
+            if (workLog.WorkedMinutes < 0)
+                workLog.WorkedMinutes = 0;
+
+            // ==========================================
+            // CALCULATE TOTAL WORKED MINUTES
+            // ==========================================
+
             var previousWorkedMinutes =
                 await _context.TicketWorkLogs
                     .Where(x =>
@@ -1460,8 +1795,16 @@ EMS Team
                 previousWorkedMinutes +
                 workLog.WorkedMinutes;
 
+            // ==========================================
+            // UPDATE ACTUAL HOURS
+            // ==========================================
+
             ticket.ActualHours =
                 Math.Round(totalWorkedMinutes / 60m, 2);
+
+            // ==========================================
+            // UPDATE REMAINING HOURS
+            // ==========================================
 
             if (ticket.EstimatedHours.HasValue)
             {
@@ -1471,7 +1814,15 @@ EMS Team
                     ticket.ActualHours);
             }
 
+            // ==========================================
+            // COMPLETION DATE
+            // ==========================================
+
             ticket.CompletedDate = DateTime.UtcNow;
+
+            // ==========================================
+            // SLA STATUS
+            // ==========================================
 
             if (ticket.Deadline.HasValue &&
                 ticket.CompletedDate.Value > ticket.Deadline.Value)
@@ -1483,10 +1834,26 @@ EMS Team
                 ticket.SLAStatus = "Completed";
             }
 
+            // ==========================================
+            // TICKET STATUS
+            // ==========================================
+
+            // Do NOT check:
+            // if (ticket.Status != "In Progress")
+            //     return false;
+
             ticket.Status = "Completed";
             ticket.UpdatedAt = DateTime.UtcNow;
 
+            // ==========================================
+            // SAVE
+            // ==========================================
+
             await _context.SaveChangesAsync();
+
+            // ==========================================
+            // SAVE HISTORY
+            // ==========================================
 
             await _assignmentEngine.SaveHistoryAsync(
                 ticket.Id,
@@ -1496,8 +1863,11 @@ EMS Team
                 employeeId,
                 "Ticket work completed by employee");
 
-            // Employee is now free.
-            // Immediately assign next eligible ticket.
+            // ==========================================
+            // EMPLOYEE IS FREE
+            // ASSIGN NEXT TICKET
+            // ==========================================
+
             await _assignmentEngine
                 .AssignNextTicketForEmployeeAsync(employeeId);
 

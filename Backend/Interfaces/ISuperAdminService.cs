@@ -32,6 +32,8 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<(bool Success, string Message)> DeleteOrganization(int id, ClaimsPrincipal? user, string? ipAddress);
 
+        Task<List<SuperAdminAdminDto>> GetAssignableAdmins(int organizationId);
+
         // Organization Subscription Management
 
         Task<OrganizationSubscriptionDto> CreateOrganizationSubscription(CreateOrganizationSubscriptionDto dto, ClaimsPrincipal? user, string? ipAddress);

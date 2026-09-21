@@ -453,6 +453,36 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [Authorize(Roles = "SuperAdmin")]
+        [HttpGet("organizations/{organizationId:int}/assignable-admins")]
+        public async Task<IActionResult> GetAssignableAdmins(int organizationId)
+        {
+            try
+            {
+                var admins = await _superAdminService.GetAssignableAdmins(organizationId);
+
+                return Ok(new
+                {
+                    Message = "Assignable admins retrieved successfully.",
+                    Data = admins
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new
+                {
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        [Authorize(Roles = "SuperAdmin")]
         [HttpPut("admins/{id:int}/status")]
 
         public async Task<IActionResult> UpdateAdminStatus(int id, [FromBody] UpdateEntityStatusDto dto)

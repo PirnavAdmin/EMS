@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { TriangleAlert, X } from "lucide-react";
 import { FaCloudUploadAlt } from "react-icons/fa";
 import "./EmployeeList.css";
 import { useNavigate } from "react-router-dom";
@@ -47,6 +47,18 @@ const EXCEL_MIME_TYPE =
 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const GENERIC_SAVE_ERROR = "Something went wrong. Please try again.";
+const EMPLOYEE_LIMIT_MESSAGE = "User limit reached. Please upgrade your plan.";
+
+const getSafeBackendMessage = (message, fallback = GENERIC_SAVE_ERROR) => {
+  const normalized = String(message || "").trim();
+
+  return normalized &&
+    normalized.length <= 320 &&
+    !/\b(stack trace|developerexceptionpagemiddleware|authorization:|bearer\s+|system\.[a-z]+exception|at\s+.+:\s*line\s+\d+)\b/i.test(normalized)
+    ? normalized
+    : fallback;
+};
 
 const ACTIVE_STATUS_VALUES = new Set(["active", "true", "1"]);
 const INACTIVE_STATUS_VALUES = new Set(["inactive", "false", "0"]);
@@ -200,6 +212,7 @@ function EmployeeList() {
   const [newDept, setNewDept] = useState("");
   const [newRole, setNewRole] = useState("");
   const [errors, setErrors] = useState({});
+  const [employeeLimitWarning, setEmployeeLimitWarning] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const EMPLOYEES_PER_PAGE = 30;
@@ -356,11 +369,13 @@ function EmployeeList() {
       ...prev,
       [name]: ""
     }));
+    setEmployeeLimitWarning("");
   };
 
   const resetEmployeeForm = () => {
     setEmpForm(initialEmployeeForm);
     setErrors({});
+    setEmployeeLimitWarning("");
     resetEmployeeSalaryStructure({ ctcAnnual: SALARY_MIN });
   };
 
@@ -371,6 +386,7 @@ function EmployeeList() {
 
   const openEditEmployeeModal = (emp) => {
     setErrors({});
+    setEmployeeLimitWarning("");
     setEmpForm({
       id: formatEmployeeCode(emp.id),
       originalId: formatEmployeeCode(emp.id),
@@ -495,6 +511,7 @@ function EmployeeList() {
   const handleEmployeeSubmit = async () => {
     if (!validateEmployee()) return;
 
+    setEmployeeLimitWarning("");
     setIsSubmitting(true);
 
     try {
@@ -541,20 +558,36 @@ function EmployeeList() {
       resetEmployeeForm();
       await fetchEmployees(roles, true);
     } catch (err) {
-
+      const responseData = err.response?.data;
+      const responseStatus = err.response?.status;
+      const errorCode = String(
+        responseData?.errorCode ||
+        responseData?.ErrorCode ||
+        responseData?.error_code ||
+        responseData?.code ||
+        ""
+      ).toUpperCase();
       const backendMessage =
-      err.response?.data?.message ||
-      err.response?.data ||
-      err.message ||
-      "";
-      const normalizedMessage = String(backendMessage).toLowerCase();
+        responseData?.message ||
+        responseData?.error ||
+        (typeof responseData === "string" ? responseData : "") ||
+        err.message ||
+        "Failed to save employee.";
+      // Temporary fallback for the current backend response. Remove once all
+      // employee-limit responses return EMPLOYEE_LIMIT_REACHED.
+      const rawResponseText =
+        typeof responseData === "string" ? responseData : JSON.stringify(responseData ?? "");
+      const hasLegacyLimitMessage = rawResponseText.includes("Subscription limit reached");
+      const hasEmployeeLimitError =
+        (responseStatus === 403 && errorCode === "EMPLOYEE_LIMIT_REACHED") ||
+        hasLegacyLimitMessage;
 
-      if (normalizedMessage.includes("employee")) {
+      if (errorCode === "DUPLICATE_EMPLOYEE_ID") {
         toastError("Employee ID already exists.");
-      } else if (normalizedMessage.includes("email")) {
-        toastError("Email already exists.");
+      } else if (hasEmployeeLimitError) {
+        setEmployeeLimitWarning(EMPLOYEE_LIMIT_MESSAGE);
       } else {
-        toastError(backendMessage || "Failed to save employee.");
+        toastError(backendMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -745,53 +778,76 @@ function EmployeeList() {
 
   if (loading) {
     return (
-      <div className="emp-page-unique">
-        <div className="emp-header-unique">
-          <div>
+      <div className="emp-page-unique">
+
+        <div className="emp-header-unique">
+
+          <div>
+
             <div
               className="ui-skeleton"
               style={{ width: "180px", height: "28px", marginBottom: "10px" }} />
-            
+            
+
             <div
               className="ui-skeleton"
               style={{ width: "260px", height: "14px" }} />
-            
-          </div>
-
-          <div className="emp-header-actions">
+            
+
+          </div>
+
+
+
+          <div className="emp-header-actions">
+
             <div
               className="ui-skeleton"
               style={{ width: "138px", height: "42px", borderRadius: "12px" }} />
-            
+            
+
             <div
               className="ui-skeleton"
               style={{ width: "128px", height: "42px", borderRadius: "12px" }} />
-            
-          </div>
-        </div>
-
-        <div className="emp-toolbar">
+            
+
+          </div>
+
+        </div>
+
+
+
+        <div className="emp-toolbar">
+
           <div
             className="ui-skeleton"
             style={{ flex: "1 1 280px", height: "44px", borderRadius: "14px" }} />
-          
-
-          <div className="emp-filter-group">
+          
+
+
+
+          <div className="emp-filter-group">
+
             <div
               className="ui-skeleton"
               style={{ width: "180px", height: "44px", borderRadius: "12px" }} />
-            
+            
+
             <div
               className="ui-skeleton"
               style={{ width: "160px", height: "44px", borderRadius: "12px" }} />
-            
+            
+
             <div
               className="ui-skeleton"
               style={{ width: "180px", height: "44px", borderRadius: "12px" }} />
-            
-          </div>
-        </div>
-
+            
+
+          </div>
+
+        </div>
+
+
+
         <TableSkeleton
           rows={10}
           columns={[
@@ -805,7 +861,8 @@ function EmployeeList() {
           { width: "110px", headerWidth: "54%" },
           { width: "165px", type: "actions", headerWidth: "52%" }]
           } />
-        
+        
+
       </div>);
 
   }
@@ -813,156 +870,269 @@ function EmployeeList() {
   return (
     <div className="emp-page-unique">
       <div className="emp-header-unique">
-        <div>
-          <h2>Employees</h2>
-          <p>
-            Showing {visibleStart}–{visibleEnd} of {filteredEmployees.length} employees
-          </p>
-        </div>
-
-        <div className="emp-header-actions">
+        <div>
+
+          <h2>Employees</h2>
+
+          <p>
+
+            Showing {visibleStart}–{visibleEnd} of {filteredEmployees.length} employees
+
+          </p>
+
+        </div>
+
+
+
+        <div className="emp-header-actions">
+
           <button
             className="emp-download-btn"
             disabled={isDownloading}
             onClick={handleDownloadExcel}>
-            
-            {isDownloading ? "Downloading..." : "Download Excel"}
-          </button>
-
+            
+
+            {isDownloading ? "Downloading..." : "Download Excel"}
+
+          </button>
+
+
+
           <button
             className="emp-bulk-upload-btn"
             onClick={() => setShowBulkUploadModal(true)}>
-            
-            <FaCloudUploadAlt />
-            Bulk Upload
-          </button>
-
-          <button className="emp-add-btn" onClick={openAddEmployeeModal}>
-            + Add Employee
-          </button>
-        </div>
-      </div>
-
-      <div className="emp-toolbar">
+            
+
+            <FaCloudUploadAlt />
+
+            Bulk Upload
+
+          </button>
+
+
+
+          <button className="emp-add-btn" onClick={openAddEmployeeModal}>
+
+            + Add Employee
+
+          </button>
+
+        </div>
+
+      </div>
+
+
+
+      <div className="emp-toolbar">
+
         <input
           className="emp-search-box"
           type="text"
           placeholder="Search by name, email, or ID..."
           value={empSearch}
           onChange={(event) => setEmpSearch(event.target.value)} />
-        
-
-        <div className="emp-filter-group">
+        
+
+
+
+        <div className="emp-filter-group">
+
           <select
             className="emp-filter-select"
             value={departmentFilter}
             onChange={(event) => setDepartmentFilter(event.target.value)}>
-            
-            <option value="All">All Departments</option>
+            
+
+            <option value="All">All Departments</option>
+
             {departmentOptions.map((dept) =>
-            <option key={dept} value={dept}>
-                {dept}
+            <option key={dept} value={dept}>
+
+                {dept}
+
               </option>
-            )}
-          </select>
-
+            )}
+
+          </select>
+
+
+
           <select
             className="emp-filter-select"
             value={selectedRole}
             onChange={(event) => setSelectedRole(event.target.value)}
             disabled={roleOptions.length === 0}>
-            
-            <option value="">
-              {roleOptions.length === 0 ? "No roles available." : "All Roles"}
-            </option>
-
+            
+
+            <option value="">
+
+              {roleOptions.length === 0 ? "No roles available." : "All Roles"}
+
+            </option>
+
+
+
             {roleOptions.map((role) =>
-            <option key={role} value={role}>
-                {role}
+            <option key={role} value={role}>
+
+                {role}
+
               </option>
-            )}
-          </select>
-
+            )}
+
+          </select>
+
+
+
           <select
             className="emp-filter-select"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}>
-            
-            <option value="All">All Statuses</option>
-
+            
+
+            <option value="All">All Statuses</option>
+
+
+
             {statusOptions.map((status) =>
-            <option key={status} value={status}>
-                {status}
+            <option key={status} value={status}>
+
+                {status}
+
               </option>
-            )}
-          </select>
-
-
-
+            )}
+
+          </select>
+
+
+
+
+
+
+
           <select
             className="emp-filter-select"
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value)}>
-            
-            <option value="latest-desc">
-              Sort: New Joining Date
-            </option>
-
-            <option value="oldest-asc">
-              Sort: Old Joining Date
-            </option>
-
-            <option value="ctc-desc">
-              Sort: Highest CTC
-            </option>
-
-            <option value="name-asc">
-              Sort: Name
-            </option>
-          </select>
-        </div>
-      </div>
-
-      <div className="emp-table-wrapper">
-
-        <div className="emp-scroll-hint">
-          ← Scroll horizontally to view more employee details →
-        </div>
-
-        <div className="emp-table-container">
-          <table className="emp-table">
-            <colgroup>
-              <col style={{ width: "260px" }} />
-              <col style={{ width: "160px" }} />
-              <col style={{ width: "300px" }} />
-              <col style={{ width: "140px" }} />
-              <col style={{ width: "140px" }} />
-              <col style={{ width: "180px" }} />
-              <col style={{ width: "120px" }} />
-              <col style={{ width: "150px" }} />
-              <col style={{ width: "220px" }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th scope="col" className="emp-name-col">Employee Name</th>
-                <th scope="col" className="emp-id-col emp-col-center">Employee ID</th>
-                <th scope="col" className="emp-email-col emp-col-center">Email</th>
-                <th scope="col" className="emp-dept-col emp-col-center">Department</th>
-                <th scope="col" className="emp-ctc-col emp-col-center">CTC</th>
-                <th scope="col" className="emp-role-col emp-col-center">Role</th>
-                <th scope="col" className="emp-status-col emp-col-center">Status</th>
-                <th scope="col" className="emp-joined-col emp-col-center">Joined</th>
-                <th scope="col" className="emp-action-col emp-col-center">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+            
+
+            <option value="latest-desc">
+
+              Sort: New Joining Date
+
+            </option>
+
+
+
+            <option value="oldest-asc">
+
+              Sort: Old Joining Date
+
+            </option>
+
+
+
+            <option value="ctc-desc">
+
+              Sort: Highest CTC
+
+            </option>
+
+
+
+            <option value="name-asc">
+
+              Sort: Name
+
+            </option>
+
+          </select>
+
+        </div>
+
+      </div>
+
+
+
+      <div className="emp-table-wrapper">
+
+
+
+        <div className="emp-scroll-hint">
+
+          ← Scroll horizontally to view more employee details →
+
+        </div>
+
+
+
+        <div className="emp-table-container">
+
+          <table className="emp-table">
+
+            <colgroup>
+
+              <col style={{ width: "260px" }} />
+
+              <col style={{ width: "160px" }} />
+
+              <col style={{ width: "300px" }} />
+
+              <col style={{ width: "140px" }} />
+
+              <col style={{ width: "140px" }} />
+
+              <col style={{ width: "180px" }} />
+
+              <col style={{ width: "120px" }} />
+
+              <col style={{ width: "150px" }} />
+
+              <col style={{ width: "220px" }} />
+
+            </colgroup>
+
+            <thead>
+
+              <tr>
+
+                <th scope="col" className="emp-name-col">Employee Name</th>
+
+                <th scope="col" className="emp-id-col emp-col-center">Employee ID</th>
+
+                <th scope="col" className="emp-email-col emp-col-center">Email</th>
+
+                <th scope="col" className="emp-dept-col emp-col-center">Department</th>
+
+                <th scope="col" className="emp-ctc-col emp-col-center">CTC</th>
+
+                <th scope="col" className="emp-role-col emp-col-center">Role</th>
+
+                <th scope="col" className="emp-status-col emp-col-center">Status</th>
+
+                <th scope="col" className="emp-joined-col emp-col-center">Joined</th>
+
+                <th scope="col" className="emp-action-col emp-col-center">
+
+                  Action
+
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
               {currentEmployees.length === 0 ?
-              <tr>
-                  <td colSpan="9" className="emp-empty-state app-table-empty-cell">
-                    {emptyStateMessage}
-                  </td>
+              <tr>
+
+                  <td colSpan="9" className="emp-empty-state app-table-empty-cell">
+
+                    {emptyStateMessage}
+
+                  </td>
+
                 </tr> :
 
               currentEmployees.map((emp) =>
@@ -970,8 +1140,10 @@ function EmployeeList() {
                 key={emp.id}
                 className="emp-row-click"
                 onClick={() => navigate(`/add-employee/${emp.id}`)}>
-                
-                    <td className="emp-name-col emp-cell emp-cell--truncate">
+                
+
+                    <td className="emp-name-col emp-cell emp-cell--truncate">
+
                       <TruncatedText
                     as="div"
                     className="emp-name"
@@ -980,37 +1152,62 @@ function EmployeeList() {
                       event.stopPropagation();
                       navigate(`/add-employee/${emp.id}`);
                     }}>
-                    
-                        {emp.name}
-                      </TruncatedText>
-                    </td>
-
-                    <td className="emp-id-col emp-cell emp-cell--center emp-cell--truncate">
-                      <TruncatedText as="div" className="emp-id-code" value={emp.id} />
-                    </td>
-
-                    <td className="emp-email-col emp-cell emp-cell--center emp-cell--truncate">
-                      <TruncatedText className="emp-cell-truncate" value={emp.email} />
-                    </td>
-
-                    <td className="emp-dept-col emp-cell emp-cell--center emp-cell--truncate">{emp.dept}</td>
-                    <td className="emp-ctc-col emp-cell emp-cell--center emp-cell--truncate">{emp.ctc}</td>
-                    <td className="emp-role-col emp-cell emp-cell--center emp-cell--truncate">{emp.role}</td>
-                    <td className="emp-status-col emp-cell emp-cell--center emp-cell--truncate">{emp.status}</td>
-                    <td className="emp-joined-col emp-cell emp-cell--center emp-cell--truncate">{emp.joined}</td>
-
-                    <td className="emp-action-col">
-                      <div className="emp-action-buttons">
+                    
+
+                        {emp.name}
+
+                      </TruncatedText>
+
+                    </td>
+
+
+
+                    <td className="emp-id-col emp-cell emp-cell--center emp-cell--truncate">
+
+                      <TruncatedText as="div" className="emp-id-code" value={emp.id} />
+
+                    </td>
+
+
+
+                    <td className="emp-email-col emp-cell emp-cell--center emp-cell--truncate">
+
+                      <TruncatedText className="emp-cell-truncate" value={emp.email} />
+
+                    </td>
+
+
+
+                    <td className="emp-dept-col emp-cell emp-cell--center emp-cell--truncate">{emp.dept}</td>
+
+                    <td className="emp-ctc-col emp-cell emp-cell--center emp-cell--truncate">{emp.ctc}</td>
+
+                    <td className="emp-role-col emp-cell emp-cell--center emp-cell--truncate">{emp.role}</td>
+
+                    <td className="emp-status-col emp-cell emp-cell--center emp-cell--truncate">{emp.status}</td>
+
+                    <td className="emp-joined-col emp-cell emp-cell--center emp-cell--truncate">{emp.joined}</td>
+
+
+
+                    <td className="emp-action-col">
+
+                      <div className="emp-action-buttons">
+
                         <button
                       className="app-action-button emp-action-btn emp-action-btn--edit"
                       onClick={(event) => {
                         event.stopPropagation();
                         openEditEmployeeModal(emp);
                       }}>
-                      
-                          Edit
-                        </button>
-
+                      
+
+                          Edit
+
+                        </button>
+
+
+
                         <button
                       className="app-action-button emp-action-btn emp-action-btn--delete"
                       onClick={(event) => {
@@ -1018,17 +1215,26 @@ function EmployeeList() {
                         setEmployeeToDelete(emp.id);
                         setShowDeletePopup(true);
                       }}>
-                      
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                      
+
+                          Delete
+
+                        </button>
+
+                      </div>
+
+                    </td>
+
                   </tr>
               )
-              }
-            </tbody>
-          </table>
-        </div>
+              }
+
+            </tbody>
+
+          </table>
+
+        </div>
+
         <AppPagination
           totalItems={filteredEmployees.length}
           currentPage={safeCurrentPage}
@@ -1040,35 +1246,64 @@ function EmployeeList() {
           }}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           itemLabel="employees" />
-        
-      </div>
-
+        
+
+      </div>
+
+
+
       {empShowModal &&
-      <div className="emp-modal-overlay">
-          <div className="emp-modal-box salary-modal">
-            <div className="emp-modal-header">
-              <div>
-                <h3>{isEditMode ? "Edit Employee" : "Add Employee"}</h3>
-
-                <p className="emp-modal-description">
-                  Maintain employee details and set the annual salary structure in
-                  one clean workspace.
-                </p>
-              </div>
-
+      <div className="emp-modal-overlay">
+
+          <div className="emp-modal-box salary-modal">
+
+            <div className="emp-modal-header">
+
+              <div>
+
+                <h3>{isEditMode ? "Edit Employee" : "Add Employee"}</h3>
+
+
+
+                <p className="emp-modal-description">
+
+                  Maintain employee details and set the annual salary structure in
+
+                  one clean workspace.
+
+                </p>
+
+              </div>
+
+
+
               <button
               type="button"
               className="emp-modal-close-icon"
               onClick={() => setEmpShowModal(false)}
               disabled={isSubmitting}>
-              
-                <X size={22} />
-              </button>
-            </div>
-
-            <div className="emp-modal-form-grid">
-              <div className="emp-field-group">
-                <label htmlFor="employee-id-input">Employee ID</label>
+              
+
+                <X size={22} />
+
+              </button>
+
+            </div>
+
+
+
+            {employeeLimitWarning &&
+            <div className="emp-inline-warning" role="alert">
+                <TriangleAlert size={17} aria-hidden="true" />
+                <span>{employeeLimitWarning}</span>
+              </div>
+            }
+
+            <div className="emp-modal-form-grid">
+              <div className="emp-field-group">
+
+                <label htmlFor="employee-id-input">Employee ID</label>
+
                 <input
                 id="employee-id-input"
                 name="id"
@@ -1076,12 +1311,18 @@ function EmployeeList() {
                 onChange={handleEmpChange}
                 placeholder="Ex: P401"
                 disabled={isSubmitting || isEditMode} />
-              
-                {errors.id && <p className="form-error">{errors.id}</p>}
-              </div>
-
-              <div className="emp-field-group">
-                <label htmlFor="employee-name-input">Name</label>
+              
+
+                {errors.id && <p className="form-error">{errors.id}</p>}
+
+              </div>
+
+
+
+              <div className="emp-field-group">
+
+                <label htmlFor="employee-name-input">Name</label>
+
                 <input
                 id="employee-name-input"
                 name="name"
@@ -1089,12 +1330,18 @@ function EmployeeList() {
                 onChange={handleEmpChange}
                 placeholder="Enter employee name"
                 disabled={isSubmitting} />
-              
-                {errors.name && <p className="form-error">{errors.name}</p>}
-              </div>
-
-              <div className="emp-field-group">
-                <label htmlFor="employee-email-input">Email</label>
+              
+
+                {errors.name && <p className="form-error">{errors.name}</p>}
+
+              </div>
+
+
+
+              <div className="emp-field-group">
+
+                <label htmlFor="employee-email-input">Email</label>
+
                 <input
                 id="employee-email-input"
                 name="email"
@@ -1102,31 +1349,48 @@ function EmployeeList() {
                 onChange={handleEmpChange}
                 placeholder="Enter employee email"
                 disabled={isSubmitting} />
-              
-                {errors.email && <p className="form-error">{errors.email}</p>}
-              </div>
-
-              <div className="emp-field-group">
-                <label htmlFor="employee-department-select">Department</label>
+              
+
+                {errors.email && <p className="form-error">{errors.email}</p>}
+
+              </div>
+
+
+
+              <div className="emp-field-group">
+
+                <label htmlFor="employee-department-select">Department</label>
+
                 <select
                 id="employee-department-select"
                 name="dept"
                 value={empForm.dept}
                 onChange={handleEmpChange}
                 disabled={isSubmitting}>
-                
-                  <option value="">Select Department</option>
+                
+
+                  <option value="">Select Department</option>
+
                   {departments.map((dept) =>
-                <option key={dept.id} value={dept.departmentName}>
-                      {dept.departmentName}
+                <option key={dept.id} value={dept.departmentName}>
+
+                      {dept.departmentName}
+
                     </option>
-                )}
-                </select>
-                {errors.dept && <p className="form-error">{errors.dept}</p>}
-              </div>
-
-              <div className="emp-field-group emp-salary-field-group emp-modal-span-2">
-                <label>Salary Structure</label>
+                )}
+
+                </select>
+
+                {errors.dept && <p className="form-error">{errors.dept}</p>}
+
+              </div>
+
+
+
+              <div className="emp-field-group emp-salary-field-group emp-modal-span-2">
+
+                <label>Salary Structure</label>
+
                 <SalaryStructureCard
                 idPrefix="employee-salary"
                 ctcValue={employeeCtcValue}
@@ -1142,54 +1406,84 @@ function EmployeeList() {
                 }
                 helperText="Use the shared salary component so CTC, breakup totals, and formatting stay consistent everywhere."
                 variant="detailed" />
-              
-                {errors.ctc && <p className="form-error">{errors.ctc}</p>}
-              </div>
-
-              <div className="emp-field-group">
-                <label htmlFor="employee-role-select">Role</label>
+              
+
+                {errors.ctc && <p className="form-error">{errors.ctc}</p>}
+
+              </div>
+
+
+
+              <div className="emp-field-group">
+
+                <label htmlFor="employee-role-select">Role</label>
+
                 <select
                 id="employee-role-select"
                 name="roleId"
                 value={empForm.roleId}
                 onChange={handleEmpChange}
                 disabled={isSubmitting}>
-                
-                  <option value="">Select Role</option>
+                
+
+                  <option value="">Select Role</option>
+
                   {roles.length > 0 ?
                 roles.map((role) =>
-                <option key={role.roleId} value={role.roleId}>
-                        {role.roleName}
+                <option key={role.roleId} value={role.roleId}>
+
+                        {role.roleName}
+
                       </option>
                 ) :
 
                 <option disabled>No roles available</option>
-                }
-                </select>
-                {errors.roleId && <p className="form-error">{errors.roleId}</p>}
-              </div>
-
-              <div className="emp-field-group">
-                <label htmlFor="employee-status-select">Status</label>
+                }
+
+                </select>
+
+                {errors.roleId && <p className="form-error">{errors.roleId}</p>}
+
+              </div>
+
+
+
+              <div className="emp-field-group">
+
+                <label htmlFor="employee-status-select">Status</label>
+
                 <select
                 id="employee-status-select"
                 name="status"
                 value={empForm.status}
                 onChange={handleEmpChange}
                 disabled={isSubmitting}>
-                
-                  <option value="">Select Status</option>
-                  <option>Ready to Accept Offer</option>
-                  <option>Rejected Offer</option>
-                  <option>Active</option>
-                  <option>Probation</option>
-                  <option>InActive</option>
-                </select>
-                {errors.status && <p className="form-error">{errors.status}</p>}
-              </div>
-
-              <div className="emp-field-group emp-modal-span-2">
-                <label htmlFor="employee-joined-input">Joining Date</label>
+                
+
+                  <option value="">Select Status</option>
+
+                  <option>Ready to Accept Offer</option>
+
+                  <option>Rejected Offer</option>
+
+                  <option>Active</option>
+
+                  <option>Probation</option>
+
+                  <option>InActive</option>
+
+                </select>
+
+                {errors.status && <p className="form-error">{errors.status}</p>}
+
+              </div>
+
+
+
+              <div className="emp-field-group emp-modal-span-2">
+
+                <label htmlFor="employee-joined-input">Joining Date</label>
+
                 <AppDatePicker
                 id="employee-joined-input"
                 name="joined"
@@ -1198,139 +1492,228 @@ function EmployeeList() {
                 disabled={isSubmitting}
                 ariaInvalid={Boolean(errors.joined)}
                 ariaDescribedBy={errors.joined ? "employee-joined-error" : undefined} />
-              
+              
+
                 {empForm.joined &&
-              <p className="emp-field-helper">
-                    Displayed as: {formatDate(empForm.joined)}
+              <p className="emp-field-helper">
+
+                    Displayed as: {formatDate(empForm.joined)}
+
                   </p>
-              }
+              }
+
                 {errors.joined &&
-              <p id="employee-joined-error" className="form-error">
-                    {errors.joined}
+              <p id="employee-joined-error" className="form-error">
+
+                    {errors.joined}
+
                   </p>
-              }
-              </div>
-            </div>
-
-            <div className="emp-modal-btns">
+              }
+
+              </div>
+
+            </div>
+
+
+
+            <div className="emp-modal-btns">
+
               <button
               className="emp-close-btn"
               onClick={() => setEmpShowModal(false)}
               disabled={isSubmitting}>
-              
-                Close
-              </button>
+              
+
+                Close
+
+              </button>
+
               <button
               className="emp-save-btn"
 
               onClick={handleEmployeeSubmit}
               disabled={isSubmitting}>
-              
+              
+
                 {isSubmitting ?
               isEditMode ?
               "Updating..." :
               "Saving..." :
               isEditMode ?
               "Update" :
-              "Save"}
-              </button>
-            </div>
-          </div>
+              "Save"}
+
+              </button>
+
+            </div>
+
+          </div>
+
         </div>
-      }
-
+      }
+
+
+
       {showDeptModal &&
-      <div className="emp-modal-overlay">
-          <div className="emp-modal-box small">
-            <h3>Manage Departments</h3>
-
-            <div className="master-add">
+      <div className="emp-modal-overlay">
+
+          <div className="emp-modal-box small">
+
+            <h3>Manage Departments</h3>
+
+
+
+            <div className="master-add">
+
               <input
               value={newDept}
               onChange={(event) => setNewDept(event.target.value)}
               placeholder="New Department" />
-            
-              <button className="emp-save-btn" onClick={handleAddDept}>
-                Add
-              </button>
-            </div>
-
+            
+
+              <button className="emp-save-btn" onClick={handleAddDept}>
+
+                Add
+
+              </button>
+
+            </div>
+
+
+
             {departments.map((dept) =>
-          <div className="master-item" key={dept.id}>
-                {dept.departmentName}
-                <button onClick={() => handleDeleteDept(dept.departmentName)}>x</button>
+          <div className="master-item" key={dept.id}>
+
+                {dept.departmentName}
+
+                <button onClick={() => handleDeleteDept(dept.departmentName)}>x</button>
+
               </div>
-          )}
-
-            <div className="emp-modal-btns">
-              <button className="emp-close-btn" onClick={() => setShowDeptModal(false)}>
-                Close
-              </button>
-            </div>
-          </div>
+          )}
+
+
+
+            <div className="emp-modal-btns">
+
+              <button className="emp-close-btn" onClick={() => setShowDeptModal(false)}>
+
+                Close
+
+              </button>
+
+            </div>
+
+          </div>
+
         </div>
-      }
-
+      }
+
+
+
       {showRoleModal &&
-      <div className="emp-modal-overlay">
-          <div className="emp-modal-box small">
-            <h3>Manage Roles</h3>
-
-            <div className="master-add">
+      <div className="emp-modal-overlay">
+
+          <div className="emp-modal-box small">
+
+            <h3>Manage Roles</h3>
+
+
+
+            <div className="master-add">
+
               <input
               value={newRole}
               onChange={(event) => setNewRole(event.target.value)}
               placeholder="New Role" />
-            
-              <button className="emp-save-btn" onClick={handleAddRole}>
-                Add
-              </button>
-            </div>
-
+            
+
+              <button className="emp-save-btn" onClick={handleAddRole}>
+
+                Add
+
+              </button>
+
+            </div>
+
+
+
             {roles.map((role) =>
-          <div className="master-item" key={role.roleId}>
-                {role.roleName}
-                <button onClick={() => handleDeleteRole(role.roleName)}>x</button>
+          <div className="master-item" key={role.roleId}>
+
+                {role.roleName}
+
+                <button onClick={() => handleDeleteRole(role.roleName)}>x</button>
+
               </div>
-          )}
-
-            <div className="emp-modal-btns">
-              <button className="emp-close-btn" onClick={() => setShowRoleModal(false)}>
-                Close
-              </button>
-            </div>
-          </div>
+          )}
+
+
+
+            <div className="emp-modal-btns">
+
+              <button className="emp-close-btn" onClick={() => setShowRoleModal(false)}>
+
+                Close
+
+              </button>
+
+            </div>
+
+          </div>
+
         </div>
-      }
-
+      }
+
+
+
       {showDeletePopup &&
-      <div className="emp-delete-overlay">
-          <div className="emp-delete-modal">
-            <h3>Confirm Delete</h3>
-
-            <p style={{ marginBottom: "35px" }}>
-              Are you sure you want to delete this employee?
-            </p>
-
-            <div className="emp-delete-actions">
+      <div className="emp-delete-overlay">
+
+          <div className="emp-delete-modal">
+
+            <h3>Confirm Delete</h3>
+
+
+
+            <p style={{ marginBottom: "35px" }}>
+
+              Are you sure you want to delete this employee?
+
+            </p>
+
+
+
+            <div className="emp-delete-actions">
+
               <button
               className="emp-delete-cancel-btn"
               onClick={() => {
                 setShowDeletePopup(false);
                 setEmployeeToDelete(null);
               }}>
-              
-                Cancel
-              </button>
-
-              <button className="emp-delete-btn" onClick={confirmDeleteEmployee}>
-                Yes, Delete
-              </button>
-            </div>
-          </div>
+              
+
+                Cancel
+
+              </button>
+
+
+
+              <button className="emp-delete-btn" onClick={confirmDeleteEmployee}>
+
+                Yes, Delete
+
+              </button>
+
+            </div>
+
+          </div>
+
         </div>
-      }
-
+      }
+
+
+
       <BulkUploadModal
         open={showBulkUploadModal}
         onClose={() => setShowBulkUploadModal(false)}
@@ -1343,7 +1726,8 @@ function EmployeeList() {
 
           return refreshed;
         }} />
-      
+      
+
     </div>);
 
 }
