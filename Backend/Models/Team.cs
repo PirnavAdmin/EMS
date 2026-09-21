@@ -20,7 +20,7 @@ namespace EmployeeManagementSystem.Models
 
         public string EngagementType { get; set; } = string.Empty;
 
-        public int ProjectId { get; set; }
+        public int? ProjectId { get; set; }
 
         public bool IsActive { get; set; } = true;
 

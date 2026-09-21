@@ -41,6 +41,8 @@ namespace EmployeeManagementSystem.Models
         public string? Password { get; set; }
 
         public int? AdminId { get; set; }
+        public int? OrganizationId { get; set; }
+
 
         [JsonIgnore]
         public ICollection<EmployeePersonalInfo> PersonalInfos { get; set; }

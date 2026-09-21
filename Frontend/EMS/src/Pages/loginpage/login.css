@@ -383,6 +383,47 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   align-items: start;
 }
 
+.auth-subscription-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fef3c7;
+}
+
+.auth-subscription-alert-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  color: #d97706;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.auth-subscription-alert-body {
+  min-width: 0;
+}
+
+.auth-subscription-alert-title {
+  margin: 0;
+  color: #78350f;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.auth-subscription-alert-message {
+  margin: 2px 0 0;
+  color: #a16207;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .auth-back-home-button {
   display: inline-flex;
   align-items: center;

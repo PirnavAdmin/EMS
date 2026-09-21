@@ -643,8 +643,7 @@ import {
   FaEye,
   FaEyeSlash,
   FaLock,
-  FaExclamationTriangle,
-  FaHeadset
+  FaExclamationTriangle
 } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
@@ -1192,46 +1191,21 @@ export default function LoginLeft() {
       </div>
 
       {/* Subscription Expired Alert */}
-      {/* {subscriptionError && (
+      {subscriptionError && (
         <div className="auth-subscription-alert" role="alert">
-          <div className="auth-subscription-alert-icon">
+          <span className="auth-subscription-alert-icon" aria-hidden="true">
             <FaExclamationTriangle />
-          </div>
+          </span>
           <div className="auth-subscription-alert-body">
             <h4 className="auth-subscription-alert-title">
               {subscriptionError.title}
             </h4>
             <p className="auth-subscription-alert-message">
-              {subscriptionError.message}
+              Your subscription is inactive or expired. Please contact Super Admin.
             </p>
-            <div className="auth-subscription-alert-actions">
-              <a
-                href="mailto:support@pirnav.com?subject=Subscription%20Renewal%20Request"
-                className="auth-subscription-cta"
-              >
-                <FaHeadset style={{ marginRight: 6 }} /> Contact Support / Renew
-              </a>
-            </div>
           </div>
         </div>
-      )} */}
-
-      {/* Subscription Expired Alert */}
-{subscriptionError && (
-  <div className="auth-subscription-alert" role="alert">
-    <div className="auth-subscription-alert-icon">
-      <FaExclamationTriangle />
-    </div>
-    <div className="auth-subscription-alert-body">
-      <h4 className="auth-subscription-alert-title">
-        {subscriptionError.title}
-      </h4>
-      <p className="auth-subscription-alert-message">
-        {subscriptionError.message}
-      </p>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Regular Error Notification */}
       {error && !subscriptionError && (
