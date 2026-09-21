@@ -475,7 +475,7 @@ namespace EmployeeManagementSystem.Services
     memberOverride.DifferentProject &&
     memberOverride.OverrideProject != null
         ? memberOverride.OverrideProject.Project_Name
-        : team.Project.Project_Name,
+        : team.Project?.Project_Name,
 
                         OverrideProjectId = memberOverride?.OverrideProjectId,
 
