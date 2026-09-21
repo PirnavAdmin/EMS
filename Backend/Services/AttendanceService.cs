@@ -4753,14 +4753,58 @@ employeeInfo.Email ?? "",
             // ==========================================
             // EMPLOYEES BELONGING TO THIS ADMIN
             // ==========================================
+            //var adminEmployeeIds = await _context.Employees
+            //    .Where(e =>
+            //        e.AdminId == adminId &&
+            //        e.Status == "Active")
+            //    .Select(e => e.Employee_Id)
+            //    .ToListAsync();
+
+            //var totalEmployees = adminEmployeeIds.Count;
+
+            var admin = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+
+            var isOrg = admin != null && admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0;
+
+            int orgId = isOrg ? admin!.OrganizationId!.Value : 0;
+
+            List<int> orgAdminIds = new List<int> { adminId };
+
+            if (isOrg)
+
+            {
+
+                orgAdminIds = await _context.Admins
+
+                    .AsNoTracking()
+
+                    .Where(a => a.OrganizationId == orgId)
+
+                    .Select(a => a.Id)
+
+                    .ToListAsync();
+
+            }
+
             var adminEmployeeIds = await _context.Employees
+
                 .Where(e =>
-                    e.AdminId == adminId &&
+
+                    (isOrg
+
+                        ? (e.OrganizationId == orgId || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
+
+                        : e.AdminId == adminId) &&
+
                     e.Status == "Active")
+
                 .Select(e => e.Employee_Id)
+
                 .ToListAsync();
 
             var totalEmployees = adminEmployeeIds.Count;
+
+
 
             // ==========================================
             // TODAY'S ATTENDANCE - THIS ADMIN ONLY

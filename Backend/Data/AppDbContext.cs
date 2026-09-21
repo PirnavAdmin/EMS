@@ -3,6 +3,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace EmployeeManagementSystem.Data
 
@@ -140,7 +141,7 @@ namespace EmployeeManagementSystem.Data
         public DbSet<TeamMemberReportingDay> TeamMemberReportingDays { get; set; }
         public DbSet<EmployeeLocation> EmployeeLocations { get; set; }
         public DbSet<Ticket> Tickets { get; set; }
-      
+
 
         public DbSet<TicketTimer> TicketTimers { get; set; }
         public DbSet<TicketAssignment> TicketAssignments { get; set; }
@@ -277,8 +278,8 @@ namespace EmployeeManagementSystem.Data
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Register>().ToTable("users");
-           
-    
+
+
 
             modelBuilder.Entity<Employee>().ToTable("employees");
 
@@ -366,8 +367,8 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<MonitoringLog>()
                 .ToTable("MonitoringLogs");
-            modelBuilder.Entity<PerformanceCycle>().ToTable("performancecycle");
-
+            modelBuilder.Entity<PerformanceCycle>()
+    .ToTable("PerformanceCycle");
             modelBuilder.Entity<ShiftMaster>().ToTable("shiftmaster");
             modelBuilder.Entity<ShiftRoster>().ToTable("shiftroster");
             modelBuilder.Entity<EmployeeShiftAssignment>().ToTable("employeeshiftassignment");
@@ -387,7 +388,7 @@ namespace EmployeeManagementSystem.Data
 
     .HasKey(x => x.SubscriptionId);
             modelBuilder.Entity<EmployeeResignation>()
-    .ToTable("employeeresignation");
+     .ToTable("EmployeeResignation");
             modelBuilder.Entity<EmployeeGoal>()
     .ToTable("employeegoal");
             modelBuilder.Entity<Appraisal>()
@@ -424,7 +425,8 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<SuperAdminNotification>().ToTable("superadminnotifications");
 
             modelBuilder.Entity<StatusChangeLog>().ToTable("statuschangelogs");
-            modelBuilder.Entity<TicketAttachment>().ToTable("ticketattachment");
+            modelBuilder.Entity<TicketAttachment>()
+    .ToTable("TicketAttachments");
             modelBuilder.Entity<TicketAssignment>()
      .ToTable("ticketassignments");
 

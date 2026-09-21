@@ -223,7 +223,7 @@ namespace EmployeeManagementSystem.Services
 
                     // Subscription owner
                     AdminId = adminId,
-                    OrganizationId= admin.OrganizationId
+                    OrganizationId = admin.OrganizationId
                 };
 
                 // ✅ STEP 1: SAVE EMPLOYEE FIRST
@@ -459,22 +459,69 @@ namespace EmployeeManagementSystem.Services
         }
         // ✅ GET ALL
         public async Task<List<Employee>> GetAllEmployees(ClaimsPrincipal user)
+
         {
+
             var adminIdClaim = user.FindFirst("AdminId")?.Value;
 
             if (string.IsNullOrWhiteSpace(adminIdClaim) ||
+
                 !int.TryParse(adminIdClaim, out int adminId))
+
             {
+
                 throw new UnauthorizedAccessException(
+
                     "AdminId missing or invalid in token.");
+
             }
 
+            // Check if the admin belongs to an Organization
+
+            var admin = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+
+            if (admin != null && admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0)
+
+            {
+
+                var orgId = admin.OrganizationId.Value;
+
+                var orgAdminIds = await _context.Admins
+
+                    .AsNoTracking()
+
+                    .Where(a => a.OrganizationId == orgId)
+
+                    .Select(a => a.Id)
+
+                    .ToListAsync();
+
+                return await _context.Employees
+
+                    .AsNoTracking()
+
+                    .Where(e => e.OrganizationId == orgId || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
+
+                    .OrderByDescending(e => e.Id)
+
+                    .ToListAsync();
+
+            }
+
+            // Standalone Admin fallback
+
             return await _context.Employees
+
                 .AsNoTracking()
+
                 .Where(e => e.AdminId == adminId)
+
                 .OrderByDescending(e => e.Id)
+
                 .ToListAsync();
+
         }
+
 
         // ✅ UPDATE EMPLOYEE
         public async Task<Employee?> UpdateEmployee(

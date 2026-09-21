@@ -634,20 +634,23 @@ function TeamDetails({ mode = "management" }) {
         </aside>
       </div>
 
-      <TeamReportingDays
-        teamName={team.teamName}
-        days={summary?.reportingDays || TEAM_DAY_OPTIONS}
-        draftDays={draftReportingDays}
-        isEditing={isEditingReportingDays}
-        canManage={canEditTeam}
-        onEdit={() => setIsEditingReportingDays(true)}
-        onCancel={() => {
-          setDraftReportingDays(team.reportingDays || [...TEAM_DAY_OPTIONS]);
-          setIsEditingReportingDays(false);
-        }}
-        onSave={handleSaveReportingDays}
-        onToggleDay={handleToggleReportingDay}
-      />
+       {!isMyTeamMode && (
+        <TeamReportingDays
+          teamName={team.teamName}
+          days={summary?.reportingDays || TEAM_DAY_OPTIONS}
+          draftDays={draftReportingDays}
+          isEditing={isEditingReportingDays}
+          canManage={canEditTeam}
+          onEdit={() => setIsEditingReportingDays(true)}
+          onCancel={() => {
+            setDraftReportingDays(team.reportingDays || [...TEAM_DAY_OPTIONS]);
+            setIsEditingReportingDays(false);
+          }}
+          onSave={handleSaveReportingDays}
+          onToggleDay={handleToggleReportingDay}
+        />
+      )}
+ 
 
       <TeamMembersTable
         members={team.members || []}
