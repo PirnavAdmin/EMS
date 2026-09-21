@@ -3,7 +3,6 @@
 using Microsoft.EntityFrameworkCore;
 
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace EmployeeManagementSystem.Data
 
@@ -119,8 +118,7 @@ namespace EmployeeManagementSystem.Data
 
         public DbSet<Company> Company { get; set; }
 
-        public DbSet<Module> Modules { get; set; }
-
+        public DbSet<EmployeeManagementSystem.Models.Module> Modules { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<MonitoringSettings> MonitoringSettings { get; set; }
 
@@ -333,7 +331,8 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<Company>().ToTable("Company");
 
-            modelBuilder.Entity<Module>().ToTable("modules");
+            modelBuilder.Entity<EmployeeManagementSystem.Models.Module>()
+    .ToTable("modules");
             modelBuilder.Entity<Team>().ToTable("Teams");
             modelBuilder.Entity<TeamMember>().ToTable("teammembers");
             modelBuilder.Entity<TeamMemberOverride>().ToTable("teammemberoverrides");
