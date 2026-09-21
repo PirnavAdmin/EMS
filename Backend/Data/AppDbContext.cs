@@ -425,7 +425,8 @@ namespace EmployeeManagementSystem.Data
 
             modelBuilder.Entity<StatusChangeLog>().ToTable("statuschangelogs");
             modelBuilder.Entity<TicketAttachment>().ToTable("ticketattachment");
-            modelBuilder.Entity<TicketAssignment>().ToTable("ticketassignment");
+            modelBuilder.Entity<TicketAssignment>()
+     .ToTable("ticketassignments");
 
 
             modelBuilder.Entity<RolePermission>()
