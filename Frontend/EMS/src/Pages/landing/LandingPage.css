@@ -2122,3 +2122,273 @@
     box-shadow: none;
   }
 }
+
+/* =========================================================
+   PRIVACY POLICY DOCUMENT PREVIEW
+   ========================================================= */
+
+.landing-policy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+/* Main popup */
+.landing-policy-modal {
+  width: min(1100px, 100%);
+  height: min(88vh, 850px);
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+
+  background: var(--card-bg);
+
+  box-shadow:
+    0 25px 60px rgba(15, 23, 42, 0.25),
+    0 8px 25px rgba(15, 23, 42, 0.12);
+}
+
+/* Header */
+.landing-policy-header {
+  min-height: 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 14px 20px;
+
+  border-bottom: 1px solid var(--border-color);
+
+  background: var(--card-bg);
+}
+
+/* Small Pirnav text */
+.landing-policy-eyebrow {
+  margin: 0 0 4px;
+
+  color: var(--primary);
+
+  font-size: 11px;
+  font-weight: 800;
+
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Privacy Policy title */
+.landing-policy-header h2 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 22px;
+  font-weight: 800;
+
+  line-height: 1.2;
+}
+
+/* Close button */
+.landing-policy-close {
+  width: 38px;
+  height: 38px;
+
+  flex-shrink: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+
+  background: var(--button-secondary);
+
+  color: var(--text-primary);
+
+  font-size: 27px;
+  font-weight: 400;
+
+  line-height: 1;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.landing-policy-close:hover {
+  background: var(--button-secondary-hover);
+
+  border-color: var(--primary);
+
+  transform: scale(1.04);
+}
+
+/* Document area */
+.landing-policy-content {
+  position: relative;
+
+  flex: 1;
+
+  min-height: 0;
+
+  overflow: hidden;
+
+  background: #f8fafc;
+}
+
+/* PDF/document */
+.landing-policy-frame {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  border: 0;
+
+  background: #ffffff;
+}
+
+/* Loading / error container */
+.landing-policy-state {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  padding: 30px;
+
+  color: var(--text-body);
+
+  text-align: center;
+}
+
+.landing-policy-state p {
+  margin: 0;
+
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Loading spinner */
+.landing-policy-spinner {
+  width: 38px;
+  height: 38px;
+
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary);
+
+  border-radius: 50%;
+
+  animation: landingPolicySpin 0.8s linear infinite;
+}
+
+@keyframes landingPolicySpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error icon */
+.landing-policy-error svg {
+  font-size: 30px;
+  color: var(--primary);
+}
+
+/* Retry button */
+.landing-policy-retry {
+  min-height: 40px;
+
+  padding: 0 18px;
+
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+
+  background: var(--primary);
+
+  color: var(--theme-on-primary);
+
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.landing-policy-retry:hover {
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
+/* Privacy Policy footer button */
+.landing-footer-policy-button {
+  appearance: none;
+  -webkit-appearance: none;
+
+  font: inherit;
+
+  cursor: pointer;
+
+  background: transparent;
+  border: 0;
+
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .landing-policy-overlay {
+    padding: 12px;
+  }
+
+  .landing-policy-modal {
+    width: 100%;
+    height: 92vh;
+
+    border-radius: 14px;
+  }
+
+  .landing-policy-header {
+    min-height: 64px;
+
+    padding: 12px 14px;
+  }
+
+  .landing-policy-header h2 {
+    font-size: 18px;
+  }
+
+  .landing-policy-close {
+    width: 34px;
+    height: 34px;
+
+    font-size: 24px;
+  }
+}

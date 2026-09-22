@@ -258,7 +258,41 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(await _agreementService.GetAgreementReport());
 
         }
+        [Authorize]
+        [HttpGet("privacy")]
+        public async Task<IActionResult> GetPrivacyPolicy()
+        {
+            var result = await _agreementService.GetPrivacyPolicy();
 
+            if (result == null)
+            {
+                return NotFound("Privacy Policy not found.");
+            }
+
+            return File(
+                result.Value.FileBytes,
+                result.Value.ContentType,
+                result.Value.FileName
+            );
+        }
+        [AllowAnonymous]
+        [HttpGet("preview")]
+        public async Task<IActionResult> PreviewPrivacyPolicy()
+        {
+            var result = await _agreementService.PreviewPrivacyPolicy();
+
+            if (result == null)
+            {
+                return NotFound("Privacy Policy document not found.");
+            }
+
+            var file = result.Value;
+
+            return File(
+                file.FileBytes,
+                file.ContentType
+            );
+        }
 
         [HttpGet("download")]
 

@@ -228,17 +228,17 @@ const BankInfo = forwardRef(({ onNext, onBack, employeeId, viewMode, data }, ref
     // -------------------------
     // PF Account Number
     // -------------------------
-    if (!pfValue) {
-      errors.pf = "PF account number is required.";
-    } else if (!/^[A-Za-z0-9/-]+$/.test(pfValue)) {
-      errors.pf =
-        "PF account number can contain letters, numbers, '/' and '-' only.";
-    } else if (pfValue.length < 5 || pfValue.length > 22) {
-      errors.pf =
-        "PF account number must be between 5 and 22 characters.";
-    } else if (/^0+$/.test(pfValue)) {
-      errors.pf = "PF account number cannot contain only zeros.";
-    }
+    // if (!pfValue) {
+    //   errors.pf = "PF account number is required.";
+    // } else if (!/^[A-Za-z0-9/-]+$/.test(pfValue)) {
+    //   errors.pf =
+    //     "PF account number can contain letters, numbers, '/' and '-' only.";
+    // } else if (pfValue.length < 5 || pfValue.length > 22) {
+    //   errors.pf =
+    //     "PF account number must be between 5 and 22 characters.";
+    // } else if (/^0+$/.test(pfValue)) {
+    //   errors.pf = "PF account number cannot contain only zeros.";
+    // }
 
     setBankErrors(errors);
 

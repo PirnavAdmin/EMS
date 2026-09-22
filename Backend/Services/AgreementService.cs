@@ -26,22 +26,19 @@ namespace EmployeeManagementSystem.Services
 
         private readonly IAgreementTemplateService _agreementTemplateService;
 
-        public AgreementService(AppDbContext context,
+        private readonly IConfiguration _configuration;
 
-                                IWebHostEnvironment environment,
-
-                               IAgreementTemplateService agreementTemplateService)
-
+        public AgreementService(
+            AppDbContext context,
+            IWebHostEnvironment environment,
+            IAgreementTemplateService agreementTemplateService,
+            IConfiguration configuration)
         {
-
             _context = context;
-
             _environment = environment;
-
             _agreementTemplateService = agreementTemplateService;
-
+            _configuration = configuration;
         }
-
         public async Task<object> UploadAgreement(UploadAgreementDto dto)
 
         {
@@ -749,6 +746,106 @@ namespace EmployeeManagementSystem.Services
 
         }
 
+        public async Task<(byte[] FileBytes, string ContentType, string FileName)?> GetPrivacyPolicy()
+        {
+            var agreement = await _context.AgreementMasters
+                .Where(x => x.IsActive)
+                .OrderByDescending(x => x.CreatedDate)
+                .FirstOrDefaultAsync();
+
+            if (agreement == null)
+            {
+                return null;
+            }
+
+            var filePath = Path.Combine(
+                _environment.WebRootPath,
+                agreement.FilePath.TrimStart('/')
+                    .Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+            if (!File.Exists(filePath))
+            {
+                return null;
+            }
+
+            var pdfPath = await _agreementTemplateService
+                .ConvertAgreementToPdfAsync(filePath);
+
+            if (string.IsNullOrWhiteSpace(pdfPath) || !File.Exists(pdfPath))
+            {
+                return null;
+            }
+
+            var pdfBytes = await File.ReadAllBytesAsync(pdfPath);
+
+            var fileName =
+                $"{Path.GetFileNameWithoutExtension(agreement.FileName)}.pdf";
+
+            return (
+                pdfBytes,
+                "application/pdf",
+                fileName
+            );
+        }
+
+        public async Task<(byte[] FileBytes, string ContentType, string FileName)?>
+     PreviewPrivacyPolicy()
+        {
+            var agreementId = _configuration
+                .GetValue<int>("AgreementSettings:PrivacyPolicyAgreementId");
+
+            if (agreementId <= 0)
+            {
+                return null;
+            }
+
+            var agreement = await _context.AgreementMasters
+                .FirstOrDefaultAsync(x =>
+                    x.AgreementId == agreementId &&
+                    x.IsActive);
+
+            if (agreement == null)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(agreement.FilePath))
+            {
+                return null;
+            }
+
+            var relativePath = agreement.FilePath
+                .TrimStart('/', '\\');
+
+            var originalPath = Path.Combine(
+                _environment.WebRootPath,
+                relativePath);
+
+            if (!File.Exists(originalPath))
+            {
+                return null;
+            }
+
+            var pdfPath = await _agreementTemplateService
+                .ConvertAgreementToPdfAsync(originalPath);
+
+            if (string.IsNullOrWhiteSpace(pdfPath) ||
+                !File.Exists(pdfPath))
+            {
+                return null;
+            }
+
+            var pdfBytes = await File.ReadAllBytesAsync(pdfPath);
+
+            var pdfFileName =
+                $"{Path.GetFileNameWithoutExtension(agreement.FileName)}.pdf";
+
+            return (
+                pdfBytes,
+                "application/pdf",
+                pdfFileName
+            );
+        }
         public async Task<FileStreamResult?> DownloadAgreement(
 
     string employeeId,

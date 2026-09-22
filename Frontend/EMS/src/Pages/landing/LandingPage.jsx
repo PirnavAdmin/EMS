@@ -35,6 +35,7 @@ import pirnavLogo from "../../assets/pirnav.png";
 import DemoRequestSection from "./DemoRequestSection";
 import ProductShowcase from "./ProductShowcase";
 import { useLandingRevealObserver, useOnceInView } from "./landingMotion";
+import { API, buildApiUrl } from "../../api/endpoints";
 import "./LandingPage.css";
 
 const NAV_LINKS = [
@@ -363,9 +364,8 @@ const SectionHeading = ({
   style,
 }) => (
   <div
-    className={`landing-section-heading landing-fade-up landing-section-heading--${size} ${
-      align === "left" ? "landing-section-heading--left" : ""
-    }`}
+    className={`landing-section-heading landing-fade-up landing-section-heading--${size} ${align === "left" ? "landing-section-heading--left" : ""
+      }`}
     style={style}
   >
     {eyebrow ? (
@@ -714,17 +714,15 @@ const PricingSection = () => {
 
             return (
               <article
-                className={`landing-card landing-pricing-card landing-fade-up ${
-                  plan.featured ? "is-featured" : ""
-                }`}
+                className={`landing-card landing-pricing-card landing-fade-up ${plan.featured ? "is-featured" : ""
+                  }`}
                 key={plan.name}
                 style={{ "--reveal-delay": `${90 + index * 90}ms` }}
               >
                 <div className="landing-pricing-badge-row">
                   <span
-                    className={`landing-pricing-badge ${
-                      plan.featured ? "" : "landing-pricing-badge--placeholder"
-                    }`}
+                    className={`landing-pricing-badge ${plan.featured ? "" : "landing-pricing-badge--placeholder"
+                      }`}
                   >
                     Most Popular
                   </span>
@@ -824,106 +822,195 @@ const CtaSection = () => (
   </section>
 );
 
-const FooterSection = () => (
-  <footer className="landing-footer">
-    <div className="landing-shell">
-      <div className="landing-footer-grid landing-fade-up" style={{ "--reveal-delay": "100ms" }}>
-        <div className="landing-footer-brand landing-fade-up" style={{ "--reveal-delay": "80ms" }}>
-          <div className="landing-footer-logo">
-            <img src={pirnavLogo} alt="Pirnav" className="landing-footer-mark" />
-          </div>
+const FooterSection = () => {
+  const [privacyPolicyOpen, setPrivacyPolicyOpen] = useState(false);
 
-          <div className="landing-footer-brand-copy">
-            <h3 className="landing-footer-brand-name">Pirnav HRMS</h3>
+  return (
+    <>
+      <footer className="landing-footer">
+        <div className="landing-shell">
+          <div className="landing-footer-grid landing-fade-up" style={{ "--reveal-delay": "100ms" }}>
+            <div className="landing-footer-brand landing-fade-up" style={{ "--reveal-delay": "80ms" }}>
+              <div className="landing-footer-logo">
+                <img src={pirnavLogo} alt="Pirnav" className="landing-footer-mark" />
+              </div>
 
-            <p className="landing-footer-brand-tagline">Intelligent people operations.</p>
-          </div>
+              <div className="landing-footer-brand-copy">
+                <h3 className="landing-footer-brand-name">Pirnav HRMS</h3>
 
-          <p className="landing-footer-copy">
-            A modern HRMS platform for smarter employee management, attendance, payroll, leave, and workforce operations.
-          </p>
+                <p className="landing-footer-brand-tagline">Intelligent people operations.</p>
+              </div>
 
-          <div className="landing-footer-socials" aria-label="Social links">
-            {SOCIAL_LINKS.map(({ label, icon }) => (
-              <a className="landing-social-link" href="#contact" aria-label={label} key={label}>
-                {React.createElement(icon, { "aria-hidden": true })}
-              </a>
-            ))}
-          </div>
-        </div>
+              <p className="landing-footer-copy">
+                A modern HRMS platform for smarter employee management, attendance, payroll, leave, and workforce operations.
+              </p>
 
-        <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "140ms" }}>
-          <h3 className="landing-footer-title">Quick Links</h3>
-          <div className="landing-footer-links">
-            {FOOTER_LINKS.quick.map((link) => (
-              <a className="landing-footer-link" href={link.href} key={link.label}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        </div>
+              <div className="landing-footer-socials" aria-label="Social links">
+                {SOCIAL_LINKS.map(({ label, icon }) => (
+                  <a className="landing-social-link" href="#contact" aria-label={label} key={label}>
+                    {React.createElement(icon, { "aria-hidden": true })}
+                  </a>
+                ))}
+              </div>
+            </div>
 
-        <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "180ms" }}>
-          <h3 className="landing-footer-title">Company</h3>
-          <div className="landing-footer-links">
-            {FOOTER_LINKS.company.map((link) => (
-              <a className="landing-footer-link" href={link.href} key={link.label}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        </div>
+            <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "140ms" }}>
+              <h3 className="landing-footer-title">Quick Links</h3>
+              <div className="landing-footer-links">
+                {FOOTER_LINKS.quick.map((link) => (
+                  <a className="landing-footer-link" href={link.href} key={link.label}>
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </div>
 
-        <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "220ms" }}>
-          <h3 className="landing-footer-title">Resources</h3>
-          <div className="landing-footer-links">
-            {FOOTER_LINKS.resources.map((link) => (
-              <a className="landing-footer-link" href={link.href} key={link.label}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        </div>
+            <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "180ms" }}>
+              <h3 className="landing-footer-title">Company</h3>
+              <div className="landing-footer-links">
+                {FOOTER_LINKS.company.map((link) => (
+                  <a className="landing-footer-link" href={link.href} key={link.label}>
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </div>
 
-        <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "260ms" }}>
-          <h3 className="landing-footer-title">Contact</h3>
-          <div className="landing-footer-contact">
-            <a className="landing-footer-contact-link" href="mailto:contact@pirnav.com">
-              <FaEnvelope aria-hidden="true" />
-              <span>contact@pirnav.com</span>
-            </a>
-            <a
-              className="landing-footer-contact-link"
-              href="mailto:contact@pirnav.com"
-            >
-              <FaEnvelope aria-hidden="true" />
-              <span>contact@pirnav.com</span>
-            </a>
-            <div className="landing-footer-contact-link landing-footer-contact-link--static">
-              <FaMapMarkerAlt aria-hidden="true" />
-              <span>India</span>
+            <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "220ms" }}>
+              <h3 className="landing-footer-title">Resources</h3>
+              <div className="landing-footer-links">
+                {FOOTER_LINKS.resources.map((link) => (
+                  <a className="landing-footer-link" href={link.href} key={link.label}>
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "260ms" }}>
+              <h3 className="landing-footer-title">Contact</h3>
+              <div className="landing-footer-contact">
+                <a className="landing-footer-contact-link" href="mailto:contact@pirnav.com">
+                  <FaEnvelope aria-hidden="true" />
+                  <span>contact@pirnav.com</span>
+                </a>
+                <a
+                  className="landing-footer-contact-link"
+                  href="mailto:contact@pirnav.com"
+                >
+                  <FaEnvelope aria-hidden="true" />
+                  <span>contact@pirnav.com</span>
+                </a>
+                <div className="landing-footer-contact-link landing-footer-contact-link--static">
+                  <FaMapMarkerAlt aria-hidden="true" />
+                  <span>India</span>
+                </div>
+              </div>
             </div>
           </div>
+
+          <div className="landing-footer-divider" aria-hidden="true" />
+
+          <div className="landing-footer-bottom landing-fade-up" style={{ "--reveal-delay": "300ms" }}>
+            <p className="landing-footer-bottom-copy">
+              {"\u00A9"} 2026 Pirnav. All rights reserved.
+            </p>
+            <nav
+              className="landing-footer-bottom-links"
+              aria-label="Footer policy links"
+            >
+              {FOOTER_POLICY_LINKS.map((link) => {
+                if (link.label === "Privacy Policy") {
+                  return (
+                    <button
+                      type="button"
+                      className="landing-footer-bottom-link landing-footer-policy-button"
+                      onClick={() => setPrivacyPolicyOpen(true)}
+                      key={link.label}
+                    >
+                      {link.label}
+                    </button>
+                  );
+                }
+
+                return (
+                  <a
+                    className="landing-footer-bottom-link"
+                    href={link.href}
+                    key={link.label}
+                  >
+                    {link.label}
+                  </a>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      </footer>
+
+      <PrivacyPolicyModal
+        open={privacyPolicyOpen}
+        onClose={() => setPrivacyPolicyOpen(false)} />
+    </>
+  );
+};
+
+const PrivacyPolicyModal = ({ open, onClose }) => {
+  if (!open) {
+    return null;
+  }
+
+  const privacyPolicyUrl = buildApiUrl(API.AGREEMENTS.PREVIEW);
+
+  return (
+    <div
+      className="landing-policy-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="landing-policy-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="privacy-policy-title"
+      >
+        {/* Header */}
+        <div className="landing-policy-header">
+          <div>
+            <p className="landing-policy-eyebrow">
+              PIRNAV HRMS
+            </p>
+
+            <h2 id="privacy-policy-title">
+              Privacy Policy
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            className="landing-policy-close"
+            onClick={onClose}
+            aria-label="Close Privacy Policy"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* PDF */}
+        <div className="landing-policy-content">
+          <iframe
+            src={privacyPolicyUrl}
+            title="Pirnav Privacy Policy"
+            className="landing-policy-frame"
+          />
         </div>
       </div>
-
-      <div className="landing-footer-divider" aria-hidden="true" />
-
-      <div className="landing-footer-bottom landing-fade-up" style={{ "--reveal-delay": "300ms" }}>
-        <p className="landing-footer-bottom-copy">
-          {"\u00A9"} 2026 Pirnav. All rights reserved.
-        </p>
-        <nav className="landing-footer-bottom-links" aria-label="Footer policy links">
-          {FOOTER_POLICY_LINKS.map((link) => (
-            <a className="landing-footer-bottom-link" href={link.href} key={link.label}>
-              {link.label}
-            </a>
-          ))}
-        </nav>
-      </div>
     </div>
-  </footer>
-);
+  );
+};
 
 const LandingNavbar = () => (
   <header className="landing-navbar">
