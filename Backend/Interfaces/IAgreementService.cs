@@ -37,7 +37,8 @@ namespace EmployeeManagementSystem.Interfaces
         Task<object> GetSignedAgreements(string employeeId);
 
         Task<object> GetAgreementReport();
-
+        Task<(byte[] FileBytes, string ContentType, string FileName)?> GetPrivacyPolicy();
+        Task<(byte[] FileBytes, string ContentType, string FileName)?> PreviewPrivacyPolicy();
 
     }
 
