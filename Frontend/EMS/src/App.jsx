@@ -32,6 +32,7 @@ import { PageSkeleton } from "./components/Skeletons";
 
 const PUBLIC_ROUTES = new Set([
   "/",
+  "/privacy-policy",
   "/login",
   "/register",
   "/forgot-password",
@@ -83,6 +84,7 @@ const RouteFallback = memo(() => (
 
 const Register = lazyRoute("register", () => import("./Pages/loginpage/Register"));
 const LandingPage = lazyRoute("landing-page", () => import("./Pages/landing/LandingPage"));
+import PrivacyPolicy from "./Pages/landing/PrivacyPolicy";
 const Login = lazyRoute("login", () => import("./Pages/loginpage/Login"));
 const ForgotPassword = lazyRoute("forgot-password", () => import("./Pages/loginpage/ForgotPassword"));
 const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVerification"));
@@ -262,6 +264,7 @@ function App() {
         <Suspense fallback={<RouteFallback />}>
           <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
