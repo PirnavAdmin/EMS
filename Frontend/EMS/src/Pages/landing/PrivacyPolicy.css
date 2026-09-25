@@ -492,3 +492,525 @@
     align-items: flex-start;
   }
 }
+
+/* =========================================================
+   PRIVACY POLICY THEME SUPPORT
+   Keeps the existing layout and follows the application's theme
+========================================================= */
+
+.privacy-policy-page {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(0, 145, 170, 0.10), transparent 32%),
+    var(--bg-primary, #f8fcfd);
+  color: var(--text-body, #365675);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.privacy-policy-header {
+  background: var(--navbar-bg, #ffffff);
+  border-bottom: 1px solid var(--border-color, #e5eef1);
+  color: var(--text-primary, #142c4b);
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.privacy-policy-back {
+  background: var(--bg-secondary, #f4fbfc);
+  border-color: var(--border-color, #bfe4eb);
+  color: var(--primary, #07839c);
+}
+
+.privacy-policy-back:hover {
+  background: var(--primary, #07839c);
+  border-color: var(--primary, #07839c);
+  color: #ffffff;
+}
+
+.privacy-policy-eyebrow, .privacy-policy-section li::marker { color: var(--primary, #07839c); }
+.privacy-policy-eyebrow::before, .privacy-policy-document::before, .privacy-policy-section h2::before { background: var(--primary, #07839c); }
+.privacy-policy-hero h1, .privacy-policy-section h2, .privacy-policy-section h3, .privacy-policy-contact h3 { color: var(--text-primary, #142c4b); }
+.privacy-policy-subtitle { color: var(--text-secondary, #58718b); }
+
+.privacy-policy-document {
+  background: var(--card-bg, #ffffff);
+  border-color: var(--border-color, #dcecef);
+  color: var(--text-body, #365675);
+  box-shadow: var(--theme-shadow-lg, 0 15px 45px rgba(20, 55, 75, 0.07));
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.privacy-policy-section h2 { border-bottom-color: var(--border-color, #d4e7eb); }
+.privacy-policy-section p, .privacy-policy-section li { color: var(--text-secondary, #365675); }
+
+.privacy-policy-contact {
+  background: var(--bg-secondary, #eef9fb);
+  border-color: var(--border-color, #cce8ed);
+  border-left-color: var(--primary, #07839c);
+}
+.privacy-policy-contact p { color: var(--text-secondary, #365675); }
+
+.privacy-policy-footer {
+  background: var(--bg-secondary, #102943);
+  color: var(--text-primary, #ffffff);
+  border-top: 1px solid var(--border-color, transparent);
+}
+.privacy-policy-footer-brand p,
+.privacy-policy-footer-column a,
+.privacy-policy-footer-contact p { color: var(--text-secondary, #b8c9d8); }
+.privacy-policy-footer-column h4 { color: var(--text-primary, #ffffff); }
+.privacy-policy-footer-bottom p,
+.privacy-policy-footer-bottom-links a { color: var(--text-muted, #9eb2c4); }
+.privacy-policy-footer-column a:hover,
+.privacy-policy-footer-bottom-links a:hover { color: var(--primary, #1aa0b8); }
+
+/* =========================
+   DARK EXECUTIVE
+========================= */
+[data-theme="dark-executive"] .privacy-policy-page {
+  background: radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.10), transparent 32%), var(--bg-primary);
+  color: var(--text-secondary);
+}
+[data-theme="dark-executive"] .privacy-policy-header { background: var(--navbar-bg); border-bottom-color: var(--border-color); }
+[data-theme="dark-executive"] .privacy-policy-back { background: var(--card-bg); border-color: var(--border-color); color: var(--primary); }
+[data-theme="dark-executive"] .privacy-policy-back:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+[data-theme="dark-executive"] .privacy-policy-hero h1,
+[data-theme="dark-executive"] .privacy-policy-section h2,
+[data-theme="dark-executive"] .privacy-policy-section h3,
+[data-theme="dark-executive"] .privacy-policy-contact h3 { color: var(--text-primary); }
+[data-theme="dark-executive"] .privacy-policy-subtitle,
+[data-theme="dark-executive"] .privacy-policy-section p,
+[data-theme="dark-executive"] .privacy-policy-section li,
+[data-theme="dark-executive"] .privacy-policy-contact p { color: var(--text-secondary); }
+[data-theme="dark-executive"] .privacy-policy-document { background: var(--card-bg); border-color: var(--border-color); box-shadow: var(--theme-shadow-lg); }
+[data-theme="dark-executive"] .privacy-policy-section h2 { border-bottom-color: var(--border-color); }
+[data-theme="dark-executive"] .privacy-policy-contact { background: var(--bg-secondary); border-color: var(--border-color); border-left-color: var(--primary); }
+[data-theme="dark-executive"] .privacy-policy-footer { background: var(--bg-secondary); border-top-color: var(--border-color); }
+[data-theme="dark-executive"] .privacy-policy-footer-brand p,
+[data-theme="dark-executive"] .privacy-policy-footer-column a,
+[data-theme="dark-executive"] .privacy-policy-footer-contact p { color: var(--text-secondary); }
+[data-theme="dark-executive"] .privacy-policy-footer-column h4 { color: var(--text-primary); }
+[data-theme="dark-executive"] .privacy-policy-footer-bottom p,
+[data-theme="dark-executive"] .privacy-policy-footer-bottom-links a { color: var(--text-muted); }
+
+/* =========================
+   EXECUTIVE GREEN
+========================= */
+[data-theme="executive-green"] .privacy-policy-page {
+  background: radial-gradient(circle at 85% 15%, rgba(34, 197, 94, 0.08), transparent 32%), var(--bg-primary);
+  color: var(--text-secondary);
+}
+[data-theme="executive-green"] .privacy-policy-header { background: var(--navbar-bg); border-bottom-color: var(--border-color); }
+[data-theme="executive-green"] .privacy-policy-back { background: var(--card-bg); border-color: var(--border-color); color: var(--primary); }
+[data-theme="executive-green"] .privacy-policy-back:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+[data-theme="executive-green"] .privacy-policy-hero h1,
+[data-theme="executive-green"] .privacy-policy-section h2,
+[data-theme="executive-green"] .privacy-policy-section h3,
+[data-theme="executive-green"] .privacy-policy-contact h3 { color: var(--text-primary); }
+[data-theme="executive-green"] .privacy-policy-subtitle,
+[data-theme="executive-green"] .privacy-policy-section p,
+[data-theme="executive-green"] .privacy-policy-section li,
+[data-theme="executive-green"] .privacy-policy-contact p { color: var(--text-secondary); }
+[data-theme="executive-green"] .privacy-policy-document { background: var(--card-bg); border-color: var(--border-color); box-shadow: var(--theme-shadow-lg); }
+[data-theme="executive-green"] .privacy-policy-section h2 { border-bottom-color: var(--border-color); }
+[data-theme="executive-green"] .privacy-policy-contact { background: var(--bg-secondary); border-color: var(--border-color); border-left-color: var(--primary); }
+[data-theme="executive-green"] .privacy-policy-footer { background: var(--bg-secondary); border-top-color: var(--border-color); }
+[data-theme="executive-green"] .privacy-policy-footer-brand p,
+[data-theme="executive-green"] .privacy-policy-footer-column a,
+[data-theme="executive-green"] .privacy-policy-footer-contact p { color: var(--text-secondary); }
+[data-theme="executive-green"] .privacy-policy-footer-column h4 { color: var(--text-primary); }
+[data-theme="executive-green"] .privacy-policy-footer-bottom p,
+[data-theme="executive-green"] .privacy-policy-footer-bottom-links a { color: var(--text-muted); }
+
+
+/* =========================================================
+   PRIVACY POLICY - CURRENT JSX CLASS COMPATIBILITY
+   The PrivacyPolicy.jsx component uses these class names.
+   Keep these aliases so the page renders with the intended
+   layout without depending on the older selector names above.
+========================================================= */
+
+.privacy-policy-shell {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.privacy-policy-heading {
+  max-width: 1050px;
+  margin: 0 auto 55px;
+}
+
+.privacy-policy-heading h1 {
+  margin: 0;
+  color: var(--text-primary, #142c4b);
+  font-size: clamp(48px, 5vw, 68px);
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -2px;
+}
+
+.privacy-policy-heading > p {
+  margin: 20px 0 0;
+  color: var(--text-muted, #58718b);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.privacy-policy-card {
+  max-width: 1050px;
+  margin: 0 auto;
+  background: var(--card-bg, rgba(255, 255, 255, 0.94));
+  border: 1px solid var(--border-color, #dcecef);
+  border-radius: 4px;
+  box-shadow: 0 15px 45px rgba(20, 55, 75, 0.07);
+  position: relative;
+  overflow: hidden;
+}
+
+.privacy-policy-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 5px;
+  background: #07839c;
+}
+
+.privacy-policy-card > .privacy-policy-section {
+  padding: 0 62px;
+}
+
+.privacy-policy-card > .privacy-policy-section:first-child {
+  padding-top: 55px;
+}
+
+.privacy-policy-card > .privacy-policy-section:last-child {
+  padding-bottom: 65px;
+}
+
+.privacy-policy-section h3 {
+  margin: 28px 0 12px;
+  color: var(--text-primary, #142c4b);
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.privacy-policy-section ol {
+  margin: 12px 0 22px;
+  padding-left: 28px;
+}
+
+.privacy-policy-section ol li {
+  margin-bottom: 12px;
+  color: var(--text-body, #365675);
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.privacy-policy-section a {
+  color: #07839c;
+  text-decoration: none;
+}
+
+.privacy-policy-section a:hover {
+  text-decoration: underline;
+}
+
+.privacy-policy-contact-box {
+  margin-top: 35px;
+  padding: 28px 30px;
+  background: var(--bg-soft, #eef9fb);
+  border: 1px solid #cce8ed;
+  border-left: 4px solid #07839c;
+  border-radius: 4px;
+}
+
+.privacy-policy-contact-box p {
+  margin: 6px 0;
+  color: var(--text-body, #365675);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.privacy-policy-contact-box a {
+  color: #07839c;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .privacy-policy-card > .privacy-policy-section {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .privacy-policy-heading {
+    margin-bottom: 35px;
+  }
+
+  .privacy-policy-heading h1 {
+    font-size: 43px;
+    letter-spacing: -1px;
+  }
+
+  .privacy-policy-heading > p {
+    font-size: 16px;
+  }
+
+  .privacy-policy-card > .privacy-policy-section {
+    padding-left: 25px;
+    padding-right: 25px;
+  }
+
+  .privacy-policy-card > .privacy-policy-section:first-child {
+    padding-top: 35px;
+  }
+
+  .privacy-policy-card > .privacy-policy-section:last-child {
+    padding-bottom: 40px;
+  }
+}
+
+
+/* =========================================================
+   PRIVACY POLICY - TEXT ONLY LAYOUT
+   Keep the existing page/theme/header/footer unchanged.
+   Remove only the visible policy content container.
+   ========================================================= */
+
+/* Make the policy card completely transparent and borderless */
+.privacy-policy-card {
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* Remove the vertical card accent */
+.privacy-policy-card::before {
+  display: none;
+}
+
+/* Align policy text with the page heading */
+.privacy-policy-card > .privacy-policy-section {
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Normal spacing instead of card padding */
+.privacy-policy-card > .privacy-policy-section:first-child {
+  padding-top: 0;
+}
+
+.privacy-policy-card > .privacy-policy-section:last-child {
+  padding-bottom: 0;
+}
+
+/* Keep the text clean and wide like the reference */
+.privacy-policy-section p,
+.privacy-policy-section ul,
+.privacy-policy-section ol {
+  max-width: 100%;
+}
+
+/* Keep section headings as text sections, not cards */
+.privacy-policy-section {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Contact information should remain a simple text area,
+   not become another large container */
+.privacy-policy-contact-box {
+  background: transparent;
+  border: 0;
+  border-left: 0;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 28px;
+  box-shadow: none;
+}
+
+/* Responsive: retain the same text-only layout */
+@media (max-width: 900px) {
+  .privacy-policy-card > .privacy-policy-section {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .privacy-policy-card > .privacy-policy-section {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .privacy-policy-card > .privacy-policy-section:first-child {
+    padding-top: 0;
+  }
+
+  .privacy-policy-card > .privacy-policy-section:last-child {
+    padding-bottom: 0;
+  }
+}
+
+
+/* =========================================================
+   FINAL POSITION + FONT SIZE
+   Match Image 1 only.
+   No color/theme changes.
+   ========================================================= */
+
+/* Keep the content aligned with the logo / page content */
+.privacy-policy-main {
+  max-width: 1316px;
+  padding: 76px 0 90px;
+}
+
+.privacy-policy-shell {
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Legal label position */
+.privacy-policy-heading {
+  max-width: 100%;
+  width: 100%;
+  margin: 0 0 24px;
+}
+
+/* Main Privacy Policy title - smaller like Image 1 */
+.privacy-policy-heading h1 {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -1.2px;
+}
+
+/* Subtitle position and size */
+.privacy-policy-heading > p {
+  margin: 24px 0 0;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* Introduction and every other section starts directly
+   under the subtitle, without the large gap from Image 2 */
+.privacy-policy-card {
+  max-width: 100%;
+  width: 100%;
+}
+
+.privacy-policy-card > .privacy-policy-section:first-child {
+  padding-top: 0;
+}
+
+/* Main section headings - same size/placement as Image 1 */
+.privacy-policy-section h2 {
+  margin: 0 0 24px;
+  padding: 0 0 18px;
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+}
+
+/* Heading marker */
+.privacy-policy-section h2::before {
+  width: 5px;
+  height: 35px;
+  flex-basis: 5px;
+  margin-right: 14px;
+}
+
+/* Body text size matching Image 1 */
+.privacy-policy-section p,
+.privacy-policy-section li {
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+/* Keep normal spacing between paragraphs */
+.privacy-policy-section p {
+  margin-bottom: 18px;
+}
+
+/* Sub-headings */
+.privacy-policy-section h3 {
+  font-size: 20px;
+  line-height: 1.35;
+  margin: 28px 0 12px;
+}
+
+/* Keep sections close and consistent like Image 1 */
+.privacy-policy-section {
+  margin-bottom: 48px;
+}
+
+/* Desktop alignment */
+@media (min-width: 901px) {
+  .privacy-policy-heading,
+  .privacy-policy-card {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1320px) {
+  .privacy-policy-main {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .privacy-policy-main {
+    padding: 50px 16px 60px;
+  }
+
+  .privacy-policy-heading {
+    margin-bottom: 24px;
+  }
+
+  .privacy-policy-heading h1 {
+    font-size: 40px;
+    line-height: 1.1;
+    letter-spacing: -0.8px;
+  }
+
+  .privacy-policy-heading > p {
+    margin-top: 18px;
+    font-size: 16px;
+  }
+
+  .privacy-policy-section h2 {
+    font-size: 27px;
+    line-height: 1.25;
+    margin-bottom: 20px;
+  }
+
+  .privacy-policy-section h2::before {
+    height: 29px;
+  }
+
+  .privacy-policy-section p,
+  .privacy-policy-section li {
+    font-size: 15px;
+    line-height: 1.8;
+  }
+}
