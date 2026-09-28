@@ -33,6 +33,7 @@ import { PageSkeleton } from "./components/Skeletons";
 const PUBLIC_ROUTES = new Set([
   "/",
   "/privacy-policy",
+  "/account-deletion",
   "/login",
   "/register",
   "/forgot-password",
@@ -85,6 +86,10 @@ const RouteFallback = memo(() => (
 const Register = lazyRoute("register", () => import("./Pages/loginpage/Register"));
 const LandingPage = lazyRoute("landing-page", () => import("./Pages/landing/LandingPage"));
 import PrivacyPolicy from "./Pages/landing/PrivacyPolicy";
+const AccountDeletion = lazyRoute(
+  "account-deletion",
+  () => import("./Pages/landing/AccountDeletion")
+);
 const Login = lazyRoute("login", () => import("./Pages/loginpage/Login"));
 const ForgotPassword = lazyRoute("forgot-password", () => import("./Pages/loginpage/ForgotPassword"));
 const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVerification"));
@@ -265,6 +270,7 @@ function App() {
           <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/account-deletion" element={<AccountDeletion />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
