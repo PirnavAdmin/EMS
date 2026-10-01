@@ -15,6 +15,7 @@ using QuestPDF.Infrastructure;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using Microsoft.AspNetCore.Hosting;
 using Hangfire;
 
 using System.IO;
@@ -37,36 +38,25 @@ namespace EmployeeManagementSystem.Services
 
         private readonly IServiceScopeFactory _scopeFactory;
 
-        private readonly ITemplateService _templateService;//vishnu
+        private readonly ITemplateService _templateService;
+        private readonly IWebHostEnvironment _environment;//vishnu
 
         public PaySlipService(
-
-    AppDbContext context,
-
-    IAttendanceService attendanceService,
-
-    IHttpContextAccessor httpContextAccessor,
-
-    IEmailService emailService,
-
-    IServiceScopeFactory scopeFactory,
-
-    ITemplateService templateService)
-
+       AppDbContext context,
+       IAttendanceService attendanceService,
+       IHttpContextAccessor httpContextAccessor,
+       IEmailService emailService,
+       IServiceScopeFactory scopeFactory,
+       ITemplateService templateService,
+       IWebHostEnvironment environment)
         {
-
             _context = context;
-
             _attendanceService = attendanceService;
-
             _httpContextAccessor = httpContextAccessor;
-
             _emailService = emailService;
-
             _scopeFactory = scopeFactory;
-
             _templateService = templateService;
-
+            _environment = environment;
         }
 
 
@@ -520,18 +510,39 @@ e.Status == "Active");
                 " Only";
 
 
-            //        //--------------------------------
-            // TEMPLATE
             //--------------------------------
+            // GET PAYSLIP TEMPLATE
+            //--------------------------------
+
+          
+
+            var template = await _templateService.GetActiveTemplateAsync(
+     "PAYSLIP");
+
+            if (template == null)
+            {
+                throw new Exception(
+                    "Active Payslip template not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(template.FilePath))
+            {
+                throw new Exception(
+                    "Payslip template file path is missing.");
+            }
+
+            var relativeTemplatePath = template.FilePath
+                .TrimStart('/', '\\');
+
             var templatePath = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "Templates",
-                "PaySlipTemplate.docx");
+                _environment.WebRootPath,
+                relativeTemplatePath);
 
             if (!File.Exists(templatePath))
+            {
                 throw new Exception(
-                    $"Template not found: {templatePath}");
-
+                    $"Payslip template file not found: {templatePath}");
+            }
 
             ////    vishnu    //--------------------------------
 

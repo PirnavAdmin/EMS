@@ -5,6 +5,6 @@
         public string Employee_Id { get; set; } = string.Empty;
         public int PerformanceCycleId { get; set; }
         public int SelfRating { get; set; }
-        public string? ManagerRemarks { get; set; }
+        public string? EmployeeRemarks { get; set; }
     }
 }

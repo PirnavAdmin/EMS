@@ -1,6 +1,7 @@
 import React from "react";
 import {
   FaArrowRight,
+  FaClock,
   FaProjectDiagram,
   FaUserTie,
   FaUsers
@@ -52,6 +53,23 @@ function TeamCard({ team, onClick }) {
               <span className="team-card-meta-label">Reporting Manager</span>
               <span className="team-card-meta-value">
                 {team.reportingManagerName || team.reportingManager || team.managerName || "-"}
+              </span>
+            </div>
+          </div>
+
+          <div className="team-card-meta-item">
+            <FaClock className="team-card-meta-icon" />
+
+            <div>
+              <span className="team-card-meta-label">Shift</span>
+              <span className="team-card-meta-value">
+                {team.shiftName
+                  ? `${team.shiftName}${
+                      team.shiftStartTime || team.shiftEndTime
+                        ? ` (${team.shiftStartTime || "-"} - ${team.shiftEndTime || "-"})`
+                        : ""
+                    }`
+                  : "Not Assigned"}
               </span>
             </div>
           </div>

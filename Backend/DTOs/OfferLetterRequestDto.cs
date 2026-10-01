@@ -99,7 +99,6 @@
         //public decimal? Gratuity { get; set; }
 
         //public decimal? PerformanceIncentive { get; set; }
-
         //public int Company_Id { get; set; }//vishnu change for multiple companies (multi-tenant),
     }
 }

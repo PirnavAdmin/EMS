@@ -26,6 +26,7 @@ public class CreateShiftDto
 
     public TimeSpan? BreakEnd { get; set; }
 
+
     public int GraceTimeMinutes { get; set; } = 15;
 
     public decimal HalfDayHours { get; set; } = 4;

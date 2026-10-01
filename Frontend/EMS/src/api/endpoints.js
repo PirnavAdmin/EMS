@@ -418,6 +418,14 @@ export const API = {
         DELETE: (id) => `/Appraisal/${id}`,
     },
 
+    APPRAISAL_SALARY: {
+        BY_APPRAISAL: (employeeId, appraisalId) => `/AppraisalSalary/${employeeId}/${appraisalId}`,
+        SAVE: "/AppraisalSalary/save",
+        GENERATE_LETTER: (appraisalId) => `/AppraisalSalary/generate-letter/${appraisalId}`,
+        DOWNLOAD: (appraisalId) => `/AppraisalSalary/download/${appraisalId}`,
+        SEND_EMAIL: (appraisalId) => `/AppraisalSalary/send-email/${appraisalId}`,
+    },
+
     EMPLOYEE_CLEARANCE: {
         CREATE: "/EmployeeClearance/create",
         DEPARTMENT: "/EmployeeClearance/department",
@@ -435,12 +443,14 @@ export const API = {
     },
 
     EMPLOYEE_RESIGNATION: {
+        EMPLOYEE_RESIGNATION: "/employee/resignation",
         APPLY: "/EmployeeResignation/apply",
         UPDATE: "/EmployeeResignation/update",
         DELETE: (resignationId) => `/EmployeeResignation/${resignationId}`,
         BY_ID: (resignationId) => `/EmployeeResignation/${resignationId}`,
         LIST: "/EmployeeResignation",
         BY_EMPLOYEE: (employeeId) => `/EmployeeResignation/employee/${employeeId}`,
+        APPROVAL: "/EmployeeResignation/approval",
         PENDING_MANAGER: "/EmployeeResignation/pending-manager",
         MANAGER_APPROVAL: "/EmployeeResignation/manager-approval",
         PENDING_HR: "/EmployeeResignation/pending-hr",
@@ -476,6 +486,7 @@ export const API = {
         LIST: "/FullFinalSettlement",
         BY_EMPLOYEE: (employeeId) => `/FullFinalSettlement/${employeeId}`,
         DELETE: (settlementId) => `/FullFinalSettlement/${settlementId}`,
+        PDF: (settlementId) => `/FullFinalSettlement/${settlementId}/pdf`,
     },
 
     GOAL_REVIEW: {
@@ -508,6 +519,8 @@ export const API = {
         BY_ID: (id) => `/ShiftChangeRequest/${id}`,
         DELETE: (id) => `/ShiftChangeRequest/${id}`,
         APPROVE: "/ShiftChangeRequest/approve",
+        APPROVE_BY_ID: (id) => `/ShiftChangeRequest/${id}/approve`,
+        REJECT: (id) => `/ShiftChangeRequest/${id}/reject`,
     },
 
     SHIFT_PLANNER: {
@@ -534,7 +547,10 @@ export const API = {
         CREATE: "/ShiftSwap",
         BY_ID: (id) => `/ShiftSwap/${id}`,
         DELETE: (id) => `/ShiftSwap/${id}`,
-        APPROVE: "/ShiftSwap/approve",
+        EMPLOYEE_ACCEPT: (id) => `/ShiftSwap/${id}/employee-accept`,
+        EMPLOYEE_REJECT: (id) => `/ShiftSwap/${id}/employee-reject`,
+        ADMIN_APPROVE: (id) => `/ShiftSwap/${id}/admin-approve`,
+        ADMIN_REJECT: (id) => `/ShiftSwap/${id}/admin-reject`,
     },
 
     SHIFT_ROSTER: {
@@ -610,7 +626,6 @@ export const API = {
         DELETE: (id) => `/Form16/${id}`,
     },
 
-    // ================= TEAM =================
     TEAM: {
         LIST: "/Team",
         CREATE: "/Team/create",
@@ -1088,6 +1103,13 @@ export const API_ENDPOINTS = {
         hrReview: API.APPRAISAL.HR_REVIEW,
         delete: API.APPRAISAL.DELETE,
     },
+    appraisalSalary: {
+        byAppraisal: API.APPRAISAL_SALARY.BY_APPRAISAL,
+        save: API.APPRAISAL_SALARY.SAVE,
+        generateLetter: API.APPRAISAL_SALARY.GENERATE_LETTER,
+        download: API.APPRAISAL_SALARY.DOWNLOAD,
+        sendEmail: API.APPRAISAL_SALARY.SEND_EMAIL,
+    },
     employeeClearance: {
         create: API.EMPLOYEE_CLEARANCE.CREATE,
         department: API.EMPLOYEE_CLEARANCE.DEPARTMENT,
@@ -1103,12 +1125,14 @@ export const API_ENDPOINTS = {
         delete: API.EMPLOYEE_GOAL.DELETE,
     },
     employeeResignation: {
+        employeeResignation: API.EMPLOYEE_RESIGNATION.EMPLOYEE_RESIGNATION,
         apply: API.EMPLOYEE_RESIGNATION.APPLY,
         update: API.EMPLOYEE_RESIGNATION.UPDATE,
         delete: API.EMPLOYEE_RESIGNATION.DELETE,
         byId: API.EMPLOYEE_RESIGNATION.BY_ID,
         list: API.EMPLOYEE_RESIGNATION.LIST,
         byEmployee: API.EMPLOYEE_RESIGNATION.BY_EMPLOYEE,
+        approval: API.EMPLOYEE_RESIGNATION.APPROVAL,
         pendingManager: API.EMPLOYEE_RESIGNATION.PENDING_MANAGER,
         managerApproval: API.EMPLOYEE_RESIGNATION.MANAGER_APPROVAL,
         pendingHr: API.EMPLOYEE_RESIGNATION.PENDING_HR,
@@ -1140,6 +1164,7 @@ export const API_ENDPOINTS = {
         list: API.FULL_FINAL_SETTLEMENT.LIST,
         byEmployee: API.FULL_FINAL_SETTLEMENT.BY_EMPLOYEE,
         delete: API.FULL_FINAL_SETTLEMENT.DELETE,
+        pdf: API.FULL_FINAL_SETTLEMENT.PDF,
     },
     goalReview: {
         list: API.GOAL_REVIEW.LIST,
@@ -1168,6 +1193,8 @@ export const API_ENDPOINTS = {
         byId: API.SHIFT_CHANGE_REQUEST.BY_ID,
         delete: API.SHIFT_CHANGE_REQUEST.DELETE,
         approve: API.SHIFT_CHANGE_REQUEST.APPROVE,
+        approveById: API.SHIFT_CHANGE_REQUEST.APPROVE_BY_ID,
+        reject: API.SHIFT_CHANGE_REQUEST.REJECT,
     },
     shiftPlanner: {
         list: API.SHIFT_PLANNER.LIST,
@@ -1191,7 +1218,10 @@ export const API_ENDPOINTS = {
         create: API.SHIFT_SWAP.CREATE,
         byId: API.SHIFT_SWAP.BY_ID,
         delete: API.SHIFT_SWAP.DELETE,
-        approve: API.SHIFT_SWAP.APPROVE,
+        employeeAccept: API.SHIFT_SWAP.EMPLOYEE_ACCEPT,
+        employeeReject: API.SHIFT_SWAP.EMPLOYEE_REJECT,
+        adminApprove: API.SHIFT_SWAP.ADMIN_APPROVE,
+        adminReject: API.SHIFT_SWAP.ADMIN_REJECT,
     },
     shiftRoster: {
         list: API.SHIFT_ROSTER.LIST,

@@ -4,8 +4,7 @@ namespace EmployeeManagementSystem.DTOs
 {
     public class CreateResignationDto
     {
-        [Required]
-        public string Employee_Id { get; set; }
+       
 
         [Required]
         public DateTime ResignationDate { get; set; }

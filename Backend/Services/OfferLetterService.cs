@@ -19,46 +19,53 @@ namespace EmployeeManagementSystem.Services
 
         private readonly IEmailService _emailService;
 
-        private readonly ITemplateService _templateService; //vishnu change
+        private readonly ITemplateService _templateService;
+        private readonly IWebHostEnvironment _environment;//vishnu change
 
         public OfferLetterService(
-
-   AppDbContext context,
-
-   IEmailService emailService,
-
-   ITemplateService templateService)
-
+     AppDbContext context,
+     IEmailService emailService,
+     ITemplateService templateService,
+     IWebHostEnvironment environment)
         {
-
             _context = context;
-
             _emailService = emailService;
-
-            _templateService = templateService;  //Vishnu change
-
+            _templateService = templateService;
+            _environment = environment;
         }
 
 
-        public async Task<OfferLetterResponseDto> GenerateAsync(OfferLetterRequestDto dto)
+        public async Task<OfferLetterResponseDto> GenerateAsync(
+         OfferLetterRequestDto dto)
         {
-//            Console.WriteLine($"CompanyId = {dto.Company_Id}");//Vishnu change
-//            var template = await _templateService.GetActiveTemplateAsync(
+            var template = await _templateService.GetActiveTemplateAsync(
+               
+                "OFFER");
 
-//dto.Company_Id,
+            if (template == null)
+            {
+                throw new Exception(
+                    "Active Offer Letter template not found for this company.");
+            }
 
-//"OFFER");
+            if (string.IsNullOrWhiteSpace(template.FilePath))
+            {
+                throw new Exception(
+                    "Offer Letter template file path is missing.");
+            }
 
-
-            //if (template == null)
-
-            //    throw new Exception("Offer Letter template not found.");
-
+            var relativeTemplatePath = template.FilePath
+                .TrimStart('/', '\\');
 
             var templatePath = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "Templates",
-                "OfferLetterTemplates.docx");
+                _environment.WebRootPath,
+                relativeTemplatePath);
+
+            if (!File.Exists(templatePath))
+            {
+                throw new Exception(
+                    $"Offer Letter template file not found: {templatePath}");
+            }
 
             var outputFolder = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -67,13 +74,19 @@ namespace EmployeeManagementSystem.Services
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
 
-            var fileName = $"OfferLetter_{dto.Candidate_Name}_{DateTime.Now:yyyyMMddHHmmss}.docx";
-            var outputPath = Path.Combine(outputFolder, fileName);
+            var fileName =
+                $"OfferLetter_{dto.Candidate_Name}_{DateTime.Now:yyyyMMddHHmmss}.docx";
 
-            File.Copy(templatePath, outputPath, true);
+            var outputPath = Path.Combine(
+                outputFolder,
+                fileName);
 
+            File.Copy(
+                templatePath,
+                outputPath,
+                true);
 
-            //        // ======================================
+            // Continue with your existing salary calculation...         // Continue with your existing salary calculation code...        //        // ======================================
             //        // YEARLY VALUES
             //        // ======================================
 

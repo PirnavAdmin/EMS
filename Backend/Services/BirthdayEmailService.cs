@@ -22,22 +22,23 @@ namespace EmployeeManagementSystem.Services
             _scopeFactory = scopeFactory;
             _logger = logger;
         }
-
         protected override async Task ExecuteAsync(
-      CancellationToken stoppingToken)
+    CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                "Birthday Email Service started.");
+                "Birthday Email Service started. Running immediate birthday check.");
 
             try
             {
-                // TEST MODE:
-                // Check today's birthdays immediately when application starts.
                 await SendBirthdayEmailsAsync(stoppingToken);
+
+                _logger.LogInformation(
+                    "Immediate birthday email check completed.");
             }
             catch (OperationCanceledException)
             {
-                // Application is shutting down
+                _logger.LogInformation(
+                    "Birthday email service was cancelled.");
             }
             catch (Exception ex)
             {
@@ -45,9 +46,6 @@ namespace EmployeeManagementSystem.Services
                     ex,
                     "Error in Birthday Email Service.");
             }
-
-            _logger.LogInformation(
-                "Birthday Email Service test completed.");
         }
 
         private async Task SendBirthdayEmailsAsync(

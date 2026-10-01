@@ -216,26 +216,16 @@ Employee ID: {employee.Employee_Id}";
 
             });
 
-        int workingDays = await CalculateSandwichLeaveDays(
-
-     employee.Employee_Id,
-
+        int workingDays = await CalculateWorkingDays(
      fromDate,
-
      toDate);
 
         if (workingDays == 0)
-
         {
-
             return new BadRequestObjectResult(new
-
             {
-
-                message = "Leave cannot be applied for weekends or holidays"
-
+                message = "Leave cannot be applied for weekends or holidays."
             });
-
         }
 
         var approvalToken = Guid.NewGuid().ToString();
@@ -350,7 +340,7 @@ Employee ID: {employee.Employee_Id}";
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://localhost:7191";
         var notification = GetNotificationSettings();
 
         if (!notification.EnableEmailNotifications ||
@@ -2241,7 +2231,7 @@ Employee ID: {employee.Employee_Id}";
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://localhost:7191";
 
         var notification = GetNotificationSettings();
 

@@ -18,7 +18,8 @@ import {
   FaCog,
   FaTicketAlt,
   FaCreditCard,
-  FaHeadset
+  FaHeadset,
+  FaChartLine
 } from
   "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
@@ -186,7 +187,7 @@ const EXPANDABLE_MENUS = [
       { to: "/settings/employee-clearance", icon: FaShieldAlt, label: "Employee Clearance", adminOnly: true },
       { to: "/settings/exit-interview", icon: FaUserTie, label: "Exit Interview", adminOnly: true },
       { to: "/settings/full-final-settlement", icon: FaMoneyBillWave, label: "Full Final Settlement", adminOnly: true },
-      // { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
+      { to: "/settings/shift", icon: FaCalendarAlt, label: "Shift Settings", adminOnly: true },
       { to: "/settings/templates", icon: FaFileSignature, label: "Templates", adminOnly: true }]
 
   }];
@@ -225,6 +226,12 @@ const STATIC_MENUS_BEFORE_DROPDOWNS = [
   }];
 
 const STATIC_MENUS_AFTER_DROPDOWNS = [
+  { to: "/apply-resignation", icon: FaFileSignature, label: "My Resignation", permission: "My Resignation" },
+  { to: "/resignations", icon: FaFileSignature, label: "Employee Exit", permission: "EmployeeExit" },
+  { to: "/clearances/pending", icon: FaShieldAlt, label: "Pending Clearances", permission: "Employee Clearance" },
+  { to: "/clearances/completed", icon: FaShieldAlt, label: "Completed Clearances", permission: "Employee Clearance" },
+  { to: "/exit-interviews", icon: FaFileSignature, label: "Exit Interviews", permission: "Exit Interview" },
+  { to: "/settlements", icon: FaMoneyBillWave, label: "Full & Final Settlements", permission: "Full & Final Settlement" },
   {
     to: "/payroll",
     icon: FaMoneyBillWave,
@@ -242,6 +249,12 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     icon: FaChartBar,
     label: "Reports",
     permission: "Reports"
+  },
+  {
+    to: "/performance",
+    icon: FaChartLine,
+    label: "Performance",
+    permission: "Performance"
   },
   {
     to: "/offer-letters",
@@ -574,7 +587,8 @@ function Sidebar({ collapsed }) {
       "My Attendance",
       "Payslip",
       "My Notifications",
-      "My Teams"];
+      "My Teams",
+      "My Resignation"];
 
     if (item.hidden) {
       return null;
@@ -592,14 +606,14 @@ function Sidebar({ collapsed }) {
       return null;
     }
 
-    if (item.permission && !hasPermission(item.permission)) {
+    if (item.permission && !(item.employeeAccessible && hasRole("employee", "user", "manager")) && !hasPermission(item.permission)) {
       return null;
     }
 
     const targetPath =
       typeof item.getTo === "function" ? item.getTo(roleName) : item.to;
 
-    if (!isSidebarPermissionVisible(item, loadedPermissions)) {
+    if (!(item.employeeAccessible && hasRole("employee", "user", "manager")) && !isSidebarPermissionVisible(item, loadedPermissions)) {
       return null;
     }
 

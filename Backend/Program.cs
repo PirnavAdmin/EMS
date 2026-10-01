@@ -166,7 +166,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddHostedService<BirthdayEmailService>();
 
-builder.Services.AddScoped<ITemplateService, TemplateService>(); //Vishnu change
+builder.Services.AddScoped<ITemplateService, TemplateService>();
+builder.Services.AddScoped<
+    IAppraisalSalaryService,
+    AppraisalSalaryService>();//Vishnu change
 //builder.Services.AddScoped<PermissionFilter>();
 // ================= CORS =================
 

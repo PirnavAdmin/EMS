@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Notifications.css";
 import { CardSkeleton } from "../components/Skeletons";
 import {
@@ -12,9 +13,11 @@ import {
   loadNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  isShiftSwapNotification,
 } from "../services/notificationService";
 
 function Notifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -69,6 +72,14 @@ function Notifications() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleNotificationClick = (item, notificationId) => {
+    if (isShiftSwapNotification(item)) {
+      navigate("/my-team");
+      window.setTimeout(() => window.dispatchEvent(new Event("swapRequestsRefresh")), 0);
+    }
+    void markAsRead(notificationId);
   };
 
   /* ================= MARK ALL ================= */
@@ -145,7 +156,7 @@ function Notifications() {
               <div
                 key={notificationId}
                 className="notification-card unread"
-                onClick={() => markAsRead(notificationId)}
+                onClick={() => handleNotificationClick(item, notificationId)}
               >
                 <div className={`icon-circle ${item.type || "info"}`}>
                   {getIcon(item.type)}

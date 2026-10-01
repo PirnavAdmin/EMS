@@ -1,154 +1,332 @@
 ﻿using EmployeeManagementSystem.DTOs;
+
 using EmployeeManagementSystem.Interfaces;
+
+using Microsoft.AspNetCore.Authorization;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
+
 {
-    [Route("api/[controller]")]
+
     [ApiController]
+
+    [Route("api/[controller]")]
+
+    [Authorize]
+
     public class EmployeeResignationController : ControllerBase
+
     {
+
         private readonly IEmployeeResignationService _service;
 
-        public EmployeeResignationController(IEmployeeResignationService service)
+        public EmployeeResignationController(
+
+            IEmployeeResignationService service)
+
         {
+
             _service = service;
+
         }
 
-        // Apply Resignation
+        // ============================================================
+
+        // APPLY
+
+        // ============================================================
+
+        [Authorize]
         [HttpPost("apply")]
-        public async Task<IActionResult> ApplyResignation(CreateResignationDto dto)
+        public async Task<IActionResult> Apply([FromBody] CreateResignationDto dto)
         {
-            var result = await _service.ApplyResignation(dto);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Get EmployeeId from JWT token
+            var employeeId = User.FindFirst("EmployeeId")?.Value;
+
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "EmployeeId not found in token."
+                });
+            }
+
+            var result = await _service.ApplyResignation(dto, employeeId);
 
             if (!result)
+            {
                 return BadRequest(new
                 {
-                    Success = false,
-                    Message = "Resignation already exists or employee not found."
+                    success = false,
+                    message = "Unable to submit resignation. Employee may be inactive, or a pending resignation already exists."
                 });
+            }
 
             return Ok(new
             {
-                Success = true,
-                Message = "Resignation submitted successfully."
+                success = true,
+                message = "Resignation request submitted successfully. HR, Admin and Manager have been notified."
             });
-        }
+        }  // ============================================================
 
-        // Update Resignation
+        // UPDATE
+
+        // ============================================================
+
         [HttpPut("update")]
-        public async Task<IActionResult> UpdateResignation(UpdateResignationDto dto)
+
+        public async Task<IActionResult> Update(
+
+            [FromBody] UpdateResignationDto dto)
+
         {
-            var result = await _service.UpdateResignation(dto);
+
+            if (!ModelState.IsValid)
+
+                return BadRequest(ModelState);
+
+            var result =
+
+                await _service.UpdateResignation(dto);
 
             if (!result)
+
+            {
+
                 return BadRequest(new
+
                 {
-                    Success = false,
-                    Message = "Unable to update resignation."
+
+                    success = false,
+
+                    message =
+
+                        "Unable to update resignation. It may already be processed."
+
                 });
 
+            }
+
             return Ok(new
+
             {
-                Success = true,
-                Message = "Resignation updated successfully."
+
+                success = true,
+
+                message = "Resignation updated successfully."
+
             });
+
         }
 
-        // Delete Resignation
+        // ============================================================
+
+        // DELETE / CANCEL
+
+        // ============================================================
+
         [HttpDelete("{resignationId}")]
-        public async Task<IActionResult> Delete(int resignationId)
+
+        public async Task<IActionResult> Delete(
+
+            int resignationId)
+
         {
-            var result = await _service.DeleteResignation(resignationId);
+
+            var result =
+
+                await _service.DeleteResignation(resignationId);
 
             if (!result)
+
+            {
+
                 return BadRequest(new
+
                 {
-                    Success = false,
-                    Message = "Unable to delete resignation."
+
+                    success = false,
+
+                    message =
+
+                        "Unable to cancel resignation. It may already be processed."
+
                 });
 
+            }
+
             return Ok(new
+
             {
-                Success = true,
-                Message = "Resignation deleted successfully."
+
+                success = true,
+
+                message = "Resignation cancelled successfully."
+
             });
+
         }
 
-        // Get All
+        // ============================================================
+
+        // GET ALL
+
+        // ============================================================
+
         [HttpGet]
+
         public async Task<IActionResult> GetAll()
+
         {
-            var data = await _service.GetAll();
-            return Ok(data);
+
+            var result = await _service.GetAll();
+
+            return Ok(result);
+
         }
 
-        // Get By Id
+        // ============================================================
+
+        // GET BY ID
+
+        // ============================================================
+
         [HttpGet("{resignationId}")]
-        public async Task<IActionResult> GetById(int resignationId)
+
+        public async Task<IActionResult> GetById(
+
+            int resignationId)
+
         {
-            var data = await _service.GetById(resignationId);
 
-            if (data == null)
-                return NotFound();
+            var result =
 
-            return Ok(data);
+                await _service.GetById(resignationId);
+
+            if (result == null)
+
+            {
+
+                return NotFound(new
+
+                {
+
+                    success = false,
+
+                    message = "Resignation not found."
+
+                });
+
+            }
+
+            return Ok(result);
+
         }
 
-        // Employee History
+        // ============================================================
+
+        // GET EMPLOYEE HISTORY
+
+        // ============================================================
+
         [HttpGet("employee/{employeeId}")]
-        public async Task<IActionResult> GetEmployeeHistory(string employeeId)
+
+        public async Task<IActionResult> GetByEmployee(
+
+            string employeeId)
+
         {
-            var data = await _service.GetByEmployee(employeeId);
-            return Ok(data);
+
+            var result =
+
+                await _service.GetByEmployee(employeeId);
+
+            return Ok(result);
+
         }
 
-        // Pending Manager Approvals
-        [HttpGet("pending-manager")]
-        public async Task<IActionResult> PendingManager()
+        // ============================================================
+
+        // GET PENDING APPROVALS
+
+        // ============================================================
+
+        [HttpGet("pending")]
+
+        public async Task<IActionResult> GetPendingApprovals()
+
         {
-            var data = await _service.GetPendingManagerApprovals();
-            return Ok(data);
+
+            var result =
+
+                await _service.GetPendingApprovals();
+
+            return Ok(result);
+
         }
 
-        // Manager Approval
-        [HttpPut("manager-approval")]
-        public async Task<IActionResult> ManagerApproval(ManagerApprovalDto dto)
+        // ============================================================
+
+        // APPROVE / REJECT
+
+        // ============================================================
+
+        [HttpPut("approval")]
+
+        public async Task<IActionResult> ExitApproval(
+
+            [FromBody] ExitApprovalDto dto)
+
         {
-            var result = await _service.ManagerApproval(dto);
+
+            if (!ModelState.IsValid)
+
+                return BadRequest(ModelState);
+
+            var result =
+
+                await _service.ExitApproval(dto, User);
 
             if (!result)
-                return BadRequest();
+
+            {
+
+                return BadRequest(new
+
+                {
+
+                    success = false,
+
+                    message =
+
+                        "Unable to process the exit request. It may already have been processed or you may not have permission."
+
+                });
+
+            }
 
             return Ok(new
+
             {
-                Success = true,
-                Message = "Manager approval completed."
+
+                success = true,
+
+                message = dto.IsApproved
+
+                    ? "Exit request approved successfully. Employee has been marked inactive."
+
+                    : "Exit request rejected successfully. Employee remains active."
+
             });
+
         }
 
-        // Pending HR Approvals
-        [HttpGet("pending-hr")]
-        public async Task<IActionResult> PendingHR()
-        {
-            var data = await _service.GetPendingHRApprovals();
-            return Ok(data);
-        }
-
-        // HR Approval
-        [HttpPut("hr-approval")]
-        public async Task<IActionResult> HRApproval(HRApprovalDto dto)
-        {
-            var result = await _service.HRApproval(dto);
-
-            if (!result)
-                return BadRequest();
-
-            return Ok(new
-            {
-                Success = true,
-                Message = "HR approval completed."
-            });
-        }
     }
+
 }

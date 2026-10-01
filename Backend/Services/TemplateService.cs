@@ -82,4 +82,38 @@ public class TemplateService : ITemplateService
 
     }
 
+    public async Task<TemplateMaster?> GetActiveTemplateAsync(
+    string moduleCode)
+    {
+        var module = await _context.TemplateModuleMaster
+            .FirstOrDefaultAsync(x =>
+                x.ModuleCode == moduleCode &&
+                x.IsActive);
+
+        if (module == null)
+            return null;
+
+        // First priority: Default template
+        var template = await _context.TemplateMaster
+            .Where(x =>
+                x.ModuleId == module.ModuleId &&
+                x.IsActive &&
+                x.IsDefault)
+            .OrderByDescending(x => x.TemplateId)
+            .FirstOrDefaultAsync();
+
+        // Fallback: latest active template
+        if (template == null)
+        {
+            template = await _context.TemplateMaster
+                .Where(x =>
+                    x.ModuleId == module.ModuleId &&
+                    x.IsActive)
+                .OrderByDescending(x => x.TemplateId)
+                .FirstOrDefaultAsync();
+        }
+
+        return template;
+    }
+
 }

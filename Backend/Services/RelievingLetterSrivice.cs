@@ -60,6 +60,126 @@ namespace EmployeeManagementSystem.Services
 
             return $"{day}{suffix} {date:MMM yyyy}";
         }
+        private void ReplaceOrdinalDateBookmark(
+     WordprocessingDocument doc,
+     string bookmarkName,
+     DateTime date)
+        {
+            var bookmark = doc.MainDocumentPart?
+                .RootElement?
+                .Descendants<BookmarkStart>()
+                .FirstOrDefault(b => b.Name == bookmarkName);
+
+            if (bookmark == null)
+                return;
+
+            RunProperties? runProperties = null;
+
+            // Remove all old date content and preserve its formatting
+            OpenXmlElement current = bookmark.NextSibling();
+
+            while (current != null && current is not BookmarkEnd)
+            {
+                var next = current.NextSibling();
+
+                if (current is Run oldRun &&
+                    oldRun.RunProperties != null &&
+                    runProperties == null)
+                {
+                    runProperties =
+                        oldRun.RunProperties.CloneNode(true)
+                        as RunProperties;
+                }
+
+                current.Remove();
+
+                current = next;
+            }
+
+            int day = date.Day;
+
+            string suffix = (day % 100) switch
+            {
+                11 or 12 or 13 => "th",
+
+                _ => (day % 10) switch
+                {
+                    1 => "st",
+                    2 => "nd",
+                    3 => "rd",
+                    _ => "th"
+                }
+            };
+
+            // =========================
+            // DAY
+            // =========================
+
+            var dayRun = new Run();
+
+            if (runProperties != null)
+                dayRun.Append(
+                    runProperties.CloneNode(true));
+
+            dayRun.Append(
+                new Text(day.ToString())
+                {
+                    Space = SpaceProcessingModeValues.Preserve
+                });
+
+            // =========================
+            // SUPERSCRIPT SUFFIX
+            // =========================
+
+            var suffixRun = new Run();
+
+            var suffixProperties =
+                runProperties?.CloneNode(true) as RunProperties
+                ?? new RunProperties();
+
+            suffixProperties.VerticalTextAlignment =
+                new VerticalTextAlignment
+                {
+                    Val = VerticalPositionValues.Superscript
+                };
+
+            suffixRun.Append(suffixProperties);
+
+            suffixRun.Append(
+                new Text(suffix)
+                {
+                    Space = SpaceProcessingModeValues.Preserve
+                });
+
+            // =========================
+            // MONTH + YEAR
+            // =========================
+
+            var restRun = new Run();
+
+            if (runProperties != null)
+                restRun.Append(
+                    runProperties.CloneNode(true));
+
+            restRun.Append(
+                new Text($" {date:MMM yyyy}")
+                {
+                    Space = SpaceProcessingModeValues.Preserve
+                });
+
+            // Insert new date
+            bookmark.Parent?.InsertAfter(
+                dayRun,
+                bookmark);
+
+            bookmark.Parent?.InsertAfter(
+                suffixRun,
+                dayRun);
+
+            bookmark.Parent?.InsertAfter(
+                restRun,
+                suffixRun);
+        }
         public async Task<object> GenerateRelievingLetterAsync(
       RelievingLetterRequestDto dto)
         {
@@ -146,14 +266,31 @@ namespace EmployeeManagementSystem.Services
             // TEMPLATE
             // =====================================================
 
+            // =====================================================
+            // TEMPLATE
+            // =====================================================
+
+            var template = await _templateService
+                .GetActiveTemplateAsync("RELIEVING");
+
+            if (template == null)
+                throw new Exception(
+                    "Active Relieving Letter template not found.");
+
+            if (string.IsNullOrWhiteSpace(template.FilePath))
+                throw new Exception(
+                    "Relieving Letter template file path is missing.");
+
+            var relativeTemplatePath =
+                template.FilePath.TrimStart('/', '\\');
+
             var templatePath = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "Templates",
-                "RelivingLetter.docx");
+                _environment.WebRootPath,
+                relativeTemplatePath);
 
             if (!File.Exists(templatePath))
                 throw new Exception(
-                    "RelievingLetter.docx not found.");
+                    $"Relieving Letter template file not found: {templatePath}");
 
             // =====================================================
             // OUTPUT FOLDER
@@ -190,10 +327,10 @@ namespace EmployeeManagementSystem.Services
             using (WordprocessingDocument wordDoc =
                 WordprocessingDocument.Open(outputPath, true))
             {
-                ReplaceBookmark(
-      wordDoc,
-      "GenerationDate",
-      GetOrdinalDate(dto.GeneratedDate));
+                ReplaceOrdinalDateBookmark(
+     wordDoc,
+     "GenerationDate",
+     dto.GeneratedDate);
 
                 ReplaceBookmark(
                     wordDoc,
@@ -210,17 +347,18 @@ namespace EmployeeManagementSystem.Services
                     "EmployeeId",
                     employeeId);
 
-                ReplaceBookmark(
-                    wordDoc,
-                    "JoiningDate",
-                    joiningDate.HasValue
-                        ? GetOrdinalDate(joiningDate.Value)
-                        : "");
+                if (joiningDate.HasValue)
+                {
+                    ReplaceOrdinalDateBookmark(
+                        wordDoc,
+                        "JoiningDate",
+                        joiningDate.Value);
+                }
 
-                ReplaceBookmark(
+                ReplaceOrdinalDateBookmark(
                     wordDoc,
                     "RelievingDate",
-                    GetOrdinalDate(dto.RelievingDate));
+                    dto.RelievingDate);
 
                 ReplaceBookmark(
                     wordDoc,
@@ -386,9 +524,9 @@ namespace EmployeeManagementSystem.Services
         }
 
         private void ReplaceBookmark(
-    WordprocessingDocument doc,
-    string bookmarkName,
-    string text)
+     WordprocessingDocument doc,
+     string bookmarkName,
+     string text)
         {
             var bookmark = doc.MainDocumentPart?
                 .RootElement?
@@ -398,26 +536,49 @@ namespace EmployeeManagementSystem.Services
             if (bookmark == null)
                 return;
 
+            // Get the formatting from the existing run
+            RunProperties? runProperties = null;
+
             OpenXmlElement current = bookmark.NextSibling();
 
             while (current != null && current is not BookmarkEnd)
             {
                 var next = current.NextSibling();
 
+                if (current is Run existingRun &&
+                    existingRun.RunProperties != null &&
+                    runProperties == null)
+                {
+                    runProperties =
+                        existingRun.RunProperties.CloneNode(true)
+                        as RunProperties;
+                }
+
                 current.Remove();
 
                 current = next;
             }
 
-            var run = new Run(
+            // Create new run
+            var newRun = new Run();
+
+            // Preserve Bold / Font / Size / Italic / etc.
+            if (runProperties != null)
+            {
+                newRun.Append(
+                    runProperties.CloneNode(true));
+            }
+
+            newRun.Append(
                 new Text(text ?? string.Empty)
                 {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
-            bookmark.Parent?.InsertAfter(run, bookmark);
+            bookmark.Parent?.InsertAfter(
+                newRun,
+                bookmark);
         }
-       
 
         public async Task<RelievingLetterDownloadDto?> DownloadRelievingLetterAsync(int id)
         {

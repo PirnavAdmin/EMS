@@ -11,6 +11,7 @@ import {
 import { getCurrentAdminAllowedModules } from "./adminPermissionState";
 import { ticketPermissionMatches } from "../TicketManagement/ticketConfig";
 import { toBoolean } from "./boolean";
+export const EMPLOYEE_EXIT_MODULE = "EmployeeExit";
 
 const normalizeRoleValue = (value) =>
   String(value ?? "")
@@ -83,6 +84,10 @@ const extractPermissionCollection = (payload) => {
     payload.superAdmin?.Modules,
     payload.superAdmin?.permissions,
     payload.superAdmin?.Permissions,
+    payload.modulePermissions,
+    payload.ModulePermissions,
+    payload.screens,
+    payload.Screens,
   ];
 
   for (const candidate of candidates) {
@@ -135,7 +140,9 @@ export const normalizePermissionList = (data) => {
         screenId,
         moduleId,
         moduleName: String(
-          item?.moduleName ?? item?.ModuleName ?? ""
+          item?.moduleName ?? item?.ModuleName ?? item?.module ?? item?.Module ??
+          item?.screenName ?? item?.ScreenName ?? item?.permissionName ??
+          item?.PermissionName ?? item?.name ?? item?.Name ?? ""
         ).trim(),
         type: String(item?.type ?? item?.Type ?? item?.moduleType ?? item?.ModuleType ?? "").trim(),
         canView,
@@ -280,6 +287,15 @@ const normalizeModuleName = (value) =>
     .replace(/[^a-z0-9]/g, "");
 
 const MODULE_PERMISSION_ALIASES = new Map([
+  ["employeeresignation", "employeeresignation"],
+  ["employeeexit", "employeeexit"],
+  ["employeeexitmanagement", "employeeexit"],
+  ["resignation", "employeeresignation"],
+  ["resignationmanagement", "employeeresignation"],
+  ["employeeresignationmanagement", "employeeresignation"],
+  ["employeeclearance", "employeeclearance"],
+  ["exitinterview", "exitinterview"],
+  ["fullfinalsettlement", "fullfinalsettlement"],
   ["offerletters", "offerletters"],
   ["offerletter", "offerletters"],
   ["viewpurpose", "offerletters"],

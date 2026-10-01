@@ -259,6 +259,7 @@ namespace EmployeeManagementSystem.Data
         public DbSet<Organization> Organizations { get; set; }
 
         public DbSet<OrganizationSubscription> OrganizationSubscriptions { get; set; }
+        public DbSet<EmployeeMonthlyLeaveBalance> EmployeeMonthlyLeaveBalance { get; set; }
 
         public DbSet<AuditLog> AuditLogs { get; set; }
 

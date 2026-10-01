@@ -11,7 +11,8 @@ function AddMembersModal({
   team,
   onClose,
   onSave,
-  saving = false
+  saving = false,
+  singleSelect = false
 }) {
   const [search, setSearch] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -92,7 +93,7 @@ function AddMembersModal({
     setSelectedMembers((current) =>
       current.includes(employeeId)
         ? current.filter((id) => id !== employeeId)
-        : [...current, employeeId]
+        : singleSelect ? [employeeId] : [...current, employeeId]
     );
   };
 
@@ -105,8 +106,8 @@ function AddMembersModal({
       <div className="team-modal">
         <div className="team-modal-header">
           <div>
-            <h3>Add Members</h3>
-            <p>Select employees to add into this team.</p>
+            <h3>{singleSelect ? "Add Member" : "Add Members"}</h3>
+            <p>{singleSelect ? "Select an employee to add into this team." : "Select employees to add into this team."}</p>
           </div>
 
           <button
@@ -157,7 +158,8 @@ function AddMembersModal({
                     className="team-member-checkbox"
                   >
                     <input
-                      type="checkbox"
+                      type={singleSelect ? "radio" : "checkbox"}
+                      name={singleSelect ? "team-member" : undefined}
                       checked={selectedMembers.includes(id)}
                       onChange={() => toggleEmployee(id)}
                     />
@@ -213,7 +215,7 @@ function AddMembersModal({
             onClick={() => onSave(selectedMembers)}
             disabled={saving}
           >
-            {saving ? "Adding..." : "Add Members"}
+            {saving ? "Adding..." : singleSelect ? "Add Member" : "Add Members"}
           </button>
         </div>
       </div>

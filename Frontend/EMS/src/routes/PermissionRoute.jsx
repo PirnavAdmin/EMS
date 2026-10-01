@@ -23,7 +23,16 @@ const PermissionRoute = ({ children, module }) => {
   } = usePermissionScope();
   const accessGranted = Array.isArray(allowedModules)
     ? allowedModules.some((permission) => {
-        const canAccess = permission?.canAccess ?? permission?.CanAccess ?? false;
+        const canAccess =
+          permission?.canAccess ??
+          permission?.CanAccess ??
+          permission?.canView ??
+          permission?.CanView ??
+          permission?.canEdit ??
+          permission?.CanEdit ??
+          permission?.canApprove ??
+          permission?.CanApprove ??
+          false;
 
         if (canAccess !== true) {
           return false;
@@ -39,10 +48,19 @@ const PermissionRoute = ({ children, module }) => {
 
         return matchesModulePermission(permission, module);
       })
-    : false;
+      : false;
+
+  if (import.meta.env.DEV && module === "EmployeeExit") {
+    console.log("[Admin Permissions] EmployeeExit route decision:", {
+      loadingPermissions,
+      requestedModule: module,
+      allowedModules,
+      accessGranted,
+    });
+  }
 
   if (loadingPermissions) {
-    return null;
+    return <div className="app-route-skeleton" aria-busy="true" aria-label="Loading permissions" />;
   }
 
   if (accessGranted) {

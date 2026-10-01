@@ -1,5 +1,5 @@
 import React from "react";
-import { FaBell, FaCheck, FaPen, FaTimes, FaEdit } from "react-icons/fa";
+import { FaBell, FaCheck, FaClock, FaPen, FaTimes } from "react-icons/fa";
 import { TEAM_DAY_OPTIONS } from "./teamsData";
 
 function TeamReportingDays({
@@ -7,11 +7,16 @@ function TeamReportingDays({
   days = TEAM_DAY_OPTIONS,
   draftDays = TEAM_DAY_OPTIONS,
   isEditing = false,
+  saving = false,
   canManage = false,
   onEdit,
   onCancel,
   onSave,
   onToggleDay,
+  shift,
+  onAssignShift,
+  onCreateShift,
+  canCreateShift = false,
 }) {
   const activeDays = isEditing ? draftDays : days;
 
@@ -19,7 +24,7 @@ function TeamReportingDays({
     <section className="teams-reporting-card">
       <div className="teams-reporting-header">
         <div>
-          <h3>Team Reporting Days (WFO)</h3>
+          <h3>Team Default Working Days</h3>
           <p>
             Default days members of this team must report to office.
           </p>
@@ -41,13 +46,30 @@ function TeamReportingDays({
                 type="button"
                 className="team-action-btn"
                 onClick={onSave}
+                disabled={saving}
               >
-                <FaBell />
-                Save &amp; Notify
+              <FaBell />
+                {saving ? "Saving..." : "Save & Notify"}
               </button>
             </>
          ) : (
   canManage && (
+    <>
+    <button
+      type="button"
+      className="team-action-btn secondary"
+      onClick={onAssignShift}
+    >
+      <FaClock />
+      Assign Shift
+    </button>
+    {canCreateShift && <button
+      type="button"
+      className="team-action-btn"
+      onClick={onCreateShift}
+    >
+      Create Shift
+    </button>}
     <button
       type="button"
       className="team-action-btn secondary"
@@ -56,9 +78,20 @@ function TeamReportingDays({
       <FaPen />
       Edit
     </button>
+    </>
   )
 )}
         </div>
+      </div>
+
+      <div className="team-assigned-shift" role="status">
+        <FaClock aria-hidden="true" />
+        <span>
+          <strong>Assigned Shift:</strong>{" "}
+          {shift?.shiftName
+            ? `${shift.shiftName} | ${shift.startTime || "-"} - ${shift.endTime || "-"} (Team Default)`
+            : "Not Assigned"}
+        </span>
       </div>
 
       <div className="teams-day-grid" aria-label={`Reporting days for ${teamName || "team"}`}>

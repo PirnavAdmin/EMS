@@ -5,6 +5,14 @@ import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
 
 const NOTIFICATION_CACHE_TTL = 15 * 1000;
 
+export const isShiftSwapNotification = (notification) => {
+  const text = [
+    notification?.title, notification?.Title, notification?.description,
+    notification?.message, notification?.Message, notification?.type
+  ].filter(Boolean).join(" ").toLowerCase();
+  return text.includes("swap") && (text.includes("shift") || text.includes("request"));
+};
+
 const normalizeNotificationRole = (value) => {
   const normalized = String(value ?? "").
   trim().

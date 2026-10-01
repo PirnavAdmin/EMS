@@ -49,138 +49,82 @@ namespace EmployeeManagementSystem.Services
         }
 
         public async Task<bool> CreateAsync(CreateShiftRotationDto dto)
-
         {
-
-            // Employee validation
-
-            var employeeExists = await _context.Employees
-
-                .AnyAsync(x => x.Employee_Id == dto.Employee_Id);
-
-            if (!employeeExists)
-
+            if (dto.EmployeeIds == null || dto.EmployeeIds.Count == 0)
                 return false;
 
-            // Shift 1 is mandatory
+            if (dto.EffectiveFrom == default)
+                return false;
 
+            // 1. Validate mandatory shift 1
             var shift1Exists = await _context.ShiftMasters
-
                 .AnyAsync(x => x.ShiftId == dto.Shift1Id && x.IsActive);
 
             if (!shift1Exists)
-
                 return false;
 
-            // Validate optional shifts
-
+            // 2. Validate optional shifts
             if (dto.Shift2Id.HasValue)
-
             {
-
                 var shift2Exists = await _context.ShiftMasters
+                    .AnyAsync(x => x.ShiftId == dto.Shift2Id.Value && x.IsActive);
 
-                    .AnyAsync(x =>
-
-                        x.ShiftId == dto.Shift2Id.Value &&
-
-                        x.IsActive);
-
-                if (!shift2Exists)
-
+                if (!shift2Exists || dto.Shift2Id.Value == dto.Shift1Id)
                     return false;
-
             }
 
             if (dto.Shift3Id.HasValue)
-
             {
-
                 var shift3Exists = await _context.ShiftMasters
+                    .AnyAsync(x => x.ShiftId == dto.Shift3Id.Value && x.IsActive);
 
-                    .AnyAsync(x =>
-
-                        x.ShiftId == dto.Shift3Id.Value &&
-
-                        x.IsActive);
-
-                if (!shift3Exists)
-
+                if (!shift3Exists || dto.Shift3Id.Value == dto.Shift1Id || dto.Shift3Id.Value == dto.Shift2Id)
                     return false;
-
             }
 
-            // Date validation
+            // 3. Validate all Employee IDs
+            var distinctIds = dto.EmployeeIds
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
 
-            if (dto.EffectiveFrom == default)
+            var validEmployeeIds = await _context.Employees
+                .Where(x => distinctIds.Contains(x.Employee_Id))
+                .Select(x => x.Employee_Id)
+                .ToListAsync();
 
+            if (validEmployeeIds.Count != distinctIds.Count)
                 return false;
 
-            // Prevent duplicate active rotation
-
-            var exists = await _context.ShiftRotations.AnyAsync(x =>
-
-                x.Employee_Id == dto.Employee_Id &&
-
-                x.IsActive);
-
-            if (exists)
-
-                return false;
-
-            // Prevent same shift repeated
-
-            if (dto.Shift2Id.HasValue &&
-
-                dto.Shift2Id.Value == dto.Shift1Id)
-
+            // 4. Close any existing active rotation and create new rotation for each employee
+            foreach (var empId in validEmployeeIds)
             {
+                var existingRotations = await _context.ShiftRotations
+                    .Where(x => x.Employee_Id == empId && x.IsActive)
+                    .ToListAsync();
 
-                return false;
+                foreach (var ex in existingRotations)
+                {
+                    ex.IsActive = false;
+                }
 
+                _context.ShiftRotations.Add(new ShiftRotation
+                {
+                    Employee_Id = empId,
+                    RotationType = dto.RotationType,
+                    Shift1Id = dto.Shift1Id,
+                    Shift2Id = dto.Shift2Id,
+                    Shift3Id = dto.Shift3Id,
+                    EffectiveFrom = dto.EffectiveFrom,
+                    IsActive = true,
+                    CreatedDate = DateTime.Now
+                });
             }
-
-            if (dto.Shift3Id.HasValue &&
-
-                (dto.Shift3Id.Value == dto.Shift1Id ||
-
-                 dto.Shift3Id.Value == dto.Shift2Id))
-
-            {
-
-                return false;
-
-            }
-
-            var rotation = new ShiftRotation
-
-            {
-
-                Employee_Id = dto.Employee_Id,
-
-                RotationType = dto.RotationType,
-
-                Shift1Id = dto.Shift1Id,
-
-                Shift2Id = dto.Shift2Id,
-
-                Shift3Id = dto.Shift3Id,
-
-                EffectiveFrom = dto.EffectiveFrom,
-
-                IsActive = true,
-
-                CreatedDate = DateTime.Now
-
-            };
-
-            _context.ShiftRotations.Add(rotation);
 
             await _context.SaveChangesAsync();
-
             return true;
-
         }
+
 
         public async Task<bool> UpdateAsync(
 

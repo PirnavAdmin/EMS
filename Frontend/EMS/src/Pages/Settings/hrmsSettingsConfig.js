@@ -307,7 +307,8 @@ export const standaloneSettingsModules = {
 
 export const shiftModulesConfig = {
   shiftMaster: {
-    title: "Shift Master",
+    title: "Team Shift",
+    description: "Manage shifts for your teams and employees.",
     category: "Shift Module",
     moduleName: "Shift Master",
     api: {
@@ -574,10 +575,20 @@ export const shiftModulesConfig = {
     ],
     workflowButtons: [
       {
-        key: "approve",
-        label: "Approve / Reject",
-        endpoint: API_ENDPOINTS.shiftSwap.approve,
+        key: "admin-approve",
+        label: "Approve",
+        endpoint: API_ENDPOINTS.shiftSwap.adminApprove,
         method: "post",
+        shiftSwapAction: "approve",
+        permission: "approve",
+      },
+      {
+        key: "admin-reject",
+        label: "Reject",
+        endpoint: API_ENDPOINTS.shiftSwap.adminReject,
+        method: "post",
+        shiftSwapAction: "reject",
+        fields: [textarea("remarks", "Rejection reason", { required: true })],
         permission: "approve",
       },
     ],

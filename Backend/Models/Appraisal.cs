@@ -13,7 +13,7 @@ namespace EmployeeManagementSystem.Models
         public int PerformanceCycleId { get; set; }
 
         public int SelfRating { get; set; }
-
+        public string? EmployeeRemarks { get; set; }
         public int ManagerRating { get; set; }
 
         public int FinalRating { get; set; }

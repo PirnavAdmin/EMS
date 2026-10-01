@@ -20,8 +20,10 @@ namespace EmployeeManagementSystem.Models
 
         public string EngagementType { get; set; } = string.Empty;
 
-        public int? ProjectId { get; set; }
-
+        public int ProjectId { get; set; }
+        public int? ShiftId { get; set; }
+        [ForeignKey(nameof(ShiftId))]
+        public ShiftMaster? Shift { get; set; }
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;

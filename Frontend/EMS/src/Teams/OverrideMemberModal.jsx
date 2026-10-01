@@ -19,6 +19,18 @@ const createInitialState = (member, teamProjectName) => {
   );
 
   return {
+    customShift: Boolean(
+      member?.customShift ??
+      member?.teamMemberOverride?.customShift ??
+      member?.teamMemberOverride?.raw?.customShift
+    ),
+    overrideShiftId: String(
+      member?.overrideShiftId ??
+      member?.shiftId ??
+      member?.shift?.shiftId ??
+      member?.teamMemberOverride?.overrideShiftId ??
+      ""
+    ),
     differentProject: hasProjectOverride,
     projectId:
       Number(
@@ -47,6 +59,8 @@ const createInitialState = (member, teamProjectName) => {
 function OverrideMemberModal({
   open,
   member,
+  shifts = [],
+  loadingShifts = false,
   teamProjectName = "",
   onClose,
   onSave,
@@ -168,6 +182,10 @@ function OverrideMemberModal({
       nextErrors.reportingDays = "Select at least one reporting day";
     }
 
+    if (form.customShift && !String(form.overrideShiftId ?? "").trim()) {
+      nextErrors.shift = "Select a shift";
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -179,6 +197,8 @@ function OverrideMemberModal({
 
     try {
       const savedMember = await onSave({
+        customShift: form.customShift,
+        overrideShiftId: form.overrideShiftId,
         differentProject: form.differentProject,
         projectId: form.projectId,
         projectName: form.projectName,
@@ -219,7 +239,7 @@ function OverrideMemberModal({
               Override for {member.employeeName}
             </h3>
             <p className="team-modal-subtitle">
-              Make project or reporting day changes for this member.
+              Override this member’s shift, project, or reporting days.
             </p>
           </div>
 
@@ -235,6 +255,34 @@ function OverrideMemberModal({
 
         <div className="team-modal-body">
           <div className="team-override-stack">
+            <label className="team-checkbox-field">
+              <input
+                type="checkbox"
+                checked={form.customShift}
+                onChange={(event) => updateField("customShift", event.target.checked)}
+              />
+              <span>Custom Shift</span>
+            </label>
+
+            <div className="team-form-field">
+              <label htmlFor="override-shift">Assigned Shift</label>
+              <div className="team-select-wrap">
+                <select
+                  id="override-shift"
+                  value={form.overrideShiftId}
+                  disabled={!form.customShift || loadingShifts}
+                  onChange={(event) => updateField("overrideShiftId", event.target.value)}
+                >
+                  <option value="">{loadingShifts ? "Loading shifts…" : "Select Shift"}</option>
+                  {shifts.map((shift) => <option key={shift.shiftId} value={shift.shiftId}>
+                    {shift.shiftName}{shift.startTime && shift.endTime ? ` (${shift.startTime} – ${shift.endTime})` : ""}
+                  </option>)}
+                </select>
+                <FaChevronDown className="team-select-chevron" aria-hidden="true" />
+              </div>
+              {errors.shift ? <span className="team-form-error">{errors.shift}</span> : null}
+            </div>
+
             <label className="team-checkbox-field">
               <input
                 type="checkbox"

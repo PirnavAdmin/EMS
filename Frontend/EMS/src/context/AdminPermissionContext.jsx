@@ -424,6 +424,10 @@ export const AdminPermissionProvider = ({ children }) => {
         });
 
         const apiModules = Array.isArray(modules) ? modules : [];
+        if (import.meta.env.DEV) {
+          console.log("[Admin Permissions] Runtime permissions:", modules);
+          console.log("[Admin Permissions] Normalized permissions:", apiModules);
+        }
         const snapshot = {
           adminId: currentAdminId,
           adminEmail: currentAdminEmail,

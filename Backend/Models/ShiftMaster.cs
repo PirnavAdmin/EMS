@@ -8,6 +8,7 @@ namespace EmployeeManagementSystem.Models
     {
         [Key]
         public int ShiftId { get; set; }
+        public int? OrganizationId { get; set; }
 
         [Required]
         [MaxLength(20)]

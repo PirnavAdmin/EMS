@@ -46,7 +46,8 @@ import BrandingSettings from "./BrandingSettings";
 import NotificationSettings from "./NotificationSettings";
 import PolicySettings from "./PolicySettings";
 import AgreementSettings from "./AgreementSettings";
-import HrmsSettingsPage from "./HrmsSettingsPage";
+import HrmsSettingsPage, { TemplateSettingsPage } from "./HrmsSettingsPage";
+import { SettingsStatPill } from "./SettingsShared";
 import {
   validateEmailSettings,
   validateAttendanceSettings,
@@ -128,19 +129,19 @@ const BASE_TAB_DEFINITIONS = [
   successMessage: "Settings updated successfully.",
   loadErrorMessage: "We could not load the notification configuration."
 },
-// {
-//   key: "policy",
-//   label: "Policies",
-//   description: "Policy catalog and editable policy details",
-//   icon: FaFileAlt,
-//   component: PolicySettings,
-//   fetchSettings: fetchPoliciesSettings,
-//   saveSettings: savePolicySettings,
-//   validateSettings: validatePolicySettings,
-//   defaults: { ...POLICY_SETTINGS_DEFAULTS, __policyOptions: [] },
-//   successMessage: "Settings updated successfully.",
-//   loadErrorMessage: "We could not load the policy configuration."
-// },
+{
+  key: "policy",
+  label: "Policies",
+  description: "Policy catalog and editable policy details",
+  icon: FaFileAlt,
+  component: PolicySettings,
+  fetchSettings: fetchPoliciesSettings,
+  saveSettings: savePolicySettings,
+  validateSettings: validatePolicySettings,
+  defaults: { ...POLICY_SETTINGS_DEFAULTS, __policyOptions: [] },
+  successMessage: "Settings updated successfully.",
+  loadErrorMessage: "We could not load the policy configuration."
+},
 {
   key: "agreements",
   label: "Agreement Settings",
@@ -157,13 +158,13 @@ const BASE_TAB_DEFINITIONS = [
 }];
 
 const HRMS_SETTINGS_MODULES = [
-// {
-//   key: "templates",
-//   label: "Templates",
-//   description: "Document and communication templates",
-//   icon: FaFileSignature,
-//   component: TemplateSettingsPage
-// },
+{
+  key: "templates",
+  label: "Templates",
+  description: "Document and communication templates",
+  icon: FaFileSignature,
+  component: TemplateSettingsPage
+},
 {
   key: "resignation",
   label: "Resignation",
@@ -192,13 +193,13 @@ const HRMS_SETTINGS_MODULES = [
   icon: FaMoneyBillWave,
   component: () => <HrmsSettingsTab moduleKey="fullFinalSettlement" />
 },
-// {
-//   key: "shiftManagement",
-//   label: "Shift Management",
-//   description: "Shift modules in one internal dropdown",
-//   icon: FaClock,
-//   component: ShiftSettingsTab
-// }
+{
+  key: "shiftManagement",
+  label: "Shift Management",
+  description: "Shift modules in one internal dropdown",
+  icon: FaClock,
+  component: ShiftSettingsTab
+}
 ].
 map((definition) => ({
   ...definition,
@@ -219,14 +220,14 @@ const SETTINGS_GROUPS = [
   "leave",
   "brand",
   "notification",
-  // "policy",
+   "policy",
   "agreements",
-  // "templates"
+   "templates"
 ]
 
 },
 
-/*
+
 {
   key: "exit",
   title: "Employee Exit",
@@ -237,15 +238,15 @@ const SETTINGS_GROUPS = [
     "fullFinalSettlement",
   ],
 },
-*/
 
-// {
-//   key: "shift",
-//   title: "Shift Management",
-//   tabs: [
-//   "shiftManagement"]
 
-// }
+ {
+   key: "shift",
+   title: "Shift Management",
+   tabs: [
+   "shiftManagement"]
+
+ }
 ];
 
 const createSectionState = (defaults) => ({
@@ -766,7 +767,7 @@ function SettingsPage() {
   return (
     <div className="settings-page">
 
-      {/* <div className="settings-hero app-surface">
+      { <div className="settings-hero app-surface">
 
          <div className="settings-hero-copy">
 
@@ -822,7 +823,7 @@ function SettingsPage() {
 
          </div>
 
-        </div> */
+        </div> 
 
       }
 
@@ -1003,8 +1004,6 @@ function SettingsPage() {
                 </span>
 
               </div>
-
-
 
               <div className="settings-footer-actions">
 

@@ -322,9 +322,10 @@ namespace EmployeeManagementSystem.Services
 
             {
 
-                var newFrom = item.FromDate.AddDays(7);
+                var daysOffset = (toWeekStart.Date - fromWeekStart.Date).Days;
+                var newFrom = item.FromDate.AddDays(daysOffset);
+                var newTo = item.ToDate.AddDays(daysOffset);
 
-                var newTo = item.ToDate.AddDays(7);
 
                 bool exists = await _context.ShiftPlanners.AnyAsync(x =>
 

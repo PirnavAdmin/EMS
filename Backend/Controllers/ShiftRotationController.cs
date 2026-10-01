@@ -47,15 +47,16 @@ namespace EmployeeManagementSystem.Controllers
             {
                 return BadRequest(new
                 {
-                    Message = "Active Shift Rotation already exists for this employee."
+                    Message = "Unable to create shift rotation. Please check that employee IDs and shift IDs are valid."
                 });
             }
 
             return Ok(new
             {
-                Message = "Shift Rotation created successfully."
+                Message = "Shift Rotation created successfully for all specified employees."
             });
         }
+
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdateShiftRotationDto dto)

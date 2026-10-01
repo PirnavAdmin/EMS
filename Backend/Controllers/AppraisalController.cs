@@ -3,9 +3,11 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EmployeeManagementSystem.Controllers
 {
+
     [Route("api/[controller]")]
     [ApiController]
     public class AppraisalController : ControllerBase
@@ -35,6 +37,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Create(CreateAppraisalDto dto)
         {
             var appraisal = new Appraisal
@@ -42,8 +45,8 @@ namespace EmployeeManagementSystem.Controllers
                 Employee_Id = dto.Employee_Id,
                 PerformanceCycleId = dto.PerformanceCycleId,
                 SelfRating = dto.SelfRating,
-                ManagerRemarks = dto.ManagerRemarks,
-                Status = "Submitted"
+                EmployeeRemarks = dto.EmployeeRemarks,
+                Status = " Self Submitted"
             };
 
             _context.Appraisals.Add(appraisal);
@@ -54,6 +57,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPost("manager-review/{id}")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> ManagerReview(
             int id,
             int managerRating,
@@ -74,12 +78,13 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPost("hr-review/{id}")]
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> HrReview(
-            int id,
-            int finalRating,
-            decimal hike,
-            bool promotion,
-            string remarks)
+       int id,
+       int finalRating,
+       decimal hike,
+       bool promotion,
+       string remarks)
         {
             var appraisal = await _context.Appraisals.FindAsync(id);
 
@@ -91,7 +96,7 @@ namespace EmployeeManagementSystem.Controllers
             appraisal.SalaryHikePercentage = hike;
             appraisal.PromotionRecommended = promotion;
             appraisal.ReviewedOn = DateTime.Now;
-            appraisal.Status = "Completed";
+            appraisal.Status = "HR Reviewed";
 
             await _context.SaveChangesAsync();
 

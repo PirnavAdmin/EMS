@@ -55,74 +55,54 @@ namespace EmployeeManagementSystem.Services
 
 
             // ==========================================
-            // 3. GET PROJECT ONLY IF PROJECT ID IS PROVIDED
+            // 3. GET PROJECT
             // ==========================================
 
-            Project? project = null;
+            var project = await _context.Projects
+                .FirstOrDefaultAsync(x =>
+                    x.Id == dto.ProjectId);
 
-            if (dto.ProjectId.HasValue && dto.ProjectId.Value > 0)
+            if (project == null)
             {
-                project = await _context.Projects
-                    .FirstOrDefaultAsync(x =>
-                        x.Id == dto.ProjectId.Value);
-
-                if (project == null)
-                {
-                    return new BadRequestObjectResult(
-                        "Project not found.");
-                }
+                return new BadRequestObjectResult(
+                    "Project not found.");
             }
 
 
             // ==========================================
             // 4. CHECK WHETHER TEAM ALREADY EXISTS
             //    FOR THIS PROJECT
-            //
-            //    ONLY DO THIS WHEN PROJECT IS PROVIDED
             // ==========================================
 
-            if (project != null)
-            {
-                var existingTeam = await _context.Teams
-                    .FirstOrDefaultAsync(x =>
-                        x.ProjectId == project.Id);
+            var existingTeam = await _context.Teams
+                .FirstOrDefaultAsync(x =>
+                    x.ProjectId == dto.ProjectId);
 
-                if (existingTeam != null)
-                {
-                    return new BadRequestObjectResult(
-                        $"A team already exists for project '{project.Project_Name}'.");
-                }
+            if (existingTeam != null)
+            {
+                return new BadRequestObjectResult(
+                    $"A team already exists for project '{project.Project_Name}'.");
             }
 
 
             // ==========================================
             // 5. CREATE TEAM
             //
-            // IF PROJECT EXISTS:
-            //     TeamName = Project Name
-            //
-            // IF NO PROJECT:
-            //     TeamName = Frontend TeamName
+            // Team Name comes from Project Name
             // ==========================================
 
             var team = new Team
             {
                 TeamNumber = dto.TeamNumber,
-
-                TeamName = project != null
-                    ? project.Project_Name
-                    : dto.TeamName,
-
+                TeamName = project.Project_Name,
                 ReportingManagerId = dto.ReportingManagerId,
-
                 EngagementType = dto.EngagementType,
-
-                ProjectId = project?.Id,
-
+                ProjectId = dto.ProjectId,
+                ShiftId = dto.ShiftId,            // <--- ADD THIS
                 IsActive = true,
-
                 CreatedAt = DateTime.Now
             };
+
 
             _context.Teams.Add(team);
 
@@ -133,7 +113,7 @@ namespace EmployeeManagementSystem.Services
             // 6. SAVE TEAM REPORTING DAYS
             // ==========================================
 
-            foreach (var day in (dto.ReportingDays ?? new List<string>()).Distinct())
+            foreach (var day in dto.ReportingDays.Distinct())
             {
                 _context.TeamReportingDays.Add(
                     new TeamReportingDay
@@ -146,35 +126,26 @@ namespace EmployeeManagementSystem.Services
 
             // ==========================================
             // 7. GET EXISTING PROJECT MEMBERS
-            //
-            // ONLY WHEN PROJECT EXISTS
             // ==========================================
 
-            var projectMembers = new List<string>();
-
-            if (project != null)
-            {
-                projectMembers = await _context.ProjectTeamMembers
-                    .Where(x => x.ProjectId == project.Id)
-                    .Select(x => x.EmployeeId)
-                    .Distinct()
-                    .ToListAsync();
-            }
+            var projectMembers = await _context.ProjectTeamMembers
+                .Where(x => x.ProjectId == dto.ProjectId)
+                .Select(x => x.EmployeeId)
+                .Distinct()
+                .ToListAsync();
 
 
             // ==========================================
-            // 8. DETERMINE MEMBERS
+            // 8. IF PROJECT HAS MEMBERS
+            //    USE EXISTING PROJECT MEMBERS
             //
-            // PROJECT MEMBERS EXIST
-            //     -> USE PROJECT MEMBERS
-            //
-            // NO PROJECT / NO PROJECT MEMBERS
-            //     -> USE MANUALLY SELECTED EMPLOYEES
+            //    IF PROJECT HAS NO MEMBERS
+            //    USE MANUALLY SELECTED EMPLOYEES
             // ==========================================
 
             var membersToAdd = projectMembers.Any()
                 ? projectMembers
-                : (dto.EmployeeIds ?? new List<string>())
+                : dto.EmployeeIds
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct()
                     .ToList();
@@ -212,44 +183,39 @@ namespace EmployeeManagementSystem.Services
                 }
             }
 
-
             // ==========================================
-            // 10. SAVE EVERYTHING
+            // 9. SAVE EVERYTHING
             // ==========================================
 
             await _context.SaveChangesAsync();
 
 
             // ==========================================
-            // 11. RESPONSE
+            // 10. RESPONSE
             // ==========================================
 
             return new OkObjectResult(
                 new
                 {
                     Message = "Team Created Successfully.",
-
                     TeamId = team.Id,
-
                     TeamName = team.TeamName,
-
                     ProjectId = team.ProjectId,
-
-                    ProjectName = project?.Project_Name,
-
+                    ProjectName = project.Project_Name,
                     MemberCount = membersToAdd.Count
                 });
         }
         public async Task<IActionResult> GetTeams()
         {
             var teams = await _context.Teams
-                .Include(x => x.Project)
-                .Include(x => x.ReportingManager)
-                .Include(x => x.ReportingDays)
-                .Include(x => x.Members)
-                    .ThenInclude(m => m.Employee)
-                .AsNoTracking()
-                .ToListAsync();
+    .Include(x => x.Project)
+    .Include(x => x.ReportingManager)
+    .Include(x => x.ReportingDays)
+    .Include(x => x.Shift)            // <--- ADD THIS INCLUDE
+    .Include(x => x.Members)
+        .ThenInclude(m => m.Employee)
+    .AsNoTracking()
+    .ToListAsync();
 
             var result = teams.Select(x => new TeamListDto
             {
@@ -258,15 +224,17 @@ namespace EmployeeManagementSystem.Services
                 TeamName = x.TeamName,
                 ProjectName = x.Project?.Project_Name,
                 ManagerName = x.ReportingManager?.Name,
-
-                EmployeeNames = x.Members
-                    .Select(m => m.Employee.Name)
-                    .ToList(),
-
-                ReportingDays = x.ReportingDays
-                    .Select(d => GetShortDayName(d.DayName))
-                    .ToList()
+                ShiftId = x.ShiftId,
+                ShiftName = x.Shift?.ShiftName,
+                EmployeeNames = x.Members.Where(m => m.Employee != null).Select(m => m.Employee.Name).ToList(),
+                Members = x.Members.Where(m => m.Employee != null).Select(m => new TeamMemberSummaryDto
+                {
+                    EmployeeId = m.Employee.Employee_Id,
+                    Name = m.Employee.Name
+                }).ToList(),
+                ReportingDays = x.ReportingDays.Select(d => GetShortDayName(d.DayName)).ToList()
             }).ToList();
+
 
             return new OkObjectResult(result);
         }
@@ -297,45 +265,11 @@ namespace EmployeeManagementSystem.Services
                 })
                 .ToListAsync();
 
-            // ==========================================
-            // GET EMPLOYEES PRESENT IN EACH PROJECT
-            // ==========================================
-
-            var projectEmployees = await _context.ProjectTeamMembers
-                .AsNoTracking()
-                .Join(
-                    _context.Employees,
-                    ptm => ptm.EmployeeId,
-                    e => e.Employee_Id,
-                    (ptm, e) => new
-                    {
-                        ptm.ProjectId,
-                        EmployeeId = e.Employee_Id,
-                        EmployeeName = e.Name,
-                        EmployeeStatus = e.Status
-                    })
-                .Where(x => x.EmployeeStatus == "Active")
-                .ToListAsync();
-
-            // ==========================================
-            // BUILD RESPONSE
-            // ==========================================
-
             var result = projects
                 .Select(project =>
                 {
                     var team = teams.FirstOrDefault(
                         t => t.ProjectId == project.ProjectId);
-
-                    var employees = projectEmployees
-                        .Where(x => x.ProjectId == project.ProjectId)
-                        .Select(x => new
-                        {
-                            x.EmployeeId,
-                            x.EmployeeName
-                        })
-                        .Distinct()
-                        .ToList();
 
                     return new
                     {
@@ -357,15 +291,7 @@ namespace EmployeeManagementSystem.Services
                             team?.EngagementType,
 
                         IsActive =
-                            team?.IsActive ?? true,
-
-                        // ==========================================
-                        // PROJECT EMPLOYEES
-                        // ==========================================
-
-                        EmployeeCount = employees.Count,
-
-                        Employees = employees
+                            team?.IsActive ?? true
                     };
                 })
                 .OrderBy(x => x.ProjectName)
@@ -373,6 +299,7 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult(result);
         }
+
         private static string GetShortDayName(string day)
         {
             return day switch
@@ -408,6 +335,7 @@ namespace EmployeeManagementSystem.Services
                 .Include(x => x.Project)
                 .Include(x => x.ReportingManager)
                 .Include(x => x.ReportingDays)
+                .Include(x => x.Shift)
                 .Include(x => x.Members)
                     .ThenInclude(m => m.Employee)
                 .AsNoTracking()
@@ -418,18 +346,50 @@ namespace EmployeeManagementSystem.Services
                 return new NotFoundObjectResult("Team Not Found.");
             }
 
-            var memberIds = team.Members
+            var memberIds = team.Members?
                 .Select(m => m.Id)
-                .ToList();
+                .ToList() ?? new List<int>();
+
+            var memberEmployeeIds = team.Members?
+                .Where(m => m.Employee != null)
+                .Select(m => m.Employee.Employee_Id)
+                .Distinct()
+                .ToList() ?? new List<string>();
+
+            var today = DateTime.Today;
+
+            var allShifts = await _context.ShiftMasters
+                .AsNoTracking()
+                .ToListAsync();
+
+            var rostersToday = await _context.ShiftRosters
+                .Where(r => memberEmployeeIds.Contains(r.Employee_Id) && r.RosterDate.Date == today)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var assignments = await _context.EmployeeShiftAssignments
+                .Include(a => a.Shift)
+                .Where(a => memberEmployeeIds.Contains(a.Employee_Id) && a.IsActive)
+                .AsNoTracking()
+                .ToListAsync();
 
             var overrides = await _context.TeamMemberOverrides
                 .Include(x => x.OverrideProject)
+                .Include(x => x.OverrideShift)
                 .Where(x => memberIds.Contains(x.TeamMemberId))
                 .ToListAsync();
 
             var overrideDays = await _context.TeamMemberReportingDays
                 .Where(x => memberIds.Contains(x.TeamMemberId))
                 .ToListAsync();
+
+            var technologyLookup = await _context.ProjectTeamMembers
+                .AsNoTracking()
+                .Where(x => x.ProjectId == team.ProjectId && memberEmployeeIds.Contains(x.EmployeeId))
+                .GroupBy(x => x.EmployeeId)
+                .ToDictionaryAsync(
+                    g => g.Key,
+                    g => g.Select(x => x.Technology).FirstOrDefault());
 
             var dto = new TeamDetailDto
             {
@@ -445,20 +405,37 @@ namespace EmployeeManagementSystem.Services
 
                 EngagementType = team.EngagementType,
 
-                ReportingDays = team.ReportingDays
-                    .Select(d => GetShortDayName(d.DayName))
-                    .ToList(),
+                ShiftId = team.ShiftId,
+                ShiftName = team.Shift?.ShiftName,
 
-                Members = team.Members.Select(x =>
+                ReportingDays = team.ReportingDays != null
+                    ? team.ReportingDays.Select(d => GetShortDayName(d.DayName)).ToList()
+                    : new List<string>(),
+
+                Members = (team.Members ?? new List<TeamMember>()).Select(x =>
                 {
-                    var memberOverride = overrides
-    .FirstOrDefault(o => o.TeamMemberId == x.Id);
+                    var empId = x.Employee?.Employee_Id ?? x.EmployeeId ?? "";
+                    var roster = rostersToday.FirstOrDefault(r => r.Employee_Id == empId);
+                    var memberOverride = overrides.FirstOrDefault(o => o.TeamMemberId == x.Id);
+                    var assignment = assignments.FirstOrDefault(a => a.Employee_Id == empId);
+
+                    var isCustom = memberOverride != null && memberOverride.CustomShift && memberOverride.OverrideShift != null;
+
+                    int? effectiveShiftId = roster?.ShiftId
+                        ?? (isCustom ? memberOverride!.OverrideShiftId : null)
+                        ?? assignment?.ShiftId
+                        ?? team.ShiftId;
+
+                    string? effectiveShiftName = (roster != null ? allShifts.FirstOrDefault(s => s.ShiftId == roster.ShiftId)?.ShiftName : null)
+                        ?? (isCustom ? memberOverride!.OverrideShift!.ShiftName : null)
+                        ?? assignment?.Shift?.ShiftName
+                        ?? team.Shift?.ShiftName;
 
                     var shortDays = overrideDays
-    .Where(r => r.TeamMemberId == x.Id)
-    .Select(r => GetShortDayName(r.DayName))
-    .Distinct()
-    .ToList();
+                        .Where(r => r.TeamMemberId == x.Id)
+                        .Select(r => GetShortDayName(r.DayName))
+                        .Distinct()
+                        .ToList();
 
                     var wfhDays = shortDays.Any()
                         ? GetComplementDays(shortDays)
@@ -467,24 +444,28 @@ namespace EmployeeManagementSystem.Services
                     return new MemberDto
                     {
                         TeamMemberId = x.Id,
-                        EmployeeId = x.Employee?.Employee_Id,
-                        Name = x.Employee?.Name,
-                        Role = x.Employee?.RoleName,
+                        EmployeeId = empId,
+                        Name = x.Employee?.Name ?? "",
+                        Role = x.Employee?.RoleName ?? "",
+                        Technology = technologyLookup.TryGetValue(empId, out var tech) ? tech : null,
                         ProjectName =
-    memberOverride != null &&
-    memberOverride.DifferentProject &&
-    memberOverride.OverrideProject != null
-        ? memberOverride.OverrideProject.Project_Name
-        : team.Project?.Project_Name,
+                            memberOverride != null &&
+                            memberOverride.DifferentProject &&
+                            memberOverride.OverrideProject != null
+                                ? memberOverride.OverrideProject.Project_Name
+                                : (team.Project?.Project_Name ?? ""),
 
                         OverrideProjectId = memberOverride?.OverrideProjectId,
+                        OverrideProjectName = memberOverride?.OverrideProject?.Project_Name ?? "",
 
-                        OverrideProjectName = memberOverride?.OverrideProject?.Project_Name,
+                        ShiftId = effectiveShiftId,
+                        ShiftName = effectiveShiftName,
+
+                        OverrideShiftId = effectiveShiftId != team.ShiftId ? effectiveShiftId : memberOverride?.OverrideShiftId,
+                        OverrideShiftName = effectiveShiftId != team.ShiftId ? effectiveShiftName : (memberOverride?.OverrideShift?.ShiftName ?? ""),
 
                         CrossTeam = memberOverride?.DifferentProject ?? false,
-
                         OverrideWfoDays = shortDays,
-
                         OverrideWfhDays = wfhDays
                     };
                 }).ToList()
@@ -492,6 +473,7 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult(dto);
         }
+
         public async Task<IActionResult> UpdateTeam(UpdateTeamDto dto)
         {
             var team = await _context.Teams
@@ -518,6 +500,8 @@ namespace EmployeeManagementSystem.Services
             team.ReportingManagerId = dto.ReportingManagerId;
             team.EngagementType = dto.EngagementType;
             team.ProjectId = dto.ProjectId;
+            team.ShiftId = dto.ShiftId;           // <--- ADD THIS
+
 
             // Update Reporting Days
             var oldDays = await _context.TeamReportingDays
@@ -723,7 +707,7 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<IActionResult> GetMyTeam()
         {
-            // Get logged-in employee ID from JWT
+            // 1. Get logged-in employee ID from JWT
             var employeeId =
                 _httpContextAccessor.HttpContext?
                     .User
@@ -738,11 +722,12 @@ namespace EmployeeManagementSystem.Services
                 });
             }
 
-            // Find the team of the logged-in employee
+            // 2. Find the team membership of the logged-in employee
             var teamMember = await _context.TeamMembers
+                .Include(tm => tm.TeamMemberOverride)
+                    .ThenInclude(tmo => tmo.OverrideShift)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(tm =>
-                    tm.EmployeeId == employeeId);
+                .FirstOrDefaultAsync(tm => tm.EmployeeId == employeeId);
 
             if (teamMember == null)
             {
@@ -752,12 +737,11 @@ namespace EmployeeManagementSystem.Services
                 });
             }
 
-            // Get team
+            // 3. Get team with Shift
             var team = await _context.Teams
+                .Include(t => t.Shift)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(t =>
-                    t.Id == teamMember.TeamId &&
-                    t.IsActive);
+                .FirstOrDefaultAsync(t => t.Id == teamMember.TeamId && t.IsActive);
 
             if (team == null)
             {
@@ -767,9 +751,17 @@ namespace EmployeeManagementSystem.Services
                 });
             }
 
-            // Get all ACTIVE members of the same team
-            // Get all ACTIVE members of the same team
-            // Designation comes from EmployeePersonalInfo
+            // 4. Get all members with their overrides
+            var memberIds = await _context.TeamMembers
+                .Where(tm => tm.TeamId == team.Id)
+                .Select(tm => tm.Id)
+                .ToListAsync();
+
+            var overrides = await _context.TeamMemberOverrides
+                .Include(x => x.OverrideShift)
+                .Where(x => memberIds.Contains(x.TeamMemberId))
+                .ToListAsync();
+
             var members = await _context.TeamMembers
                 .AsNoTracking()
                 .Where(tm => tm.TeamId == team.Id)
@@ -779,43 +771,95 @@ namespace EmployeeManagementSystem.Services
                     e => e.Employee_Id,
                     (tm, e) => new
                     {
+                        tm.Id,
                         EmployeeId = e.Employee_Id,
-                        Name = e.Name,
-                        Status = e.Status
-                    })
-                .Where(x => x.Status == "Active")
-                .Join(
-                    _context.EmployeePersonalInfos,
-                    x => x.EmployeeId,
-                    pi => pi.Employee_Id,
-                    (x, pi) => new
-                    {
-                        EmployeeId = x.EmployeeId,
-                        Name = x.Name,
-                        Designation = pi.Designation
+                        Name = e.Name
                     })
                 .ToListAsync();
-            // Get project
+
+            var memberEmployeeIds = members.Select(m => m.EmployeeId).Distinct().ToList();
+            var today = DateTime.Today;
+
+            var technologyLookup = await _context.ProjectTeamMembers
+                .AsNoTracking()
+                .Where(x => x.ProjectId == team.ProjectId && memberEmployeeIds.Contains(x.EmployeeId))
+                .GroupBy(x => x.EmployeeId)
+                .ToDictionaryAsync(
+                    g => g.Key,
+                    g => g.Select(x => x.Technology).FirstOrDefault());
+
+            var allShifts = await _context.ShiftMasters
+                .AsNoTracking()
+                .ToListAsync();
+
+            var rostersToday = await _context.ShiftRosters
+                .Where(r => memberEmployeeIds.Contains(r.Employee_Id) && r.RosterDate.Date == today)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var assignments = await _context.EmployeeShiftAssignments
+                .Include(a => a.Shift)
+                .Where(a => memberEmployeeIds.Contains(a.Employee_Id) && a.IsActive)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var memberDtos = members.Select(m =>
+            {
+                var mo = overrides.FirstOrDefault(o => o.TeamMemberId == m.Id);
+                var roster = rostersToday.FirstOrDefault(r => r.Employee_Id == m.EmployeeId);
+                var assignment = assignments.FirstOrDefault(a => a.Employee_Id == m.EmployeeId);
+
+                var isCustom = mo != null && mo.CustomShift && mo.OverrideShift != null;
+
+                var effectiveId = roster?.ShiftId
+                    ?? (isCustom ? mo!.OverrideShiftId : null)
+                    ?? assignment?.ShiftId
+                    ?? team.ShiftId;
+
+                var effectiveName = (roster != null ? allShifts.FirstOrDefault(s => s.ShiftId == roster.ShiftId)?.ShiftName : null)
+                    ?? (isCustom ? mo!.OverrideShift!.ShiftName : null)
+                    ?? assignment?.Shift?.ShiftName
+                    ?? team.Shift?.ShiftName;
+
+                return new
+                {
+                    employeeId = m.EmployeeId,
+                    name = m.Name,
+                    technology = technologyLookup.TryGetValue(m.EmployeeId, out var tech) ? tech : null,
+                    shiftId = effectiveId,
+                    shiftName = effectiveName,
+                    overrideShiftId = effectiveId != team.ShiftId ? effectiveId : mo?.OverrideShiftId,
+                    overrideShiftName = effectiveId != team.ShiftId ? effectiveName : (mo?.OverrideShift?.ShiftName ?? "")
+                };
+            }).ToList();
+
+            // 5. Get project
             var project = await _context.Projects
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p =>
-                    p.Id == team.ProjectId);
+                .FirstOrDefaultAsync(p => p.Id == team.ProjectId);
 
-            // Get reporting manager name
-            var manager = await _context.Employees
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e =>
-                    e.Employee_Id == team.ReportingManagerId &&
-                    e.Status == "Active");
-
-            var managerName = manager?.Name;
-
-            // Get reporting days
+            // 6. Get reporting days
             var reportingDays = await _context.TeamReportingDays
                 .AsNoTracking()
                 .Where(rd => rd.TeamId == team.Id)
                 .Select(rd => rd.DayName)
                 .ToListAsync();
+
+            // 7. Determine logged-in employee's active shift
+            var myOverride = teamMember.TeamMemberOverride;
+            var hasCustomShift = myOverride != null && myOverride.CustomShift && myOverride.OverrideShift != null;
+            var myRoster = rostersToday.FirstOrDefault(r => r.Employee_Id == employeeId);
+            var myAssignment = assignments.FirstOrDefault(a => a.Employee_Id == employeeId);
+
+            var effectiveShiftId = myRoster?.ShiftId
+                ?? (hasCustomShift ? myOverride!.OverrideShiftId : null)
+                ?? myAssignment?.ShiftId
+                ?? team.ShiftId;
+
+            var effectiveShiftName = (myRoster != null ? allShifts.FirstOrDefault(s => s.ShiftId == myRoster.ShiftId)?.ShiftName : null)
+                ?? (hasCustomShift ? myOverride!.OverrideShift!.ShiftName : null)
+                ?? myAssignment?.Shift?.ShiftName
+                ?? team.Shift?.ShiftName;
 
             return new OkObjectResult(new
             {
@@ -824,20 +868,22 @@ namespace EmployeeManagementSystem.Services
                 teamName = team.TeamName,
 
                 projectId = team.ProjectId,
-                projectName = project != null
-         ? project.Project_Name
-         : null,
+                projectName = project?.Project_Name,
 
                 reportingManagerId = team.ReportingManagerId,
-                managerName = managerName,
-
                 engagementType = team.EngagementType,
 
-                reportingDays = reportingDays,
+                // Team Shift & My Shift
+                teamShiftId = team.ShiftId,
+                teamShiftName = team.Shift?.ShiftName,
+                myShiftId = effectiveShiftId,
+                myShiftName = effectiveShiftName,
 
-                members = members
+                reportingDays = reportingDays,
+                members = memberDtos
             });
         }
+
         public async Task<IActionResult> MemberOverride(MemberOverrideDto dto)
         {
             try
@@ -865,7 +911,8 @@ namespace EmployeeManagementSystem.Services
                 overrideData.OverrideProjectId = dto.OverrideProjectId;
                 overrideData.DifferentProject = dto.DifferentProject;
                 overrideData.CustomReportingDays = dto.CustomReportingDays;
-
+                overrideData.CustomShift = dto.CustomShift;
+                overrideData.OverrideShiftId = dto.OverrideShiftId;
                 await _context.SaveChangesAsync();
 
                 var oldDays = await _context.TeamMemberReportingDays

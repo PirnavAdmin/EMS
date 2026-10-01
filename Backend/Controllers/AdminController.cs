@@ -88,100 +88,219 @@ namespace EmployeeManagementSystem.Controllers
         //}
 
         [HttpPost("login")]
+
         public async Task<IActionResult> Login(LoginDto dto)
+
         {
+
+            // 1. Validate Input
+
+            if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
+
+            {
+
+                return Unauthorized(new
+
+                {
+
+                    Status = false,
+
+                    Message = "Invalid credentials"
+
+                });
+
+            }
+
+            string email = dto.Email.Trim().ToLower();
+
+            // 2. Find Admin (Case-insensitive)
+
             var admin = await _context.Admins
-                .FirstOrDefaultAsync(a => a.Email == dto.Email);
+
+                .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
 
             if (admin == null)
+
             {
+
                 return Unauthorized(new
+
                 {
-                    message = "Invalid credentials"
+
+                    Status = false,
+
+                    Message = "Invalid credentials"
+
                 });
+
             }
 
-            // Block inactive admin
+            // 3. Block Inactive Admin Account
+
             if (!admin.IsActive)
+
             {
+
                 return Unauthorized(new
+
                 {
-                    message = "Your account is inactive. Please contact Super Admin."
+
+                    Status = false,
+
+                    Message = "Your account is inactive. Please contact Super Admin."
+
                 });
+
             }
 
-            // Existing password verification (commented out):
-            // if (admin.Password != dto.Password)
-            // {
-            //     return Unauthorized(new
-            //     {
-            //         message = "Invalid credentials"
-            //     });
-            // }
+            // 4. Validate Subscription FIRST (Admin + Organization)
 
-            // Verify password (supports BCrypt as well as plain text)
-            bool isPasswordValid = false;
-            if (!string.IsNullOrWhiteSpace(admin.Password))
-            {
-                if (admin.Password.StartsWith("$2a$") || admin.Password.StartsWith("$2b$") || admin.Password.StartsWith("$2y$"))
-                {
-                    try { isPasswordValid = BCrypt.Net.BCrypt.Verify(dto.Password, admin.Password); }
-                    catch { isPasswordValid = admin.Password == dto.Password; }
-                }
-                else
-                {
-                    isPasswordValid = admin.Password == dto.Password;
-                }
-            }
-
-            if (!isPasswordValid)
-            {
-                return Unauthorized(new
-                {
-                    message = "Invalid credentials"
-                });
-            }
-
-            // Subscription validation (Admin + Organization)
             var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
+
                 _context,
+
                 admin.Id,
+
                 admin.OrganizationId);
 
             if (!effectiveSub.IsActive)
+
             {
+
                 return Unauthorized(new
+
                 {
-                    message = "Your subscription is inactive or expired. Please contact Super Admin."
+
+                    Status = false,
+
+                    Message = "Your subscription is inactive"
+
                 });
+
             }
+
+            // 5. Verify Password (Supports BCrypt and Plain-Text fallback)
+
+            bool isPasswordValid = false;
+
+            if (!string.IsNullOrWhiteSpace(admin.Password))
+
+            {
+
+                if (admin.Password.StartsWith("$2a$") || admin.Password.StartsWith("$2b$") || admin.Password.StartsWith("$2y$"))
+
+                {
+
+                    try
+
+                    {
+
+                        isPasswordValid = BCrypt.Net.BCrypt.Verify(dto.Password, admin.Password);
+
+                    }
+
+                    catch
+
+                    {
+
+                        isPasswordValid = admin.Password == dto.Password;
+
+                    }
+
+                }
+
+                else
+
+                {
+
+                    isPasswordValid = admin.Password == dto.Password;
+
+                }
+
+            }
+
+            if (!isPasswordValid)
+
+            {
+
+                return Unauthorized(new
+
+                {
+
+                    Status = false,
+
+                    Message = "Invalid credentials"
+
+                });
+
+            }
+
+            // 6. Update Last Login
+
+            admin.LastLogin = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // 7. Generate JWT Token
 
             var token = GenerateJwtToken(admin);
 
+            // 8. Return Successful Response
+
             return Ok(new
+
             {
-                message = "Login successful",
+
+                Status = true,
+
+                Message = "Login successful",
+
                 token,
+
                 admin = new
+
                 {
+
                     admin.Id,
+
                     admin.Email,
+
+                    admin.FullName,
+
+                    admin.Role,
+
                     admin.IsActive,
+
                     admin.OrganizationId,
+
                     admin.OrganizationName,
+
                     subscription = new
+
                     {
+
                         effectiveSub.MaxUsers,
+
                         effectiveSub.CurrentUsers,
+
                         effectiveSub.RemainingUsers,
+
                         effectiveSub.StartDate,
+
                         effectiveSub.EndDate,
+
                         effectiveSub.Source,
+
                         effectiveSub.PlanName
+
                     }
+
                 }
+
             });
+
         }
+
 
 
         [HttpPost("change-password")]

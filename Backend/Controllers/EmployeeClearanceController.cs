@@ -1,92 +1,227 @@
 ﻿using EmployeeManagementSystem.DTOs;
+
 using EmployeeManagementSystem.Interfaces;
+
+using Microsoft.AspNetCore.Authorization;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
+
 {
+
     [Route("api/[controller]")]
+
     [ApiController]
+
+    [Authorize]
+
     public class EmployeeClearanceController : ControllerBase
+
     {
+
         private readonly IEmployeeClearanceService _service;
 
-        public EmployeeClearanceController(IEmployeeClearanceService service)
+        public EmployeeClearanceController(
+
+            IEmployeeClearanceService service)
+
         {
+
             _service = service;
+
         }
 
-        // Create Clearance
+        // ============================================================
+
+        // CREATE CLEARANCE
+
+        // ============================================================
+
         [HttpPost("create")]
-        public async Task<IActionResult> Create(CreateClearanceDto dto)
+
+        public async Task<IActionResult> Create(
+
+            [FromBody] CreateClearanceDto dto)
+
         {
+
+            if (!ModelState.IsValid)
+
+                return BadRequest(ModelState);
+
             var result = await _service.Create(dto);
 
             if (!result)
+
+            {
+
                 return BadRequest(new
+
                 {
-                    Success = false,
-                    Message = "Unable to create clearance."
+
+                    success = false,
+
+                    message =
+
+                        "Unable to create clearance. " +
+
+                        "The resignation may not be approved, " +
+
+                        "or clearance may already exist."
+
                 });
 
+            }
+
             return Ok(new
+
             {
-                Success = true,
-                Message = "Clearance created successfully."
+
+                success = true,
+
+                message = "Employee clearance created successfully."
+
             });
+
         }
 
-        // Department Approval
+        // ============================================================
+
+        // DEPARTMENT APPROVAL / REJECTION
+
+        // ============================================================
+
         [HttpPut("department")]
-        public async Task<IActionResult> UpdateDepartment(UpdateDepartmentClearanceDto dto)
+
+        public async Task<IActionResult> UpdateDepartment(
+
+            [FromBody] UpdateDepartmentClearanceDto dto)
+
         {
-            var result = await _service.UpdateDepartment(dto);
+
+            if (!ModelState.IsValid)
+
+                return BadRequest(ModelState);
+
+            var result =
+
+                await _service.UpdateDepartment(dto);
 
             if (!result)
+
+            {
+
                 return BadRequest(new
+
                 {
-                    Success = false,
-                    Message = "Unable to update department clearance."
+
+                    success = false,
+
+                    message =
+
+                        "Unable to update department clearance. " +
+
+                        "It may already be processed, completed, " +
+
+                        "or the resignation is not approved."
+
                 });
+
+            }
 
             return Ok(new
+
             {
-                Success = true,
-                Message = "Department clearance updated successfully."
+
+                success = true,
+
+                message =
+
+                    dto.IsApproved
+
+                        ? "Department clearance approved successfully."
+
+                        : "Department clearance rejected successfully."
+
             });
+
         }
 
-        // Get By Resignation
+        // ============================================================
+
+        // GET CLEARANCE BY RESIGNATION
+
+        // ============================================================
+
         [HttpGet("resignation/{resignationId}")]
-        public async Task<IActionResult> GetByResignation(int resignationId)
+
+        public async Task<IActionResult> GetByResignation(
+
+            int resignationId)
+
         {
-            var data = await _service.GetByResignation(resignationId);
+
+            var data =
+
+                await _service.GetByResignation(resignationId);
 
             if (data == null)
+
+            {
+
                 return NotFound(new
+
                 {
-                    Success = false,
-                    Message = "Clearance not found."
+
+                    success = false,
+
+                    message = "Clearance not found."
+
                 });
 
+            }
+
             return Ok(data);
+
         }
 
-        // Pending Clearances
+        // ============================================================
+
+        // GET PENDING CLEARANCES
+
+        // ============================================================
+
         [HttpGet("pending")]
+
         public async Task<IActionResult> GetPending()
+
         {
+
             var data = await _service.GetPending();
 
             return Ok(data);
+
         }
 
-        // Completed Clearances
+        // ============================================================
+
+        // GET COMPLETED CLEARANCES
+
+        // ============================================================
+
         [HttpGet("completed")]
+
         public async Task<IActionResult> GetCompleted()
+
         {
+
             var data = await _service.GetCompleted();
 
             return Ok(data);
+
         }
+
     }
+
 }

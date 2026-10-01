@@ -1,4 +1,5 @@
 import api from "../api/axiosInstance";
+import { adminApprove, adminReject } from "./shiftSwapApi";
 
 const ARRAY_KEYS = [
   "items",
@@ -119,7 +120,7 @@ export const extractHrmsRecord = (payload) => {
 export const toHrmsEndpoint = (endpoint, id) =>
   typeof endpoint === "function" ? endpoint(id) : endpoint;
 
-export const listHrmsSettings = async (moduleConfig, params = {}) => {
+export const listHrmsSettings = async (moduleConfig, params = {}, requestConfig = {}) => {
   const endpoint = moduleConfig?.api?.list;
 
   if (!endpoint) {
@@ -129,6 +130,7 @@ export const listHrmsSettings = async (moduleConfig, params = {}) => {
   const response = await api.get(toHrmsEndpoint(endpoint, params?.id), {
     params,
     dedupe: false,
+    ...requestConfig,
   });
   return extractHrmsCollection(response?.data);
 };
@@ -193,6 +195,13 @@ export const deleteHrmsSettingsRecord = async (moduleConfig, id) =>
   api.delete(toHrmsEndpoint(moduleConfig.api.delete, id));
 
 export const runHrmsWorkflowAction = async (action, payload = {}, id) => {
+  if (action.shiftSwapAction === "approve") {
+    return adminApprove(id);
+  }
+  if (action.shiftSwapAction === "reject") {
+    return adminReject(id, payload.remarks);
+  }
+
   const method = action.method || "post";
   const endpointId = action.paramField ? payload?.[action.paramField] : id;
   const endpoint = toHrmsEndpoint(action.endpoint, endpointId);

@@ -8,8 +8,16 @@ function LoginRight() {
 
   return (
     <>
-      <div className="auth-hero-orb auth-hero-orb-one" aria-hidden="true" />
-      <div className="auth-hero-orb auth-hero-orb-two" aria-hidden="true" />
+      <div
+        className="auth-hero-orb auth-hero-orb-one"
+        aria-hidden="true"
+      />
+
+      <div
+        className="auth-hero-orb auth-hero-orb-two"
+        aria-hidden="true"
+      />
+
       <div className="auth-hero-grid" aria-hidden="true" />
 
       <div className="auth-hero-logo-right">

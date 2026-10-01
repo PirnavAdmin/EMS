@@ -10,7 +10,9 @@
 
         public string EngagementType { get; set; } = string.Empty;
 
-        public int? ProjectId { get; set; }
+        public int ProjectId { get; set; }
+
+        public int? ShiftId { get; set; } // <--- ADDED
 
         public List<string> ReportingDays { get; set; } = new();
 

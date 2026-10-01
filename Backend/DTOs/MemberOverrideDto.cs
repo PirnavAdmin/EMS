@@ -6,6 +6,8 @@
 
         public string EmployeeId { get; set; }
         public int TeamMemberId { get; set; }
+        public bool CustomShift { get; set; }
+        public int? OverrideShiftId { get; set; }
         public bool DifferentProject { get; set; }
 
         public string? ProjectName { get; set; }

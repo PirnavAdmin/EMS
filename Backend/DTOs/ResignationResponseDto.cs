@@ -1,10 +1,14 @@
 ﻿namespace EmployeeManagementSystem.DTOs
+
 {
+
     public class ResignationResponseDto
+
     {
+
         public int ResignationId { get; set; }
 
-        public string Employee_Id { get; set; }
+        public string Employee_Id { get; set; } = string.Empty;
 
         public DateTime ResignationDate { get; set; }
 
@@ -14,12 +18,36 @@
 
         public string? Reason { get; set; }
 
-        public string ManagerStatus { get; set; }
+        // Pending / Approved / Rejected
 
-        public string HRStatus { get; set; }
+        public string OverallStatus { get; set; } = "Pending";
 
-        public string OverallStatus { get; set; }
+        // Who approved
+
+        // HR / Admin / Manager
+
+        public string? ApprovedByRole { get; set; }
+
+        public string? ApprovedBy { get; set; }
+
+        public DateTime? ApprovedDate { get; set; }
+
+        public string? ApprovalRemarks { get; set; }
+
+        // Who rejected
+
+        // HR / Admin / Manager
+
+        public string? RejectedByRole { get; set; }
+
+        public string? RejectedBy { get; set; }
+
+        public DateTime? RejectedDate { get; set; }
+
+        public string? RejectionRemarks { get; set; }
 
         public DateTime CreatedDate { get; set; }
+
     }
+
 }

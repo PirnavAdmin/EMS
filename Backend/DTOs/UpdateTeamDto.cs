@@ -12,6 +12,8 @@
 
         public int ProjectId { get; set; }
 
+        public int? ShiftId { get; set; } // <--- ADDED
+
         public List<string> ReportingDays { get; set; } = new();
 
         public List<string> EmployeeIds { get; set; } = new();

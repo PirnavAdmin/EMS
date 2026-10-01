@@ -71,13 +71,14 @@ const resolveActiveFlag = (...values) => {
     return false;
 };
 
-export const getApiErrorMessage = (error, fallback = "Something went wrong.") =>
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    error?.response?.data?.title ||
-    error?.response?.data ||
-    error?.message ||
-    fallback;
+export const getApiErrorMessage = (error, fallback = "Something went wrong.") => {
+    const data = error?.response?.data;
+    const validationError = Object.values(data?.errors ?? {})
+        .flatMap((messages) => Array.isArray(messages) ? messages : [messages])
+        .find((message) => typeof message === "string" && message.trim());
+    return data?.message || data?.title || validationError || data?.error ||
+        (typeof data === "string" ? data : "") || error?.message || fallback;
+};
 
 export const normalizeStatus = (value, activeFallback) => {
     if (typeof value === "boolean") return value ? "Active" : "Inactive";

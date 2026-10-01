@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Notifications.css";
 import { CardSkeleton } from "../components/Skeletons";
 import {
@@ -11,10 +12,12 @@ import { getAuthenticatedUserSnapshot } from "../utils/authStorage";
 import {
   loadNotifications,
   markAllNotificationsAsRead,
-  markNotificationAsRead } from
+  markNotificationAsRead,
+  isShiftSwapNotification } from
 "../services/notificationService";
 
 function UserNotifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -108,6 +111,14 @@ function UserNotifications() {
     }
   };
 
+  const handleNotificationClick = (item) => {
+    if (isShiftSwapNotification(item)) {
+      navigate("/my-team");
+      window.setTimeout(() => window.dispatchEvent(new Event("swapRequestsRefresh")), 0);
+    }
+    void markAsRead(item.id);
+  };
+
   // ✅ MARK ALL → CLEAR UI
   const markAllAsRead = async () => {
     if (notifications.length === 0) return;
@@ -135,7 +146,7 @@ function UserNotifications() {
           }
         })
       );
-    } catch (error) {
+    } catch {
       setNotifications(previousNotifications);
     } finally {
       setMarkingAll(false);
@@ -158,23 +169,36 @@ function UserNotifications() {
   const unreadCount = notifications.length;
 
   return (
-    <div className="notifications-container">
-      <div className="notifications-header">
-        <div>
-          <h2>My Notifications</h2>
-          <p>{unreadCount} unread notifications</p>
-        </div>
-
+    <div className="notifications-container">
+
+      <div className="notifications-header">
+
+        <div>
+
+          <h2>My Notifications</h2>
+
+          <p>{unreadCount} unread notifications</p>
+
+        </div>
+
+
+
         <button
           className="mark-read-btn"
           onClick={markAllAsRead}
           disabled={unreadCount === 0 || markingAll}>
-          
-          {markingAll ? "Marking..." : "Mark all as read"}
-        </button>
-      </div>
-
-      <div className="notifications-list">
+          
+
+          {markingAll ? "Marking..." : "Mark all as read"}
+
+        </button>
+
+      </div>
+
+
+
+      <div className="notifications-list">
+
         {loading ?
         <CardSkeleton count={4} variant="panel" /> :
         notifications.length === 0 ?
@@ -184,33 +208,52 @@ function UserNotifications() {
         <div
           key={item.id || index}
           className="notification-card unread"
-          onClick={() => markAsRead(item.id)}
+          onClick={() => handleNotificationClick(item)}
           style={{ cursor: "pointer" }}>
-          
-              <div className={`icon-circle ${item.type || "info"}`}>
-                {getIcon(item.type)}
-              </div>
-
-              <div className="notification-content">
-                <div className="notification-title">
-                  {item.title}
-                  <span className="unread-dot"></span>
-                </div>
-
-                <p>{item.description}</p>
-              </div>
-
-              <div className="notification-time">
+          
+
+              <div className={`icon-circle ${item.type || "info"}`}>
+
+                {getIcon(item.type)}
+
+              </div>
+
+
+
+              <div className="notification-content">
+
+                <div className="notification-title">
+
+                  {item.title}
+
+                  <span className="unread-dot"></span>
+
+                </div>
+
+
+
+                <p>{item.description}</p>
+
+              </div>
+
+
+
+              <div className="notification-time">
+
                 {updatingId === item.id ?
             "Updating..." :
             markingAll ?
             "Updating..." :
-            item.timeAgo}
-              </div>
+            item.timeAgo}
+
+              </div>
+
             </div>
         )
-        }
-      </div>
+        }
+
+      </div>
+
     </div>);
 
 }

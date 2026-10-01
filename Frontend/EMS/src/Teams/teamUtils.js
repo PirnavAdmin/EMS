@@ -28,6 +28,7 @@ export const toNumberId = (value) => {
 };
 
 const COLLECTION_KEYS = [
+  "$values",
   "data",
   "list",
   "items",
@@ -141,6 +142,107 @@ export const normalizeCollection = (payload) => {
     "employeeName" in root;
 
   return looksLikeRecord ? [root] : [];
+};
+
+const normalizeIdentityValue = (value) => String(value ?? "").trim().toLowerCase();
+
+const getIdentityRecords = (record = {}) => {
+  const source = isPlainObject(record) ? record : {};
+  return [
+    source,
+    source.employee,
+    source.Employee,
+    source.user,
+    source.User,
+    source.userData,
+    source.authUser,
+    source.employeeDetails,
+    source.employeeFullDetail,
+    source.data,
+    source.profile,
+    source.raw
+  ].filter(isPlainObject);
+};
+
+const getIdentityValues = (record, keys) =>
+  getIdentityRecords(record).flatMap((source) =>
+    keys.map((key) => normalizeIdentityValue(source[key])).filter(Boolean)
+  );
+
+const getMemberIdentityValues = (member) => ({
+  employeeIds: getIdentityValues(member, [
+    "employeeId", "employee_Id", "employeeID", "EmployeeId", "Employee_Id",
+    "employeeCode", "employee_code", "EmployeeCode", "empCode", "empId", "EmpId"
+  ]),
+  userIds: getIdentityValues(member, ["userId", "user_Id", "userID", "UserId", "User_Id"]),
+  emails: getIdentityValues(member, ["email", "Email", "employeeEmail", "userEmail"])
+});
+
+const readCachedIdentityRecords = () => {
+  if (typeof window === "undefined") return [];
+
+  const records = [];
+  const storages = [];
+  try {
+    if (window.localStorage) storages.push(window.localStorage);
+  } catch {
+    // Storage can be unavailable in restricted browser contexts.
+  }
+  try {
+    if (window.sessionStorage) storages.push(window.sessionStorage);
+  } catch {
+    // Storage can be unavailable in restricted browser contexts.
+  }
+  for (const storage of storages) {
+    if (!storage) continue;
+    for (const key of ["user", "currentUser", "userData", "userInfo", "authUser"]) {
+      try {
+        const value = storage.getItem(key);
+        if (value) {
+          const parsed = JSON.parse(value);
+          if (isPlainObject(parsed)) records.push(parsed);
+        }
+      } catch {
+        // Ignore malformed cached auth records and keep checking other keys.
+      }
+    }
+  }
+  return records;
+};
+
+/** Resolve the signed-in employee against the roster, including employee-code auth sessions. */
+export const resolveLoggedInEmployee = (members = [], currentUser = {}) => {
+  if (!Array.isArray(members) || members.length === 0) return null;
+
+  const authRecords = [currentUser, ...readCachedIdentityRecords()];
+  const authEmployeeIds = authRecords.flatMap((record) => getIdentityValues(record, [
+    "employeeId", "employee_Id", "employeeID", "EmployeeId", "Employee_Id",
+    "employeeCode", "employee_code", "EmployeeCode", "empCode", "empId", "EmpId"
+  ]));
+  const authUserIds = authRecords.flatMap((record) => getIdentityValues(record, [
+    "userId", "user_Id", "userID", "UserId", "User_Id", "id", "Id"
+  ]));
+  const authEmails = authRecords.flatMap((record) => getIdentityValues(record, [
+    "email", "Email", "employeeEmail", "userEmail"
+  ]));
+  const employeeIdMatch = members.find((member) => {
+    const identity = getMemberIdentityValues(member);
+    return authEmployeeIds.some((id) => identity.employeeIds.includes(id));
+  });
+  if (employeeIdMatch) return employeeIdMatch;
+
+  const userIdMatch = members.find((member) => {
+    const identity = getMemberIdentityValues(member);
+    return authUserIds.some((id) => identity.userIds.includes(id));
+  });
+  if (userIdMatch) return userIdMatch;
+
+  // Email is a fallback only when the session has no employee or user identifier.
+  if (authEmployeeIds.length || authUserIds.length) return null;
+  return members.find((member) => {
+    const identity = getMemberIdentityValues(member);
+    return authEmails.some((email) => identity.emails.includes(email));
+  }) || null;
 };
 
 export const normalizeReportingDays = (value) => {
@@ -317,17 +419,13 @@ const resolveMemberEmployeeId = (member = {}) =>
     member.employee_Id,
     member.employeeID,
     member.EmployeeId,
-    member.userId,
-    member.user_Id,
-    member.userID,
+    member.EmployeeID,
     member.employee?.id,
     member.employee?.employeeId,
     member.employee?.employee_Id,
     member.employee?.employeeID,
     member.employee?.EmployeeId,
-    member.employee?.userId,
-    member.employee?.user_Id,
-    member.employee?.userID
+    member.employee?.EmployeeID
   );
 
 const resolveMemberTeamMemberId = (member = {}) =>
@@ -362,7 +460,9 @@ export const normalizeEmployeeRecord = (employee = {}) => {
     record.employeeId,
     record.employeeID,
     record.id,
-    record.EmployeeId
+    record.EmployeeId,
+    record.EmployeeID,
+    record.Employee_Id
   );
 
   const employeeName = firstNonEmpty(
@@ -506,6 +606,31 @@ const normalizeMemberOverride = (override = {}) => {
   };
 };
 
+const normalizeShift = (value = {}) => {
+  const record = value?.shift ?? value?.teamShift ?? value?.employeeShift ?? value?.currentShift ?? value?.assignedShift ?? value;
+
+  if (!isPlainObject(record)) {
+    return null;
+  }
+
+  const shiftId = toNumberId(record.shiftId ?? record.shift_Id ?? record.id);
+  const shiftName = firstNonEmpty(record.shiftName, record.name);
+  const startTime = firstNonEmpty(record.startTime, record.start_Time);
+  const endTime = firstNonEmpty(record.endTime, record.end_Time);
+
+  if (shiftId == null && !shiftName && !startTime && !endTime) {
+    return null;
+  }
+
+  return {
+    shiftId,
+    shiftName,
+    shiftCode: firstNonEmpty(record.shiftCode, record.shift_Code, record.code),
+    startTime,
+    endTime
+  };
+};
+
 export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
   const record = member?.teamMember ?? member?.TeamMember ?? member;
 
@@ -515,6 +640,28 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
 
   const employee = normalizeEmployeeRecord(record.employee ?? record.Employee ?? {});
   const override = normalizeMemberOverride(record.teamMemberOverride ?? record.override ?? {});
+  const memberShiftRecord =
+    record.shiftOverride ??
+    override?.raw?.shiftOverride ??
+    override?.raw?.overrideShift ??
+    record.employeeShift ??
+    record.currentShift ??
+    record.shift ??
+    record.assignedShift ??
+    employee?.raw?.employeeShift ??
+    employee?.raw?.currentShift ??
+    employee?.raw?.shift ??
+    employee?.raw?.assignedShift ??
+    ((record.overrideShiftId ?? record.overrideShiftName ?? record.shiftName ?? record.currentShiftName) != null
+      ? {
+          shiftId: record.overrideShiftId ?? record.shiftId ?? record.currentShiftId,
+          shiftName: record.overrideShiftName ?? record.shiftName ?? record.currentShiftName,
+          startTime: record.shiftStartTime,
+          endTime: record.shiftEndTime
+        }
+      : null);
+  const memberShift = normalizeShift(memberShiftRecord);
+  const teamShift = normalizeShift(teamContext.shift);
   const teamReportingDays = normalizeReportingDaysForUi(
     teamContext.reportingDays ?? record.reportingDays
   );
@@ -578,6 +725,28 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
       employee,
       userId: record.userId
     }),
+    employee_Id: firstNonEmpty(
+      record.employee_Id,
+      record.employeeId,
+      record.employeeID,
+      record.EmployeeId,
+      record.EmployeeID,
+      employee?.employee_Id,
+      employee?.employeeId,
+      employee?.employeeID,
+      employee?.EmployeeId,
+      employee?.EmployeeID
+    ),
+    employeeCode: firstNonEmpty(
+      record.employeeCode,
+      record.employee_code,
+      record.EmployeeCode,
+      record.empCode,
+      employee?.employeeCode,
+      employee?.employee_code,
+      employee?.EmployeeCode,
+      employee?.empCode
+    ),
     userId: firstNonEmpty(
       record.userId,
       record.user_Id,
@@ -611,6 +780,7 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
       record.role
     ),
     department: firstNonEmpty(employee?.department, record.department),
+    technology: firstNonEmpty(record.technology, record.Technology, employee?.raw?.technology, employee?.raw?.Technology) || null,
     projectId:
       hasProjectOverride && resolvedProjectId != null
         ? resolvedProjectId
@@ -644,6 +814,24 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
     differentProject: hasProjectOverride,
     isCrossMapped: hasProjectOverride,
     customReportingDays: hasCustomReportingDays,
+    shift: memberShift || teamShift,
+    shiftName: firstNonEmpty(memberShift?.shiftName, teamShift?.shiftName),
+    shiftEffectiveTo: firstNonEmpty(
+      record.shiftEffectiveTo,
+      record.effectiveTo,
+      record.currentShift?.effectiveTo,
+      record.shift?.effectiveTo,
+      record.employeeShift?.effectiveTo
+    ),
+    isTemporaryShift: Boolean(
+      record.isTemporaryShift ??
+      record.currentShift?.isTemporary ??
+      record.shift?.isTemporary ??
+      record.employeeShift?.isTemporary ??
+      ((record.shiftEffectiveTo ?? record.effectiveTo ?? record.currentShift?.effectiveTo ?? record.shift?.effectiveTo) &&
+        !(record.isPermanent ?? record.currentShift?.isPermanent ?? record.shift?.isPermanent))
+    ),
+    hasShiftOverride: Boolean(memberShift),
     teamMemberOverride: override?.raw || null,
     raw: record,
     employee
@@ -651,7 +839,12 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
 };
 
 export const normalizeTeamRecord = (team = {}) => {
-  const record = team?.team ?? team?.Team ?? team?.data ?? team;
+  let record = team;
+  for (let depth = 0; depth < 4 && isPlainObject(record); depth += 1) {
+    const wrapped = record.team ?? record.Team ?? record.data;
+    if (!isPlainObject(wrapped)) break;
+    record = wrapped;
+  }
 
   if (!isPlainObject(record)) {
     return null;
@@ -693,18 +886,25 @@ export const normalizeTeamRecord = (team = {}) => {
       record.reporting_days ??
       []
   );
-  const members = normalizeCollection(
+  const shift = normalizeShift(
+    record.shift ?? record.teamShift ?? record.assignedShift ?? record.defaultShift ?? record
+  );
+  const rawMembers =
     record.members ??
-      record.teamMembers ??
-      record.team_members ??
-      record.projectTeamMembers
-  )
+    record.teamMembers ??
+    record.team_members ??
+    record.projectTeamMembers ??
+    record.employees ??
+    record.teamEmployees ??
+    record.employeeDetails;
+  const members = normalizeCollection(rawMembers?.$values ?? rawMembers)
     .map((member) =>
       normalizeTeamMemberRecord(member, {
         teamId: toNumberId(record.teamId ?? record.team_Id ?? record.teamID ?? record.id),
         projectId: project?.projectId,
         projectName: project?.projectName,
         reportingDays,
+        shift,
         engagementType: firstNonEmpty(record.engagementType, project?.status)
       })
     )
@@ -755,6 +955,12 @@ export const normalizeTeamRecord = (team = {}) => {
     membersCount: memberCount,
     reportingDays,
     reportingDayRecords: normalizeCollection(record.reportingDays),
+    shift,
+    shiftId: shift?.shiftId ?? null,
+    shiftName: shift?.shiftName ?? "",
+    shiftCode: shift?.shiftCode ?? "",
+    shiftStartTime: shift?.startTime ?? "",
+    shiftEndTime: shift?.endTime ?? "",
     raw: record
   };
 };
@@ -768,7 +974,10 @@ const TEAM_MEMBER_COLLECTION_KEYS = [
   "teamMemberDetails",
   "teamMemberList",
   "teamMembersList",
-  "teamMemberDtos"
+  "teamMemberDtos",
+  "employees",
+  "teamEmployees",
+  "employeeDetails"
 ];
 
 const extractTeamMemberCollection = (value, depth = 0, seen = new WeakSet()) => {
@@ -958,6 +1167,7 @@ export const buildUpdateTeamPayload = (form = {}) => ({
   reportingManagerId: String(form.reportingManagerId ?? "").trim(),
   engagementType: String(form.engagementType ?? "").trim(),
   projectId: toNumberId(form.projectId),
+  shiftId: toNumberId(form.shiftId),
   reportingDays: normalizeReportingDays(form.reportingDays),
   employeeIds: Array.isArray(form.employeeIds)
     ? form.employeeIds.map((id) => String(id ?? "").trim()).filter(Boolean)
@@ -980,6 +1190,8 @@ export const buildMemberOverridePayload = (teamId, member = {}, form = {}) => ({
   teamId: toNumberId(teamId),
   employeeId: resolveMemberEmployeeId(member),
   teamMemberId: resolveMemberTeamMemberId(member),
+  customShift: Boolean(form.customShift),
+  overrideShiftId: form.customShift ? toNumberId(form.overrideShiftId) : null,
   differentProject: Boolean(form.differentProject),
   projectId: form.differentProject ? toNumberId(form.projectId) : null,
   customReportingDays: Boolean(form.customReportingDays),

@@ -1,17 +1,18 @@
 ﻿using EmployeeManagementSystem.DTOs;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Interfaces
 {
     public interface IShiftService
     {
-        Task<IEnumerable<ShiftResponseDto>> GetAllAsync();
+        Task<IEnumerable<ShiftResponseDto>> GetAllAsync(ClaimsPrincipal user);
 
-        Task<ShiftResponseDto?> GetByIdAsync(int shiftId);
+        Task<ShiftResponseDto?> GetByIdAsync(int shiftId, ClaimsPrincipal user);
 
-        Task<string> CreateAsync(CreateShiftDto dto);
+        Task<string> CreateAsync(CreateShiftDto dto, ClaimsPrincipal user);
 
-        Task<string> UpdateAsync(UpdateShiftDto dto);
+        Task<string> UpdateAsync(UpdateShiftDto dto, ClaimsPrincipal user);
 
-        Task<string> DeleteAsync(int shiftId);
+        Task<string> DeleteAsync(int shiftId, ClaimsPrincipal user);
     }
 }

@@ -1,10 +1,12 @@
 ﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
 {
     [Route("api/[controller]")]
+    [Authorize]
     [ApiController]
     public class ShiftController : ControllerBase
     {
@@ -18,14 +20,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var result = await _shiftService.GetAllAsync();
+            var result = await _shiftService.GetAllAsync(User);
             return Ok(result);
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var result = await _shiftService.GetByIdAsync(id);
+            var result = await _shiftService.GetByIdAsync(id, User);
 
             if (result == null)
                 return NotFound(new { message = "Shift not found." });
@@ -39,9 +41,9 @@ namespace EmployeeManagementSystem.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _shiftService.CreateAsync(dto);
+            var result = await _shiftService.CreateAsync(dto, User);
 
-            if (result.Contains("already"))
+            if (result.Contains("already") || result.Contains("Invalid") || result.Contains("cannot"))
                 return BadRequest(new { message = result });
 
             return Ok(new
@@ -57,12 +59,12 @@ namespace EmployeeManagementSystem.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _shiftService.UpdateAsync(dto);
+            var result = await _shiftService.UpdateAsync(dto, User);
 
             if (result == "Shift not found.")
                 return NotFound(new { message = result });
 
-            if (result.Contains("already"))
+            if (result.Contains("already") || result.Contains("Invalid") || result.Contains("cannot"))
                 return BadRequest(new { message = result });
 
             return Ok(new
@@ -75,7 +77,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var result = await _shiftService.DeleteAsync(id);
+            var result = await _shiftService.DeleteAsync(id, User);
 
             if (result == "Shift not found.")
                 return NotFound(new { message = result });

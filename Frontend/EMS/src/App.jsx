@@ -2,6 +2,7 @@ import React, { lazy, memo, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
 import PermissionRoute from "./routes/PermissionRoute";
+import { EMPLOYEE_EXIT_MODULE } from "./utils/authorization";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { usePermissionScope } from "./context/usePermissionScope";
 
@@ -12,7 +13,7 @@ import "react-toastify/dist/ReactToastify.css";
 import "./components/common/Toast/toast.css";
 import GlobalToastContainer from "./components/common/toast/GlobalToastContainer";
 import { getStoredToken } from "./utils/authStorage";
-import { hasRole, isAdmin, isSuperAdmin } from "./utils/authorization";
+import { hasRole, isEmployee, isSuperAdmin } from "./utils/authorization";
 import {
   clearSessionTimer,
   handleAutoLogout,
@@ -39,6 +40,7 @@ const PUBLIC_ROUTES = new Set([
   "/forgot-password",
   "/otp",
   "/reset-password",
+  "/privacy-policy",
 ]);
 
 const redirectToLoginIfNeeded = () => {
@@ -86,10 +88,7 @@ const RouteFallback = memo(() => (
 const Register = lazyRoute("register", () => import("./Pages/loginpage/Register"));
 const LandingPage = lazyRoute("landing-page", () => import("./Pages/landing/LandingPage"));
 import PrivacyPolicy from "./Pages/landing/PrivacyPolicy";
-const AccountDeletion = lazyRoute(
-  "account-deletion",
-  () => import("./Pages/landing/AccountDeletion")
-);
+const AccountDeletion = lazyRoute("account-deletion", () => import("./Pages/landing/AccountDeletion"));
 const Login = lazyRoute("login", () => import("./Pages/loginpage/Login"));
 const ForgotPassword = lazyRoute("forgot-password", () => import("./Pages/loginpage/ForgotPassword"));
 const OtpVerification = lazyRoute("otp", () => import("./Pages/loginpage/OtpVerification"));
@@ -143,6 +142,16 @@ const UserNotifications = lazyRoute("user-notifications", () => import("./Notifi
 
 const Payroll = lazyRoute("payroll", () => import("./Payroll/Payroll"));
 const UserPayslip = lazyRoute("user-payslip", () => import("./Payroll/UserPayslip"));
+const Performance = lazyRoute("performance", () => import("./Performance/Performance"));
+const ApplyResignation = lazyRoute("apply-resignation", () => import("./Resignation/ApplyResignation"));
+const ResignationManagement = lazyRoute("resignation-management", () => import("./Resignation/ResignationManagement"));
+const ResignationDetails = lazyRoute("resignation-details", () => import("./Resignation/ResignationDetails"));
+const PendingClearances = lazyRoute("pending-clearances", () => import("./Clearance/ClearanceManagement"));
+const CompletedClearances = lazyRoute("completed-clearances", () => import("./Clearance/ClearanceManagement").then(m => ({ default: (props) => React.createElement(m.default, { ...props, completed: true }) })));
+const ExitInterviews = lazyRoute("exit-interviews", () => import("./ExitInterview/ExitInterviews"));
+const ExitInterviewDetails = lazyRoute("exit-interview-details", () => import("./ExitInterview/ExitInterviewDetails"));
+const Settlements = lazyRoute("settlements", () => import("./Settlement/Settlements"));
+const SettlementDetails = lazyRoute("settlement-details", () => import("./Settlement/SettlementDetails"));
 
 const OfferLetters = lazyRoute("offer-letters", () => import("./OfferLetters/OfferLetters"));
 const Reports = lazyRoute("reports", () => import("./Reports/Reports"));
@@ -257,6 +266,15 @@ const ProtectedMainLayout = () => {
   return <MainLayout permissionScope={permissionScope} />;
 };
 
+const ResignationDetailsRoute = () => {
+  const { authenticatedRole, canAccessModule } = usePermissionScope();
+  const employeeScoped = isEmployee(authenticatedRole) ||
+    (canAccessModule("My Resignation") && !canAccessModule("EmployeeExit"));
+  return employeeScoped ?
+    <PermissionRoute module="My Resignation"><ResignationDetails employeeScoped /></PermissionRoute> :
+    <PermissionRoute module="EmployeeExit"><ResignationDetails /></PermissionRoute>;
+};
+
 /* ================= APP ================= */
 
 function App() {
@@ -269,8 +287,8 @@ function App() {
         <Suspense fallback={<RouteFallback />}>
           <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/account-deletion" element={<AccountDeletion />} />
+           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+           <Route path="/account-deletion" element={<AccountDeletion />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -713,6 +731,24 @@ function App() {
                 </PermissionRoute>
               }
             />
+
+            <Route
+              path="/performance"
+              element={
+                <PermissionRoute module="Performance">
+                  <Performance />
+                </PermissionRoute>
+              }
+            />
+            <Route path="/apply-resignation" element={<PermissionRoute module="My Resignation"><ApplyResignation /></PermissionRoute>} />
+            <Route path="/resignations" element={<PermissionRoute module="EmployeeExit"><ResignationManagement /></PermissionRoute>} />
+            <Route path="/resignations/:id" element={<ResignationDetailsRoute />} />
+            <Route path="/clearances/pending" element={<PermissionRoute module="Employee Clearance"><PendingClearances /></PermissionRoute>} />
+            <Route path="/clearances/completed" element={<PermissionRoute module="Employee Clearance"><CompletedClearances /></PermissionRoute>} />
+            <Route path="/exit-interviews" element={<PermissionRoute module="Exit Interview"><ExitInterviews /></PermissionRoute>} />
+            <Route path="/exit-interviews/:id" element={<PermissionRoute module="Exit Interview"><ExitInterviewDetails /></PermissionRoute>} />
+            <Route path="/settlements" element={<PermissionRoute module={EMPLOYEE_EXIT_MODULE}><Settlements /></PermissionRoute>} />
+            <Route path="/settlements/:id" element={isEmployee() ? <PermissionRoute module="My Resignation"><SettlementDetails /></PermissionRoute> : <PermissionRoute module={EMPLOYEE_EXIT_MODULE}><SettlementDetails /></PermissionRoute>} />
 
             {/* OTHER */}
             <Route

@@ -1,27 +1,45 @@
 ﻿using EmployeeManagementSystem.DTOs;
 
+using System.Security.Claims;
+
 namespace EmployeeManagementSystem.Interfaces
+
 {
+
     public interface IEmployeeResignationService
+
     {
-        Task<bool> ApplyResignation(CreateResignationDto dto);
 
-        Task<bool> UpdateResignation(UpdateResignationDto dto);
+        Task<bool> ApplyResignation(
+     CreateResignationDto dto,
+     string employeeId);
 
-        Task<bool> DeleteResignation(int resignationId);
+        Task<bool> UpdateResignation(
+
+            UpdateResignationDto dto);
+
+        Task<bool> DeleteResignation(
+
+            int resignationId);
 
         Task<List<ResignationResponseDto>> GetAll();
 
-        Task<ResignationResponseDto?> GetById(int resignationId);
+        Task<ResignationResponseDto?> GetById(
 
-        Task<List<ResignationResponseDto>> GetByEmployee(string employeeId);
+            int resignationId);
 
-        Task<List<ResignationResponseDto>> GetPendingManagerApprovals();
+        Task<List<ResignationResponseDto>> GetByEmployee(
 
-        Task<List<ResignationResponseDto>> GetPendingHRApprovals();
+            string employeeId);
 
-        Task<bool> ManagerApproval(ManagerApprovalDto dto);
+        Task<List<ResignationResponseDto>> GetPendingApprovals();
 
-        Task<bool> HRApproval(HRApprovalDto dto);
+        Task<bool> ExitApproval(
+
+            ExitApprovalDto dto,
+
+            ClaimsPrincipal user);
+
     }
+
 }

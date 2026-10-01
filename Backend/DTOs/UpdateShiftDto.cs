@@ -29,6 +29,7 @@ public class UpdateShiftDto
     public TimeSpan? BreakStart { get; set; }
 
     public TimeSpan? BreakEnd { get; set; }
+    public int? OrganizationId { get; set; }
 
     public int GraceTimeMinutes { get; set; }
 

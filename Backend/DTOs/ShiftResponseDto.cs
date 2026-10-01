@@ -7,6 +7,7 @@ public class ShiftResponseDto
     public int ShiftId { get; set; }
 
     public string ShiftCode { get; set; } = string.Empty;
+    public int? OrganizationId { get; set; }
 
     public string ShiftName { get; set; } = string.Empty;
 
