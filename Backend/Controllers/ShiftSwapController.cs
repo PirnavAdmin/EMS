@@ -1,7 +1,9 @@
 ﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -21,21 +23,17 @@ namespace EmployeeManagementSystem.Controllers
 
         public async Task<IActionResult> GetAll(
 
-     [FromQuery] string? type,
+       [FromQuery] string? type,
 
-     [FromQuery] string? status,
+       [FromQuery] string? status,
 
-     [FromQuery] bool? forAdmin,
+       [FromQuery] bool? forAdmin,
 
-     [FromQuery] string? role,
+       [FromQuery] string? role,
 
-     [FromQuery] bool includePendingEmployee = false)
+       [FromQuery] bool includePendingEmployee = false)
 
         {
-
-            var jwtEmployeeId = User.FindFirst("EmployeeId")?.Value
-
-                ?? User.FindFirst("Employee_Id")?.Value;
 
             var jwtRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
 
@@ -43,19 +41,59 @@ namespace EmployeeManagementSystem.Controllers
 
                 ?? User.FindFirst("role")?.Value;
 
-            // 1. Determine if the user is an Admin or Manager first
+            var jwtEmployeeId = User.FindFirst("EmployeeId")?.Value
+
+                ?? User.FindFirst("Employee_Id")?.Value;
+
+            // =========================================================================
+
+            // 1. EMPLOYEE FLOW (Token has EmployeeId)
+
+            // =========================================================================
+
+            // Filters strictly by their EmployeeId: only requests they sent or received
+
+            if (!string.IsNullOrWhiteSpace(jwtEmployeeId))
+
+            {
+
+                var employeeData = await _service.GetAllAsync(
+
+                    employeeId: jwtEmployeeId,
+
+                    type: type,
+
+                    status: status,
+
+                    forAdmin: false,
+
+                    role: jwtRole ?? "Employee",
+
+                    includePendingEmployee: includePendingEmployee
+
+                );
+
+                return Ok(employeeData);
+
+            }
+
+            // =========================================================================
+
+            // 2. ADMIN / MANAGER FLOW (Token has no EmployeeId, but Role is Admin)
+
+            // =========================================================================
 
             bool isAdmin = string.Equals(jwtRole, "Admin", StringComparison.OrdinalIgnoreCase)
 
                         || string.Equals(jwtRole, "Manager", StringComparison.OrdinalIgnoreCase)
 
+                        || string.Equals(jwtRole, "SuperAdmin", StringComparison.OrdinalIgnoreCase)
+
                         || User.IsInRole("Admin")
 
                         || User.IsInRole("Manager")
 
-                        || User.HasClaim(c => c.Type == "AdminId");
-
-            // 2. ADMIN / MANAGER VIEW: Do NOT require EmployeeId
+                        || User.IsInRole("SuperAdmin");
 
             if (isAdmin)
 
@@ -63,7 +101,7 @@ namespace EmployeeManagementSystem.Controllers
 
                 var adminData = await _service.GetAllAsync(
 
-                    employeeId: jwtEmployeeId,
+                    employeeId: null,
 
                     type: type,
 
@@ -81,45 +119,23 @@ namespace EmployeeManagementSystem.Controllers
 
             }
 
-            // 3. EMPLOYEE VIEW: Require EmployeeId only for regular employees
+            // =========================================================================
 
-            if (string.IsNullOrWhiteSpace(jwtEmployeeId))
+            // 3. NEITHER EMPLOYEE ID NOR ADMIN ROLE FOUND
+
+            // =========================================================================
+
+            return Unauthorized(new
 
             {
 
-                return Unauthorized(new
+                Success = false,
 
-                {
+                Message = "EmployeeId not found in JWT token."
 
-                    Success = false,
-
-                    Message = "EmployeeId not found in JWT token."
-
-                });
-
-            }
-
-            var data = await _service.GetAllAsync(
-
-                employeeId: jwtEmployeeId,
-
-                type: type,
-
-                status: status,
-
-                forAdmin: false,
-
-                role: jwtRole,
-
-                includePendingEmployee: includePendingEmployee
-
-            );
-
-            return Ok(data);
+            });
 
         }
-
-
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
