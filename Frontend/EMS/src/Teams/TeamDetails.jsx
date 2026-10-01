@@ -36,7 +36,7 @@ import {
 } from "../services/hrmsSettingsService";
 import {
   createShiftChangeRequest
-} from "../services/shiftRequestService";
+} from "../services/ShiftRequestService";
 import { getApiErrorMessage } from "../services/superAdminService";
 import { createSwap } from "../services/shiftSwapApi";
 import { getMyEmployeeFullDetail } from "../services/employeeService";

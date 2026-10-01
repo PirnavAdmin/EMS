@@ -4,7 +4,7 @@ import {
   approveShiftChangeRequest,
   getTeamShiftChangeRequests,
   rejectShiftChangeRequest
-} from "../services/shiftRequestService";
+} from "../services/ShiftRequestService";
 import { adminApprove, adminReject, getAdminQueue } from "../services/shiftSwapApi";
 import { canAdminDecide, normalizeStatus } from "../utils/SwapStatus";
 import { getApiErrorMessage } from "../services/superAdminService";
