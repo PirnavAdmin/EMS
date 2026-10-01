@@ -18,6 +18,9 @@
 
         public string ManagerName { get; set; } = "";
 
+        // ADD THIS
+        public string EngagementType { get; set; } = "";
+
         public int? ShiftId { get; set; }
 
         public string? ShiftName { get; set; }
