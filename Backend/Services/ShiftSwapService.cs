@@ -391,7 +391,7 @@ namespace EmployeeManagementSystem.Services
                 );
             }
 
-            int projectId = fromTeam.ProjectId;
+            int projectId = fromTeam.ProjectId.Value;
 
             // ============================================================
             // 6. Get Employee A technology

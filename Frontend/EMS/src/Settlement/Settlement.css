@@ -1,6 +1,84 @@
-.settlement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.settlement-grid div{padding:12px;background:#f8fafc;border-radius:8px}.settlement-grid small{display:block;color:#64748b;margin-bottom:4px}.settlement-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}@media(max-width:700px){.settlement-grid{grid-template-columns:1fr}}
-.clearance-section > .settlement-actions:has(+ .settlement-actions),
-.clearance-section > .settlement-actions:has(+ .settlement-actions) + .settlement-actions {
+.resignation-page .settlement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.resignation-page .settlement-card {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: var(--input-bg);
+}
+
+.resignation-page .settlement-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.resignation-page .settlement-value {
+  display: block;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.resignation-page .settlement-card--deductions .settlement-value {
+  color: var(--danger);
+}
+
+.resignation-page .settlement-card--net .settlement-value {
+  color: var(--theme-primary);
+}
+
+.resignation-page .settlement-actions .resignation-status.status-approved {
+  border-color: var(--theme-success);
+  background: var(--surface-success-soft);
+  color: var(--theme-success);
+}
+
+.resignation-page .settlement-actions .resignation-status.status-pending {
+  border-color: var(--theme-warning);
+  background: var(--surface-warning-soft);
+  color: var(--theme-warning);
+}
+
+.resignation-page .settlement-actions .resignation-status.status-rejected {
+  border-color: var(--theme-danger);
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger);
+}
+
+.resignation-page .settlement-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.resignation-page .settlement-grid + .settlement-actions + .settlement-actions {
+  margin-top: 16px;
+}
+
+@media (max-width: 899px) {
+  .resignation-page .settlement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 599px) {
+  .resignation-page .settlement-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.resignation-page .clearance-section > .settlement-actions:has(+ .settlement-actions),
+.resignation-page .clearance-section > .settlement-actions:has(+ .settlement-actions) + .settlement-actions {
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -10,8 +88,8 @@
 }
 
 @media (max-width: 560px) {
-  .clearance-section > .settlement-actions:has(+ .settlement-actions),
-  .clearance-section > .settlement-actions:has(+ .settlement-actions) + .settlement-actions {
+  .resignation-page .clearance-section > .settlement-actions:has(+ .settlement-actions),
+  .resignation-page .clearance-section > .settlement-actions:has(+ .settlement-actions) + .settlement-actions {
     margin-right: 0;
     width: 100%;
     flex-wrap: wrap;

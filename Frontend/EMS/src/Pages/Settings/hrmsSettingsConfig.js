@@ -351,7 +351,9 @@ export const shiftModulesConfig = {
       list: API_ENDPOINTS.employeeShift.list,
       create: API_ENDPOINTS.employeeShift.assign,
       get: API_ENDPOINTS.employeeShift.byEmployee,
-      delete: API_ENDPOINTS.employeeShift.delete,
+      delete: API_ENDPOINTS.employeeShift.unassign,
+      deleteMethod: "put",
+      deleteParamField: "employee_Id",
     },
     idKey: "assignmentId",
     columns: [

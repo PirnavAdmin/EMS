@@ -129,19 +129,19 @@ const BASE_TAB_DEFINITIONS = [
   successMessage: "Settings updated successfully.",
   loadErrorMessage: "We could not load the notification configuration."
 },
-{
-  key: "policy",
-  label: "Policies",
-  description: "Policy catalog and editable policy details",
-  icon: FaFileAlt,
-  component: PolicySettings,
-  fetchSettings: fetchPoliciesSettings,
-  saveSettings: savePolicySettings,
-  validateSettings: validatePolicySettings,
-  defaults: { ...POLICY_SETTINGS_DEFAULTS, __policyOptions: [] },
-  successMessage: "Settings updated successfully.",
-  loadErrorMessage: "We could not load the policy configuration."
-},
+// {
+//   key: "policy",
+//   label: "Policies",
+//   description: "Policy catalog and editable policy details",
+//   icon: FaFileAlt,
+//   component: PolicySettings,
+//   fetchSettings: fetchPoliciesSettings,
+//   saveSettings: savePolicySettings,
+//   validateSettings: validatePolicySettings,
+//   defaults: { ...POLICY_SETTINGS_DEFAULTS, __policyOptions: [] },
+//   successMessage: "Settings updated successfully.",
+//   loadErrorMessage: "We could not load the policy configuration."
+// },
 {
   key: "agreements",
   label: "Agreement Settings",
@@ -220,7 +220,7 @@ const SETTINGS_GROUPS = [
   "leave",
   "brand",
   "notification",
-   "policy",
+  //  "policy",
   "agreements",
    "templates"
 ]
@@ -228,25 +228,25 @@ const SETTINGS_GROUPS = [
 },
 
 
-{
-  key: "exit",
-  title: "Employee Exit",
-  tabs: [
-    "resignation",
-    "employeeClearance",
-    "exitInterview",
-    "fullFinalSettlement",
-  ],
-},
+// {
+//   key: "exit",
+//   title: "Employee Exit",
+//   tabs: [
+//     "resignation",
+//     "employeeClearance",
+//     "exitInterview",
+//     "fullFinalSettlement",
+//   ],
+// },
 
 
- {
-   key: "shift",
-   title: "Shift Management",
-   tabs: [
-   "shiftManagement"]
+//  {
+//    key: "shift",
+//    title: "Shift Management",
+//    tabs: [
+//    "shiftManagement"]
 
- }
+//  }
 ];
 
 const createSectionState = (defaults) => ({

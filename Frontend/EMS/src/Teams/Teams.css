@@ -1,9 +1,7 @@
 .teams-page {
   width: 100%;
   min-height: 100%;
-  min-width: 0;
   padding: clamp(16px, 2vw, 28px);
-  box-sizing: border-box;
   color: var(--text-body);
 }
 
@@ -196,16 +194,11 @@
 
 .teams-grid {
   display: grid;
-  width: 100%;
-  min-width: 0;
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
 }
 
 .team-card {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
   position: relative;
   overflow: hidden;
   border-radius: 20px;
@@ -2560,6 +2553,11 @@
   flex-wrap: nowrap;
 }
 
+.team-members-reference__days > .team-day-empty {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
 .team-members-reference__day {
   display: inline-flex;
   align-items: center;
@@ -2633,14 +2631,6 @@
   text-align: center;
   vertical-align: middle;
 }
-
-.team-members-reference--admin .team-members-reference__table th:nth-child(1) { width: 13%; }
-.team-members-reference--admin .team-members-reference__table th:nth-child(2) { width: 9.5%; }
-.team-members-reference--admin .team-members-reference__table th:nth-child(3) { width: 10.5%; }
-.team-members-reference--admin .team-members-reference__table th:nth-child(4) { width: 15%; }
-.team-members-reference--admin .team-members-reference__table th:nth-child(5) { width: 25%; }
-.team-members-reference--admin .team-members-reference__table th:nth-child(6) { width: 8%; }
-.team-members-reference--admin .team-members-reference__table th:nth-child(7) { width: 19%; }
 
 .team-members-reference--admin .team-members-reference__table td {
   height: 86px;
@@ -2815,6 +2805,285 @@
   align-items: center;
   justify-content: center;
   min-height: 34px;
+}
+
+/* Keep My Team's member table aligned with the plain Teams Members table. */
+.team-members-reference--self-service .team-members-reference__scroll {
+  border: 0;
+  border-radius: 0;
+}
+
+.team-members-reference--self-service .team-members-reference__table {
+  width: 100%;
+  min-width: 960px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  color: #061b3c;
+}
+
+.team-members-reference--self-service .team-members-reference__table th {
+  height: 58px;
+  padding: 0 16px;
+  background: #ccfbf9;
+  color: #163457;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  border-left: 0;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.team-members-reference--self-service .team-members-reference__table td {
+  height: 80px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border-bottom: 1px solid #c7e7e8;
+  color: #061b3c;
+  font-family: "Poppins", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.team-members-reference--self-service .team-members-reference__table th:nth-child(1) { width: 13%; }
+.team-members-reference--self-service .team-members-reference__table th:nth-child(2) { width: 9.5%; }
+.team-members-reference--self-service .team-members-reference__table th:nth-child(3) { width: 10.5%; }
+.team-members-reference--self-service .team-members-reference__table th:nth-child(4) { width: 15%; }
+.team-members-reference--self-service .team-members-reference__table th:nth-child(5) { width: 25%; }
+.team-members-reference--self-service .team-members-reference__table th:nth-child(6) { width: 8%; }
+.team-members-reference--self-service .team-members-reference__table th:nth-child(7) { width: 19%; }
+
+.team-members-reference--self-service .team-members-reference__row,
+.team-members-reference--self-service .team-members-reference__row:nth-child(even) {
+  background: #ffffff;
+}
+
+.team-members-reference--self-service .team-members-reference__row:hover,
+.team-members-reference--self-service .team-members-reference__row.is-reference-highlighted {
+  background: #ccfbf9;
+}
+
+.team-members-reference--self-service .team-members-reference__id {
+  min-height: 34px;
+  padding: 0 12px;
+  border-color: #b7eeea;
+  border-radius: 999px;
+  background: #e2f8f6;
+  color: #007f84;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.team-members-reference--self-service .team-members-reference__shift-pill {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #061b3c;
+  box-shadow: none;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.team-members-reference--self-service .team-members-reference__shift-pill > span:first-child {
+  display: none;
+}
+
+.team-members-reference--self-service .team-members-reference__days {
+  justify-content: center;
+  gap: 8px;
+}
+
+.team-members-reference--self-service .team-members-reference__day,
+.team-members-reference--self-service .team-members-reference__day--wfh {
+  min-width: 50px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-color: #b7eeea;
+  background: #e2f8f6;
+  color: #007f84;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Match the admin member table to the My Teams table without styling My Teams. */
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__head-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__scroll {
+  overflow-x: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__table {
+  width: 100%;
+  min-width: 1000px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  color: #061b3c;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__table th {
+  height: 58px;
+  padding: 0 16px;
+  background: #ccfbf9;
+  color: #163457;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__table td {
+  height: 80px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border-bottom: 1px solid #c7e7e8;
+  color: #061b3c;
+  font-family: "Poppins", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.team-members-reference:not(.team-members-reference--self-service):not(.team-members-reference--admin) .team-members-reference__table th:nth-child(1) { width: 13%; }
+.team-members-reference:not(.team-members-reference--self-service):not(.team-members-reference--admin) .team-members-reference__table th:nth-child(2) { width: 9%; }
+.team-members-reference:not(.team-members-reference--self-service):not(.team-members-reference--admin) .team-members-reference__table th:nth-child(3) { width: 19%; }
+.team-members-reference:not(.team-members-reference--self-service):not(.team-members-reference--admin) .team-members-reference__table th:nth-child(4) { width: 14%; }
+.team-members-reference:not(.team-members-reference--self-service):not(.team-members-reference--admin) .team-members-reference__table th:nth-child(5) { width: 17%; }
+.team-members-reference:not(.team-members-reference--self-service):not(.team-members-reference--admin) .team-members-reference__table th:nth-child(6) { width: 12%; }
+.team-members-reference:not(.team-members-reference--self-service):not(.team-members-reference--admin) .team-members-reference__table th:nth-child(7) { width: 16%; }
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__row,
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__row:nth-child(even) {
+  background: #ffffff;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__row:hover,
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__row.is-reference-highlighted {
+  background: #ccfbf9;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__table td:nth-child(4) > div {
+  align-items: center;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__id {
+  min-height: 34px;
+  padding: 0 12px;
+  border-color: #b7eeea;
+  border-radius: 999px;
+  background: #e2f8f6;
+  color: #007f84;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__shift-pill {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__shift-pill > span:first-child {
+  display: none;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__shift-pill.bg-emerald-50 { color: #15803d; }
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__shift-pill.bg-amber-50 { color: #b45309; }
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__shift-pill.bg-indigo-50 { color: #4338ca; }
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__shift-pill.bg-sky-50 { color: #0369a1; }
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__shift-pill--neutral { color: #64748b; }
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__days {
+  justify-content: center;
+  gap: 8px;
+}
+
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__day,
+.team-members-reference:not(.team-members-reference--self-service) .team-members-reference__day--wfh {
+  min-width: 50px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-color: #b7eeea;
+  background: #e2f8f6;
+  color: #007f84;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.teams-details-grid--admin > * {
+  min-width: 0;
+}
+
+.teams-details-grid--admin > .team-request-panels,
+.teams-details-grid--admin .team-request-panel--admin {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+@media (min-width: 992px) {
+  .teams-details-grid--admin {
+    width: 100%;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .teams-details-grid--admin > .teams-summary-card {
+    height: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .teams-details-grid--admin > .team-request-panels,
+  .teams-details-grid--admin .team-request-panel--admin {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+
+  .teams-details-grid--admin .team-request-panel--admin {
+    box-sizing: border-box;
+    height: 100%;
+  }
+
+  .teams-details-grid--admin .team-request-panel--admin .team-request-list:not(.team-request-list--decided) {
+    max-height: min(38vh, 300px);
+    overflow-y: auto;
+  }
 }
 
 .team-request-modal--swap {
@@ -4279,5 +4548,861 @@ button:disabled {
   .team-request-panel--unified .team-request-filter {
     width: 100%;
     max-width: none;
+  }
+}
+
+/* Team surfaces follow the active application theme; light mode keeps the
+   existing component colors above unchanged. */
+html[data-theme-mode="dark"] {
+  --team-surface: var(--bg-page);
+  --team-surface-raised: var(--bg-soft);
+  --team-text: var(--text-primary);
+  --team-text-secondary: var(--text-secondary);
+  --team-border: var(--border-soft);
+  --team-accent: var(--theme-info);
+  --team-accent-strong: var(--theme-info-strong);
+  --team-accent-soft: color-mix(in srgb, var(--theme-info) 14%, var(--bg-page));
+  --team-accent-border: color-mix(in srgb, var(--theme-info) 45%, var(--border-soft));
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .teams-summary-card,
+  .teams-stat-card,
+  .teams-reporting-card,
+  .teams-table-card,
+  .team-request-panel,
+  .team-request-panel--unified,
+  .team-members-reference
+) {
+  background: var(--team-surface) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text);
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-request-panel__head,
+  .team-members-reference__head,
+  .teams-table-head,
+  .teams-reporting-header
+) {
+  border-color: var(--team-border) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-request-panel h3,
+  .team-request-panel h4,
+  .team-request-panel--unified h3,
+  .team-request-panel--unified .team-request-item__heading strong,
+  .team-request-item strong,
+  .team-change-request-card__shift,
+  .team-swap-admin-heading,
+  .team-members-reference__head h2,
+  .team-members-reference__table td,
+  .teams-page-title,
+  .teams-summary-header h2,
+  .teams-summary-value,
+  .teams-stat-value,
+  .teams-reporting-card,
+  .team-modal-title,
+  .team-form-field label
+) {
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .teams-summary-header p,
+  .teams-stat-card p,
+  .teams-table-head p,
+  .teams-reporting-header p,
+  .team-modal-subtitle,
+  .team-request-empty,
+  .team-request-panel__foot,
+  .team-request-item > span:not(.team-request-status),
+  .team-request-item__date,
+  .team-request-item__details,
+  .team-change-request-id,
+  .team-members-reference__head p,
+  .team-request-list__hint,
+  .teams-summary-label
+) {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-request-item,
+  .team-request-empty--centered,
+  .team-change-request-card,
+  .team-request-item--employee,
+  .team-swap-participants,
+  .team-swap-admin-agreed,
+  .teams-summary-row,
+  .team-assigned-shift
+) {
+  background: var(--team-surface-raised) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text-secondary);
+}
+
+html[data-theme-mode="dark"] .teams-page .team-swap-participants :is(strong, span),
+html[data-theme-mode="dark"] .teams-page .team-swap-admin-heading,
+html[data-theme-mode="dark"] .teams-page .team-request-panel--unified .team-request-item__shift {
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-request-panel__head .teams-section-kicker,
+  .team-request-panel--unified .teams-section-kicker,
+  .team-request-panel--unified .team-request-content__section h4,
+  .team-request-panel--unified .team-swap-incoming-label,
+  .team-request-panel--admin h4
+) {
+  background: var(--team-accent-soft) !important;
+  color: var(--team-accent) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-request-filter,
+  .team-request-panel--unified .team-request-filter,
+  .team-request-view-button,
+  .team-request-dropdown__menu,
+  .team-request-dropdown__menu button,
+  .team-members-reference__action-dropdown,
+  .team-members-reference__action-dropdown button,
+  .team-members-reference__self-menu,
+  .team-members-reference__self-menu button
+) {
+  background-color: var(--team-surface-raised) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-request-filter,
+  .team-request-panel--unified .team-request-filter,
+  .team-request-view-button,
+  .team-request-dropdown__menu,
+  .team-members-reference__action-dropdown,
+  .team-members-reference__self-menu
+) {
+  box-shadow: var(--theme-shadow-md) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-request-view-button:hover,
+  .team-request-dropdown__menu button:hover,
+  .team-request-dropdown__menu button[aria-selected="true"],
+  .team-members-reference__action-dropdown button:hover,
+  .team-members-reference__self-menu button:hover
+) {
+  background: var(--hover-bg) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table {
+  background: var(--team-surface) !important;
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table thead,
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table thead tr,
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table th {
+  background: var(--team-accent-soft) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table tbody,
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table tbody tr,
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table td {
+  background-color: var(--team-surface) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text-secondary) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table tbody tr:hover,
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table tbody tr.is-reference-highlighted {
+  background: var(--table-row-hover) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table tbody tr:hover td,
+html[data-theme-mode="dark"] .teams-page .team-members-reference__table tbody tr.is-reference-highlighted td {
+  background: var(--table-row-hover) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-members-reference__id,
+  .team-members-reference__day,
+  .team-members-reference__day--wfh
+) {
+  background: var(--team-accent-soft) !important;
+  border-color: var(--team-accent-border) !important;
+  color: var(--team-accent) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__shift-pill {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__shift-pill > span:first-child {
+  background: currentColor !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-members-reference__shift-pill.bg-emerald-50,
+  .team-members-reference__shift-pill.bg-teal-50
+) { color: var(--team-accent) !important; }
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__shift-pill.bg-amber-50 { color: var(--theme-warning) !important; }
+html[data-theme-mode="dark"] .teams-page .team-members-reference__shift-pill.bg-indigo-50 { color: var(--theme-secondary) !important; }
+html[data-theme-mode="dark"] .teams-page .team-members-reference__shift-pill.bg-sky-50 { color: var(--theme-info) !important; }
+html[data-theme-mode="dark"] .teams-page .team-members-reference__shift-pill--neutral { color: var(--team-text-secondary) !important; }
+html[data-theme-mode="dark"] .teams-page .team-members-reference__shift-temporary { color: var(--theme-warning) !important; }
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-members-reference__kebab,
+  .team-members-reference__self-menu-trigger
+) {
+  background: var(--team-accent-soft) !important;
+  border-color: var(--team-accent-border) !important;
+  color: var(--team-accent) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(
+  .team-members-reference__kebab:hover,
+  .team-members-reference__kebab[aria-expanded="true"],
+  .team-members-reference__self-menu-trigger:hover,
+  .team-members-reference__self-menu-trigger[aria-expanded="true"]
+) {
+  background: var(--hover-bg) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__actions button:first-child {
+  background: var(--team-accent-soft) !important;
+  border-color: var(--team-accent-border) !important;
+  color: var(--team-accent) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference__actions button:last-child {
+  background: color-mix(in srgb, var(--theme-danger) 14%, var(--team-surface)) !important;
+  border-color: color-mix(in srgb, var(--theme-danger) 45%, var(--team-border)) !important;
+  color: var(--theme-danger-strong) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-request-status, .team-change-request-badge) {
+  background: var(--team-surface-raised) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text-secondary) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-request-status.is-pending, .team-change-request-badge.is-pending) {
+  background: color-mix(in srgb, var(--theme-warning) 14%, var(--team-surface)) !important;
+  border-color: color-mix(in srgb, var(--theme-warning) 45%, var(--team-border)) !important;
+  color: var(--theme-warning) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-request-status.is-approved {
+  background: var(--team-accent-soft) !important;
+  border-color: var(--team-accent-border) !important;
+  color: var(--team-accent) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-request-status.is-rejected, .team-request-status.is-cancelled) {
+  background: color-mix(in srgb, var(--theme-danger) 14%, var(--team-surface)) !important;
+  border-color: color-mix(in srgb, var(--theme-danger) 45%, var(--team-border)) !important;
+  color: var(--theme-danger-strong) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-request-status.is-review {
+  background: color-mix(in srgb, var(--theme-info) 14%, var(--team-surface)) !important;
+  border-color: color-mix(in srgb, var(--theme-info) 45%, var(--team-border)) !important;
+  color: var(--theme-info) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-request-actions .team-request-approve, .team-action-btn:not(.secondary)) {
+  border-color: var(--theme-primary) !important;
+  background: var(--theme-primary) !important;
+  color: var(--theme-on-primary) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-request-actions .team-request-reject, .team-action-btn.secondary) {
+  border-color: var(--team-border) !important;
+  background: var(--team-surface-raised) !important;
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step { color: var(--text-muted) !important; }
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step:not(:last-child)::after { background: var(--team-border) !important; }
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__dot {
+  background: var(--team-surface-raised) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text-secondary) !important;
+}
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step.is-complete { color: var(--team-accent) !important; }
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step.is-complete .shift-swap-tracker__dot,
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step.is-complete:not(:last-child)::after {
+  background: var(--team-accent) !important;
+  border-color: var(--team-accent) !important;
+  color: var(--theme-on-primary) !important;
+}
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step.is-current { color: var(--theme-warning) !important; }
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step.is-current .shift-swap-tracker__dot {
+  background: color-mix(in srgb, var(--theme-warning) 14%, var(--team-surface)) !important;
+  border-color: var(--theme-warning) !important;
+  color: var(--theme-warning) !important;
+}
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step.is-rejected { color: var(--theme-danger-strong) !important; }
+html[data-theme-mode="dark"] .teams-page .shift-swap-tracker__step.is-rejected .shift-swap-tracker__dot {
+  background: var(--theme-danger) !important;
+  border-color: var(--theme-danger) !important;
+  color: var(--theme-on-primary) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-form-input, .team-form-select, .team-request-filter, textarea),
+html[data-theme-mode="dark"] .team-modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  color-scheme: dark;
+}
+
+html[data-theme-mode="dark"] :is(.team-modal-overlay, .team-modal, .team-request-modal) {
+  color-scheme: dark;
+}
+
+html[data-theme-mode="dark"] .team-modal {
+  background: var(--bg-page) !important;
+  border-color: var(--border-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme-mode="dark"] .team-modal :is(.team-modal-title, .team-form-field label, .team-day-option, .team-multiselect-trigger) {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme-mode="dark"] .team-modal :is(.team-modal-subtitle, .team-form-help) { color: var(--text-secondary) !important; }
+
+html[data-theme-mode="dark"] .team-modal :is(.team-day-option, .team-multiselect-trigger, .team-multiselect-menu, .team-multiselect-option) {
+  background: var(--bg-soft) !important;
+  border-color: var(--border-soft) !important;
+}
+
+html[data-theme-mode="dark"] .team-modal :is(.team-multiselect-option, .team-multiselect-option span) { color: var(--text-primary) !important; }
+
+html[data-theme-mode="dark"] .team-modal :is(.team-modal-close, .team-shift-option, .team-request-date-chip, .team-request-calendar) {
+  background: var(--bg-soft) !important;
+  border-color: var(--border-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme-mode="dark"] .team-modal :is(.team-request-calendar__header, .team-request-calendar__header strong, .team-request-calendar__weekday, .team-request-calendar__day) {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme-mode="dark"] .team-modal .team-request-calendar__day.is-selected {
+  background: var(--theme-primary) !important;
+  color: var(--theme-on-primary) !important;
+}
+
+html[data-theme-mode="dark"] .team-modal :is(.team-shift-option.is-selected, .team-request-date-chip.is-selected) {
+  background: var(--team-accent-soft) !important;
+  border-color: var(--team-accent-border) !important;
+  color: var(--team-text) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-request-skeleton i, .teams-skeleton, .team-skeleton) {
+  background: linear-gradient(90deg, var(--skeleton-bg), var(--skeleton-highlight), var(--skeleton-bg)) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page :is(.team-change-summary, .team-change-success__message, .team-change-api-error) {
+  background: var(--team-surface-raised) !important;
+  border-color: var(--team-border) !important;
+  color: var(--team-text-secondary) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-change-success__message {
+  color: var(--theme-success-strong) !important;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-change-api-error {
+  color: var(--theme-danger-strong) !important;
+}
+
+/* These menus render in document.body through a portal. */
+html[data-theme-mode="dark"] :is(.team-members-reference__self-menu, .team-members-reference__action-dropdown) {
+  background: var(--bg-soft) !important;
+  border-color: var(--border-soft) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--theme-shadow-md) !important;
+}
+
+html[data-theme-mode="dark"] :is(.team-members-reference__self-menu button, .team-members-reference__action-dropdown button) {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme-mode="dark"] :is(.team-members-reference__self-menu button:hover, .team-members-reference__action-dropdown button:hover) {
+  background: var(--hover-bg) !important;
+}
+
+html[data-theme-mode="dark"] .team-request-error,
+html[data-theme-mode="dark"] .team-request-panel .team-form-error {
+  color: var(--theme-danger-strong) !important;
+}
+
+/* Admin roster table layout: keep each column aligned and contain its content. */
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th,
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td {
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th {
+  padding: 10px 8px;
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td {
+  padding: 12px 8px;
+  white-space: normal;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:first-child,
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:first-child,
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:last-child,
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:last-child {
+  padding-left: 12px;
+  text-align: left;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:nth-child(2),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:nth-child(2),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:nth-child(3),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:nth-child(3),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:nth-child(4),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:nth-child(4),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:nth-child(5),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:nth-child(5),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:nth-child(6),
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:nth-child(6) {
+  text-align: center;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__days {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__day {
+  max-width: 100%;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__actions {
+  display: inline-flex;
+  max-width: none;
+  overflow: visible;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  align-items: center;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__actions > * {
+  flex: 0 0 auto;
+}
+
+.team-members-reference--admin .team-members-reference__member-shift-control {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.team-members-reference--admin .team-members-reference__member-shift-control .team-members-reference__shift-pill {
+  width: auto;
+  min-width: 0;
+  max-width: calc(100% - 36px);
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-members-reference__shift-pill--enter {
+  animation: team-shift-pill-enter 220ms ease-out both;
+}
+
+.team-members-reference--admin .team-members-reference__shift-unassign {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.team-members-reference--admin .team-members-reference__assign-shift {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--theme-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.team-members-reference--admin .team-members-reference__assign-shift:hover {
+  color: var(--theme-primary-strong, var(--theme-primary));
+}
+
+.team-members-reference--admin .team-members-reference__shift-name-trigger {
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.team-members-reference--admin .team-members-reference__shift-name-trigger:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.team-members-reference__shift-overlay {
+  z-index: 12000;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: none;
+}
+
+.team-members-reference__shift-modal {
+  width: min(340px, 100%);
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.24);
+}
+
+.team-members-reference__shift-options {
+  display: grid;
+  gap: 6px;
+  max-height: min(300px, calc(100dvh - 220px));
+  overflow-y: auto;
+}
+
+.team-members-reference__shift-options .team-members-reference__shift-menu-item {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-page);
+}
+
+.team-members-reference__shift-options .team-members-reference__shift-menu-item.is-selected {
+  border-color: var(--theme-primary);
+  background: color-mix(in srgb, var(--theme-primary) 9%, var(--bg-page));
+}
+
+.team-members-reference__shift-times {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.team-members-reference__assign-confirm,
+.team-members-reference__unassign-confirm {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--theme-primary);
+  border-radius: 9px;
+  background: var(--theme-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.team-members-reference__unassign-confirm {
+  border-color: var(--theme-danger, #dc2626);
+  background: transparent;
+  color: var(--theme-danger, #dc2626);
+}
+
+.team-members-reference__assign-confirm:disabled,
+.team-members-reference__unassign-confirm:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__days {
+  display: inline-flex;
+  width: max-content;
+  max-width: none;
+  flex-wrap: nowrap;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+/* Keep all admin roster scrolling on its table viewport. */
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) {
+  overflow: visible;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-primary) #ccfbf1;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__scroll::-webkit-scrollbar-track {
+  background: #ccfbf1;
+  border-radius: 999px;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-primary);
+  border: 2px solid #ccfbf1;
+  border-radius: 999px;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th,
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td {
+  white-space: nowrap;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th,
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td {
+  padding-right: 14px;
+  padding-left: 14px;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin th:first-child,
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin td:first-child {
+  min-width: 170px;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__actions {
+  display: inline-flex;
+  max-width: none;
+  overflow: visible;
+  flex-wrap: nowrap;
+  gap: 8px;
+  white-space: nowrap;
+  align-items: center;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__actions > * {
+  flex: 0 0 auto;
+}
+
+.team-members-reference__day--wfo.team-members-reference__no-shift {
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 14px;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: var(--team-accent-soft, var(--teal-100));
+  color: var(--primary);
+}
+
+/* Keep day chips intrinsic; the table viewport is their only scroll container. */
+.team-members-reference .team-members-reference__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.team-members-reference.team-members-reference--admin .team-members-reference__table,
+.team-members-reference:not(.team-members-reference--admin) .team-members-reference__table {
+  width: 100%;
+  min-width: 1000px;
+  table-layout: auto;
+}
+
+.team-members-reference .team-members-reference__days-cell {
+  min-width: 240px;
+  padding: 12px 24px 12px 20px;
+  white-space: nowrap;
+  overflow: visible;
+  text-align: center;
+}
+
+.team-members-reference .team-members-reference__days {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: max-content;
+  max-width: none;
+  min-width: max-content;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.team-members-reference .team-members-reference__days > * {
+  flex-shrink: 0;
+  max-width: none;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__days,
+.team-members-reference.team-members-reference--admin.team-members-reference--self-service .team-members-reference__days,
+.team-members-reference:not(.team-members-reference--admin) .team-members-reference__days {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: none;
+  min-width: max-content;
+  overflow: visible;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__days > *,
+.team-members-reference.team-members-reference--admin.team-members-reference--self-service .team-members-reference__days > *,
+.team-members-reference:not(.team-members-reference--admin) .team-members-reference__days > * {
+  flex-shrink: 0;
+  max-width: none;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__table--roster-admin .team-members-reference__days .team-members-reference__day {
+  flex-shrink: 0;
+  max-width: none;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__days-cell,
+.team-members-reference.team-members-reference--admin.team-members-reference--self-service .team-members-reference__days-cell,
+.team-members-reference:not(.team-members-reference--admin) .team-members-reference__days-cell {
+  min-width: 240px;
+  padding: 12px 24px 12px 20px;
+  white-space: nowrap;
+  overflow: visible;
+  text-align: center;
+}
+
+.team-members-reference--admin .team-members-reference__project-cell,
+.team-members-reference--admin .team-members-reference__project-name,
+.team-members-reference--admin .team-members-reference__shift-name-trigger,
+.team-members-reference--admin .team-members-reference__member-shift-control .team-members-reference__shift-pill {
+  overflow: visible;
+}
+
+.team-members-reference__shift-popover {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  width: max-content;
+  min-width: 184px;
+  max-width: min(320px, calc(100vw - 16px));
+  max-height: min(320px, calc(100vh - 16px));
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  box-shadow: var(--theme-shadow-md);
+  overflow-y: auto;
+  animation: team-shift-popover-enter 180ms ease-out both;
+}
+
+.team-members-reference__shift-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.team-members-reference__shift-menu-item:hover,
+.team-members-reference__shift-menu-item:focus-visible {
+  background: var(--hover-bg);
+}
+
+.team-members-reference__shift-menu-item:disabled {
+  cursor: wait;
+}
+
+.team-members-reference__shift-popover .team-members-reference__shift-confirm-text {
+  margin: 2px 4px 8px;
+  color: var(--text-primary);
+  white-space: normal;
+}
+
+.team-members-reference__shift-popover .team-members-reference__shift-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 3px 2px;
+}
+
+.team-members-reference__shift-popover .team-members-reference__shift-confirm-actions .team-action-btn {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.team-members-reference__shift-menu-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  color: var(--text-secondary);
+}
+
+.team-members-reference__shift-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 2px solid var(--border-soft);
+  border-top-color: currentColor;
+  animation: team-shift-spinner-turn 700ms linear infinite;
+}
+
+.team-members-reference__shift-unassign .team-members-reference__shift-spinner {
+  width: 13px;
+  height: 13px;
+  flex-basis: 13px;
+}
+
+@keyframes team-shift-popover-enter {
+  from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes team-shift-spinner-turn {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes team-shift-pill-enter {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .team-members-reference__shift-popover,
+  .team-members-reference__shift-spinner,
+  .team-members-reference__shift-pill--enter {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 }

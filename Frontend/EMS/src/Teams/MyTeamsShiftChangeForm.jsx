@@ -1,15 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { createShiftChangeRequest } from "../services/shiftRequestService";
 import { listHrmsSettings } from "../services/hrmsSettingsService";
 import { shiftModulesConfig } from "../Pages/Settings/hrmsSettingsConfig";
 import { normalizeCollection } from "./teamUtils";
 
-const REQUESTED_SHIFTS = [
-  { name: "Afternoon Shift", time: "14:00 - 22:00" },
-  { name: "Night Shift", time: "22:00 - 06:00" },
-  { name: "Morning Shift", time: "06:00 - 14:00" }
-];
 const cleanName = (value) => String(value ?? "").toLowerCase().replace(/[^a-z]/g, "");
 const shiftNameOf = (shift) => shift?.shiftName ?? shift?.name ?? shift?.label ?? "";
 const shiftIdOf = (shift) => shift?.shiftId ?? shift?.id ?? shift?.shift_Id;
@@ -31,14 +26,14 @@ function MyTeamShiftChangeForm({ employeeId, currentShiftId, onClose, onSubmitte
     return () => { active = false; };
   }, []);
 
-  const currentId = useMemo(() => currentShiftId ?? shiftIdOf(shifts.find((shift) => cleanName(shiftNameOf(shift)).includes("generalshift"))), [currentShiftId, shifts]);
+  const currentId = currentShiftId;
   const selectedShift = useMemo(() => shifts.find((shift) => cleanName(shiftNameOf(shift)) === cleanName(requestedShift)), [requestedShift, shifts]);
 
   const submit = async (event) => {
     event.preventDefault();
     if (!reason.trim()) { toast.error("Reason for change is required."); return; }
     if (!employeeId || !currentId || !shiftIdOf(selectedShift)) {
-      toast.error("The current shift or requested shift is not configured.");
+      toast.error("A current assigned shift and requested shift are required.");
       return;
     }
     setSaving(true);
@@ -71,13 +66,18 @@ function MyTeamShiftChangeForm({ employeeId, currentShiftId, onClose, onSubmitte
     <form className="grid gap-4" onSubmit={submit}>
       <div className="grid gap-1">
         <label className="text-sm font-semibold text-slate-700" htmlFor="my-team-current-shift">Current Shift</label>
-        <input id="my-team-current-shift" className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm" readOnly value="General Shift (09:00 - 18:00)" />
+        <input id="my-team-current-shift" className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm" readOnly value={currentId ? shiftNameOf(shifts.find((shift) => String(shiftIdOf(shift)) === String(currentId))) || "Assigned shift" : "No shift"} />
       </div>
       <div className="grid gap-1">
         <label className="text-sm font-semibold text-slate-700" htmlFor="my-team-requested-shift">Requested Shift</label>
         <select id="my-team-requested-shift" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={requestedShift} onChange={(event) => setRequestedShift(event.target.value)} disabled={loadingShifts} required>
           <option value="">{loadingShifts ? "Loading shifts..." : "Select a shift"}</option>
-          {REQUESTED_SHIFTS.map((shift) => <option key={shift.name} value={shift.name}>{shift.name} ({shift.time})</option>)}
+          {shifts.map((shift) => {
+            const name = shiftNameOf(shift);
+            const start = shift.startTime ?? shift.start_Time;
+            const end = shift.endTime ?? shift.end_Time;
+            return <option key={shiftIdOf(shift) ?? name} value={name}>{name}{start || end ? ` (${start || "?"} - ${end || "?"})` : ""}</option>;
+          })}
         </select>
         {loadError && <span className="text-sm text-rose-700" role="alert">{loadError}</span>}
         {!loadingShifts && requestedShift && !selectedShift && <span className="text-sm text-rose-700" role="alert">{requestedShift} is not configured in Shift Master.</span>}

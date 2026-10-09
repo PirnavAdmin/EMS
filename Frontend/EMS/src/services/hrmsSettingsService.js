@@ -191,8 +191,13 @@ export const updateHrmsSettingsRecord = async (moduleConfig, id, payload) => {
   });
 };
 
-export const deleteHrmsSettingsRecord = async (moduleConfig, id) =>
-  api.delete(toHrmsEndpoint(moduleConfig.api.delete, id));
+export const deleteHrmsSettingsRecord = async (moduleConfig, id) => {
+  const endpoint = toHrmsEndpoint(moduleConfig.api.delete, id);
+  if (moduleConfig.api.deleteMethod === "put") {
+    return api.put(endpoint);
+  }
+  return api.delete(endpoint);
+};
 
 export const runHrmsWorkflowAction = async (action, payload = {}, id) => {
   if (action.shiftSwapAction === "approve") {

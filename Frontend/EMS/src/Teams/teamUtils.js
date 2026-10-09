@@ -1,5 +1,35 @@
 import { TEAM_DAY_OPTIONS } from "./teamsData";
 
+const DISPLAY_DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DAY_ALIASES = new Map([
+  ["mon", "Mon"], ["monday", "Mon"],
+  ["tue", "Tue"], ["tues", "Tue"], ["tuesday", "Tue"],
+  ["wed", "Wed"], ["wednesday", "Wed"],
+  ["thu", "Thu"], ["thur", "Thu"], ["thurs", "Thu"], ["thursday", "Thu"],
+  ["fri", "Fri"], ["friday", "Fri"]
+]);
+
+const normalizeDisplayDays = (days) => {
+  if (!Array.isArray(days)) return [];
+
+  const normalized = new Set();
+  days.forEach((day) => {
+    const label = String(day ?? "").trim().toLowerCase();
+    const canonicalDay = DAY_ALIASES.get(label);
+    if (canonicalDay) normalized.add(canonicalDay);
+  });
+
+  return DISPLAY_DAY_ORDER.filter((day) => normalized.has(day));
+};
+
+export const getDisplayDays = (wfoDays, wfhDays) => {
+  const normalizedWfoDays = normalizeDisplayDays(wfoDays);
+  const wfoSet = new Set(normalizedWfoDays);
+  const normalizedWfhDays = normalizeDisplayDays(wfhDays).filter((day) => !wfoSet.has(day));
+
+  return { wfoDays: normalizedWfoDays, wfhDays: normalizedWfhDays };
+};
+
 const isPlainObject = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -661,7 +691,6 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
         }
       : null);
   const memberShift = normalizeShift(memberShiftRecord);
-  const teamShift = normalizeShift(teamContext.shift);
   const teamReportingDays = normalizeReportingDaysForUi(
     teamContext.reportingDays ?? record.reportingDays
   );
@@ -814,8 +843,11 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
     differentProject: hasProjectOverride,
     isCrossMapped: hasProjectOverride,
     customReportingDays: hasCustomReportingDays,
-    shift: memberShift || teamShift,
-    shiftName: firstNonEmpty(memberShift?.shiftName, teamShift?.shiftName),
+    // A team-level shift is not an employee assignment. Keep an absent member
+    // mapping empty so the roster can show the company attendance default.
+    shift: memberShift,
+    shiftName: firstNonEmpty(memberShift?.shiftName),
+    shiftUnassigned: !memberShift,
     shiftEffectiveTo: firstNonEmpty(
       record.shiftEffectiveTo,
       record.effectiveTo,

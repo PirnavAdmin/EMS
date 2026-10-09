@@ -340,7 +340,7 @@ Employee ID: {employee.Employee_Id}";
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://localhost:7191";
+        string baseUrl = "https://hrms.pirnav.com";
         var notification = GetNotificationSettings();
 
         if (!notification.EnableEmailNotifications ||
@@ -2231,7 +2231,7 @@ Employee ID: {employee.Employee_Id}";
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://localhost:7191";
+        string baseUrl = "https://hrms.pirnav.com";
 
         var notification = GetNotificationSettings();
 

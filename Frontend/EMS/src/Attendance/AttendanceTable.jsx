@@ -365,11 +365,6 @@ function AttendanceTable({
   const token = getStoredToken();
 
   // =========================
-  // DEFAULT OFFICE TIME
-  // =========================
-  const DEFAULT_CHECKIN = "09:00";
-  const DEFAULT_CHECKOUT = "18:00";
-  // =========================
   // HELPERS
   // =========================
   const getEmployeeId = (emp) => {
@@ -1191,8 +1186,8 @@ function AttendanceTable({
 
   const getDefaultEditTimes = (checkIn, checkOut) => {
     return {
-      checkIn: formatTimeForInput(checkIn) || DEFAULT_CHECKIN,
-      checkOut: formatTimeForInput(checkOut) || DEFAULT_CHECKOUT
+      checkIn: formatTimeForInput(checkIn),
+      checkOut: formatTimeForInput(checkOut)
     };
   };
 

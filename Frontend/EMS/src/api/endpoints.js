@@ -463,6 +463,7 @@ export const API = {
         LIST: "/EmployeeShift",
         BY_EMPLOYEE: (employeeId) => `/EmployeeShift/${employeeId}`,
         DELETE: (assignmentId) => `/EmployeeShift/${assignmentId}`,
+        UNASSIGN: (employeeId) => `/EmployeeShift/employee/${employeeId}/unassign`,
     },
 
     EMPLOYEE_WEEKLY_OFF: {
@@ -1144,6 +1145,7 @@ export const API_ENDPOINTS = {
         list: API.EMPLOYEE_SHIFT.LIST,
         byEmployee: API.EMPLOYEE_SHIFT.BY_EMPLOYEE,
         delete: API.EMPLOYEE_SHIFT.DELETE,
+        unassign: API.EMPLOYEE_SHIFT.UNASSIGN,
     },
     employeeWeeklyOff: {
         list: API.EMPLOYEE_WEEKLY_OFF.LIST,

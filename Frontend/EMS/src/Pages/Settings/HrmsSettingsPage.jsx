@@ -1807,7 +1807,10 @@ function HrmsSettingsPage({
   };
 
   const handleDelete = async (record) => {
-    const recordId = getRecordId(record, activeConfig);
+    const deleteParamField = activeConfig.api?.deleteParamField;
+    const recordId = deleteParamField
+      ? record?.[deleteParamField] ?? record?.employeeId ?? record?.EmployeeId
+      : getRecordId(record, activeConfig);
 
     if (!recordId) {
       return;
@@ -1818,7 +1821,10 @@ function HrmsSettingsPage({
       return;
     }
 
-    if (!window.confirm(`Delete this ${activeConfig.title} record?`)) return;
+    const confirmation = activeConfig === shiftModulesConfig.employeeShift
+      ? "Unassign this employee's shift?"
+      : `Delete this ${activeConfig.title} record?`;
+    if (!window.confirm(confirmation)) return;
 
     await confirmDeleteRecord(record, recordId);
   };
@@ -1852,10 +1858,19 @@ function HrmsSettingsPage({
         }
       }
 
-      toastSuccess(activeConfig === shiftModulesConfig.shiftMaster ? "Shift deleted successfully." : `${activeConfig.title} deleted successfully.`);
+      toastSuccess(
+        activeConfig === shiftModulesConfig.shiftMaster
+          ? "Shift deleted successfully."
+          : activeConfig === shiftModulesConfig.employeeShift
+            ? "Shift unassigned successfully."
+            : `${activeConfig.title} deleted successfully.`
+      );
       setDeleteRecord(null);
     } catch (error) {
-      toastError(getHrmsErrorMessage(error, `Unable to delete ${activeConfig.title}.`));
+      const fallbackMessage = activeConfig === shiftModulesConfig.employeeShift
+        ? "Unable to unassign shift."
+        : `Unable to delete ${activeConfig.title}.`;
+      toastError(getHrmsErrorMessage(error, fallbackMessage));
     } finally {
       deleteRequestInFlight.current = false;
       setActionLoading(false);

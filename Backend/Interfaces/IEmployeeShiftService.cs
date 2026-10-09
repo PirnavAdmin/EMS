@@ -1,13 +1,9 @@
 ﻿using EmployeeManagementSystem.DTOs;
 
 namespace EmployeeManagementSystem.Interfaces
-
 {
-
     public interface IEmployeeShiftService
-
     {
-
         Task<string> AssignShiftAsync(AssignShiftDto dto);
 
         Task<string> BulkAssignShiftAsync(List<AssignShiftDto> dto);
@@ -18,6 +14,6 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<string> RemoveAssignmentAsync(int assignmentId);
 
+        Task<string> UnassignShiftAsync(string employeeId);
     }
-
 }

@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
@@ -41,6 +41,27 @@ namespace EmployeeManagementSystem.Services
         private static bool _shiftConfigurationChecked = false;
         private static bool _shiftConfigurationExists = false;
         private static readonly SemaphoreSlim _shiftConfigurationSemaphore = new(1, 1);
+
+        public static void ClearShiftCache(string? employeeId = null)
+        {
+            lock (_shiftCacheLock)
+            {
+                if (string.IsNullOrWhiteSpace(employeeId))
+                    _shiftCache.Clear();
+                else
+                    _shiftCache.Remove(employeeId.Trim());
+            }
+        }
+
+        public static void ClearAttendanceSettingsCache()
+        {
+            lock (_attendanceSettingsCacheLock)
+            {
+                _cachedAttendanceSettings = null;
+                _attendanceSettingsCacheTime = DateTime.MinValue;
+            }
+        }
+
         private readonly AppDbContext _context;
 
         private readonly IAdminNotificationService _notificationService;
@@ -122,7 +143,7 @@ namespace EmployeeManagementSystem.Services
                 .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
         }
 
-        private AttendanceSettings GetAttendanceSettings()
+        private AttendanceSettings? GetAttendanceSettings()
         {
             lock (_attendanceSettingsCacheLock)
             {
@@ -135,10 +156,13 @@ namespace EmployeeManagementSystem.Services
 
                 var settings = _context.AttendanceSettings
                     .AsNoTracking()
+                    .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
 
                 if (settings == null)
-                    throw new Exception("Attendance Settings not configured.");
+                {
+                    return null;
+                }
 
                 _cachedAttendanceSettings = new AttendanceSettings
                 {
@@ -172,7 +196,22 @@ namespace EmployeeManagementSystem.Services
             var emp = await GetEmployee(user);
 
             if (emp == null)
-                return new UnauthorizedObjectResult("Invalid user");
+                return new UnauthorizedObjectResult(new { message = "Invalid user" });
+
+            // CHECK HOLIDAY
+            var todayIst = ConvertToIST(DateTime.UtcNow).Date;
+
+            var holiday = await _context.Holidays
+                .AsNoTracking()
+                .FirstOrDefaultAsync(h => h.Holiday_Date.Date == todayIst);
+
+            if (holiday != null)
+            {
+                return new BadRequestObjectResult(new
+                {
+                    message = "Check-in is not allowed on holidays"
+                });
+            }
 
             var today = DateTime.UtcNow.Date;
             var tomorrow = today.AddDays(1);
@@ -219,32 +258,36 @@ namespace EmployeeManagementSystem.Services
 
             var now = requestTimeUtc;
             var ist = requestTimeIst;
-
             var settings = GetAttendanceSettings();
+
+            if (settings == null)
+            {
+                return new ObjectResult(new
+                {
+                    Message = "Attendance settings are not configured."
+                })
+                {
+                    StatusCode = StatusCodes.Status500InternalServerError
+                };
+            }
 
 
             TimeSpan checkInStart = settings.CheckInStartTime;
-
             TimeSpan lateAfter = settings.LateAfterTime;
 
             if (shift != null)
-
             {
-
                 checkInStart = shift.StartTime;
-
                 lateAfter = shift.StartTime.Add(TimeSpan.FromMinutes(shift.GraceTimeMinutes));
-
             }
 
             if (ist.TimeOfDay < checkInStart)
-
             {
-
-                return new BadRequestObjectResult(
-
-                    $"Check-in is allowed only after {settings.CheckInStartTime}");
-
+                var formattedTime = DateTime.Today.Add(checkInStart).ToString("hh:mm tt");
+                return new BadRequestObjectResult(new
+                {
+                    message = $"Check-in is allowed only after {formattedTime}"
+                });
             }
 
             string status = "Present";
@@ -369,7 +412,7 @@ namespace EmployeeManagementSystem.Services
                 var employeeId = user.FindFirst("EmployeeId")?.Value;
 
                 if (string.IsNullOrWhiteSpace(employeeId))
-                    return new UnauthorizedObjectResult("Invalid user");
+                    return new UnauthorizedObjectResult(new { message = "Invalid user" });
 
                 var today = DateTime.UtcNow.Date;
                 var tomorrow = today.AddDays(1);
@@ -426,8 +469,12 @@ namespace EmployeeManagementSystem.Services
 
 
                 if (att == null)
-
-                    return new BadRequestObjectResult("Check-in not found");
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        message = "Check-in not found"
+                    });
+                }
 
 
                 var now = requestTimeUtc;
@@ -448,6 +495,17 @@ namespace EmployeeManagementSystem.Services
 
 
                 var settings = GetAttendanceSettings();
+                if (settings == null)
+                {
+                    return new ObjectResult(new
+                    {
+                        Message = "Attendance settings are not configured."
+                    })
+                    {
+                        StatusCode = StatusCodes.Status500InternalServerError
+                    };
+                }
+
                 TimeSpan checkoutTime = settings.CheckoutTime;
 
                 int grace = 0;
@@ -464,7 +522,7 @@ namespace EmployeeManagementSystem.Services
 
                 DateTime cutoffTime;
 
-                if (shift != null && shift.IsNightShift)
+                if (shift != null && (shift.IsNightShift || shift.ShiftEndNextDay == 1))
 
                 {
 
@@ -494,9 +552,15 @@ namespace EmployeeManagementSystem.Services
 
                 {
 
-                    return new BadRequestObjectResult(
+                    var formattedCutoff = cutoffTime.ToString("hh:mm tt");
 
-                        $"Checkout allowed only until {cutoffTime:dd-MMM-yyyy hh:mm tt}");
+                    return new BadRequestObjectResult(new
+
+                    {
+
+                        message = $"Checkout allowed only until {formattedCutoff}"
+
+                    });
 
                 }
 
@@ -563,12 +627,12 @@ namespace EmployeeManagementSystem.Services
 
                 if (dto == null)
                 {
-                    return new BadRequestObjectResult("Checkout payload is null");
+                    return new BadRequestObjectResult(new { message = "Checkout payload is null" });
                 }
 
                 if (dto.Latitude == 0 || dto.Longitude == 0)
                 {
-                    return new BadRequestObjectResult("Latitude/Longitude missing");
+                    return new BadRequestObjectResult(new { message = "Latitude/Longitude missing" });
                 }
 
                 // Calculate distance
@@ -1898,7 +1962,7 @@ employeeInfo.Email ?? "",
             var today = istNow.Date;
 
             var query = _context.Attendance
-       
+
        .Where(a =>
            a.Check_In != null &&
            a.Check_Out == null &&
@@ -4935,7 +4999,7 @@ employeeInfo.Email ?? "",
                     cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#E5E7EB");
                     cell.Value = "W";
                     break;
-    
+
                 case "H":
                 case "Holiday":
                     cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#DCEBFF");
@@ -4988,38 +5052,58 @@ employeeInfo.Email ?? "",
 
         private async Task<ShiftMaster?> GetApplicableShiftAsync(string employeeId)
         {
-            // 1. Check in-memory cache
-            lock (_shiftCacheLock)
-            {
-                if (_shiftCache.TryGetValue(employeeId, out var cached) &&
-                    DateTime.UtcNow - cached.CachedAt < ShiftCacheDuration)
-                {
-                    return cached.Shift;
-                }
-            }
+            if (string.IsNullOrWhiteSpace(employeeId))
+                return null;
 
+            var empId = employeeId.Trim();
             var today = DateTime.UtcNow.Date;
             var tomorrow = today.AddDays(1);
-            var todayDayName = DateTime.UtcNow.DayOfWeek.ToString();
 
-            // Fetch employee's organization
-            var employee = await _context.Employees
+            // 1. Check Team Membership (Team Override / Team Shift has highest authority for team members)
+            var teamMember = await _context.TeamMembers
                 .AsNoTracking()
-                .Where(e => e.Employee_Id == employeeId)
-                .Select(e => new { e.OrganizationId, e.AdminId })
-                .FirstOrDefaultAsync();
+                .Include(tm => tm.Team)
+                .FirstOrDefaultAsync(tm => (tm.EmployeeId == empId || tm.EmployeeId == employeeId) && tm.Team != null && tm.Team.IsActive);
 
-            int? orgId = employee?.OrganizationId;
+            if (teamMember != null)
+            {
+                var overrideData = await _context.TeamMemberOverrides
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.TeamMemberId == teamMember.Id);
 
-            ShiftMaster? shift = null;
+                // If member has a custom shift override in the team
+                if (overrideData != null && overrideData.CustomShift)
+                {
+                    if (overrideData.OverrideShiftId.HasValue && overrideData.OverrideShiftId.Value > 0)
+                    {
+                        return await _context.ShiftMasters
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(x => x.ShiftId == overrideData.OverrideShiftId.Value && x.IsActive);
+                    }
+                    else
+                    {
+                        // Explicitly Unassigned / No Shift -> Return null so AttendanceSettings are used
+                        return null;
+                    }
+                }
 
-            // =========================================================
-            // TIER 1: Daily Shift Roster (Highest Priority)
-            // =========================================================
+                // If member has no override, check if the team has an assigned base shift
+                if (teamMember.Team != null && teamMember.Team.IsActive && teamMember.Team.ShiftId.HasValue && teamMember.Team.ShiftId.Value > 0)
+                {
+                    return await _context.ShiftMasters
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.ShiftId == teamMember.Team.ShiftId.Value && x.IsActive);
+                }
+
+                // Team has NO shift assigned -> Return null so AttendanceSettings are used
+                return null;
+            }
+
+            // 2. If employee is NOT in any active team, check Daily Shift Roster
             var rosterShiftId = await _context.ShiftRosters
                 .AsNoTracking()
                 .Where(x =>
-                    x.Employee_Id == employeeId &&
+                    (x.Employee_Id == empId || x.Employee_Id == employeeId) &&
                     x.RosterDate >= today &&
                     x.RosterDate < tomorrow &&
                     x.IsPublished)
@@ -5028,153 +5112,79 @@ employeeInfo.Email ?? "",
 
             if (rosterShiftId != 0)
             {
-                shift = await _context.ShiftMasters
+                var rosterShift = await _context.ShiftMasters
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x => x.ShiftId == rosterShiftId && x.IsActive);
+                if (rosterShift != null)
+                    return rosterShift;
             }
 
-            // =========================================================
-            // TIER 2: Approved Shift Swap
-            // =========================================================
-            if (shift == null)
-            {
-                var swap = await _context.ShiftSwaps
-                    .AsNoTracking()
-                    .Where(x =>
-                        (x.FromEmployeeId == employeeId || x.ToEmployeeId == employeeId) &&
-                        x.ShiftDate.Date == today &&
-                        (x.Status.StartsWith("Approved") || x.Status == "Accepted"))
-                    .FirstOrDefaultAsync();
+            // 3. Approved Shift Swap
+            var swap = await _context.ShiftSwaps
+                .AsNoTracking()
+                .Where(x =>
+                    (x.FromEmployeeId == empId || x.ToEmployeeId == empId) &&
+                    x.ShiftDate.Date == today &&
+                    (x.Status.StartsWith("Approved") || x.Status == "Accepted"))
+                .FirstOrDefaultAsync();
 
-                if (swap != null)
+            if (swap != null)
+            {
+                var swapShift = await _context.ShiftMasters
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ShiftId == swap.ShiftId && x.IsActive);
+                if (swapShift != null)
+                    return swapShift;
+            }
+
+            // 4. Shift Rotation
+            var rotation = await _context.ShiftRotations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    (x.Employee_Id == empId || x.Employee_Id == employeeId) &&
+                    x.IsActive &&
+                    x.EffectiveFrom < tomorrow);
+
+            if (rotation != null)
+            {
+                int shiftId = rotation.Shift1Id;
+                if (rotation.RotationType == "Weekly")
                 {
-                    shift = await _context.ShiftMasters
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.ShiftId == swap.ShiftId && x.IsActive);
+                    var weeks = (today - rotation.EffectiveFrom.Date).Days / 7;
+                    var shifts = new List<int> { rotation.Shift1Id };
+                    if (rotation.Shift2Id.HasValue) shifts.Add(rotation.Shift2Id.Value);
+                    if (rotation.Shift3Id.HasValue) shifts.Add(rotation.Shift3Id.Value);
+                    if (shifts.Count > 0)
+                        shiftId = shifts[Math.Abs(weeks) % shifts.Count];
                 }
-            }
 
-            // =========================================================
-            // TIER 3: Shift Rotation
-            // =========================================================
-            if (shift == null)
-            {
-                var rotation = await _context.ShiftRotations
+                var rotationShift = await _context.ShiftMasters
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x =>
-                        x.Employee_Id == employeeId &&
-                        x.IsActive &&
-                        x.EffectiveFrom < tomorrow);
-
-                if (rotation != null)
-                {
-                    int shiftId = rotation.Shift1Id;
-
-                    if (rotation.RotationType == "Weekly")
-                    {
-                        var weeks = (today - rotation.EffectiveFrom.Date).Days / 7;
-                        var shifts = new List<int> { rotation.Shift1Id };
-
-                        if (rotation.Shift2Id.HasValue)
-                            shifts.Add(rotation.Shift2Id.Value);
-
-                        if (rotation.Shift3Id.HasValue)
-                            shifts.Add(rotation.Shift3Id.Value);
-
-                        if (shifts.Count > 0)
-                            shiftId = shifts[Math.Abs(weeks) % shifts.Count];
-                    }
-
-                    shift = await _context.ShiftMasters
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.ShiftId == shiftId && x.IsActive);
-                }
+                    .FirstOrDefaultAsync(x => x.ShiftId == shiftId && x.IsActive);
+                if (rotationShift != null)
+                    return rotationShift;
             }
 
-            // =========================================================
-            // TIER 4: Direct Employee Shift Assignment
-            // =========================================================
-            if (shift == null)
+            // 5. Direct Employee Shift Assignment (For employees without a team)
+            var assignment = await _context.EmployeeShiftAssignments
+                .AsNoTracking()
+                .Where(x =>
+                    (x.Employee_Id == empId || x.Employee_Id == employeeId) &&
+                    x.IsActive &&
+                    x.EffectiveFrom.Date <= today &&
+                    (x.EffectiveTo == null || x.EffectiveTo.Value.Date >= today))
+                .OrderByDescending(x => x.EffectiveFrom)
+                .FirstOrDefaultAsync();
+
+            if (assignment != null)
             {
-                var assignment = await _context.EmployeeShiftAssignments
+                return await _context.ShiftMasters
                     .AsNoTracking()
-                    .Where(x =>
-                        x.Employee_Id == employeeId &&
-                        x.IsActive &&
-                        x.EffectiveFrom.Date <= today &&
-                        (x.EffectiveTo == null || x.EffectiveTo.Value.Date >= today))
-                    .OrderByDescending(x => x.EffectiveFrom)
-                    .FirstOrDefaultAsync();
-
-                if (assignment != null)
-                {
-                    shift = await _context.ShiftMasters
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.ShiftId == assignment.ShiftId && x.IsActive);
-                }
+                    .FirstOrDefaultAsync(x => x.ShiftId == assignment.ShiftId && x.IsActive);
             }
 
-            // =========================================================
-            // TIER 5 & 6: Team Shift / Team Member Override
-            // =========================================================
-            if (shift == null)
-            {
-                // Find all teams the employee belongs to
-                var teamMemberships = await _context.TeamMembers
-                    .AsNoTracking()
-                    .Include(tm => tm.TeamMemberOverride)
-                    .Include(tm => tm.Team)
-                    .Where(tm => tm.EmployeeId == employeeId && tm.Team != null && tm.Team.IsActive)
-                    .ToListAsync();
-
-                if (teamMemberships.Any())
-                {
-                    // If member has a custom shift override in a team
-                    var overrideMembership = teamMemberships.FirstOrDefault(tm =>
-                        tm.TeamMemberOverride != null &&
-                        tm.TeamMemberOverride.CustomShift &&
-                        tm.TeamMemberOverride.OverrideShiftId.HasValue);
-
-                    if (overrideMembership != null)
-                    {
-                        shift = await _context.ShiftMasters
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(x => x.ShiftId == overrideMembership.TeamMemberOverride!.OverrideShiftId!.Value && x.IsActive);
-                    }
-                    else
-                    {
-                        // Match team by reporting day for today, or take the first active team shift
-                        var todayTeam = teamMemberships.FirstOrDefault(tm =>
-                            _context.TeamReportingDays.Any(trd => trd.TeamId == tm.TeamId && trd.DayName.ToLower() == todayDayName.ToLower()))
-                            ?? teamMemberships.First();
-
-                        if (todayTeam.Team?.ShiftId != null)
-                        {
-                            shift = await _context.ShiftMasters
-                                .AsNoTracking()
-                                .FirstOrDefaultAsync(x => x.ShiftId == todayTeam.Team.ShiftId.Value && x.IsActive);
-                        }
-                    }
-                }
-            }
-
-            // =========================================================
-            // TIER 7: Organization Default Shift (Fallback)
-            // =========================================================
-            if (shift == null && orgId.HasValue)
-            {
-                shift = await _context.ShiftMasters
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.IsActive && x.OrganizationId == orgId.Value);
-            }
-
-            // Cache the resolved shift
-            lock (_shiftCacheLock)
-            {
-                _shiftCache[employeeId] = (shift, DateTime.UtcNow);
-            }
-
-            return shift;
+            // 6. No Shift Assigned -> Return null to use AttendanceSettings
+            return null;
         }
 
         private async Task<bool> IsWeeklyOffAsync(string employeeId, DateTime date)

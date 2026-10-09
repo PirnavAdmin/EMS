@@ -17,10 +17,17 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> Create(CreateTeamDto dto)
+        public async Task<IActionResult> Create([FromBody] CreateTeamDto dto)
         {
+            if (dto == null)
+                return BadRequest(new { message = "Invalid request payload." });
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             return await _service.CreateTeam(dto);
         }
+
 
         [HttpGet]
         public async Task<IActionResult> GetTeams()

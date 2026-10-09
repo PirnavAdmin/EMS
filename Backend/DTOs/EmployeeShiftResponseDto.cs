@@ -1,24 +1,32 @@
-﻿namespace EmployeeManagementSystem.DTOs;
-
-public class EmployeeShiftResponseDto
+﻿namespace EmployeeManagementSystem.DTOs
 {
-    public int AssignmentId { get; set; }
+    public class EmployeeShiftResponseDto
+    {
+        // Always a valid integer ID from the database
+        public int AssignmentId { get; set; }
 
-    public string Employee_Id { get; set; } = string.Empty;
+        public string Employee_Id { get; set; } = string.Empty;
 
-    public int ShiftId { get; set; }
+        public int ShiftId { get; set; }
 
-    public string ShiftName { get; set; } = string.Empty;
+        public string ShiftName { get; set; } = string.Empty;
 
-    public string ShiftCode { get; set; } = string.Empty;
+        public string ShiftCode { get; set; } = string.Empty;
 
-    public TimeSpan StartTime { get; set; }
+        public TimeSpan StartTime { get; set; }
 
-    public TimeSpan EndTime { get; set; }
+        public TimeSpan EndTime { get; set; }
 
-    public DateTime EffectiveFrom { get; set; }
+        public DateTime EffectiveFrom { get; set; }
 
-    public DateTime? EffectiveTo { get; set; }
+        public DateTime? EffectiveTo { get; set; }
 
-    public bool IsActive { get; set; }
+        public bool IsActive { get; set; }
+
+        // Shift source: "Direct", "Team", "TeamOverride", "Organization", or "Roster"
+        public string AssignmentType { get; set; } = "Direct";
+
+        // Always true so frontend can unassign any employee
+        public bool CanUnassign { get; set; } = true;
+    }
 }

@@ -1,18 +1,31 @@
-﻿/* =========================================================
+/* =========================================================
    Resignation Page & Card Container
    ========================================================= */
+.resignation-page {
+  --exit-btn-bg: #168b87;
+  --exit-btn-bg-hover: #11736f;
+  --exit-btn-text: #ffffff;
+}
+
+html[data-theme-mode="dark"] .resignation-page {
+  --exit-btn-bg: var(--theme-primary);
+  --exit-btn-bg-hover: var(--primary-hover);
+  --exit-btn-text: var(--theme-on-primary);
+}
+
 .resignation-page :is(.resignation-header, .resignation-actions, .actions-container, .settlement-actions, .clearance-section) > button,
-.resignation-page :is(.resignation-table, .clearance-table) td > button:not(.reason-text):not(.reason-link),
+.resignation-page :is(.resignation-table, .clearance-table) td > button:not(.reason-text):not(.reason-link):not(.delete-btn):not(.reject-btn):not(.btn-reject),
+.resignation-page .exit-interview-form > button,
 .resignation-page .resignation-action-btn,
 .resignation-page .action-btn {
   appearance: none;
   -webkit-appearance: none;
   min-height: 40px;
   padding: 9px 16px;
-  border: 1px solid #168b87 !important;
+  border: 1px solid var(--exit-btn-bg) !important;
   border-radius: 9px !important;
-  background: #168b87 !important;
-  color: #ffffff !important;
+  background: var(--exit-btn-bg) !important;
+  color: var(--exit-btn-text) !important;
   font-weight: 600 !important;
   opacity: 1 !important;
   cursor: pointer;
@@ -21,18 +34,40 @@
 }
 
 .resignation-page :is(.resignation-header, .resignation-actions, .actions-container, .settlement-actions, .clearance-section) > button:hover:not(:disabled),
-.resignation-page :is(.resignation-table, .clearance-table) td > button:hover:not(:disabled),
+.resignation-page :is(.resignation-table, .clearance-table) td > button:not(.delete-btn):hover:not(:disabled),
+.resignation-page .exit-interview-form > button:hover:not(:disabled),
 .resignation-page .resignation-action-btn:hover:not(:disabled),
 .resignation-page .action-btn:hover:not(:disabled) {
-  background: #11736f !important;
-  border-color: #11736f !important;
+  background: var(--exit-btn-bg-hover) !important;
+  border-color: var(--exit-btn-bg-hover) !important;
+  color: var(--exit-btn-text) !important;
+}
+
+.resignation-page .resignation-table td > button.delete-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: 9px !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: none !important;
+  border: 1px solid #168b87 !important;
+  background: #168b87 !important;
   color: #ffffff !important;
+}
+
+.resignation-page .resignation-table td > button.delete-btn:hover:not(:disabled) {
+  border-color: #11736f !important;
+  background: #11736f !important;
 }
 
 .resignation-page :is(.reject-btn, .btn-reject) {
   background: #dc4c4c !important;
   border-color: #dc4c4c !important;
-  color: #ffffff !important;
+  color: var(--exit-btn-text) !important;
 }
 
 .resignation-page :is(.reject-btn, .btn-reject):hover:not(:disabled) {
@@ -51,19 +86,27 @@
 .resignation-page .resignation-truncated {
   display: block;
   background: transparent !important;
-  color: #17212b !important;
+  color: var(--text-primary) !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
   margin: 0 !important;
   font-weight: 600;
   text-align: left;
+  white-space: normal !important;
+  word-break: break-word !important;
+  text-overflow: clip !important;
 }
 
 .resignation-page .reason-text:hover,
 .resignation-page .reason-link:hover {
   background: transparent !important;
   color: var(--theme-primary, #16837d) !important;
+}
+
+html[data-theme-mode="dark"] .resignation-page .reason-text:hover,
+html[data-theme-mode="dark"] .resignation-page .reason-link:hover {
+  color: var(--text-primary) !important;
 }
 
 /* Resignation Management filters: one row on desktop, stacked on mobile. */
@@ -90,7 +133,7 @@
 .resignation-page .actions-container .btn-reject {
   background: #dc4c4c !important;
   background-color: #dc4c4c !important;
-  color: #ffffff !important;
+  color: var(--exit-btn-text) !important;
   border: 1px solid #dc4c4c !important;
   border-radius: 9px !important;
   opacity: 1 !important;
@@ -102,7 +145,7 @@
 .resignation-page .actions-container .btn-reject:hover {
   background: #c83f3f !important;
   background-color: #c83f3f !important;
-  color: #ffffff !important;
+  color: var(--exit-btn-text) !important;
   border-color: #c83f3f !important;
 }
 
@@ -494,7 +537,6 @@
   min-height: 0 !important;
   height: auto !important;
   background: transparent !important;
-  color: var(--text-primary, #17212b) !important;
   box-shadow: none !important;
   text-align: left;
   font: inherit;
@@ -561,11 +603,11 @@
   min-width: 0;
 }
 
-.action-btn,
-.actions-container button,
-.resignation-action-btn {
+.resignation-page .action-btn,
+.resignation-page .actions-container button,
+.resignation-page .resignation-action-btn {
   border: none !important;
-  color: #fff !important;
+  color: var(--exit-btn-text) !important;
   font-weight: 600 !important;
   border-radius: 10px !important;
   padding: 9px 16px !important;
@@ -579,22 +621,7 @@
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.view-btn,
-.approve-btn,
-.resignation-actions .view-btn,
-.resignation-actions .approve-btn,
-.btn-view,
-.btn-approve {
-  background: #168b87 !important;
-  color: #fff !important;
-}
 
-.view-btn:hover,
-.approve-btn:hover,
-.btn-view:hover,
-.btn-approve:hover {
-  background: #127570 !important;
-}
 
 .reject-btn,
 .resignation-actions .reject-btn,
@@ -630,13 +657,13 @@
   flex: 0 0 auto;
 }
 
-.resignation-actions button {
+.resignation-page .resignation-actions button {
   min-height: 38px;
   padding: 0 16px;
-  border: 1px solid var(--theme-primary, #16837d);
+  border: 1px solid var(--exit-btn-bg);
   border-radius: 8px;
-  background: var(--theme-primary, #16837d);
-  color: #fff;
+  background: var(--exit-btn-bg);
+  color: var(--exit-btn-text);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -644,8 +671,8 @@
   transition: background 0.18s ease;
 }
 
-.resignation-actions button:hover:not(:disabled) {
-  background: var(--button-primary-hover, #136d68);
+.resignation-page .resignation-actions button:hover:not(:disabled) {
+  background: var(--exit-btn-bg-hover);
 }
 
 .resignation-actions button:disabled {
@@ -729,13 +756,23 @@
   line-height: 1.5;
 }
 
+html[data-theme-mode="dark"] .resignation-page .reason-modal button {
+  border-color: var(--exit-btn-bg);
+  background: var(--exit-btn-bg);
+}
+
+html[data-theme-mode="dark"] .resignation-page .reason-modal button:hover:not(:disabled) {
+  border-color: var(--exit-btn-bg-hover);
+  background: var(--exit-btn-bg-hover);
+}
+
 .reason-modal button {
   min-height: 40px;
   padding: 0 18px;
   border: 1px solid var(--theme-primary, #16837d);
   border-radius: 8px;
   background: var(--theme-primary, #16837d);
-  color: #fff;
+  color: var(--exit-btn-text);
   font-weight: 600;
   cursor: pointer;
 }
@@ -834,4 +871,3 @@ html[data-theme="executive-dark-blue"] .resignation-status.status-pending {
     flex-direction: column;
   }
 }
-

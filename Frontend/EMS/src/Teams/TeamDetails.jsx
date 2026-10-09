@@ -17,6 +17,7 @@ import OverrideMemberModal from "./OverrideMemberModal";
 import EditTeamModal from "./EditTeamModal";
 import DeleteTeamModal from "./DeleteTeamModal";
 import RemoveMemberModal from "./RemoveMemberModal";
+import { notifyTeamDataChanged, subscribeToTeamDataChanges } from "./teamDataSync";
 import { BASE_URL } from "../api/config";
 import { API_ENDPOINTS } from "../api/endpoints";
 import {
@@ -65,6 +66,8 @@ import {
   normalizeTeamRecord,
   toNumberId
 } from "./teamUtils";
+
+const TEAM_MEMBER_REFRESH_INTERVAL_MS = 30_000;
 
 const normalizeLookupId = (value) => String(value ?? "").trim();
 const teamIdOfMember = (member) => normalizeLookupId(member?.teamId ?? member?.team_Id ?? member?.teamID ?? member?.TeamId ?? member?.raw?.teamId ?? member?.raw?.team_Id);
@@ -177,6 +180,7 @@ function TeamDetails({ mode = "management" }) {
   });
   const [employeeProfile, setEmployeeProfile] = useState(null);
   const employeeProfileLookupAttempted = useRef(false);
+  const backgroundTeamRefreshInFlight = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditingReportingDays, setIsEditingReportingDays] = useState(false);
   const [draftReportingDays, setDraftReportingDays] = useState([...TEAM_DAY_OPTIONS]);
@@ -208,6 +212,7 @@ function TeamDetails({ mode = "management" }) {
   const [isAddMembersOpen, setIsAddMembersOpen] = useState(false);
   const [isAddingMembers, setIsAddingMembers] = useState(false);
   const [requestRefreshKey, setRequestRefreshKey] = useState(0);
+
   const [activeRequestView, setActiveRequestView] = useState(isMyTeamMode ? "swap" : "");
   const currentEmployeeId = normalizeLookupId(getStoredEmployeeId());
   const currentUserId = normalizeLookupId(getStoredUserId());
@@ -403,10 +408,12 @@ function TeamDetails({ mode = "management" }) {
     }
 
     const controller = new AbortController();
-    void fetchTeam(controller.signal).catch(() => {});
+    void fetchTeam(controller.signal, {
+      cacheTTL: isMyTeamMode ? 0 : 60 * 1000
+    }).catch(() => {});
 
     return () => controller.abort();
-  }, [canViewTeam, fetchTeam]);
+  }, [canViewTeam, fetchTeam, isMyTeamMode]);
 
   useEffect(() => {
     if (!team) {
@@ -430,14 +437,53 @@ function TeamDetails({ mode = "management" }) {
   }, [team]);
 
   const refreshTeam = useCallback(async () => {
-    return fetchTeam(undefined, {
+    if (backgroundTeamRefreshInFlight.current) {
+      return backgroundTeamRefreshInFlight.current;
+    }
+
+    const refreshPromise = fetchTeam(undefined, {
       cacheTTL: 0,
       showError: false,
       throwOnError: true,
       setLoading: false,
       clearOnError: false
     });
+
+    backgroundTeamRefreshInFlight.current = refreshPromise;
+    try {
+      return await refreshPromise;
+    } finally {
+      if (backgroundTeamRefreshInFlight.current === refreshPromise) {
+        backgroundTeamRefreshInFlight.current = null;
+      }
+    }
   }, [fetchTeam]);
+
+  useEffect(() => {
+    if (!isMyTeamMode || !canViewTeam) return undefined;
+
+    const refetchQuietly = () => {
+      if (document.visibilityState === "hidden") return;
+      void refreshTeam().catch(() => {});
+    };
+    const unsubscribe = subscribeToTeamDataChanges(refetchQuietly);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refetchQuietly();
+    };
+    const intervalId = window.setInterval(refetchQuietly, TEAM_MEMBER_REFRESH_INTERVAL_MS);
+
+    window.addEventListener("focus", refetchQuietly);
+    window.addEventListener("online", refetchQuietly);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      unsubscribe();
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refetchQuietly);
+      window.removeEventListener("online", refetchQuietly);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [canViewTeam, isMyTeamMode, refreshTeam]);
 
   const handleToggleReportingDay = (day) => {
     setDraftReportingDays((current) => {
@@ -458,6 +504,7 @@ function TeamDetails({ mode = "management" }) {
       await updateTeamReportingDays(
         buildUpdateReportingDaysPayload(team.teamId, draftReportingDays)
       );
+      notifyTeamDataChanged({ teamId: team.teamId, reason: "reporting-days-updated" });
       toastSuccess("Reporting days updated");
       setIsEditingReportingDays(false);
       await refreshTeam().catch(() => {});
@@ -514,6 +561,7 @@ function TeamDetails({ mode = "management" }) {
           employeeIds: (team.members || []).map((member) => member.employeeId).filter(Boolean)
         })
       );
+      notifyTeamDataChanged({ teamId: team.teamId, reason: "team-shift-assigned" });
       toastSuccess("Team shift assigned");
       setIsAssignShiftOpen(false);
       await refreshTeam();
@@ -532,6 +580,7 @@ function TeamDetails({ mode = "management" }) {
       await createHrmsSettingsRecord(shiftModulesConfig.shiftMaster, {
         ...shift,
       });
+      notifyTeamDataChanged({ teamId: team?.teamId, reason: "shift-created" });
       toastSuccess("Shift created successfully.");
       setIsCreateShiftOpen(false);
       try {
@@ -558,6 +607,7 @@ function TeamDetails({ mode = "management" }) {
     setIsSavingShift(true);
     try {
       const deleteResponse = await deleteHrmsSettingsRecord(shiftModulesConfig.shiftMaster, shiftId);
+      notifyTeamDataChanged({ teamId: team?.teamId, reason: "shift-deleted" });
       let refreshedShifts;
       try {
         refreshedShifts = await loadActiveShifts();
@@ -612,6 +662,81 @@ function TeamDetails({ mode = "management" }) {
       .filter((shift) => shift.shiftId != null && shift.isActive !== false);
     setAvailableShifts(normalizedShifts);
     return normalizedShifts;
+  };
+
+  const handleLoadMemberShifts = async () => {
+    if (availableShifts.length > 0) return availableShifts;
+    setIsLoadingShifts(true);
+    try {
+      return await loadActiveShifts();
+    } catch (error) {
+      toastError(extractApiErrorMessage(error, "Unable to load active shifts"));
+      return [];
+    } finally {
+      setIsLoadingShifts(false);
+    }
+  };
+
+  const handleAssignMemberShift = async (member, shift) => {
+    const employeeId = firstNonEmpty(member?.employee_Id, member?.employeeId, member?.employee?.employeeId);
+    if (!employeeId || shift?.shiftId == null) {
+      toastError("Unable to identify the employee or shift");
+      return false;
+    }
+
+    const now = new Date();
+    const effectiveFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    try {
+      await createHrmsSettingsRecord(shiftModulesConfig.employeeShift, {
+        employee_Id: employeeId,
+        shiftId: shift.shiftId,
+        effectiveFrom
+      });
+      const assignedShift = {
+        shiftId: shift.shiftId,
+        shiftName: shift.shiftName,
+        startTime: shift.startTime,
+        endTime: shift.endTime
+      };
+      setTeam((current) => current ? {
+        ...current,
+        members: (current.members || []).map((item) =>
+          String(item.employee_Id ?? item.employeeId ?? "") === String(employeeId)
+            ? { ...item, shift: assignedShift, shiftName: assignedShift.shiftName, hasShiftOverride: true, shiftUnassigned: false, isTemporaryShift: false, shiftEffectiveTo: null, effectiveTo: null }
+            : item
+        )
+      } : current);
+      toastSuccess("Shift assigned successfully.");
+      return true;
+    } catch (error) {
+      toastError(extractApiErrorMessage(error, "Unable to assign shift"));
+      return false;
+    }
+  };
+
+  const handleUnassignMemberShift = async (member) => {
+    const employeeId = firstNonEmpty(member?.employee_Id, member?.employeeId, member?.employee?.employeeId);
+    if (!employeeId) {
+      toastError("Unable to identify the employee");
+      return false;
+    }
+
+    try {
+      await deleteHrmsSettingsRecord(shiftModulesConfig.employeeShift, employeeId);
+      setTeam((current) => current ? {
+        ...current,
+        members: (current.members || []).map((item) =>
+          String(item.employee_Id ?? item.employeeId ?? "") === String(employeeId)
+            ? { ...item, shift: null, shiftName: "", hasShiftOverride: false, shiftUnassigned: true, isTemporaryShift: false, shiftEffectiveTo: null, effectiveTo: null }
+            : item
+        )
+      } : current);
+      toastSuccess("Shift unassigned successfully.");
+      return true;
+    } catch (error) {
+      toastError(extractApiErrorMessage(error, "Unable to unassign shift"));
+      return false;
+    }
   };
 
   const handleOpenShiftChange = async (member = currentEmployeeMember) => {
@@ -812,6 +937,7 @@ function TeamDetails({ mode = "management" }) {
 
       const saveResponse = await updateTeamMemberOverride(payload);
       logOverrideDebug("OVERRIDE API RESPONSE:", saveResponse?.data ?? saveResponse);
+      notifyTeamDataChanged({ teamId: team.teamId, reason: "member-override-updated" });
 
       const refreshedTeam = await refreshTeam();
       logOverrideDebug("OVERRIDE REFETCH RESPONSE:", refreshedTeam?.raw ?? refreshedTeam);
@@ -927,6 +1053,7 @@ function TeamDetails({ mode = "management" }) {
         })
       );
 
+      notifyTeamDataChanged({ teamId: team.teamId, reason: "team-updated" });
       toastSuccess("Team updated successfully");
       setIsEditTeamOpen(false);
       await refreshTeam().catch(() => {});
@@ -964,6 +1091,7 @@ function TeamDetails({ mode = "management" }) {
     setIsAddingMembers(true);
     try {
       await addTeamMembers(buildAddMembersPayload(team.teamId, employeeIds));
+      notifyTeamDataChanged({ teamId: team.teamId, reason: "members-added" });
       const employeeLabel = employeeIds.length === 1 ? employeeIds[0] : `${employeeIds.length} employees`;
       toastSuccess(`${employeeLabel} added to ${team.teamName || "the"} team`);
       setIsAddMembersOpen(false);
@@ -984,6 +1112,7 @@ function TeamDetails({ mode = "management" }) {
 
     try {
       await removeTeamMember(team.teamId, removeMember.employeeId);
+      notifyTeamDataChanged({ teamId: team.teamId, reason: "member-removed" });
       toastSuccess("Member removed");
       setRemoveMember(null);
       await refreshTeam().catch(() => {});
@@ -1060,7 +1189,7 @@ function TeamDetails({ mode = "management" }) {
         {backButtonLabel}
       </button>
 
-      <div className="teams-details-grid">
+      <div className={`teams-details-grid ${!isMyTeamMode ? "teams-details-grid--admin" : ""}`}>
         <section className="teams-summary-card">
           <div className="teams-summary-header">
             <div>
@@ -1141,7 +1270,10 @@ function TeamDetails({ mode = "management" }) {
               currentEmployeeId={currentEmployeeCode}
               refreshKey={requestRefreshKey}
               members={team?.members ?? []}
-              onRequestUpdated={() => refreshTeam().catch(() => {})}
+              onRequestUpdated={() => {
+                notifyTeamDataChanged({ teamId: team?.teamId, reason: "team-request-updated" });
+                return refreshTeam().catch(() => {});
+              }}
               onRequestViewChange={setActiveRequestView}
               activeRequestView={activeRequestView}
             />
@@ -1151,7 +1283,10 @@ function TeamDetails({ mode = "management" }) {
           team={team}
           approverId={currentEmployeeId}
           canManage={canManageShiftRequests}
-          onRequestUpdated={() => refreshTeam().catch(() => {})}
+          onRequestUpdated={() => {
+            notifyTeamDataChanged({ teamId: team?.teamId, reason: "team-request-updated" });
+            return refreshTeam().catch(() => {});
+          }}
         />}
       </div>
 
@@ -1188,6 +1323,11 @@ function TeamDetails({ mode = "management" }) {
         authenticatedIds={[currentEmployeeId, currentEmployeeCode, currentUserId]}
         onOverride={handleOpenOverride}
         onRemove={handleRemoveMember}
+        availableShifts={availableShifts}
+        loadingShifts={isLoadingShifts}
+        onLoadShifts={handleLoadMemberShifts}
+        onAssignMemberShift={handleAssignMemberShift}
+        onUnassignMemberShift={handleUnassignMemberShift}
         onRequestChange={handleOpenShiftChange}
         onSwapShift={handleOpenShiftSwap}
       />

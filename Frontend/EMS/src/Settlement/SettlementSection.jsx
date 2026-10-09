@@ -6,6 +6,7 @@ import { EMPLOYEE_EXIT_MODULE, hasApprovePermission, isEmployee } from "../utils
 import { usePermissionScope } from "../context/usePermissionScope";
 import { clearanceError, cv, rows } from "../Clearance/clearanceUtils";
 import "./Settlement.css";
+import { SettlementFields, SettlementStatus } from "./SettlementFields";
 
 const settlementIdOf = (settlement) => cv(settlement, "settlementId", "SettlementId", "settlementID", "Settlement_ID", "fullFinalSettlementId", "FullFinalSettlementId");
 
@@ -73,5 +74,5 @@ export default function SettlementSection({ employeeId, resignationId, available
 
   const status = String(cv(settlement, "status", "Status") ?? "Pending").trim();
   const approved = status.toLowerCase() === "approved";
-  return <section className="clearance-section"><h3>Full &amp; Final Settlement</h3>{!settlement ? <><p>Exit Interview completed. Generate the settlement to continue.</p><button type="button" disabled={saving} onClick={generate}>{saving ? "Generating…" : "Generate Settlement"}</button></> : <><div className="settlement-grid">{Object.entries(settlement).filter(([, value]) => typeof value !== "object").map(([key, value]) => <div key={key}><small>{key}</small><strong>{String(value ?? "—")}</strong></div>)}</div><div className="settlement-actions">{approved ? <span className="resignation-status">Approved</span> : canAccessModule(EMPLOYEE_EXIT_MODULE) && <button type="button" disabled={saving} onClick={() => decide(true)}>{saving ? "Approving…" : "Approve Settlement"}</button>}</div><div className="settlement-actions"><button type="button" onClick={() => navigate(`/settlements/${settlementIdOf(settlement)}`)}>View Settlement</button></div></>}</section>;
+  return <section className="clearance-section"><h3>Full &amp; Final Settlement</h3>{!settlement ? <><p>Exit Interview completed. Generate the settlement to continue.</p><button type="button" disabled={saving} onClick={generate}>{saving ? "Generating…" : "Generate Settlement"}</button></> : <><SettlementFields settlement={settlement} /><div className="settlement-actions"><SettlementStatus settlement={settlement} />{!approved && canAccessModule(EMPLOYEE_EXIT_MODULE) && <button type="button" disabled={saving} onClick={() => decide(true)}>{saving ? "Approving…" : "Approve Settlement"}</button>}</div><div className="settlement-actions"><button type="button" onClick={() => navigate(`/settlements/${settlementIdOf(settlement)}`)}>View Settlement</button></div></>}</section>;
 }
