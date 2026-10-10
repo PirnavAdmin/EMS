@@ -373,8 +373,8 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<ShiftRoster>().ToTable("shiftroster");
             modelBuilder.Entity<EmployeeShiftAssignment>().ToTable("employeeshiftassignment");
             modelBuilder.Entity<ShiftPlanner>().ToTable("shiftplanner");
-            modelBuilder.Entity<ShiftSwap>().ToTable("shiftswap");
-            modelBuilder.Entity<ShiftChangeRequest>().ToTable("shiftchangerequest");
+            modelBuilder.Entity<ShiftSwap>().ToTable("ShiftSwap");
+            modelBuilder.Entity<ShiftChangeRequest>().ToTable("ShiftChangeRequest");
             modelBuilder.Entity<EmployeeWeeklyOff>().ToTable("employeeweeklyoff");
             modelBuilder.Entity<ShiftRotation>().ToTable("shiftrotation");
             modelBuilder.Entity<SuperAdmin>()
