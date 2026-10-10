@@ -340,7 +340,7 @@ Employee ID: {employee.Employee_Id}";
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://peoplehrsync.com";
         var notification = GetNotificationSettings();
 
         if (!notification.EnableEmailNotifications ||
@@ -485,7 +485,7 @@ Please log in to the EMS application using the link below:
 </p>
 
 <p>
-<a href='https://hrms.pirnav.com/login' target='_blank'>
+<a href='https://peoplehrsync.com/login' target='_blank'>
 EMS Login Portal
 </a>
 </p>
@@ -2231,7 +2231,7 @@ Employee ID: {employee.Employee_Id}";
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://hrms.pirnav.com";
+        string baseUrl = "https://peoplehrsync.com";
 
         var notification = GetNotificationSettings();
 
@@ -2364,7 +2364,7 @@ Please log in to the EMS application using the link below:
 </p>
 
 <p>
-<a href='https://hrms.pirnav.com/login' target='_blank'>
+<a href='https://peoplehrsync.com/login' target='_blank'>
 EMS Login Portal
 </a>
 </p>

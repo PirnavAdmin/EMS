@@ -728,11 +728,11 @@ const PrivacyPolicy = () => {
                                 <p>
                                     <strong>Privacy Policy URL:</strong>{" "}
                                     <a
-                                        href="https://hrms.pirnav.com/privacy-policy"
+                                        href="https://peoplehrsync.com/privacy-policy"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        https://hrms.pirnav.com/privacy-policy
+                                        https://peoplehrsync.com/privacy-policy
                                     </a>
                                 </p>
 

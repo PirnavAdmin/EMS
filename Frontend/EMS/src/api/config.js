@@ -3,7 +3,7 @@ const API_ORIGIN = (
     //"https://trimestral-flusteredly-patrice.ngrok-free.dev"
     //  "https://cabbage-dramatic-majesty.ngrok-free.dev"
     //  "https://marian-undeported-shanon.ngrok-free.dev"
-      "https://hrms.pirnav.com"
+      "https://peoplehrsync.com"
     // "https://daydream-railway-earring.ngrok-free.dev"
 ).replace(/\/+$/, "");
 

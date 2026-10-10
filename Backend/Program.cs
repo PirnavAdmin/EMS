@@ -181,7 +181,7 @@ var allowedCorsOrigins = configuredCorsOrigins is { Length: > 0 }
     ? configuredCorsOrigins
     : new[]
     {
-        "https://hrms.pirnav.com",
+        "https://peoplehrsync.com",
         "http://localhost:3000",
         "http://localhost:4200",
         "http://localhost:5173",
