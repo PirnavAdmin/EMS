@@ -391,8 +391,7 @@ namespace EmployeeManagementSystem.Data
      .ToTable("EmployeeResignation");
             modelBuilder.Entity<EmployeeGoal>()
     .ToTable("employeegoal");
-            modelBuilder.Entity<Appraisal>()
-    .ToTable("appraisal");
+            modelBuilder.Entity<Appraisal>().ToTable("Appraisal");
 
             modelBuilder.Entity<GoalReview>()
                 .ToTable("goalreview");
