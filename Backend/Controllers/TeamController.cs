@@ -1,10 +1,18 @@
-﻿using EmployeeManagementSystem.DTOs;
+﻿using EmployeeManagementSystem.Controllers;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+
+using EmployeeManagementSystem.DTOs;
+ using EmployeeManagementSystem.Interfaces;
+ using Microsoft.AspNetCore.Authorization;
+ using Microsoft.AspNetCore.Mvc;
+ 
 namespace EmployeeManagementSystem.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class TeamController : ControllerBase
@@ -27,7 +35,6 @@ namespace EmployeeManagementSystem.Controllers
 
             return await _service.CreateTeam(dto);
         }
-
 
         [HttpGet]
         public async Task<IActionResult> GetTeams()
@@ -95,7 +102,11 @@ namespace EmployeeManagementSystem.Controllers
             return await _service.GetProjectTeams();
         }
 
-        [Authorize]
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportTeams()
+        {
+            return await _service.ExportTeams();
+        }
         [HttpGet("my-team")]
         public async Task<IActionResult> GetMyTeam()
         {

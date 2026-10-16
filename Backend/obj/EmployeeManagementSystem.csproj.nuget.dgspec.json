@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Backend\\EmployeeManagementSystem.csproj": {}
+    "C:\\Users\\ADMIN\\Downloads\\Backend (8) (2)\\Backend\\EmployeeManagementSystem.csproj": {}
   },
   "projects": {
-    "C:\\Backend\\EmployeeManagementSystem.csproj": {
+    "C:\\Users\\ADMIN\\Downloads\\Backend (8) (2)\\Backend\\EmployeeManagementSystem.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Backend\\EmployeeManagementSystem.csproj",
+        "projectUniqueName": "C:\\Users\\ADMIN\\Downloads\\Backend (8) (2)\\Backend\\EmployeeManagementSystem.csproj",
         "projectName": "EmployeeManagementSystem",
-        "projectPath": "C:\\Backend\\EmployeeManagementSystem.csproj",
+        "projectPath": "C:\\Users\\ADMIN\\Downloads\\Backend (8) (2)\\Backend\\EmployeeManagementSystem.csproj",
         "packagesPath": "C:\\Users\\ADMIN\\.nuget\\packages\\",
-        "outputPath": "C:\\Backend\\obj\\",
+        "outputPath": "C:\\Users\\ADMIN\\Downloads\\Backend (8) (2)\\Backend\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -26,6 +26,7 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -44,7 +45,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.300"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0": {
@@ -73,6 +74,14 @@
             "EPPlus": {
               "target": "Package",
               "version": "[8.4.2, )"
+            },
+            "FirebaseAdmin": {
+              "target": "Package",
+              "version": "[3.7.0, )"
+            },
+            "Google.Apis.Auth": {
+              "target": "Package",
+              "version": "[1.77.0, )"
             },
             "Hangfire.AspNetCore": {
               "target": "Package",
@@ -180,7 +189,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

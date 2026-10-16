@@ -24,7 +24,7 @@
 
         public List<string> ReportingDays { get; set; } = new();
 
-        public List<MemberDto> Members { get; set; } = new();
+        public List<TeamMemberDto> Members { get; set; }
     }
 
     public class MemberDto

@@ -25,7 +25,8 @@
 
         public string? ShiftName { get; set; }
 
-        public List<string> ReportingDays { get; set; } = new();
+        public List<ReportingDayDto> ReportingDays { get; set; }
+      = new List<ReportingDayDto>();
 
         public List<string> EmployeeNames { get; set; } = new();
 

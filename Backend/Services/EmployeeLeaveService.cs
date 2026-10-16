@@ -485,7 +485,7 @@ Please log in to the EMS application using the link below:
 </p>
 
 <p>
-<a href='https://peoplehrsync.com/login' target='_blank'>
+<a href='https://hrms.pirnav.com/login' target='_blank'>
 EMS Login Portal
 </a>
 </p>
@@ -2364,7 +2364,7 @@ Please log in to the EMS application using the link below:
 </p>
 
 <p>
-<a href='https://peoplehrsync.com/login' target='_blank'>
+<a href='https://hrms.pirnav.com/login' target='_blank'>
 EMS Login Portal
 </a>
 </p>

@@ -269,6 +269,7 @@ namespace EmployeeManagementSystem.Data
 
         public DbSet<StatusChangeLog> StatusChangeLogs { get; set; }
         public DbSet<TicketAttachment> TicketAttachments { get; set; }
+        public DbSet<UserNotificationDevice> UserNotificationDevices { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
@@ -391,7 +392,8 @@ namespace EmployeeManagementSystem.Data
      .ToTable("EmployeeResignation");
             modelBuilder.Entity<EmployeeGoal>()
     .ToTable("employeegoal");
-            modelBuilder.Entity<Appraisal>().ToTable("Appraisal");
+            modelBuilder.Entity<Appraisal>()
+    .ToTable("appraisal");
 
             modelBuilder.Entity<GoalReview>()
                 .ToTable("goalreview");

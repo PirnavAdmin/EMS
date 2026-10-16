@@ -6,22 +6,51 @@ using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.HostedServices;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Services;
+using Hangfire;
+using Hangfire.MySql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using QuestPDF.Infrastructure;
+using QuestPDF.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using QuestPDF.Infrastructure;
 using System.Text;
-using Hangfire;
-using Hangfire.MySql;
+using FirebaseAdmin;
+//using Google.Apis.Auth.OAuth2;
+//using FirebaseAdmin.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ================= FIREBASE CONFIGURATION =================
+
+// ================= FIREBASE CONFIGURATION =================
+// ================= FIREBASE CONFIGURATION =================
+
+//const string firebaseProjectId = "peoplehrsync";
+//const string firebaseCredentialsPath =
+//    @"C:\SecureConfig\peoplehrsync-firebase-admin.json";
+
+//if (!File.Exists(firebaseCredentialsPath))
+//{
+//    throw new FileNotFoundException(
+//        "Firebase service-account JSON file not found.",
+//        firebaseCredentialsPath);
+//}
+
+//FirebaseApp.Create(new AppOptions
+//{
+//    Credential = GoogleCredential.FromFile(firebaseCredentialsPath),
+//    ProjectId = firebaseProjectId
+//});
+
+//Console.WriteLine("Firebase initialized successfully.");
+//builder.Services.AddSingleton<FirebaseMessaging>(
+//    _ => FirebaseMessaging.DefaultInstance);
 // ================= SERVICES =================
 
 builder.Services.AddControllers();
@@ -165,7 +194,9 @@ builder.Services.AddScoped<
     EmployeeSalaryStructureService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddHostedService<BirthdayEmailService>();
-
+//builder.Services.AddScoped<
+//    IFcmNotificationService,
+//    FcmNotificationService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
 builder.Services.AddScoped<
     IAppraisalSalaryService,

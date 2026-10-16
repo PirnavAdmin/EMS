@@ -91,6 +91,7 @@
 }
 
 .teams-add-btn,
+.teams-export-btn,
 .team-action-btn,
 .teams-back-btn {
   display: inline-flex;
@@ -118,10 +119,24 @@
   border-color: var(--sidebar-accent-soft);
 }
 
+.teams-export-btn {
+  background: var(--surface-info-soft);
+  color: var(--theme-info-strong);
+  border-color: var(--surface-info-soft);
+  box-shadow: var(--theme-shadow-sm);
+}
+
 .teams-add-btn:hover,
+.teams-export-btn:hover,
 .team-action-btn:not(.secondary):hover,
 .teams-back-btn:hover {
   transform: translateY(-1px);
+}
+
+.teams-export-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
 }
 
 .teams-add-btn {
@@ -1906,6 +1921,7 @@
   }
 
   .teams-count-badge,
+  .teams-export-btn,
   .teams-add-btn,
   .teams-back-btn {
     width: 100%;
@@ -2577,6 +2593,21 @@
 
 .team-members-reference__day--wfh {
   min-width: 43px;
+}
+
+.team-members-reference__day-date {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 40px;
+  padding: 4px 10px;
+  line-height: 1.05;
+}
+
+.team-members-reference__day-date small {
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* Admin roster table layout matched to the supplied Pirnav reference. */
@@ -5404,5 +5435,145 @@ html[data-theme-mode="dark"] .team-request-panel .team-form-error {
   .team-members-reference__shift-pill--enter {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
+  }
+}
+
+
+/* Week picker and two-line weekday chips for the shared team roster. */
+.team-members-reference__head-actions {
+  flex-wrap: wrap;
+}
+
+.team-members-reference__week-selector {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.team-members-reference__week-arrow,
+.team-members-reference__week-label,
+.team-members-reference__this-week {
+  min-height: 32px;
+  box-sizing: border-box;
+  border: 1px solid var(--team-accent-border, var(--border-soft));
+  border-radius: 9999px;
+  background: var(--team-accent-soft, var(--teal-100));
+  color: var(--team-accent, var(--primary));
+  font: inherit;
+}
+
+.team-members-reference__week-arrow {
+  width: 32px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.team-members-reference__week-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.team-members-reference__this-week {
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.team-members-reference__week-arrow:hover,
+.team-members-reference__this-week:hover {
+  background: var(--hover-bg, var(--teal-100));
+}
+
+.team-members-reference .team-members-reference__days-cell--wfo {
+  min-width: 190px;
+}
+
+.team-members-reference .team-members-reference__days-cell--wfh {
+  min-width: 260px;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__days-cell--wfo,
+.team-members-reference.team-members-reference--admin.team-members-reference--self-service .team-members-reference__days-cell--wfo,
+.team-members-reference:not(.team-members-reference--admin) .team-members-reference__days-cell--wfo {
+  min-width: 190px;
+}
+
+.team-members-reference.team-members-reference--admin:not(.team-members-reference--self-service) .team-members-reference__days-cell--wfh,
+.team-members-reference.team-members-reference--admin.team-members-reference--self-service .team-members-reference__days-cell--wfh,
+.team-members-reference:not(.team-members-reference--admin) .team-members-reference__days-cell--wfh {
+  min-width: 260px;
+}
+
+.team-members-reference .team-members-reference__day-date {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 52px;
+  min-height: 42px;
+  max-width: none;
+  padding: 5px 12px;
+  border: 1px solid var(--team-accent-border, var(--border-soft));
+  border-radius: 14px;
+  background: var(--team-accent-soft, var(--teal-100));
+  color: var(--team-accent, var(--primary));
+  line-height: 1.05;
+  opacity: 1;
+  white-space: nowrap;
+}
+
+.team-members-reference .team-members-reference__day-date > span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.team-members-reference .team-members-reference__day-date small {
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.team-members-reference .team-members-reference__day-date.is-past {
+  opacity: 0.55;
+}
+
+.team-members-reference .team-members-reference__day-date.is-today {
+  border-color: var(--team-accent, var(--primary)) !important;
+  background: var(--team-accent, var(--primary)) !important;
+  color: var(--theme-on-primary) !important;
+  opacity: 1;
+}
+
+html[data-theme-mode="dark"] .teams-page .team-members-reference .team-members-reference__day-date.is-today {
+  border-color: var(--team-accent) !important;
+  background: var(--team-accent) !important;
+  color: var(--theme-on-primary) !important;
+}
+
+.team-members-reference .team-members-reference__day-date.is-today small {
+  color: inherit !important;
+}
+
+@media (max-width: 760px) {
+  .team-members-reference--admin .team-members-reference__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .team-members-reference__head-actions {
+    justify-content: flex-start;
+    width: 100%;
+    margin-left: 0;
   }
 }

@@ -1,7 +1,9 @@
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
+
 using EmployeeManagementSystem.Models;
-using EmployeeManagementSystem.Services;
+
 using Microsoft.AspNetCore.Mvc;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
@@ -193,9 +195,6 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             _context.SaveChanges();
-
-            // Clear attendance settings cache so changes take effect immediately
-            AttendanceService.ClearAttendanceSettingsCache();
 
             return Ok(new
 

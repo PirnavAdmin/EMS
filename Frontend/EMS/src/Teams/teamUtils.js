@@ -30,6 +30,169 @@ export const getDisplayDays = (wfoDays, wfhDays) => {
   return { wfoDays: normalizedWfoDays, wfhDays: normalizedWfhDays };
 };
 
+const toScheduleDate = (value) => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return [value.getUTCFullYear(), String(value.getUTCMonth() + 1).padStart(2, "0"), String(value.getUTCDate()).padStart(2, "0")].join("-");
+  }
+  if (typeof value !== "string") return "";
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
+  if (!match) return "";
+  const [, year, month, day] = match;
+  const timestamp = Date.UTC(Number(year), Number(month) - 1, Number(day));
+  const parsed = new Date(timestamp);
+  return parsed.getUTCFullYear() === Number(year) &&
+    parsed.getUTCMonth() === Number(month) - 1 &&
+    parsed.getUTCDate() === Number(day)
+    ? [year, month, day].join("-")
+    : "";
+};
+
+const scheduleWeekStart = (dateString) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - daysSinceMonday);
+  return date.toISOString().slice(0, 10);
+};
+
+const scheduleDayForDate = (dateString) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+};
+
+const actualDateValue = (value) => {
+  if (typeof value === "string" || value instanceof Date) return value;
+  if (!isPlainObject(value)) return null;
+  return value.actualDate ?? value.scheduledDate ?? value.date ?? value.dateValue ?? value.value ?? null;
+};
+
+const reportingDayName = (record) => normalizeReportingDaysForUi([
+  record?.dayName ?? record?.day ?? record?.name ?? record?.value
+])[0] || "";
+
+const scheduleDateIsInEffect = (dateString, record) => {
+  const effectiveFrom = toScheduleDate(record?.effectiveFrom);
+  const effectiveTo = toScheduleDate(record?.effectiveTo);
+  return (!effectiveFrom || dateString >= effectiveFrom) && (!effectiveTo || dateString <= effectiveTo);
+};
+
+const getTodayDateOnly = () => {
+  const today = new Date();
+  return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), String(today.getDate()).padStart(2, "0")].join("-");
+};
+
+export const getReportingDayDateMap = (scheduleRecords, targetDays = []) => {
+  const records = normalizeCollection(scheduleRecords);
+  const candidates = [];
+  const isFlatDateInEffect = (dateString, dayName) => {
+    const daySchedules = records.filter((record) =>
+      isPlainObject(record) &&
+      reportingDayName(record) === dayName &&
+      (record.effectiveFrom || record.effectiveTo)
+    );
+    return !daySchedules.length || daySchedules.some((record) => scheduleDateIsInEffect(dateString, record));
+  };
+
+  records.forEach((record) => {
+    if (!isPlainObject(record)) return;
+    const dayName = reportingDayName(record);
+    if (!dayName) return;
+
+    normalizeCollection(record.actualDates).forEach((actualDate) => {
+      const dateString = toScheduleDate(actualDateValue(actualDate));
+      if (!dateString || !scheduleDateIsInEffect(dateString, record) || scheduleDayForDate(dateString) !== dayName) return;
+      candidates.push({ dayName, dateString, weekStart: scheduleWeekStart(dateString) });
+    });
+  });
+
+  // Some responses expose actualDates as flat weekday/date records instead of
+  // nesting them beneath each reportingDays item.
+  records.forEach((record) => {
+    if (typeof record === "string" || record instanceof Date) {
+      const dateString = toScheduleDate(record);
+      const dayName = dateString ? scheduleDayForDate(dateString) : "";
+      if (dateString && isFlatDateInEffect(dateString, dayName)) candidates.push({ dayName, dateString, weekStart: scheduleWeekStart(dateString) });
+      return;
+    }
+    if (!isPlainObject(record)) return;
+    const dayName = record.dayName ? reportingDayName(record) : scheduleDayForDate(toScheduleDate(actualDateValue(record)));
+    const dateString = toScheduleDate(actualDateValue(record));
+    if (!dayName || !dateString || !scheduleDateIsInEffect(dateString, record) || !isFlatDateInEffect(dateString, dayName) || scheduleDayForDate(dateString) !== dayName) return;
+    candidates.push({ dayName, dateString, weekStart: scheduleWeekStart(dateString) });
+  });
+
+  if (!candidates.length) return {};
+
+  const targetSet = new Set(normalizeDisplayDays(targetDays));
+  const weeks = [...new Set(candidates.map((candidate) => candidate.weekStart))].sort();
+  const currentWeek = scheduleWeekStart(getTodayDateOnly());
+  const upcomingWeeks = weeks.filter((week) => week >= currentWeek);
+  const eligibleWeeks = upcomingWeeks.length ? upcomingWeeks : [...weeks].reverse();
+  const weekCoverage = (week) => new Set(candidates
+    .filter((candidate) => candidate.weekStart === week && (!targetSet.size || targetSet.has(candidate.dayName)))
+    .map((candidate) => candidate.dayName)).size;
+  const selectedWeek = eligibleWeeks.reduce((best, week) => {
+    if (best == null || weekCoverage(week) > weekCoverage(best)) return week;
+    return best;
+  }, null);
+
+  return candidates
+    .filter((candidate) => candidate.weekStart === selectedWeek)
+    .reduce((dateMap, candidate) => {
+      if (!dateMap[candidate.dayName] || candidate.dateString < dateMap[candidate.dayName]) {
+        dateMap[candidate.dayName] = candidate.dateString;
+      }
+      return dateMap;
+    }, {});
+};
+
+export const formatReportingDayDate = (dateString) => {
+  const match = String(dateString ?? "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12));
+  if (date.getUTCFullYear() !== Number(year) || date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) return "";
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
+};
+
+export const collectReportingDateRecords = (...sources) => {
+  const records = [];
+  const visited = new WeakSet();
+
+  const visit = (value, depth = 0) => {
+    if (depth > 10 || value == null) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => visit(item, depth + 1));
+      return;
+    }
+    if (!isPlainObject(value) || visited.has(value)) return;
+    visited.add(value);
+
+    const dayName = reportingDayName(value);
+    const actualDates = value.actualDates ?? value.ActualDates;
+    const directDate = value.actualDate ?? value.scheduledDate ?? value.date ?? value.dateValue;
+    if (dayName && actualDates != null) {
+      records.push(value);
+    } else if (dayName && directDate != null) {
+      records.push(value);
+    }
+
+    if (actualDates != null && !dayName) {
+      normalizeCollection(actualDates).forEach((item) => records.push(item));
+    }
+
+    Object.entries(value).forEach(([key, child]) => {
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey !== "actualdates" && !["members", "teammembers", "projectteammembers", "employees", "teamemployees", "employeedetails"].includes(normalizedKey)) {
+        visit(child, depth + 1);
+      }
+    });
+  };
+
+  sources.forEach((source) => visit(source));
+  return records;
+};
+
 const isPlainObject = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -662,6 +825,7 @@ const normalizeShift = (value = {}) => {
 };
 
 export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
+  const sourceRecord = member;
   const record = member?.teamMember ?? member?.TeamMember ?? member;
 
   if (!isPlainObject(record)) {
@@ -866,11 +1030,13 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
     hasShiftOverride: Boolean(memberShift),
     teamMemberOverride: override?.raw || null,
     raw: record,
+    rawResponse: sourceRecord,
     employee
   };
 };
 
 export const normalizeTeamRecord = (team = {}) => {
+  const sourceRecord = team;
   let record = team;
   for (let depth = 0; depth < 4 && isPlainObject(record); depth += 1) {
     const wrapped = record.team ?? record.Team ?? record.data;
@@ -993,7 +1159,8 @@ export const normalizeTeamRecord = (team = {}) => {
     shiftCode: shift?.shiftCode ?? "",
     shiftStartTime: shift?.startTime ?? "",
     shiftEndTime: shift?.endTime ?? "",
-    raw: record
+    raw: record,
+    rawResponse: sourceRecord
   };
 };
 

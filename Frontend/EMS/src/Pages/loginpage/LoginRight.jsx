@@ -3,8 +3,10 @@ import pirnavLogo from "../../assets/pirnav.png";
 import { useBrandingLogo } from "../../utils/brandingLogo";
 
 function LoginRight() {
-  const resolvedLogo = useBrandingLogo("loginLogo");
-  const logoSrc = resolvedLogo || pirnavLogo;
+  const { logoSrc: resolvedLogo, isLoading } =
+    useBrandingLogo("loginLogo");
+
+  const logoSrc = resolvedLogo || (isLoading ? "" : pirnavLogo);
 
   return (
     <>

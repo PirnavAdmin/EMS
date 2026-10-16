@@ -296,6 +296,8 @@ function TeamDetails({ mode = "management" }) {
   const canEditTeam = !isMyTeamMode && hasEditPermission("Teams");
   const canDeleteTeam = !isMyTeamMode && hasDeletePermission("Teams");
   const isAdminUser = !isMyTeamMode && isAdmin();
+  const canManageTeamMembers =
+    !isMyTeamMode && (isAdminUser || canEditTeam || hasRole("hr", "humanresource"));
   const canCreateShift = isAdminUser || hasAddPermission("Shift Master");
   const canDeleteShift = isAdminUser || (!isMyTeamMode && hasDeletePermission("Shift Master"));
   const canManageShiftRequests = !isMyTeamMode && (isAdminUser || hasRole("manager"));
@@ -1314,8 +1316,8 @@ function TeamDetails({ mode = "management" }) {
         members={team.members || []}
         teamData={team}
         reportingDays={team.reportingDays || TEAM_DAY_OPTIONS}
-        isAdmin={isAdminUser}
-        canAddMember={canEditTeam || isAdminUser}
+        isAdmin={canManageTeamMembers}
+        canAddMember={canManageTeamMembers}
         onAddMember={() => setIsAddMembersOpen(true)}
         selfServiceShiftActions={isMyTeamMode}
         currentEmployeeMember={currentEmployeeMember}

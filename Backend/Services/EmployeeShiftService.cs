@@ -249,6 +249,7 @@ namespace EmployeeManagementSystem.Services
                     }
                 }
 
+                
                 // Priority 3: Team Member Custom Override
                 if (effectiveShift == null)
                 {
@@ -256,22 +257,31 @@ namespace EmployeeManagementSystem.Services
                         .Where(tm => string.Equals(tm.EmployeeId?.Trim(), empId, StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
+                    // Check if member has an explicit override (either a custom shift OR explicitly unassigned/null)
                     var overrideMember = empTeams.FirstOrDefault(tm =>
                         tm.TeamMemberOverride != null &&
-                        tm.TeamMemberOverride.CustomShift &&
-                        tm.TeamMemberOverride.OverrideShiftId.HasValue);
+                        tm.TeamMemberOverride.CustomShift);
 
-                    if (overrideMember?.TeamMemberOverride?.OverrideShiftId != null)
+                    if (overrideMember?.TeamMemberOverride != null)
                     {
-                        effectiveShift = allShifts.FirstOrDefault(s => s.ShiftId == overrideMember.TeamMemberOverride.OverrideShiftId.Value);
-                        if (effectiveShift != null)
+                        if (overrideMember.TeamMemberOverride.OverrideShiftId.HasValue)
                         {
-                            assignmentType = "TeamOverride";
+                            // Explicit assigned shift
+                            effectiveShift = allShifts.FirstOrDefault(s => s.ShiftId == overrideMember.TeamMemberOverride.OverrideShiftId.Value);
+                            if (effectiveShift != null)
+                            {
+                                assignmentType = "TeamOverride";
+                            }
+                        }
+                        else
+                        {
+                            // Explicitly UNASSIGNED (No Shift) -> DO NOT FALL BACK TO TEAM SHIFT!
+                            effectiveShift = null;
                         }
                     }
                     else if (empTeams.Any())
                     {
-                        // Priority 4: Team Base Shift
+                        // Priority 4: Team Base Shift (only if member has no custom override)
                         var teamWithShift = empTeams.FirstOrDefault(tm => tm.Team?.ShiftId != null);
                         if (teamWithShift?.Team?.ShiftId != null)
                         {
@@ -283,7 +293,6 @@ namespace EmployeeManagementSystem.Services
                         }
                     }
                 }
-
                 if (effectiveShift != null)
                 {
                     result.Add(new EmployeeShiftResponseDto
@@ -313,6 +322,7 @@ namespace EmployeeManagementSystem.Services
         public async Task<EmployeeShiftResponseDto?> GetEmployeeShiftAsync(string employeeId)
         {
             var all = await GetAllAssignmentsAsync();
+
             return all.FirstOrDefault(x => string.Equals(x.Employee_Id?.Trim(), employeeId?.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
@@ -374,72 +384,96 @@ namespace EmployeeManagementSystem.Services
         // =========================================================================
         // 6. UNASSIGN SHIFT BY EMPLOYEE ID
         // =========================================================================
+        // =========================================================================
+
+        // 6. UNASSIGN SHIFT
+
+        // =========================================================================
+
         public async Task<string> UnassignShiftAsync(string employeeId)
+
         {
+
             var empId = employeeId?.Trim() ?? "";
 
             // 1. Validate employee
+
             var employeeExists = await _context.Employees
+
                 .AnyAsync(x => x.Employee_Id == empId);
 
             if (!employeeExists)
+
                 return "Employee not found.";
 
-            // 2. Find active assignments
+            // 2. Find and deactivate all active assignments
+
             var activeAssignments = await _context.EmployeeShiftAssignments
+
                 .Where(x => x.Employee_Id == empId && x.IsActive)
+
                 .ToListAsync();
 
-            // Deactivate all active assignments
             foreach (var item in activeAssignments)
+
             {
+
                 item.IsActive = false;
+
                 item.EffectiveTo = DateTime.Now;
+
                 item.UpdatedDate = DateTime.Now;
+
             }
 
-            if (!activeAssignments.Any())
-            {
-                // Create an explicit unassigned record to ensure no fallback re-attaches
-                _context.EmployeeShiftAssignments.Add(new EmployeeShiftAssignment
-                {
-                    Employee_Id = empId,
-                    ShiftId = 1,
-                    EffectiveFrom = DateTime.Today,
-                    EffectiveTo = DateTime.Now,
-                    IsActive = false,
-                    CreatedDate = DateTime.Now,
-                    UpdatedDate = DateTime.Now
-                });
-            }
+            // 3. Sync TeamMemberOverride if employee is in a team (sets to No Shift)
 
-            // Sync TeamMemberOverride if in a team
             var teamMember = await _context.TeamMembers.FirstOrDefaultAsync(tm => tm.EmployeeId == empId);
+
             if (teamMember != null)
+
             {
+
                 var tmo = await _context.TeamMemberOverrides.FirstOrDefaultAsync(o => o.TeamMemberId == teamMember.Id);
+
                 if (tmo != null)
+
                 {
+
                     tmo.OverrideShiftId = null;
+
                     tmo.CustomShift = true;
+
                 }
+
                 else
+
                 {
+
                     _context.TeamMemberOverrides.Add(new TeamMemberOverride
+
                     {
+
                         TeamMemberId = teamMember.Id,
+
                         OverrideShiftId = null,
+
                         CustomShift = true
+
                     });
+
                 }
+
             }
 
             await _context.SaveChangesAsync();
 
-            // Clear attendance shift cache for this employee so attendance reflects the unassigned shift immediately
+            // 4. Clear attendance shift cache so attendance reflects unassigned shift immediately
+
             AttendanceService.ClearShiftCache(empId);
 
             return "Shift unassigned from employee successfully.";
+
         }
     }
 }

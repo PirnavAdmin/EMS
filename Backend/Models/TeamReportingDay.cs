@@ -8,6 +8,10 @@
 
         public string DayName { get; set; }
 
+        public DateTime EffectiveFrom { get; set; }
+
+        public DateTime? EffectiveTo { get; set; }
+
         public Team Team { get; set; }
     }
 }

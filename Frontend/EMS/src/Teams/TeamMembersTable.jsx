@@ -1,11 +1,20 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { addDays, addWeeks, format, isSameDay, isBefore, startOfWeek } from "date-fns";
 import { getDisplayDays } from "./teamUtils";
 import { hasEmployeeShift } from "../utils/shiftUtils";
 
 const normalizeId = (value) => String(value ?? "").trim();
 const EMPTY_MEMBERS = [];
+const WEEKDAY_OFFSETS = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
 const rowKey = (member, index) => normalizeId(member?.employeeId ?? member?.employee_Id ?? member?.userId ?? member?.id) || String(index);
+const getWeekStart = (date) => startOfWeek(date, { weekStartsOn: 1 });
+const getWeekLabel = (weekStart) => {
+  const weekEnd = addDays(weekStart, 4);
+  return weekStart.getFullYear() === weekEnd.getFullYear()
+    ? `${format(weekStart, "d MMM")} – ${format(weekEnd, "d MMM yyyy")}`
+    : `${format(weekStart, "d MMM yyyy")} – ${format(weekEnd, "d MMM yyyy")}`;
+};
 const formatShiftEndDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -40,12 +49,13 @@ const formatShiftTime = (value) => {
   }
   return `${String(hours).padStart(2, "0")}:${match[2]}`;
 };
-function TeamMembersTable({ members = EMPTY_MEMBERS, teamData, isAdmin = false, selfServiceShiftActions = false, currentEmployeeMember = null, authenticatedEmployeeId = "", canAddMember = false, availableShifts = [], loadingShifts = false, onLoadShifts, onAssignMemberShift, onUnassignMemberShift, onAddMember, onRequestChange, onSwapShift, onOverride, onRemove }) {
+function TeamMembersTable({ members = EMPTY_MEMBERS, isAdmin = false, selfServiceShiftActions = false, currentEmployeeMember = null, authenticatedEmployeeId = "", canAddMember = false, availableShifts = [], loadingShifts = false, onLoadShifts, onAssignMemberShift, onUnassignMemberShift, onAddMember, onRequestChange, onSwapShift, onOverride, onRemove }) {
   const [openUserMenu, setOpenUserMenu] = useState(null);
   const [openShiftControl, setOpenShiftControl] = useState(null);
   const [selectedShiftId, setSelectedShiftId] = useState("");
   const [savingShiftRow, setSavingShiftRow] = useState(null);
   const [animatedShiftRow, setAnimatedShiftRow] = useState(null);
+  const [selectedWeek, setSelectedWeek] = useState(() => getWeekStart(new Date()));
   const shiftPanelRef = useRef(null);
   const rosterScrollRef = useRef(null);
   const shiftAnimationTimeout = useRef(null);
@@ -168,11 +178,19 @@ function TeamMembersTable({ members = EMPTY_MEMBERS, teamData, isAdmin = false, 
   const activeUserMenu = authenticatedEmployeeId && currentEmployeeMember && openUserMenu?.member === currentEmployeeMember
     ? openUserMenu
     : null;
+  const today = new Date();
+  const weekDates = Object.fromEntries(Object.entries(WEEKDAY_OFFSETS).map(([day, offset]) => [day, addDays(selectedWeek, offset)]));
 
   return <div className={`team-members-reference bg-white rounded-2xl border border-slate-200 shadow-sm ${isAdmin || selfServiceShiftActions ? "team-members-reference--admin" : ""} ${selfServiceShiftActions ? "team-members-reference--self-service" : ""}`}>
     <div className="team-members-reference__head px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div><h2 className="text-xl font-black text-slate-800 tracking-tight">Members</h2><p className="text-xs text-slate-500 mt-0.5">{isAdmin ? "Admin View: Team roster, shift controls, and overrides." : "Team roster, working days, and shift requests."}</p></div>
       <div className="team-members-reference__head-actions">
+        <div className="team-members-reference__week-selector" aria-label="Select work week">
+          <button type="button" className="team-members-reference__week-arrow" aria-label="Previous week" onClick={() => setSelectedWeek((week) => addWeeks(week, -1))}>‹</button>
+          <span className="team-members-reference__week-label">{getWeekLabel(selectedWeek)}</span>
+          <button type="button" className="team-members-reference__week-arrow" aria-label="Next week" onClick={() => setSelectedWeek((week) => addWeeks(week, 1))}>›</button>
+          <button type="button" className="team-members-reference__this-week" onClick={() => setSelectedWeek(getWeekStart(new Date()))}>This week</button>
+        </div>
         {canAddMember && <button type="button" className="team-members-reference__add-member" onClick={onAddMember}><span className="team-members-reference__add-member-icon">+</span><span>Add Member</span></button>}
       </div>
     </div>
@@ -201,6 +219,15 @@ function TeamMembersTable({ members = EMPTY_MEMBERS, teamData, isAdmin = false, 
           {members.map((member, index) => {
             if (!member || typeof member !== "object") return null;
             const { wfoDays: wfoList, wfhDays: wfhList } = getDisplayDays(member.wfoDays, member.wfhDays);
+            const getChipDate = (day) => weekDates[day];
+            const isPastChipDate = (day) => isBefore(getChipDate(day), today) && !isSameDay(getChipDate(day), today);
+            const renderDayChip = (day, kind) => {
+              const date = getChipDate(day);
+              const isToday = isSameDay(date, today);
+              return <span key={day} className={`team-members-reference__day team-members-reference__day--${kind} team-members-reference__day-date${isToday ? " is-today" : ""}${isPastChipDate(day) ? " is-past" : ""}`}>
+                <span>{day}</span><small>{format(date, "d MMM")}</small>
+              </span>;
+            };
             const key = rowKey(member, index);
             const isOwnRow = Boolean(selfServiceShiftActions && authenticatedEmployeeId && currentEmployeeMember && member === currentEmployeeMember);
             const currentShiftRecord = member.shiftUnassigned
@@ -232,8 +259,8 @@ function TeamMembersTable({ members = EMPTY_MEMBERS, teamData, isAdmin = false, 
                 )) : hasShift ? <span className={`team-members-reference__shift-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-2xs ${shiftBadgeTone(displayShift)} ${!hasKnownShiftTone ? "team-members-reference__shift-pill--neutral" : ""}`}><span className={`w-1 h-1 rounded-full ${shiftDotTone(displayShift)}`} />{displayShift}</span> : <span className="team-members-reference__day team-members-reference__day--wfo team-members-reference__no-shift inline-flex items-center rounded-full text-[11px] font-semibold">No shift</span>}
                 {hasShift && (member.isTemporaryShift || member.shift?.isTemporary || member.currentShift?.isTemporary) && shiftEffectiveTo && <span className="team-members-reference__shift-temporary">Temporary · until {formatShiftEndDate(shiftEffectiveTo)}</span>}
               </div></td>
-              <td className="team-members-reference__days-cell py-3.5 px-4 text-center align-middle whitespace-nowrap"><div className="team-members-reference__days">{wfoList.length ? wfoList.map((day) => <span key={day} className="team-members-reference__day team-members-reference__day--wfo bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap inline-block">{day}</span>) : <span className="team-day-empty">-</span>}</div></td>
-              <td className="team-members-reference__days-cell py-3.5 px-4 text-center align-middle whitespace-nowrap"><div className="team-members-reference__days">{wfhList.length ? wfhList.map((day) => <span key={day} className="team-members-reference__day team-members-reference__day--wfh bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap inline-block">{day}</span>) : <span className="team-day-empty">-</span>}</div></td>
+              <td className="team-members-reference__days-cell team-members-reference__days-cell--wfo py-3.5 px-4 text-center align-middle whitespace-nowrap"><div className="team-members-reference__days">{wfoList.length ? wfoList.map((day) => renderDayChip(day, "wfo")) : <span className="team-day-empty">-</span>}</div></td>
+              <td className="team-members-reference__days-cell team-members-reference__days-cell--wfh py-3.5 px-4 text-center align-middle whitespace-nowrap"><div className="team-members-reference__days">{wfhList.length ? wfhList.map((day) => renderDayChip(day, "wfh")) : <span className="team-day-empty">-</span>}</div></td>
               {selfServiceShiftActions && <td className="team-members-reference__shift-actions py-3.5 px-4 text-center align-middle whitespace-nowrap"><div className="team-members-reference__shift-actions-inner">{isOwnRow
                 ? <button type="button" className="team-members-reference__self-menu-trigger" aria-label="Open shift request options" aria-haspopup="menu" aria-expanded={activeUserMenu?.key === key} onClick={(event) => toggleUserMenu(event, key, member)}>⋮</button>
                 : null}</div></td>}

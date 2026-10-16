@@ -630,6 +630,7 @@ export const API = {
     TEAM: {
         LIST: "/Team",
         CREATE: "/Team/create",
+        EXPORT: "/Team/export",
         GET_BY_ID: (teamId) => `/Team/${teamId}`,
         UPDATE: "/Team/update",
         DELETE: (teamId) => `/Team/${teamId}`,
@@ -1293,6 +1294,7 @@ export const API_ENDPOINTS = {
     team: {
         list: API.TEAM.LIST,
         create: API.TEAM.CREATE,
+        export: API.TEAM.EXPORT,
         byId: API.TEAM.GET_BY_ID,
         update: API.TEAM.UPDATE,
         delete: API.TEAM.DELETE,

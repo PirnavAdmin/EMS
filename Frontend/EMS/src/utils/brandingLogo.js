@@ -117,6 +117,7 @@ export const notifyBrandingLogoUpdated = () => {
 
 export const useBrandingLogo = (fieldName) => {
   const [logoSrc, setLogoSrc] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const requestIdRef = useRef(0);
 
   useEffect(() => {
@@ -125,10 +126,12 @@ export const useBrandingLogo = (fieldName) => {
     const loadBrandingLogo = async (forceRefresh = false) => {
       const requestId = ++requestIdRef.current;
 
+      if (!forceRefresh) {
+        setIsLoading(true);
+      }
+
       try {
-        const logos = await fetchBrandingLogos({
-          forceRefresh
-        });
+        const logos = await fetchBrandingLogos({ forceRefresh });
 
         if (!isMounted || requestId !== requestIdRef.current) {
           return;
@@ -138,6 +141,10 @@ export const useBrandingLogo = (fieldName) => {
       } catch {
         if (isMounted && requestId === requestIdRef.current) {
           setLogoSrc("");
+        }
+      } finally {
+        if (isMounted && requestId === requestIdRef.current) {
+          setIsLoading(false);
         }
       }
     };
@@ -167,5 +174,5 @@ export const useBrandingLogo = (fieldName) => {
     };
   }, [fieldName]);
 
-  return logoSrc;
+  return { logoSrc, isLoading };
 };

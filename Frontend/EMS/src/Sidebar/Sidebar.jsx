@@ -419,8 +419,10 @@ function Sidebar({ collapsed }) {
   const roleName = getUserRole();
   const loadedPermissions = getStoredPermissions(roleName);
   const superAdminUser = isSuperAdmin();
-  const resolvedLogo = useBrandingLogo("sidebarLogo");
-  const logoSrc = resolvedLogo || pirnavLogo;
+  const { logoSrc: resolvedLogo, isLoading } =
+    useBrandingLogo("sidebarLogo");
+
+  const logoSrc = resolvedLogo || (isLoading ? "" : pirnavLogo);
   const isCompact = collapsed;
   const routeMenu = isCompact ? null : getMenuKeyFromPath(location.pathname);
   const [menuState, setMenuState] = useState(() => ({
@@ -781,15 +783,17 @@ function Sidebar({ collapsed }) {
         className={`sidebar ${isCompact ? "collapsed" : ""}`}>
 
         <div className="logo">
-          <img
-            src={logoSrc}
-            alt="Pirnav Logo"
-            className="sidebar-logo-img"
-            onError={(event) => {
-              if (event.currentTarget.src !== pirnavLogo) {
+          {logoSrc && (
+            <img
+              src={logoSrc}
+              alt="Company logo"
+              className="sidebar-logo-img"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
                 event.currentTarget.src = pirnavLogo;
-              }
-            }} />
+              }}
+            />
+          )}
 
         </div>
 

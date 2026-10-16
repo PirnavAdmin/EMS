@@ -10,6 +10,12 @@ export const getTeamById = (teamId, config = {}) =>
 export const createTeam = (payload, config = {}) =>
   api.post(API_ENDPOINTS.team.create, payload, config);
 
+export const exportTeams = (config = {}) =>
+  api.get(API_ENDPOINTS.team.export, {
+    ...config,
+    responseType: "blob",
+  });
+
 export const updateTeam = (payload, config = {}) =>
   api.put(API_ENDPOINTS.team.update, payload, config);
 
