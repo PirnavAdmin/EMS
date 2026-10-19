@@ -37,7 +37,7 @@ import {
 } from "../services/hrmsSettingsService";
 import {
   createShiftChangeRequest
-} from "../services/ShiftRequestService";
+} from "../services/shiftRequestService";
 import { getApiErrorMessage } from "../services/superAdminService";
 import { createSwap } from "../services/shiftSwapApi";
 import { getMyEmployeeFullDetail } from "../services/employeeService";
@@ -97,8 +97,8 @@ const findMatchingTeamMember = (members = [], sourceMember = {}) => {
   const targetUserId = normalizeLookupId(sourceMember.userId);
   const targetEmployeeFallbackId = normalizeLookupId(
     sourceMember.employee?.id ??
-      sourceMember.employee?.employeeId ??
-      sourceMember.employee?.userId
+    sourceMember.employee?.employeeId ??
+    sourceMember.employee?.userId
   );
 
   return (
@@ -359,21 +359,21 @@ function TeamDetails({ mode = "management" }) {
 
         const res = isMyTeamMode
           ? await getMyTeam({
-              signal,
-              cacheTTL
-            })
+            signal,
+            cacheTTL
+          })
           : await getTeamById(teamId, {
-              signal,
-              cacheTTL
-            });
+            signal,
+            cacheTTL
+          });
 
         const normalizedTeam = normalizeTeamRecord(res.data);
 
         setTeam(normalizedTeam);
         setDraftReportingDays(
-          normalizedTeam?.reportingDays?.length
+          Array.isArray(normalizedTeam?.reportingDays)
             ? [...normalizedTeam.reportingDays]
-            : [...TEAM_DAY_OPTIONS]
+            : []
         );
 
         return normalizedTeam;
@@ -412,7 +412,7 @@ function TeamDetails({ mode = "management" }) {
     const controller = new AbortController();
     void fetchTeam(controller.signal, {
       cacheTTL: isMyTeamMode ? 0 : 60 * 1000
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => controller.abort();
   }, [canViewTeam, fetchTeam, isMyTeamMode]);
@@ -423,7 +423,7 @@ function TeamDetails({ mode = "management" }) {
     }
 
     setDraftReportingDays(
-      team.reportingDays?.length ? [...team.reportingDays] : [...TEAM_DAY_OPTIONS]
+      Array.isArray(team.reportingDays) ? [...team.reportingDays] : []
     );
   }, [team]);
 
@@ -434,7 +434,7 @@ function TeamDetails({ mode = "management" }) {
 
     return {
       totalMembers: team.memberCount || team.members?.length || 0,
-      reportingDays: team.reportingDays || TEAM_DAY_OPTIONS
+      reportingDays: Array.isArray(team.reportingDays) ? team.reportingDays : []
     };
   }, [team]);
 
@@ -466,7 +466,7 @@ function TeamDetails({ mode = "management" }) {
 
     const refetchQuietly = () => {
       if (document.visibilityState === "hidden") return;
-      void refreshTeam().catch(() => {});
+      void refreshTeam().catch(() => { });
     };
     const unsubscribe = subscribeToTeamDataChanges(refetchQuietly);
     const onVisibilityChange = () => {
@@ -495,11 +495,8 @@ function TeamDetails({ mode = "management" }) {
   };
 
   const handleSaveReportingDays = async () => {
-    if (draftReportingDays.length === 0) {
-      toastError("Select at least one reporting day");
-      return;
-    }
-
+    // An empty selection is valid: it means all available days become WFH days.
+    // Do NOT block saving when draftReportingDays is empty.
     setIsSavingReportingDays(true);
 
     try {
@@ -507,9 +504,16 @@ function TeamDetails({ mode = "management" }) {
         buildUpdateReportingDaysPayload(team.teamId, draftReportingDays)
       );
       notifyTeamDataChanged({ teamId: team.teamId, reason: "reporting-days-updated" });
-      toastSuccess("Reporting days updated");
+
+      const savedWfoDays = [...draftReportingDays];
+      const savedWfhDays = TEAM_DAY_OPTIONS.filter((day) => !savedWfoDays.includes(day));
+      const wfoLabel = savedWfoDays.length === 0
+        ? "No WFO days — all available days assigned to WFH"
+        : `WFO: ${savedWfoDays.join(", ")} | WFH: ${savedWfhDays.join(", ") || "none"}`;
+      toastSuccess(`Reporting days updated. ${wfoLabel}`);
+
       setIsEditingReportingDays(false);
-      await refreshTeam().catch(() => {});
+      await refreshTeam().catch(() => { });
     } catch (error) {
       toastError(extractApiErrorMessage(error, "Unable to update reporting days"));
     } finally {
@@ -796,8 +800,8 @@ function TeamDetails({ mode = "management" }) {
     const employeeId = isMyTeamMode
       ? currentEmployeeCode
       : normalizeLookupId(
-          shiftChangeMember.employeeId ?? shiftChangeMember.employee_Id ?? shiftChangeMember.id
-        );
+        shiftChangeMember.employeeId ?? shiftChangeMember.employee_Id ?? shiftChangeMember.id
+      );
     const requesterShiftMember = isMyTeamMode ? currentEmployeeMember : shiftChangeMember;
     if (!requesterShiftMember) {
       throw new Error("Request could not be created because the requesting employee could not be identified.");
@@ -822,9 +826,9 @@ function TeamDetails({ mode = "management" }) {
       currentShiftId,
       requestedShiftId,
       effectiveFrom: form.effectiveFrom,
-        effectiveTo: form.isPermanent ? null : form.effectiveTo,
-        isPermanent: Boolean(form.isPermanent),
-        reason: String(form.reason ?? "").trim()
+      effectiveTo: form.isPermanent ? null : form.effectiveTo,
+      isPermanent: Boolean(form.isPermanent),
+      reason: String(form.reason ?? "").trim()
     };
 
     setIsSavingShiftRequest(true);
@@ -833,11 +837,11 @@ function TeamDetails({ mode = "management" }) {
       if (import.meta.env.DEV) console.debug("POST /api/ShiftChangeRequest payload:", payload);
       await createShiftChangeRequest(payload);
       toastSuccess("Shift change request submitted successfully");
-        if (isMyTeamMode) setActiveRequestView("change");
-        setRequestRefreshKey((value) => value + 1);
-        await refreshTeam().catch(() => {});
-        setShiftChangeMember(null);
-        return { ok: true };
+      if (isMyTeamMode) setActiveRequestView("change");
+      setRequestRefreshKey((value) => value + 1);
+      await refreshTeam().catch(() => { });
+      setShiftChangeMember(null);
+      return { ok: true };
     } catch (error) {
       const message = getApiErrorMessage(error, "Unable to submit shift change request.");
       if (error?.response?.status === 409 || /already exists|already decided/i.test(message)) {
@@ -857,8 +861,8 @@ function TeamDetails({ mode = "management" }) {
     const fromEmployeeId = isMyTeamMode
       ? currentEmployeeRequestId
       : normalizeLookupId(
-          shiftSwapMember.employeeId ?? shiftSwapMember.employee_Id
-        );
+        shiftSwapMember.employeeId ?? shiftSwapMember.employee_Id
+      );
 
     if (!fromEmployeeId || !currentEmployeeMember) {
       throw new Error("Unable to identify the logged-in employee.");
@@ -888,7 +892,7 @@ function TeamDetails({ mode = "management" }) {
       setShiftSwapMember(null);
       if (isMyTeamMode) setActiveRequestView("swap");
       setRequestRefreshKey((value) => value + 1);
-      await refreshTeam().catch(() => {});
+      await refreshTeam().catch(() => { });
     } finally {
       setIsSavingShiftRequest(false);
     }
@@ -932,8 +936,8 @@ function TeamDetails({ mode = "management" }) {
         "SENT PROJECT OVERRIDE:",
         payload.differentProject
           ? {
-              projectId: payload.projectId
-            }
+            projectId: payload.projectId
+          }
           : null
       );
 
@@ -958,7 +962,7 @@ function TeamDetails({ mode = "management" }) {
       if (
         form.customShift &&
         toNumberId(refreshedMember.shiftId ?? refreshedMember.shift?.shiftId) !==
-          toNumberId(form.overrideShiftId)
+        toNumberId(form.overrideShiftId)
       ) {
         mismatches.push("custom shift");
       }
@@ -1058,7 +1062,7 @@ function TeamDetails({ mode = "management" }) {
       notifyTeamDataChanged({ teamId: team.teamId, reason: "team-updated" });
       toastSuccess("Team updated successfully");
       setIsEditTeamOpen(false);
-      await refreshTeam().catch(() => {});
+      await refreshTeam().catch(() => { });
     } catch (error) {
       toastError(extractApiErrorMessage(error, "Unable to update team"));
     } finally {
@@ -1117,7 +1121,7 @@ function TeamDetails({ mode = "management" }) {
       notifyTeamDataChanged({ teamId: team.teamId, reason: "member-removed" });
       toastSuccess("Member removed");
       setRemoveMember(null);
-      await refreshTeam().catch(() => {});
+      await refreshTeam().catch(() => { });
     } catch (error) {
       toastError(extractApiErrorMessage(error, "Unable to remove member"));
     } finally {
@@ -1274,7 +1278,7 @@ function TeamDetails({ mode = "management" }) {
               members={team?.members ?? []}
               onRequestUpdated={() => {
                 notifyTeamDataChanged({ teamId: team?.teamId, reason: "team-request-updated" });
-                return refreshTeam().catch(() => {});
+                return refreshTeam().catch(() => { });
               }}
               onRequestViewChange={setActiveRequestView}
               activeRequestView={activeRequestView}
@@ -1287,21 +1291,21 @@ function TeamDetails({ mode = "management" }) {
           canManage={canManageShiftRequests}
           onRequestUpdated={() => {
             notifyTeamDataChanged({ teamId: team?.teamId, reason: "team-request-updated" });
-            return refreshTeam().catch(() => {});
+            return refreshTeam().catch(() => { });
           }}
         />}
       </div>
 
       {!isMyTeamMode && <TeamReportingDays
         teamName={team.teamName}
-        days={summary?.reportingDays || TEAM_DAY_OPTIONS}
+        days={summary?.reportingDays ?? []}
         draftDays={draftReportingDays}
         isEditing={isEditingReportingDays}
         saving={isSavingReportingDays}
         canManage={canEditTeam}
         onEdit={() => setIsEditingReportingDays(true)}
         onCancel={() => {
-          setDraftReportingDays(team.reportingDays || [...TEAM_DAY_OPTIONS]);
+          setDraftReportingDays(Array.isArray(team.reportingDays) ? [...team.reportingDays] : []);
           setIsEditingReportingDays(false);
         }}
         onSave={handleSaveReportingDays}

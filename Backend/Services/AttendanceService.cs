@@ -196,7 +196,7 @@ namespace EmployeeManagementSystem.Services
             var emp = await GetEmployee(user);
 
             if (emp == null)
-                return new UnauthorizedObjectResult("Invalid user");
+                return new UnauthorizedObjectResult(new { message = "Invalid user" });
 
             // CHECK HOLIDAY
             var todayIst = ConvertToIST(DateTime.UtcNow).Date;
@@ -272,26 +272,21 @@ namespace EmployeeManagementSystem.Services
             }
 
 
-            TimeSpan shiftStart = shift != null ? shift.StartTime : settings.OfficeStartTime;
+            TimeSpan checkInStart = settings.CheckInStartTime;
+            TimeSpan lateAfter = settings.LateAfterTime;
 
-            // Check-in allowed starting 6 minutes before shift start (e.g. 08:54 for 09:00 shift)
-            TimeSpan allowedCheckInStart = shiftStart.Subtract(TimeSpan.FromMinutes(6));
-            TimeSpan checkInMsgTime = shiftStart.Subtract(TimeSpan.FromMinutes(6));
-            if (checkInMsgTime < TimeSpan.Zero)
-                checkInMsgTime = checkInMsgTime.Add(TimeSpan.FromHours(24));
-
-            TimeSpan lateAfter = shift != null
-                ? shift.StartTime.Add(TimeSpan.FromMinutes(shift.GraceTimeMinutes))
-                : settings.LateAfterTime;
-
-            // Block check-in if attempted before allowed early check-in window
-            if (ist.TimeOfDay < allowedCheckInStart)
+            if (shift != null)
             {
-                var formattedTime = DateTime.Today.Add(checkInMsgTime).ToString("hh:mm tt");
-                var msg = $"Check-in is allowed only after {formattedTime}";
+                checkInStart = shift.StartTime;
+                lateAfter = shift.StartTime.Add(TimeSpan.FromMinutes(shift.GraceTimeMinutes));
+            }
+
+            if (ist.TimeOfDay < checkInStart)
+            {
+                var formattedTime = DateTime.Today.Add(checkInStart).ToString("hh:mm tt");
                 return new BadRequestObjectResult(new
                 {
-                    message = msg
+                    message = $"Check-in is allowed only after {formattedTime}"
                 });
             }
 
@@ -417,7 +412,7 @@ namespace EmployeeManagementSystem.Services
                 var employeeId = user.FindFirst("EmployeeId")?.Value;
 
                 if (string.IsNullOrWhiteSpace(employeeId))
-                    return new UnauthorizedObjectResult("Invalid user");
+                    return new UnauthorizedObjectResult(new { message = "Invalid user" });
 
                 var today = DateTime.UtcNow.Date;
                 var tomorrow = today.AddDays(1);
@@ -500,45 +495,73 @@ namespace EmployeeManagementSystem.Services
 
 
                 var settings = GetAttendanceSettings();
-                TimeSpan shiftEnd = shift != null
-                    ? shift.EndTime
-                    : (settings != null && settings.CheckoutTime != TimeSpan.Zero
-                        ? settings.CheckoutTime
-                        : (settings?.OfficeEndTime ?? TimeSpan.FromHours(18)));
-                bool isNightShift = shift != null && (shift.IsNightShift || shift.ShiftEndNextDay == 1);
-
-                // Calculate Earliest Allowed Checkout Time (6 minutes before Shift End)
-                DateTime earliestCheckoutTime;
-                if (isNightShift)
+                if (settings == null)
                 {
-                    // Night shift finishes next morning
-                    earliestCheckoutTime = att.Attendance_Date.Date
-                        .AddDays(1)
-                        .Add(shiftEnd)
-                        .AddMinutes(-6);
-                }
-                else
-                {
-                    earliestCheckoutTime = att.Attendance_Date.Date
-                        .Add(shiftEnd)
-                        .AddMinutes(-6);
-                }
-
-                // Message displays earliest checkout time (6 minutes before shift end, e.g. 01:54 PM for 02:00 PM shift end)
-                TimeSpan checkOutMsgTime = shiftEnd.Subtract(TimeSpan.FromMinutes(6));
-                if (checkOutMsgTime < TimeSpan.Zero)
-                    checkOutMsgTime = checkOutMsgTime.Add(TimeSpan.FromHours(24));
-
-                var formattedTime = DateTime.Today.Add(checkOutMsgTime).ToString("hh:mm tt");
-
-                // Block checkout if attempted before the shift completion window
-                if (istNow < earliestCheckoutTime)
-                {
-                    var msg = $"Checkout is allowed only after {formattedTime}";
-                    return new BadRequestObjectResult(new
+                    return new ObjectResult(new
                     {
-                        message = msg
+                        Message = "Attendance settings are not configured."
+                    })
+                    {
+                        StatusCode = StatusCodes.Status500InternalServerError
+                    };
+                }
+
+                TimeSpan checkoutTime = settings.CheckoutTime;
+
+                int grace = 0;
+
+                if (shift != null)
+
+                {
+
+                    checkoutTime = shift.EndTime;
+
+                    grace = shift.GraceTimeMinutes;
+
+                }
+
+                DateTime cutoffTime;
+
+                if (shift != null && (shift.IsNightShift || shift.ShiftEndNextDay == 1))
+
+                {
+
+                    cutoffTime = att.Attendance_Date.Date
+
+                        .AddDays(1)
+
+                        .Add(checkoutTime)
+
+                        .AddMinutes(grace);
+
+                }
+
+                else
+
+                {
+
+                    cutoffTime = att.Attendance_Date.Date
+
+                        .Add(checkoutTime)
+
+                        .AddMinutes(grace);
+
+                }
+
+                if (istNow > cutoffTime)
+
+                {
+
+                    var formattedCutoff = cutoffTime.ToString("hh:mm tt");
+
+                    return new BadRequestObjectResult(new
+
+                    {
+
+                        message = $"Checkout allowed only until {formattedCutoff}"
+
                     });
+
                 }
 
                 att.Check_Out = now;
@@ -604,12 +627,12 @@ namespace EmployeeManagementSystem.Services
 
                 if (dto == null)
                 {
-                    return new BadRequestObjectResult("Checkout payload is null");
+                    return new BadRequestObjectResult(new { message = "Checkout payload is null" });
                 }
 
                 if (dto.Latitude == 0 || dto.Longitude == 0)
                 {
-                    return new BadRequestObjectResult("Latitude/Longitude missing");
+                    return new BadRequestObjectResult(new { message = "Latitude/Longitude missing" });
                 }
 
                 // Calculate distance
@@ -1939,7 +1962,7 @@ employeeInfo.Email ?? "",
             var today = istNow.Date;
 
             var query = _context.Attendance
-       
+
        .Where(a =>
            a.Check_In != null &&
            a.Check_Out == null &&
@@ -4976,7 +4999,7 @@ employeeInfo.Email ?? "",
                     cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#E5E7EB");
                     cell.Value = "W";
                     break;
-    
+
                 case "H":
                 case "Holiday":
                     cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#DCEBFF");
@@ -5196,4 +5219,5 @@ employeeInfo.Email ?? "",
 
     }
 }
+
 

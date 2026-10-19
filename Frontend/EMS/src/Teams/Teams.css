@@ -1,4 +1,4 @@
-.teams-page {
+﻿.teams-page {
   width: 100%;
   min-height: 100%;
   padding: clamp(16px, 2vw, 28px);
@@ -1271,6 +1271,62 @@
 .teams-day-button:disabled {
   opacity: 0.8;
   cursor: default;
+}
+
+/* WFO / WFH Summary Section */
+.teams-wfo-wfh-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.teams-wfo-wfh-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.teams-wfo-wfh-label {
+  flex-shrink: 0;
+  min-width: 78px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 5px;
+  line-height: 1.5;
+}
+
+.teams-wfo-wfh-label--wfo {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 12%, transparent);
+  color: color-mix(in srgb, var(--color-success, #22c55e) 80%, var(--text-strong));
+}
+
+.teams-wfo-wfh-label--wfh {
+  background: color-mix(in srgb, var(--color-info, #3b82f6) 12%, transparent);
+  color: color-mix(in srgb, var(--color-info, #3b82f6) 80%, var(--text-strong));
+}
+
+.team-day-badge--wfo {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 15%, var(--bg-muted));
+  color: color-mix(in srgb, var(--color-success, #22c55e) 70%, var(--text-body));
+  border: 1px solid color-mix(in srgb, var(--color-success, #22c55e) 30%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.team-day-badge--wfh {
+  background: color-mix(in srgb, var(--color-info, #3b82f6) 15%, var(--bg-muted));
+  color: color-mix(in srgb, var(--color-info, #3b82f6) 70%, var(--text-body));
+  border: 1px solid color-mix(in srgb, var(--color-info, #3b82f6) 30%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .teams-table-card {

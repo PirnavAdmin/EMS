@@ -48,39 +48,39 @@ function TeamReportingDays({
                 onClick={onSave}
                 disabled={saving}
               >
-              <FaBell />
+                <FaBell />
                 {saving ? "Saving..." : "Save & Notify"}
               </button>
             </>
-         ) : (
-  canManage && (
-    <>
-    <button
-      type="button"
-      className="team-action-btn secondary"
-      onClick={onAssignShift}
-    >
-      <FaClock />
-      Assign Shift
-    </button>
-    {canCreateShift && <button
-      type="button"
-      className="team-action-btn"
-      onClick={onCreateShift}
-    >
-      Create Shift
-    </button>}
-    <button
-      type="button"
-      className="team-action-btn secondary"
-      onClick={onEdit}
-    >
-      <FaPen />
-      Edit
-    </button>
-    </>
-  )
-)}
+          ) : (
+            canManage && (
+              <>
+                <button
+                  type="button"
+                  className="team-action-btn secondary"
+                  onClick={onAssignShift}
+                >
+                  <FaClock />
+                  Assign Shift
+                </button>
+                {canCreateShift && <button
+                  type="button"
+                  className="team-action-btn"
+                  onClick={onCreateShift}
+                >
+                  Create Shift
+                </button>}
+                <button
+                  type="button"
+                  className="team-action-btn secondary"
+                  onClick={onEdit}
+                >
+                  <FaPen />
+                  Edit
+                </button>
+              </>
+            )
+          )}
         </div>
       </div>
 
