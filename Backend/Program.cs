@@ -6,6 +6,9 @@ using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.HostedServices;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Services;
+using FirebaseAdmin;
+using FirebaseAdmin.Messaging;
+using Google.Apis.Auth.OAuth2;
 using Hangfire;
 using Hangfire.MySql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,12 +20,11 @@ using Microsoft.OpenApi.Models;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using QuestPDF.Infrastructure;
 using QuestPDF.Infrastructure;
+using System;
 using System.IdentityModel.Tokens.Jwt;
+using System.IO;
 using System.Security.Claims;
 using System.Text;
-using FirebaseAdmin;
-using Google.Apis.Auth.OAuth2;
-using FirebaseAdmin.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,9 +37,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 // Firebase configuration
+
 const string firebaseProjectId = "peoplehrsync";
-const string firebaseCredentialsPath =
-    @"C:\SecureConfig\peoplehrsync-firebase-admin.json";
+
+var firebaseCredentialsPath =
+    Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH")
+    ?? "/run/secrets/firebase-admin.json";
 
 if (!File.Exists(firebaseCredentialsPath))
 {
@@ -48,8 +53,7 @@ if (!File.Exists(firebaseCredentialsPath))
 
 FirebaseApp.Create(new AppOptions
 {
-    Credential = GoogleCredential.FromFile(
-        firebaseCredentialsPath),
+    Credential = GoogleCredential.FromFile(firebaseCredentialsPath),
     ProjectId = firebaseProjectId
 });
 
@@ -58,6 +62,7 @@ Console.WriteLine(
 
 builder.Services.AddSingleton<FirebaseMessaging>(
     _ => FirebaseMessaging.DefaultInstance);
+
 
 // ================= SERVICES =================
 
