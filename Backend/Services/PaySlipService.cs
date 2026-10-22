@@ -510,21 +510,40 @@ e.Status == "Active");
                 " Only";
 
 
-
             //--------------------------------
             // GET PAYSLIP TEMPLATE
             //--------------------------------
 
+          
+
+            var template = await _templateService.GetActiveTemplateAsync(
+     "PAYSLIP");
+
+            if (template == null)
+            {
+                throw new Exception(
+                    "Active Payslip template not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(template.FilePath))
+            {
+                throw new Exception(
+                    "Payslip template file path is missing.");
+            }
+
+            var relativeTemplatePath = template.FilePath
+                .TrimStart('/', '\\');
+
             var templatePath = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "Templates",
-                "PaySlipTemplate.docx");
+                _environment.WebRootPath,
+                relativeTemplatePath);
 
             if (!File.Exists(templatePath))
             {
                 throw new Exception(
                     $"Payslip template file not found: {templatePath}");
             }
+
             ////    vishnu    //--------------------------------
 
             //// --------------------------------

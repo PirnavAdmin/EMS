@@ -20,9 +20,9 @@ using QuestPDF.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-//using FirebaseAdmin;
-//using Google.Apis.Auth.OAuth2;
-//using FirebaseAdmin.Messaging;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using FirebaseAdmin.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,26 +31,34 @@ var builder = WebApplication.CreateBuilder(args);
 // ================= FIREBASE CONFIGURATION =================
 // ================= FIREBASE CONFIGURATION =================
 
-//const string firebaseProjectId = "peoplehrsync";
-//const string firebaseCredentialsPath =
-//    @"C:\SecureConfig\peoplehrsync-firebase-admin.json";
 
-//if (!File.Exists(firebaseCredentialsPath))
-//{
-//    throw new FileNotFoundException(
-//        "Firebase service-account JSON file not found.",
-//        firebaseCredentialsPath);
-//}
 
-//FirebaseApp.Create(new AppOptions
-//{
-//    Credential = GoogleCredential.FromFile(firebaseCredentialsPath),
-//    ProjectId = firebaseProjectId
-//});
 
-//Console.WriteLine("Firebase initialized successfully.");
-//builder.Services.AddSingleton<FirebaseMessaging>(
-//    _ => FirebaseMessaging.DefaultInstance);
+// Firebase configuration
+const string firebaseProjectId = "peoplehrsync";
+const string firebaseCredentialsPath =
+    @"C:\SecureConfig\peoplehrsync-firebase-admin.json";
+
+if (!File.Exists(firebaseCredentialsPath))
+{
+    throw new FileNotFoundException(
+        "Firebase service-account JSON file not found.",
+        firebaseCredentialsPath);
+}
+
+FirebaseApp.Create(new AppOptions
+{
+    Credential = GoogleCredential.FromFile(
+        firebaseCredentialsPath),
+    ProjectId = firebaseProjectId
+});
+
+Console.WriteLine(
+    $"Firebase initialized for project: {firebaseProjectId}");
+
+builder.Services.AddSingleton<FirebaseMessaging>(
+    _ => FirebaseMessaging.DefaultInstance);
+
 // ================= SERVICES =================
 
 builder.Services.AddControllers();
@@ -194,9 +202,9 @@ builder.Services.AddScoped<
     EmployeeSalaryStructureService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddHostedService<BirthdayEmailService>();
-//builder.Services.AddScoped<
-//    IFcmNotificationService,
-//    FcmNotificationService>();
+builder.Services.AddScoped<
+    IFcmNotificationService,
+    FcmNotificationService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
 builder.Services.AddScoped<
     IAppraisalSalaryService,

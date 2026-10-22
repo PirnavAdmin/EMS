@@ -1,170 +1,62 @@
-﻿
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
+
 using EmployeeManagementSystem.DTOs;
+
 using EmployeeManagementSystem.Models;
-using Microsoft.AspNetCore.Authorization;
+
 using Microsoft.AspNetCore.Mvc;
+
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-
 namespace EmployeeManagementSystem.Controllers
+
 {
-    [Authorize]
+
     [ApiController]
+
     [Route("api/[controller]")]
+
     public class EmployeePersonalInfoController : ControllerBase
+
     {
+
         private readonly AppDbContext _context;
 
-        // Confirm this matches the Employees module ID in your database.
-        private const int EmployeeModuleId = 47;
-
         public EmployeePersonalInfoController(AppDbContext context)
+
         {
+
             _context = context;
+
         }
 
-        // =========================================
-        // USER CLAIM HELPERS
-        // =========================================
-        private string? GetEmail()
-        {
-            return User.FindFirst(ClaimTypes.Email)?.Value
-                ?? User.FindFirst("email")?.Value;
-        }
+        // 🔹 CREATE
+        //private async Task<bool> IsAdminUser()
+        //{
+        //    var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
-        private string? GetEmployeeId()
-        {
-            return User.FindFirst("EmployeeId")?.Value
-                ?? User.FindFirst("OnboardingId")?.Value;
-        }
+        //    if (string.IsNullOrEmpty(email))
+        //        return false;
 
-        private int? GetRoleId()
-        {
-            var roleIdValue = User.FindFirst("RoleId")?.Value;
+        //    return await _context.Admins
+        //        .AnyAsync(a => a.Email == email);
+        //}
 
-            return int.TryParse(roleIdValue, out var roleId)
-                ? roleId
-                : null;
-        }
 
-        private async Task<bool> IsAdminAsync()
-        {
-            var email = GetEmail();
 
-            if (string.IsNullOrWhiteSpace(email))
-                return false;
-
-            return await _context.Admins
-                .AnyAsync(a => a.Email == email);
-        }
-
-        // =========================================
-        // CHECK PERMISSION
-        // Individual UserPermissions override RolePermissions.
-        // =========================================
-        private async Task<bool> HasPermissionAsync(
-            string action)
-        {
-            if (await IsAdminAsync())
-                return true;
-
-            var employeeId = GetEmployeeId();
-            var roleId = GetRoleId();
-
-            // Resolve role ID from the employee record if
-            // it is not present in the JWT.
-            if (roleId == null &&
-                !string.IsNullOrWhiteSpace(employeeId))
-            {
-                var employee = await _context.Employees
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(
-                        e => e.Employee_Id == employeeId);
-
-                if (employee != null)
-                    roleId = employee.RoleId;
-            }
-
-            // First check employee-specific permission.
-            if (!string.IsNullOrWhiteSpace(employeeId))
-            {
-                var userPermission = await _context.UserPermissions
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p =>
-                        p.EmployeeId == employeeId &&
-                        p.ModuleId == EmployeeModuleId);
-
-                if (userPermission != null)
-                {
-                    // An individual permission overrides the role.
-                    if (!userPermission.CanAccess)
-                        return false;
-
-                    return action switch
-                    {
-                        "View" => userPermission.CanView,
-                        "Add" => userPermission.CanAdd,
-                        "Edit" => userPermission.CanEdit,
-                        "Delete" => userPermission.CanDelete,
-                        _ => false
-                    };
-                }
-            }
-
-            // No individual override: check the role permission.
-            if (roleId == null)
-                return false;
-
-            var rolePermission = await _context.RolePermissions
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p =>
-                    p.RoleId == roleId.Value &&
-                    p.ModuleId == EmployeeModuleId);
-
-            if (rolePermission == null ||
-                !rolePermission.CanAccess)
-            {
-                return false;
-            }
-
-            return action switch
-            {
-                "View" => rolePermission.CanView,
-                "Add" => rolePermission.CanAdd,
-                "Edit" => rolePermission.CanEdit,
-                "Delete" => rolePermission.CanDelete,
-                _ => false
-            };
-        }
-
-        private bool IsOwnRecord(string employeeId)
-        {
-            var currentId = GetEmployeeId();
-
-            return !string.IsNullOrWhiteSpace(currentId)
-                && string.Equals(
-                    currentId.Trim(),
-                    employeeId.Trim(),
-                    StringComparison.OrdinalIgnoreCase);
-        }
-
-        // =========================================
-        // CREATE
-        // POST: api/EmployeePersonalInfo
-        // =========================================
         [HttpPost]
-        public async Task<IActionResult> Create(
-            [FromBody] EmployeePersonalInfoDto dto)
+        public async Task<IActionResult> Create(EmployeePersonalInfoDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var email = GetEmail();
+            // Get logged-in user's email from JWT
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
             if (string.IsNullOrWhiteSpace(email))
                 return Unauthorized("Invalid user.");
 
+            // Fetch EmployeeId from Employees table
             var employee = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.Email == email);
@@ -173,27 +65,20 @@ namespace EmployeeManagementSystem.Controllers
 
             if (employee != null)
             {
-                // Employee can create only their own record.
+                // Logged-in employee
                 employeeId = employee.Employee_Id;
+
+                // Ignore Employee_Id sent from frontend
+                dto.Employee_Id = employee.Employee_Id;
             }
             else
             {
-                // Non-employee users need Add permission.
-                if (!await HasPermissionAsync("Add"))
-                {
-                    return StatusCode(403, new
-                    {
-                        message =
-                            "You do not have permission to add employee personal information."
-                    });
-                }
-
+                // Admin / HR / Manager
                 if (string.IsNullOrWhiteSpace(dto.Employee_Id))
                     return BadRequest("Employee Id is required.");
 
-                employeeId = dto.Employee_Id.Trim();
+                employeeId = dto.Employee_Id;
             }
-
             var exists = await _context.EmployeePersonalInfos
                 .AnyAsync(x => x.Employee_Id == employeeId);
 
@@ -201,8 +86,7 @@ namespace EmployeeManagementSystem.Controllers
             {
                 return BadRequest(new
                 {
-                    message =
-                        $"Personal information already exists for {employeeId}."
+                    message = $"Personal information already exists for {employeeId}."
                 });
             }
 
@@ -236,57 +120,54 @@ namespace EmployeeManagementSystem.Controllers
             };
 
             _context.EmployeePersonalInfos.Add(personalInfo);
+
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                message =
-                    "Employee Personal Information created successfully."
+                message = "Employee Personal Information created successfully."
             });
         }
-
-        // =========================================
-        // UPDATE
-        // PUT: api/EmployeePersonalInfo/{employeeId}
-        // =========================================
+        // 🔹 UPDATE (FIXED ✅)
         [HttpPut("{employeeId}")]
-        public async Task<IActionResult> Update(
-            string employeeId,
-            [FromBody] EmployeePersonalInfoDto dto)
+        public async Task<IActionResult> Update(string employeeId, EmployeePersonalInfoDto dto)
         {
             employeeId = Uri.UnescapeDataString(employeeId).Trim();
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             if (string.IsNullOrWhiteSpace(employeeId))
                 return BadRequest("Employee Id is required.");
 
-            // Employees may edit their own record.
-            // Editing another employee requires Edit permission.
-            if (!IsOwnRecord(employeeId) &&
-                !await HasPermissionAsync("Edit"))
-            {
-                return StatusCode(403, new
-                {
-                    message =
-                        "You do not have permission to edit this employee's personal information."
-                });
-            }
+            // Check if logged-in user is Admin
+            var currentUserId = User.FindFirst("EmployeeId")?.Value
+                  ?? User.FindFirst("OnboardingId")?.Value;
+
+            // Employee can edit only their own details
+            //if (!string.IsNullOrWhiteSpace(currentUserId))
+            //{
+            //    if (!string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase))
+            //    {
+            //        return Forbid("You can edit only your own information.");
+            //    }
+            //}
+
+            // If EmployeeId is not present in JWT,
+            // this request is coming from Admin / HR / Manager / Permission user,
+            // so allow the update.
 
             var existing = await _context.EmployeePersonalInfos
-                .FirstOrDefaultAsync(
-                    x => x.Employee_Id == employeeId);
+                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
             if (existing == null)
             {
                 return NotFound(new
                 {
-                    message =
-                        "Employee Personal Information not found."
+                    message = "Employee Personal Information not found."
                 });
             }
 
+            // Update fields
             existing.FirstName = dto.FirstName;
             existing.MiddleName = dto.MiddleName;
             existing.LastName = dto.LastName;
@@ -315,25 +196,23 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(new
             {
-                message =
-                    "Employee Personal Information updated successfully."
+                message = "Employee Personal Information updated successfully."
             });
         }
 
-        // =========================================
-        // GET ALL
-        // GET: api/EmployeePersonalInfo
-        // =========================================
+        // 🔹 GET ALL
+
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            if (!await HasPermissionAsync("View"))
+            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            bool isAdmin = await _context.Admins
+                .AnyAsync(a => a.Email == loggedInEmail);
+
+            if (!isAdmin)
             {
-                return StatusCode(403, new
-                {
-                    message =
-                        "You do not have permission to view all employee records."
-                });
+                return Forbid("Only administrators can view all employee records.");
             }
 
             var data = await _context.EmployeePersonalInfos
@@ -343,69 +222,65 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(data);
         }
 
-        // =========================================
-        // GET BY EMPLOYEE ID
-        // GET: api/EmployeePersonalInfo/{employeeId}
-        // =========================================
+        // 🔹 GET BY EMPLOYEE ID
+
         [HttpGet("{employeeId}")]
-        public async Task<IActionResult> GetByEmployeeId(
-            string employeeId)
+        public async Task<IActionResult> GetByEmployeeId(string employeeId)
         {
             employeeId = Uri.UnescapeDataString(employeeId).Trim();
+            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
 
-            if (!IsOwnRecord(employeeId) &&
-                !await HasPermissionAsync("View"))
+            bool isAdmin = await _context.Admins
+                .AnyAsync(a => a.Email == loggedInEmail);
+
+            if (!isAdmin)
             {
-                return StatusCode(403, new
+                var currentId = User.FindFirst("EmployeeId")?.Value
+                             ?? User.FindFirst("OnboardingId")?.Value;
+
+                if (currentId != employeeId)
                 {
-                    message =
-                        "You do not have permission to view this employee's personal information."
-                });
+                    return Forbid("You can view only your own personal information.");
+                }
             }
 
             var data = await _context.EmployeePersonalInfos
-                .FirstOrDefaultAsync(
-                    x => x.Employee_Id == employeeId);
+                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
             if (data == null)
             {
                 return NotFound(new
                 {
-                    message =
-                        "Employee Personal Information not found."
+                    message = "Employee Personal Information not found."
                 });
             }
 
             return Ok(data);
         }
 
-        // =========================================
-        // DELETE
-        // DELETE: api/EmployeePersonalInfo/{employeeId}
-        // =========================================
-        [HttpDelete("{employeeId}")]
-        public async Task<IActionResult> Delete(
-            string employeeId)
-        {
-            employeeId = Uri.UnescapeDataString(employeeId).Trim();
+        // 🔹 DELETE
 
-            if (!await HasPermissionAsync("Delete"))
+        [HttpDelete("{employeeId}")]
+        public async Task<IActionResult> Delete(string employeeId)
+        {
+            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            bool isAdmin = await _context.Admins
+                .AnyAsync(a => a.Email == loggedInEmail);
+
+            if (!isAdmin)
             {
-                return StatusCode(403, new
-                {
-                    message =
-                        "You do not have permission to delete employee personal information."
-                });
+                return Forbid("Only administrators can delete employee personal information.");
             }
 
             var data = await _context.EmployeePersonalInfos
-                .FirstOrDefaultAsync(
-                    x => x.Employee_Id == employeeId);
+                .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
             if (data == null)
                 return NotFound();
 
             _context.EmployeePersonalInfos.Remove(data);
+
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -414,4 +289,5 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
     }
+
 }

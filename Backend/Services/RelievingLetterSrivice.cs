@@ -6,12 +6,8 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-//using static System.Net.Mime.MediaTypeNames;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -284,54 +280,31 @@ namespace EmployeeManagementSystem.Services
             if (string.IsNullOrWhiteSpace(template.FilePath))
                 throw new Exception("Relieving Letter template file path is missing.");
 
-            var storedPath = template.FilePath?.Trim();
-
-            if (string.IsNullOrWhiteSpace(storedPath))
-
-            {
-
-                throw new Exception("Relieving Letter template file path is missing.");
-
-            }
+            var storedPath = template.FilePath.Trim();
 
             string templatePath;
 
-            // DB stores web-relative paths such as:
-
-            // /uploads/templates/RELIEVING_V1_xxx.docx
-
-            //
-
-            // Always resolve these against wwwroot.
-
-            // Do NOT use Path.IsPathRooted() because "/uploads/..." is
-
-            // considered an absolute filesystem path on Linux.
-
-            var relativePath = storedPath
-
-                .TrimStart('/', '\\')
-
-                .Replace('/', Path.DirectorySeparatorChar)
-
-                .Replace('\\', Path.DirectorySeparatorChar);
-
-            templatePath = Path.Combine(
-
-                _environment.WebRootPath,
-
-                relativePath);
-
-            if (!System.IO.File.Exists(templatePath))
-
+            if (Path.IsPathRooted(storedPath))
             {
+                templatePath = storedPath;
+            }
+            else
+            {
+                var relativePath = storedPath
+                    .TrimStart('/', '\\')
+                    .Replace('/', Path.DirectorySeparatorChar)
+                    .Replace('\\', Path.DirectorySeparatorChar);
 
-                throw new FileNotFoundException(
-
-                    $"Relieving Letter template file not found: {templatePath}");
-
+                templatePath = Path.Combine(
+                    _environment.WebRootPath,
+                    relativePath);
             }
 
+            if (!System.IO.File.Exists(templatePath))
+            {
+                throw new FileNotFoundException(
+                    $"Relieving Letter template file not found: {templatePath}");
+            }
 
 
             // =====================================================

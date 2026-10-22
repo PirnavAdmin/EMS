@@ -289,9 +289,9 @@ Employee ID: {employee.Employee_Id}";
 
             ToDate = toDate,
 
-          
+
             Reason = returnReason,
-           
+
             Status = "Pending",
 
             ManagerStatus = "Pending",
@@ -2188,7 +2188,7 @@ Employee ID: {employee.Employee_Id}";
             FromDate = fromDate,
             ToDate = toDate,
             Reason = returnReason,
-           
+
             AttachmentFileName = attachmentFileName,
             AttachmentPath = attachmentPath,
             Status = "Pending",
@@ -2396,24 +2396,24 @@ Pirnav Software Solutions Pvt. Ltd.
   );
             }
         }
-                //==========================================================
-                // External Mail
-                //==========================================================
+        //==========================================================
+        // External Mail
+        //==========================================================
 
-                foreach (var externalEmail in externalEmails)
-                {
-                    // ============================================================
-                    // APPROVE AS WFH
-                    // ============================================================
+        foreach (var externalEmail in externalEmails)
+        {
+            // ============================================================
+            // APPROVE AS WFH
+            // ============================================================
 
-                    var approveAsWFHLink =
-                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
+            var approveAsWFHLink =
+                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
 
-                    var approveAsLeaveLink =
-                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
+            var approveAsLeaveLink =
+                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
 
-                    var rejectLink =
-                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
+            var rejectLink =
+                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
 
 
             await _emailService.SendEmailWithAttachment(
@@ -2554,30 +2554,30 @@ attachmentPhysicalPath ?? string.Empty
 );
         }
 
-                // ==========================================================
-                // Admin Notification
-                // ==========================================================
+        // ==========================================================
+        // Admin Notification
+        // ==========================================================
 
-                _context.AdminNotifications.Add(new AdminNotification
-                {
-                    Title = "WFH Request",
+        _context.AdminNotifications.Add(new AdminNotification
+        {
+            Title = "WFH Request",
 
-                    Message = $"{employee.Name} applied for Work From Home",
+            Message = $"{employee.Name} applied for Work From Home",
 
-                    UserRole = "Manager",
+            UserRole = "Manager",
 
-                    IsRead = false,
+            IsRead = false,
 
-                    CreatedAt = DateTime.UtcNow
-                });
+            CreatedAt = DateTime.UtcNow
+        });
 
-                await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
-                return new OkObjectResult(new
-                {
-                    message = "Work From Home applied successfully."
-                });
-            }
+        return new OkObjectResult(new
+        {
+            message = "Work From Home applied successfully."
+        });
+    }
 
     [HttpGet("all-wfh")]
     public async Task<IActionResult> GetAllWFH()
@@ -2793,7 +2793,7 @@ attachmentPhysicalPath ?? string.Empty
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .FirstOrDefault() ?? approverName;
         }
-       
+
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
 

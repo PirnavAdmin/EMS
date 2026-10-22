@@ -1,123 +1,127 @@
 ﻿
-//using EmployeeManagementSystem.Data;
-//using EmployeeManagementSystem.Interfaces;
-//using FirebaseAdmin.Messaging;
-//using Microsoft.EntityFrameworkCore;
+using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Interfaces;
+using FirebaseAdmin.Messaging;
+using Microsoft.EntityFrameworkCore;
 
-//namespace EmployeeManagementSystem.Services
-//{
-//    public class FcmNotificationService : IFcmNotificationService
-//    {
-//        private readonly AppDbContext _context;
-//        private readonly FirebaseMessaging _messaging;
+namespace EmployeeManagementSystem.Services
+{
+    public class FcmNotificationService : IFcmNotificationService
+    {
+        private readonly AppDbContext _context;
+        private readonly FirebaseMessaging _messaging;
 
-//        public FcmNotificationService(
-//            AppDbContext context,
-//            FirebaseMessaging messaging)
-//        {
-//            _context = context;
-//            _messaging = messaging;
-//        }
+        public FcmNotificationService(
+            AppDbContext context,
+            FirebaseMessaging messaging)
+        {
+            _context = context;
+            _messaging = messaging;
+        }
 
-//        public async Task SendToEmployeeAsync(
-//            string employeeId,
-//            string title,
-//            string body,
-//            string type,
-//            string screen,
-//            Dictionary<string, string>? data = null)
-//        {
-//            var devices = await _context.UserNotificationDevices
-//                .Where(d => d.EmployeeId == employeeId && d.IsActive)
-//                .ToListAsync();
 
-//            if (devices.Count == 0)
-//            {
-//                Console.WriteLine(
-//                    $"No active FCM devices found for employee {employeeId}.");
-//                return;
-//            }
+        public async Task<FcmSendResult> SendToEmployeeAsync(
+            string employeeId,
+            string title,
+            string body,
+            string type,
+            string screen,
+            Dictionary<string, string>? data = null)
+        {
+            var result = new FcmSendResult
+            {
+                EmployeeId = employeeId
+            };
 
-//            foreach (var batch in devices.Chunk(500))
-//            {
-//                var tokens = batch
-//                    .Select(d => d.DeviceToken)
-//                    .ToList();
+            var devices = await _context.UserNotificationDevices
+                .Where(d => d.EmployeeId == employeeId && d.IsActive)
+                .ToListAsync();
 
-//                var messageData = new Dictionary<string, string>
-//                {
-//                    ["type"] = type,
-//                    ["screen"] = screen
-//                };
+            result.DevicesFound = devices.Count;
 
-//                if (data != null)
-//                {
-//                    foreach (var item in data)
-//                    {
-//                        messageData[item.Key] = item.Value;
-//                    }
-//                }
+            if (devices.Count == 0)
+            {
+                result.Status = "No active devices found";
+                return result;
+            }
 
-//                var message = new MulticastMessage
-//                {
-//                    Tokens = tokens,
-//                    Notification = new Notification
-//                    {
-//                        Title = title,
-//                        Body = body
-//                    },
-//                    Data = messageData,
-//                    Android = new AndroidConfig
-//                    {
-//                        Notification = new AndroidNotification
-//                        {
-//                            ChannelId = "hrms_updates"
-//                        }
-//                    }
-//                };
+            foreach (var batch in devices.Chunk(500))
+            {
+                var tokens = batch.Select(d => d.DeviceToken).ToList();
 
-//                var response =
-//                    await _messaging.SendEachForMulticastAsync(message);
-//                Console.WriteLine(
-//    $"FCM SuccessCount: {response.SuccessCount}");
+                var messageData = new Dictionary<string, string>
+                {
+                    ["type"] = type,
+                    ["screen"] = screen
+                };
 
-//                Console.WriteLine(
-//                    $"FCM FailureCount: {response.FailureCount}");
+                if (data != null)
+                {
+                    foreach (var item in data)
+                        messageData[item.Key] = item.Value;
+                }
 
-//                for (var i = 0; i < response.Responses.Count; i++)
-//                {
-//                    var result = response.Responses[i];
+                var message = new MulticastMessage
+                {
+                    Tokens = tokens,
+                    Notification = new Notification
+                    {
+                        Title = title,
+                        Body = body
+                    },
+                    Data = messageData,
+                    Android = new AndroidConfig
+                    {
+                        Notification = new AndroidNotification
+                        {
+                            ChannelId = "hrms_updates"
+                        }
+                    }
+                };
 
-//                    if (result.IsSuccess)
-//                    {
-//                        Console.WriteLine(
-//                            $"FCM notification sent to employee {employeeId}.");
-//                        continue;
-//                    }
+                var response =
+                    await _messaging.SendEachForMulticastAsync(message);
 
-//                    Console.WriteLine(
-//                        $"FCM send failed for employee {employeeId}: " +
-//                        result.Exception?.Message);
+                result.SuccessCount += response.SuccessCount;
+                result.FailureCount += response.FailureCount;
 
-//                    if (result.Exception is FirebaseMessagingException ex &&
-//                        ex.MessagingErrorCode ==
-//                        MessagingErrorCode.Unregistered)
-//                    {
-//                        var failedToken = tokens[i];
+                for (var i = 0; i < response.Responses.Count; i++)
+                {
+                    var sendResult = response.Responses[i];
 
-//                        var device = batch.FirstOrDefault(
-//                            d => d.DeviceToken == failedToken);
+                    if (sendResult.IsSuccess)
+                        continue;
 
-//                        if (device != null)
-//                        {
-//                            device.IsActive = false;
-//                            device.UpdatedAt = DateTime.UtcNow;
-//                        }
-//                    }
-//                }
+                    var error = sendResult.Exception?.Message
+                        ?? "Unknown Firebase error";
 
-//                await _context.SaveChangesAsync();
-//            }
-//        }
-//    }
-//}
+                    result.Errors.Add(error);
+
+                    if (sendResult.Exception is FirebaseMessagingException ex &&
+                        ex.MessagingErrorCode == MessagingErrorCode.Unregistered)
+                    {
+                        var device = batch.FirstOrDefault(
+                            d => d.DeviceToken == tokens[i]);
+
+                        if (device != null)
+                        {
+                            device.IsActive = false;
+                            device.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            result.Status = result.FailureCount == 0
+                ? "Accepted by Firebase"
+                : result.SuccessCount > 0
+                    ? "Partially accepted by Firebase"
+                    : "Firebase send failed";
+
+            return result;
+        }
+
+    }
+}

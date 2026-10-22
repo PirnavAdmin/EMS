@@ -19,19 +19,18 @@ namespace EmployeeManagementSystem.Services
         private readonly AppDbContext _context;
         private readonly IAdminNotificationService _notificationService;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        //private readonly IFcmNotificationService _fcmNotificationService;
+        private readonly IFcmNotificationService _fcmNotificationService;
 
         public TeamService(
       AppDbContext context,
       IAdminNotificationService notificationService,
-      IHttpContextAccessor httpContextAccessor
-    //  IFcmNotificationService fcmNotificationService
-    )
+      IHttpContextAccessor httpContextAccessor,
+      IFcmNotificationService fcmNotificationService)
         {
             _context = context;
             _notificationService = notificationService;
             _httpContextAccessor = httpContextAccessor;
-            //  _fcmNotificationService = fcmNotificationService;
+            _fcmNotificationService = fcmNotificationService;
         }
 
         public async Task<IActionResult> CreateTeam(CreateTeamDto dto)
@@ -197,16 +196,17 @@ namespace EmployeeManagementSystem.Services
                     await _context.SaveChangesAsync();
 
                     // FIX: Ensure newly added employee does NOT inherit the team's shift by default
-                    // Initial members of the team inherit the team shift (CustomShift = false)
                     _context.TeamMemberOverrides.Add(new TeamMemberOverride
                     {
                         TeamMemberId = tm.Id,
-                        CustomShift = false, // <-- Allows inheriting team.ShiftId
+                        CustomShift = true,
                         OverrideShiftId = null
                     });
 
-                    // Initial members get the team's reporting days
-                    foreach (var day in dto.ReportingDays.Distinct())
+                    // Keep the original behavior: initial team members receive the team's reporting days.
+                    foreach (var day in dto.ReportingDays
+                                 .Where(x => !string.IsNullOrWhiteSpace(x))
+                                 .Distinct(StringComparer.OrdinalIgnoreCase))
                     {
                         _context.TeamMemberReportingDays.Add(new TeamMemberReportingDay
                         {
@@ -218,6 +218,47 @@ namespace EmployeeManagementSystem.Services
             }
 
             await _context.SaveChangesAsync();
+
+            foreach (var employeeId in membersToAdd.Distinct())
+            {
+                var employee = await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+
+                if (employee == null)
+                    continue;
+
+                try
+                {
+
+
+                    var fcmResult = await _fcmNotificationService.SendToEmployeeAsync(
+                        employeeId: employee.Employee_Id,
+                        title: "Team Assignment",
+                        body: $"You have been assigned to team '{team.TeamName}'.",
+                        type: "TEAM_ASSIGNED",
+                        screen: "MyTeam",
+                        data: new Dictionary<string, string>
+                        {
+                            ["teamId"] = team.Id.ToString()
+                        });
+
+                    Console.WriteLine(
+                        $"FCM result for {employee.Employee_Id}: " +
+                        $"Devices={fcmResult.DevicesFound}, " +
+                        $"Success={fcmResult.SuccessCount}, " +
+                        $"Failure={fcmResult.FailureCount}, " +
+                        $"Status={fcmResult.Status}");
+
+
+                }
+                catch (Exception ex)
+                {
+                    // Push notification failure must not undo team creation.
+                    Console.WriteLine(
+                        $"FCM notification failed for employee {employee.Employee_Id}: {ex.Message}");
+                }
+            }
 
             // ==========================================
             // 10. RESPONSE
@@ -234,7 +275,6 @@ namespace EmployeeManagementSystem.Services
                     MemberCount = membersToAdd.Count
                 });
         }
-
         public async Task<IActionResult> GetTeams()
         {
             var teams = await _context.Teams
@@ -310,7 +350,6 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult(result);
         }
-
         public async Task<IActionResult> GetProjectTeams()
         {
             var projects = await _context.Projects
@@ -431,23 +470,21 @@ namespace EmployeeManagementSystem.Services
 
             return dates;
         }
-
         private List<string> GetComplementDays(List<string> wfoDays)
         {
             var allDays = new List<string>
-            {
-                "Mon",
-                "Tue",
-                "Wed",
-                "Thu",
-                "Fri"
-            };
+    {
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri"
+    };
 
             return allDays
                 .Except(wfoDays)
                 .ToList();
         }
-
         public async Task<IActionResult> GetTeamDetails(int teamId)
         {
             var team = await _context.Teams
@@ -592,7 +629,6 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult(dto);
         }
-
         public async Task<IActionResult> UpdateTeam(UpdateTeamDto dto)
         {
             var team = await _context.Teams
@@ -735,7 +771,6 @@ namespace EmployeeManagementSystem.Services
 
             return new OkObjectResult("Team Updated Successfully.");
         }
-
         public async Task<IActionResult> DeleteTeam(int teamId)
         {
             var team = await _context.Teams
@@ -751,6 +786,7 @@ namespace EmployeeManagementSystem.Services
             return new NoContentResult(); // HTTP 204 - no response body
         }
 
+
         public async Task<IActionResult> AddMembers(AddTeamMembersDto dto)
         {
             var team = await _context.Teams
@@ -759,59 +795,103 @@ namespace EmployeeManagementSystem.Services
             if (team == null)
                 return new NotFoundObjectResult("Team not found.");
 
-            foreach (var emp in dto.EmployeeIds.Distinct())
+            var newlyAddedEmployeeIds = new List<string>();
+
+            foreach (var emp in dto.EmployeeIds
+                         .Where(x => !string.IsNullOrWhiteSpace(x))
+                         .Distinct())
             {
                 var employee = await _context.Employees
                     .FirstOrDefaultAsync(x => x.Employee_Id == emp);
 
                 if (employee == null)
-                    return new BadRequestObjectResult($"Employee '{emp}' does not exist.");
+                    return new BadRequestObjectResult(
+                        $"Employee '{emp}' does not exist.");
 
                 bool exists = await _context.TeamMembers
-                    .AnyAsync(x => x.TeamId == dto.TeamId &&
-                                   x.EmployeeId == emp);
+                    .AnyAsync(x =>
+                        x.TeamId == dto.TeamId &&
+                        x.EmployeeId == emp);
 
-                if (!exists)
+                if (exists)
+                    continue;
+
+                var tm = new TeamMember
                 {
-                    var tm = new TeamMember
-                    {
-                        TeamId = dto.TeamId,
-                        EmployeeId = emp
-                    };
-                    _context.TeamMembers.Add(tm);
-                    await _context.SaveChangesAsync();
+                    TeamId = dto.TeamId,
+                    EmployeeId = emp
+                };
 
-                    // FIX: Newly added member does NOT inherit team shift automatically
-                    // 1. Newly added member gets NO SHIFT (unassigned)
-                    _context.TeamMemberOverrides.Add(new TeamMemberOverride
-                    {
-                        TeamMemberId = tm.Id,
-                        CustomShift = true,
-                        OverrideShiftId = null
-                    });
+                _context.TeamMembers.Add(tm);
+                await _context.SaveChangesAsync();
 
-                    // 2. REQUIREMENT 2: Newly added member GETS TEAM'S REPORTING DAYS
-                    var teamDays = await _context.TeamReportingDays
-                    .Where(x => x.TeamId == dto.TeamId && (x.EffectiveTo == null || x.EffectiveTo >= DateTime.Today))
+                _context.TeamMemberOverrides.Add(new TeamMemberOverride
+                {
+                    TeamMemberId = tm.Id,
+                    CustomShift = true,
+                    OverrideShiftId = null
+                });
+
+                // Keep the original behavior: new members receive the team's active reporting days.
+                var teamDays = await _context.TeamReportingDays
+                    .Where(x => x.TeamId == dto.TeamId &&
+                                (x.EffectiveTo == null || x.EffectiveTo > DateTime.Now))
                     .Select(x => x.DayName)
                     .Distinct()
                     .ToListAsync();
 
-                    foreach (var day in teamDays)
+                foreach (var day in teamDays)
+                {
+                    _context.TeamMemberReportingDays.Add(new TeamMemberReportingDay
                     {
-                        _context.TeamMemberReportingDays.Add(new TeamMemberReportingDay
-                        {
-                            TeamMemberId = tm.Id,
-                            DayName = day
-                        });
-                    }
+                        TeamMemberId = tm.Id,
+                        DayName = day
+                    });
                 }
+
+                newlyAddedEmployeeIds.Add(emp);
             }
 
             await _context.SaveChangesAsync();
 
-            return new OkObjectResult("Members Added Successfully.");
+            // Send push notifications only to newly added employees.
+            foreach (var employeeId in newlyAddedEmployeeIds)
+            {
+                try
+                {
+                    var result = await _fcmNotificationService.SendToEmployeeAsync(
+                        employeeId: employeeId,
+                        title: "Team Assignment",
+                        body: $"You have been assigned to team '{team.TeamName}'.",
+                        type: "TEAM_ASSIGNED",
+                        screen: "MyTeam",
+                        data: new Dictionary<string, string>
+                        {
+                            ["teamId"] = team.Id.ToString()
+                        });
+
+                    Console.WriteLine(
+                        $"Team assignment FCM: Employee={employeeId}, " +
+                        $"Success={result.SuccessCount}, " +
+                        $"Failure={result.FailureCount}, " +
+                        $"Status={result.Status}");
+                }
+                catch (Exception ex)
+                {
+                    // Notification failure must not undo the member assignment.
+                    Console.WriteLine(
+                        $"FCM failed for employee {employeeId}: {ex.Message}");
+                }
+            }
+
+            return new OkObjectResult(new
+            {
+                Message = "Members Added Successfully.",
+                NewlyAddedCount = newlyAddedEmployeeIds.Count
+            });
         }
+
+
 
         public async Task<IActionResult> RemoveMember(int teamId, string employeeId)
         {
@@ -879,7 +959,6 @@ namespace EmployeeManagementSystem.Services
                 managers
             });
         }
-
         public async Task<IActionResult> UpdateReportingDays(UpdateReportingDaysDto dto)
         {
             Console.WriteLine($"Received TeamId: {dto.TeamId}");
@@ -895,7 +974,6 @@ namespace EmployeeManagementSystem.Services
             }
 
             Console.WriteLine($"Found Team: Id={team.Id}, IsActive={team.IsActive}");
-
             var now = DateTime.Now;
 
             // Get currently active reporting days
@@ -906,38 +984,59 @@ namespace EmployeeManagementSystem.Services
                 .ToListAsync();
 
             // Close the old reporting days
+            // Normalize and compare existing and requested reporting days
+            var existingDays = currentDays
+                .Select(x => x.DayName.Trim().ToLowerInvariant())
+                .ToHashSet();
+
+            var requestedDays = (dto.ReportingDays ?? new List<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var newDays = requestedDays
+                .Select(x => x.ToLowerInvariant())
+                .ToHashSet();
+
+            if (existingDays.SetEquals(newDays))
+            {
+                return new OkObjectResult(
+                    "Reporting days are unchanged. No update or notification required.");
+            }
+
+            // Close the old reporting days
             foreach (var oldDay in currentDays)
             {
                 oldDay.EffectiveTo = now;
             }
 
             // Add the new reporting days
-            foreach (var day in dto.ReportingDays.Distinct())
+            foreach (var day in requestedDays)
             {
-                _context.TeamReportingDays.Add(
-                    new TeamReportingDay
-                    {
-                        TeamId = dto.TeamId,
-                        DayName = day,
-                        EffectiveFrom = now,
-                        EffectiveTo = null
-                    });
+                _context.TeamReportingDays.Add(new TeamReportingDay
+                {
+                    TeamId = dto.TeamId,
+                    DayName = day,
+                    EffectiveFrom = now,
+                    EffectiveTo = null
+                });
             }
 
-            // Sync updated reporting days to all members who follow the team schedule (CustomReportingDays == false)
+
+
+            // Keep member-specific reporting days synchronized for members who inherit the team schedule.
             var teamMembers = await _context.TeamMembers
                 .Where(m => m.TeamId == dto.TeamId)
                 .ToListAsync();
 
             var memberIds = teamMembers.Select(m => m.Id).ToList();
-
             var customMemberIds = await _context.TeamMemberOverrides
                 .Where(o => memberIds.Contains(o.TeamMemberId) && o.CustomReportingDays)
                 .Select(o => o.TeamMemberId)
                 .ToListAsync();
 
             var defaultMemberIds = memberIds.Except(customMemberIds).ToList();
-
             if (defaultMemberIds.Any())
             {
                 var oldMemberDays = await _context.TeamMemberReportingDays
@@ -946,27 +1045,86 @@ namespace EmployeeManagementSystem.Services
 
                 _context.TeamMemberReportingDays.RemoveRange(oldMemberDays);
 
-                foreach (var mId in defaultMemberIds)
+                foreach (var memberId in defaultMemberIds)
                 {
-                    foreach (var day in dto.ReportingDays.Distinct())
+                    foreach (var day in requestedDays)
                     {
                         _context.TeamMemberReportingDays.Add(new TeamMemberReportingDay
                         {
-                            TeamMemberId = mId,
+                            TeamMemberId = memberId,
                             DayName = day
                         });
                     }
                 }
+
+                await _context.SaveChangesAsync();
             }
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _notificationService.CreateNotification(
+                    "Reporting Days Updated",
+                   $"Reporting days updated to {string.Join(", ", requestedDays)}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Admin notification failed: {ex.Message}");
+            }
 
-            await _notificationService.CreateNotification(
-                "Reporting Days Updated",
-                $"Reporting days updated to {string.Join(", ", dto.ReportingDays)}");
+            try
+            {
+                // Notify every employee who has an active registered FCM device.
+                var registeredEmployeeIds = await _context.UserNotificationDevices
+                    .Where(d => d.IsActive)
+                    .Select(d => d.EmployeeId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var reportingDaysText = string.Join(
+                    ", ",
+                    dto.ReportingDays ?? new List<string>());
+
+                foreach (var employeeId in registeredEmployeeIds)
+                {
+                    try
+                    {
+                        var result = await _fcmNotificationService.SendToEmployeeAsync(
+                            employeeId: employeeId,
+                            title: "Reporting Days Updated",
+                            body: $"Team '{team.TeamName}' reporting days changed to: {reportingDaysText}.",
+                            type: "REPORTING_DAYS_UPDATED",
+                            screen: "MyTeam",
+                            data: new Dictionary<string, string>
+                            {
+                                ["teamId"] = team.Id.ToString()
+                            });
+
+                        Console.WriteLine(
+                            $"Reporting days FCM: Employee={employeeId}, " +
+                            $"Success={result.SuccessCount}, " +
+                            $"Failure={result.FailureCount}, " +
+                            $"Status={result.Status}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(
+                            $"Reporting days notification failed for {employeeId}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // A notification failure must not undo the reporting-day update.
+                Console.WriteLine(
+                    $"Failed to retrieve registered devices: {ex.Message}");
+            }
+
+
+
 
             return new OkObjectResult("Reporting Days Updated Successfully.");
         }
+
 
         public async Task<IActionResult> GetMyTeam()
         {
@@ -1155,33 +1313,127 @@ namespace EmployeeManagementSystem.Services
             });
         }
 
+
+
         public async Task<IActionResult> ExportTeams()
         {
+            // ==========================================
+            // 1. GET ALL TEAMS
+            // ==========================================
+
             var teams = await _context.Teams
-                .Include(t => t.Members)
+                .Include(x => x.Members)
                     .ThenInclude(m => m.Employee)
                 .AsNoTracking()
-                .OrderBy(t => t.TeamNumber)
+                .OrderBy(x => x.TeamNumber)
                 .ToListAsync();
 
-            if (teams.Count == 0)
+            if (!teams.Any())
                 return new NotFoundObjectResult("No teams found.");
 
-            var teamIds = teams.Select(t => t.Id).ToList();
 
-            // Get only the current reporting-day configuration.
-            var reportingDays = await _context.TeamReportingDays
-                .Where(x =>
-                    teamIds.Contains(x.TeamId) &&
-                    x.EffectiveTo == null)
+            // ==========================================
+            // 2. GET REPORTING DAY HISTORY
+            // ==========================================
+
+            var teamIds = teams
+                .Select(x => x.Id)
+                .ToList();
+
+            var reportingDayHistory = await _context.TeamReportingDays
+                .Where(x => teamIds.Contains(x.TeamId))
                 .AsNoTracking()
+                .OrderBy(x => x.TeamId)
+                .ThenBy(x => x.EffectiveFrom)
                 .ToListAsync();
 
-            var workbook = new XLWorkbook();
 
-            try
+            // ==========================================
+            // 3. GET DATE RANGE
+            // ==========================================
+
+            // Ignore invalid default dates (year 0001), which can otherwise
+            // create thousands of weekly worksheets and make export hang.
+            var firstDate = reportingDayHistory
+                .Where(x => x.EffectiveFrom >= new DateTime(2000, 1, 1))
+                .Select(x => x.EffectiveFrom.Date)
+                .DefaultIfEmpty(DateTime.Today)
+                .Min();
+
+            var lastDate = DateTime.Today;
+
+
+            // ==========================================
+            // 4. CREATE WORKBOOK
+            // ==========================================
+
+            using var workbook = new XLWorkbook();
+
+
+            // ==========================================
+            // 5. FIND FIRST MONDAY
+            // ==========================================
+
+            var weekStart = firstDate;
+
+            while (weekStart.DayOfWeek != DayOfWeek.Monday)
             {
-                var worksheet = workbook.Worksheets.Add("Teams");
+                weekStart = weekStart.AddDays(-1);
+            }
+
+
+            // ==========================================
+            // 6. CREATE ONE SHEET PER WEEK
+            // ==========================================
+
+            while (weekStart <= lastDate)
+            {
+                var weekEnd = weekStart.AddDays(6);
+
+                // Don't go beyond today
+                var displayWeekEnd =
+                    weekEnd > lastDate
+                        ? lastDate
+                        : weekEnd;
+
+
+                // ==========================================
+                // SHEET NAME
+                // ==========================================
+
+
+                // Include the year to distinguish weeks across different years
+                var sheetName =
+                    $"{weekStart:dd-MMM-yyyy} to {displayWeekEnd:dd-MMM-yyyy}";
+
+                // Excel worksheet names have a maximum length of 31 characters
+                if (sheetName.Length > 31)
+                    sheetName = sheetName.Substring(0, 31);
+
+                // Ensure worksheet names are unique
+                var baseSheetName = sheetName;
+                int suffix = 1;
+
+                while (workbook.Worksheets.Any(ws =>
+                    string.Equals(
+                        ws.Name,
+                        sheetName,
+                        StringComparison.OrdinalIgnoreCase)))
+                {
+                    var suffixText = $" ({suffix++})";
+                    sheetName = baseSheetName.Substring(
+                        0,
+                        Math.Min(baseSheetName.Length, 31 - suffixText.Length))
+                        + suffixText;
+                }
+
+                var worksheet = workbook.Worksheets.Add(sheetName);
+
+
+
+                // ==========================================
+                // HEADER
+                // ==========================================
 
                 worksheet.Cell(1, 1).Value = "Team No";
                 worksheet.Cell(1, 2).Value = "Team Name";
@@ -1190,34 +1442,90 @@ namespace EmployeeManagementSystem.Services
                 worksheet.Cell(1, 5).Value = "Employee Name";
 
                 var header = worksheet.Range(1, 1, 1, 5);
+
                 header.Style.Font.Bold = true;
                 header.Style.Font.FontColor = XLColor.White;
                 header.Style.Fill.BackgroundColor = XLColor.DarkBlue;
-                header.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                header.Style.Alignment.Horizontal =
+                    XLAlignmentHorizontalValues.Center;
+
+                header.Style.Alignment.Vertical =
+                    XLAlignmentVerticalValues.Center;
+
+
+                int row = 2;
 
                 var teamColors = new[]
                 {
-                    XLColor.LightBlue,
-                    XLColor.LightGreen,
-                    XLColor.LightYellow,
-                    XLColor.LightPink,
-                    XLColor.LightCyan,
-                    XLColor.LightSalmon,
-                    XLColor.LightGray
-                };
+            XLColor.LightBlue,
+            XLColor.LightGreen,
+            XLColor.LightYellow,
+            XLColor.LightPink,
+            XLColor.LightCyan,
+            XLColor.LightSalmon,
+            XLColor.LightGray
+        };
 
-                int row = 2;
                 int colorIndex = 0;
+
+
+                // ==========================================
+                // 7. LOOP TEAMS
+                // ==========================================
 
                 foreach (var team in teams)
                 {
-                    var days = reportingDays
-                        .Where(d => d.TeamId == team.Id)
-                        .Select(d => GetShortDayName(d.DayName))
+                    // ------------------------------------------
+                    // Get history for this team
+                    // ------------------------------------------
+
+                    var teamHistory = reportingDayHistory
+                        .Where(x => x.TeamId == team.Id)
+                        .OrderBy(x => x.EffectiveFrom)
+                        .ToList();
+
+
+                    // ------------------------------------------
+                    // Determine reporting days for this week
+                    // ------------------------------------------
+
+                    var activeHistory = teamHistory
+                        .Where(x =>
+                            x.EffectiveFrom <= displayWeekEnd.AddDays(1).AddTicks(-1) &&
+                            (x.EffectiveTo == null ||
+                             x.EffectiveTo > weekStart))
+                        .ToList();
+
+
+                    // ------------------------------------------
+                    // Important:
+                    // Select the latest configuration that
+                    // applies to this week.
+                    // ------------------------------------------
+
+                    var latestEffectiveFrom = activeHistory
+                        .Select(x => x.EffectiveFrom)
+                        .Distinct()
+                        .OrderByDescending(x => x)
+                        .FirstOrDefault();
+
+
+                    var reportingDays = activeHistory
+                        .Where(x =>
+                            x.EffectiveFrom == latestEffectiveFrom)
+                        .Select(x => GetShortDayName(x.DayName))
                         .Distinct()
                         .ToList();
 
-                    var daysText = string.Join(", ", days);
+
+                    var reportingDaysText =
+                        string.Join(", ", reportingDays);
+
+
+                    // ==========================================
+                    // EMPLOYEES
+                    // ==========================================
 
                     var employees = team.Members
                         .Where(m => m.Employee != null)
@@ -1226,45 +1534,119 @@ namespace EmployeeManagementSystem.Services
                             EmployeeId = m.Employee!.Employee_Id,
                             EmployeeName = m.Employee.Name
                         })
-                        .Where(e =>
-                            !string.IsNullOrWhiteSpace(e.EmployeeId) ||
-                            !string.IsNullOrWhiteSpace(e.EmployeeName))
+                        .Where(x =>
+                            !string.IsNullOrWhiteSpace(x.EmployeeId) ||
+                            !string.IsNullOrWhiteSpace(x.EmployeeName))
                         .Distinct()
-                        .OrderBy(e => e.EmployeeName)
+                        .OrderBy(x => x.EmployeeName)
                         .ToList();
 
-                    int startRow = row;
 
-                    // Write one row for each employee.
-                    foreach (var employee in employees)
+                    // ==========================================
+                    // TEAM WITHOUT EMPLOYEES
+                    // ==========================================
+
+                    if (!employees.Any())
                     {
-                        worksheet.Cell(row, 1).Value = team.TeamNumber ?? "";
-                        worksheet.Cell(row, 2).Value = team.TeamName ?? "";
-                        worksheet.Cell(row, 3).Value = daysText;
-                        worksheet.Cell(row, 4).Value = employee.EmployeeId ?? "";
-                        worksheet.Cell(row, 5).Value = employee.EmployeeName ?? "";
+                        worksheet.Cell(row, 1).Value =
+                            team.TeamNumber ?? "";
+
+                        worksheet.Cell(row, 2).Value =
+                            team.TeamName ?? "";
+
+                        worksheet.Cell(row, 3).Value =
+                            reportingDaysText;
+
+                        worksheet.Cell(row, 4).Value = "";
+                        worksheet.Cell(row, 5).Value = "";
+
+                        var range =
+                            worksheet.Range(row, 1, row, 5);
+
+                        range.Style.Fill.BackgroundColor =
+                            teamColors[colorIndex % teamColors.Length];
+
+                        range.Style.Font.Bold = true;
+
+                        range.Style.Border.OutsideBorder =
+                            XLBorderStyleValues.Thin;
+
+                        range.Style.Border.InsideBorder =
+                            XLBorderStyleValues.Thin;
+
                         row++;
                     }
-
-                    // Also export teams that have no employees.
-                    if (employees.Count == 0)
+                    else
                     {
-                        worksheet.Cell(row, 1).Value = team.TeamNumber ?? "";
-                        worksheet.Cell(row, 2).Value = team.TeamName ?? "";
-                        worksheet.Cell(row, 3).Value = daysText;
-                        row++;
+                        // ==========================================
+                        // EMPLOYEE ROWS
+                        // ==========================================
+
+                        int startRow = row;
+
+                        foreach (var employee in employees)
+                        {
+                            worksheet.Cell(row, 1).Value =
+                                team.TeamNumber ?? "";
+
+                            worksheet.Cell(row, 2).Value =
+                                team.TeamName ?? "";
+
+                            worksheet.Cell(row, 3).Value =
+                                reportingDaysText;
+
+                            worksheet.Cell(row, 4).Value =
+                                employee.EmployeeId ?? "";
+
+                            worksheet.Cell(row, 5).Value =
+                                employee.EmployeeName ?? "";
+
+                            row++;
+                        }
+
+
+                        int endRow = row - 1;
+
+
+                        // ==========================================
+                        // TEAM BLOCK FORMATTING
+                        // ==========================================
+
+                        var teamRange =
+                            worksheet.Range(
+                                startRow,
+                                1,
+                                endRow,
+                                5);
+
+                        teamRange.Style.Fill.BackgroundColor =
+                            teamColors[colorIndex % teamColors.Length];
+
+                        teamRange.Style.Border.OutsideBorder =
+                            XLBorderStyleValues.Thin;
+
+                        teamRange.Style.Border.InsideBorder =
+                            XLBorderStyleValues.Thin;
+
+                        worksheet.Range(
+                            startRow,
+                            1,
+                            endRow,
+                            3)
+                            .Style.Font.Bold = true;
                     }
 
-                    var teamRange = worksheet.Range(startRow, 1, row - 1, 5);
-                    teamRange.Style.Fill.BackgroundColor = teamColors[colorIndex % teamColors.Length];
-                    teamRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                    teamRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+
+                    // Blank row between teams
+                    row += 2;
 
                     colorIndex++;
-
-                    // Leave a blank row between teams.
-                    row++;
                 }
+
+
+                // ==========================================
+                // 8. FORMAT SHEET
+                // ==========================================
 
                 worksheet.Column(1).Width = 15;
                 worksheet.Column(2).Width = 30;
@@ -1272,24 +1654,39 @@ namespace EmployeeManagementSystem.Services
                 worksheet.Column(4).Width = 20;
                 worksheet.Column(5).Width = 30;
 
-                worksheet.RangeUsed().Style.Alignment.WrapText = true;
-                worksheet.RangeUsed().Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                worksheet.RangeUsed()
+                    .Style.Alignment.WrapText = true;
+
+                worksheet.RangeUsed()
+                    .Style.Alignment.Vertical =
+                        XLAlignmentVerticalValues.Center;
+
                 worksheet.SheetView.FreezeRows(1);
 
-                using var stream = new MemoryStream();
-                workbook.SaveAs(stream);
 
-                return new FileContentResult(
-                    stream.ToArray(),
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                {
-                    FileDownloadName = $"Teams_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
-                };
+                // ==========================================
+                // 9. NEXT WEEK
+                // ==========================================
+
+                weekStart = weekStart.AddDays(7);
             }
-            finally
+
+
+            // ==========================================
+            // 10. RETURN EXCEL
+            // ==========================================
+
+            using var stream = new MemoryStream();
+
+            workbook.SaveAs(stream);
+
+            return new FileContentResult(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             {
-                workbook.Dispose();
-            }
+                FileDownloadName =
+                    $"Teams_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
+            };
         }
 
         public async Task<IActionResult> MemberOverride(MemberOverrideDto dto)
