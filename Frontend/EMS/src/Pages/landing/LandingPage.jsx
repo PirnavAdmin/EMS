@@ -31,7 +31,7 @@ import {
   FaRegClock,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import pirnavLogo from "../../assets/pirnav.png";
+import pirnavLogo from "../../assets/pirnav1.png";
 import DemoRequestSection from "./DemoRequestSection";
 import ProductShowcase from "./ProductShowcase";
 import { useLandingRevealObserver, useOnceInView } from "./landingMotion";
@@ -275,8 +275,8 @@ const PRICING_PLANS = [
       "Dedicated onboarding",
       "API integrations",
     ],
-    ctaLabel: "Contact Pirnav",
-    href: "mailto:contact@pirnav.com?subject=Pirnav%20HRMS%20Enterprise%20Inquiry",
+    ctaLabel: "Contact Peoplehrsync",
+    href: "mailto:contact@peoplehrsync.com?subject=Peoplehrsync%20HRMS%20Enterprise%20Inquiry",
     icon: FaBuilding,
   },
 ];
@@ -472,11 +472,11 @@ const HeroSection = () => (
         </div>
 
         <h1 className="landing-heading-title landing-hero-title">
-          Manage Your Workforce with Pirnav
+          Manage Your Workforce with Peoplehrsync
         </h1>
 
         <p className="landing-hero-description">
-          Pirnav HRMS helps businesses manage employees, attendance, payroll, leave,
+          Peoplehrsync HRMS helps businesses manage employees, attendance, payroll, leave,
           recruitment, onboarding, performance, documents, and reports from one
           intelligent platform.
         </p>
@@ -602,7 +602,7 @@ const FeaturesSection = () => (
       <SectionHeading
         eyebrow="Features"
         title="Everything You Need to Run HR"
-        description="From employee records and approvals to analytics and payroll, Pirnav HRMS brings your core people operations into one streamlined workspace."
+        description="From employee records and approvals to analytics and payroll, Peoplehrsync HRMS brings your core people operations into one streamlined workspace."
       />
 
       <div className="landing-feature-grid">
@@ -628,8 +628,8 @@ const WhyChooseSection = () => (
   <section className="landing-section landing-section--alt" id="why-choose">
     <div className="landing-shell">
       <SectionHeading
-        eyebrow="Why Choose Pirnav HRMS"
-        title="Why Choose Pirnav HRMS"
+        eyebrow="Why Choose Peoplehrsync HRMS"
+        title="Why Choose Peoplehrsync HRMS"
         description="Give HR, operations, and leadership a shared platform that is easy to adopt, secure to use, and ready to grow with the business."
       />
 
@@ -658,7 +658,7 @@ const StatisticsSection = () => (
       <SectionHeading
         eyebrow="Statistics"
         title="Results That Matter"
-        description="The numbers below reflect how Pirnav HRMS helps teams keep operations organized, visible, and dependable."
+        description="The numbers below reflect how Peoplehrsync HRMS helps teams keep operations organized, visible, and dependable."
         size="stats"
       />
 
@@ -831,7 +831,7 @@ const FooterSection = () => (
           </div>
 
           <div className="landing-footer-brand-copy">
-            <h3 className="landing-footer-brand-name">Pirnav HRMS</h3>
+            <h3 className="landing-footer-brand-name">Peoplehrsync HRMS</h3>
 
             <p className="landing-footer-brand-tagline">Intelligent people operations.</p>
           </div>
@@ -885,16 +885,16 @@ const FooterSection = () => (
         <div className="landing-footer-links-group landing-fade-up" style={{ "--reveal-delay": "260ms" }}>
           <h3 className="landing-footer-title">Contact</h3>
           <div className="landing-footer-contact">
-            <a className="landing-footer-contact-link" href="mailto:contact@pirnav.com">
+            <a className="landing-footer-contact-link" href="mailto:contact@peoplehrsync.com">
               <FaEnvelope aria-hidden="true" />
-              <span>contact@pirnav.com</span>
+              <span>contact@peoplehrsync.com</span>
             </a>
             <a
               className="landing-footer-contact-link"
-              href="mailto:contact@pirnav.com"
+              href="mailto:contact@peoplehrsync.com"
             >
               <FaEnvelope aria-hidden="true" />
-              <span>contact@pirnav.com</span>
+              <span>contact@peoplehrsync.com</span>
             </a>
             <div className="landing-footer-contact-link landing-footer-contact-link--static">
               <FaMapMarkerAlt aria-hidden="true" />
@@ -908,7 +908,7 @@ const FooterSection = () => (
 
       <div className="landing-footer-bottom landing-fade-up" style={{ "--reveal-delay": "300ms" }}>
         <p className="landing-footer-bottom-copy">
-          {"\u00A9"} 2026 Pirnav. All rights reserved.
+          {"\u00A9"} 2026 Peoplehrsync. All rights reserved.
         </p>
         <nav className="landing-footer-bottom-links" aria-label="Footer policy links">
           {FOOTER_POLICY_LINKS.map((link) => (

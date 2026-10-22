@@ -62,7 +62,7 @@ const PreviewImage = ({ feature, isVisible, labelledById }) => (
     <img
       className={`showcase-preview-image ${isVisible ? "is-visible" : "is-hidden"}`}
       src={feature.image}
-      alt={`Pirnav HRMS ${feature.title} screenshot`}
+      alt={`Peoplehrsync HRMS ${feature.title} screenshot`}
       loading="lazy"
       draggable="false"
     />
@@ -193,10 +193,10 @@ const ProductShowcase = () => {
         <div className="landing-section-heading product-showcase-heading landing-fade-up" style={{ "--reveal-delay": "80ms" }}>
           <p className="landing-page-label landing-section-eyebrow">Product Showcase</p>
           <h2 className="landing-heading-title landing-section-title">
-            See Pirnav HRMS in Action
+            See Peoplehrsync HRMS in Action
           </h2>
           <p className="landing-section-description product-showcase-description">
-            Explore the modern Pirnav HRMS interface for employee management,
+            Explore the modern Peoplehrsync HRMS interface for employee management,
             attendance, payroll, leave management, and employee profiles, all
             from one intelligent platform.
           </p>
@@ -205,7 +205,7 @@ const ProductShowcase = () => {
           <div
             className="product-feature-list"
             role="tablist"
-            aria-label="Pirnav HRMS product showcase features"
+            aria-label="Peoplehrsync HRMS product showcase features"
             onKeyDown={handleKeyDown}
           >
             {showcaseItems.map((feature, index) => {
