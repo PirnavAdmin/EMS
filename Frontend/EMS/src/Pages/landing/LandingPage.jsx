@@ -476,7 +476,7 @@ const HeroSection = () => (
         </h1>
 
         <p className="landing-hero-description">
-          Peoplehrsync HRMS helps businesses manage employees, attendance, payroll, leave,
+          Peoplehrsync helps businesses manage employees, attendance, payroll, leave,
           recruitment, onboarding, performance, documents, and reports from one
           intelligent platform.
         </p>
@@ -602,7 +602,7 @@ const FeaturesSection = () => (
       <SectionHeading
         eyebrow="Features"
         title="Everything You Need to Run HR"
-        description="From employee records and approvals to analytics and payroll, Peoplehrsync HRMS brings your core people operations into one streamlined workspace."
+        description="From employee records and approvals to analytics and payroll, Peoplehrsync brings your core people operations into one streamlined workspace."
       />
 
       <div className="landing-feature-grid">
@@ -628,8 +628,8 @@ const WhyChooseSection = () => (
   <section className="landing-section landing-section--alt" id="why-choose">
     <div className="landing-shell">
       <SectionHeading
-        eyebrow="Why Choose Peoplehrsync HRMS"
-        title="Why Choose Peoplehrsync HRMS"
+        eyebrow="Why Choose Peoplehrsync "
+        title="Why Choose Peoplehrsync "
         description="Give HR, operations, and leadership a shared platform that is easy to adopt, secure to use, and ready to grow with the business."
       />
 
@@ -831,7 +831,7 @@ const FooterSection = () => (
           </div>
 
           <div className="landing-footer-brand-copy">
-            <h3 className="landing-footer-brand-name">Peoplehrsync HRMS</h3>
+            <h3 className="landing-footer-brand-name">Peoplehrsync </h3>
 
             <p className="landing-footer-brand-tagline">Intelligent people operations.</p>
           </div>

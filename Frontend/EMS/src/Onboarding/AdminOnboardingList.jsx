@@ -4,7 +4,7 @@ import "../Employees/EmployeeList.css";
 import AppPagination from "../components/AppPagination";
 import TruncatedText from "../components/TruncatedText";
 import { TableSkeleton } from "../components/Skeletons";
-import { toastError, toastSuccess } from "../components/common/toast/toastService";
+import { toastError, toastSuccess } from "../components/common/Toast/toastService";
 import { extractCollection } from "../utils/collections";
 import { formatDate } from "../utils/date";
 import {
@@ -241,9 +241,9 @@ function AdminOnboardingList() {
       </div>
 
       <div className="emp-table-wrapper">
-        <div className="emp-scroll-hint">
+        {/* <div className="emp-scroll-hint">
           Scroll horizontally to view more onboarding candidate details
-        </div>
+        </div> */}
 
         <div className="emp-table-container">
           {loading ?

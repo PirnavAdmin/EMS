@@ -229,7 +229,7 @@ function DemoRequestSection() {
           </div>
 
           <p className="demo-request-description">
-            Experience Pirnav HRMS with a live demonstration tailored to your
+            Experience Peoplehrsync with a live demonstration tailored to your
             organization. Discover Attendance, Payroll, Leave Management,
             Employee Management, Recruitment, Performance, Reports, and Analytics.
           </p>

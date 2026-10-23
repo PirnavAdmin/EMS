@@ -21,10 +21,10 @@
   --action-button-height: 48px;
   --action-button-radius: 14px;
   --table-scroll-min-width: 900px;
-  --action-edit-bg: #e6f8f8;
-  --action-edit-border: #0f8b8d;
-  --action-edit-text: #0f8b8d;
-  --action-edit-hover-bg: #d8f3f3;
+  --action-edit-bg: var(--theme-primary-soft);
+  --action-edit-border: var(--theme-primary);
+  --action-edit-text: var(--theme-primary);
+  --action-edit-hover-bg: #eaf6fc;
   --action-delete-bg: #fff5f5;
   --action-delete-border: #ff4d4f;
   --action-delete-text: #ff4d4f;

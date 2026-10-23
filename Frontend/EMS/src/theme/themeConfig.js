@@ -1,32 +1,28 @@
+
 export const THEME_STORAGE_KEY = "ems-theme";
 export const THEME_MODE_STORAGE_KEY = "darkMode";
 export const FALLBACK_THEME_MODE = "light";
+
 const LEGACY_THEME_ALIASES = {
-  true: "dark",
+  true: "dark-executive",
   false: "light",
 };
 
 export const THEME_OPTIONS = [
   {
     value: "light",
-    label: "Professional Aqua",
+    label: "Light Mode",
     description: "Clean light mode with balanced aqua surfaces",
+    icon: "sun",
     swatch: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
     dataTheme: "professional-aqua",
     colorScheme: "light",
   },
-  // {
-  //   value: "dark",
-  //   label: "Dark Mode",
-  //   description: "Classic dark surfaces with familiar contrast",
-  //   swatch: "linear-gradient(135deg, #202124 0%, #303134 100%)",
-  //   dataTheme: "professional-aqua",
-  //   colorScheme: "dark",
-  // },
   {
     value: "dark-executive",
-    label: "Executive Dark Blue",
+    label: "Dark Mode",
     description: "Premium navy dark mode without black flash",
+    icon: "moon",
     swatch: "linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%)",
     dataTheme: "dark-executive",
     colorScheme: "dark",
@@ -38,13 +34,16 @@ const THEME_BY_VALUE = THEME_OPTIONS.reduce((accumulator, option) => {
   return accumulator;
 }, {});
 
-export const normalizeThemeMode = (mode) =>
-  Object.prototype.hasOwnProperty.call(
+export const normalizeThemeMode = (mode) => {
+  const normalizedMode = LEGACY_THEME_ALIASES[mode] || mode;
+
+  return Object.prototype.hasOwnProperty.call(
     THEME_BY_VALUE,
-    LEGACY_THEME_ALIASES[mode] || mode
+    normalizedMode
   )
-    ? LEGACY_THEME_ALIASES[mode] || mode
+    ? normalizedMode
     : FALLBACK_THEME_MODE;
+};
 
 export const getThemeDetails = (themeMode = FALLBACK_THEME_MODE) =>
   THEME_BY_VALUE[normalizeThemeMode(themeMode)] || THEME_BY_VALUE.light;
@@ -61,6 +60,7 @@ export const getStoredThemeMode = () => {
   }
 
   const legacyMode = window.localStorage.getItem(THEME_MODE_STORAGE_KEY);
+
   return normalizeThemeMode(legacyMode);
 };
 
@@ -72,10 +72,16 @@ export const applyTheme = (themeMode = FALLBACK_THEME_MODE) => {
   const resolvedMode = normalizeThemeMode(themeMode);
   const themeDetails = getThemeDetails(resolvedMode);
 
-  document.documentElement.setAttribute("data-theme", themeDetails.dataTheme);
+  document.documentElement.setAttribute(
+    "data-theme",
+    themeDetails.dataTheme
+  );
+
   document.documentElement.setAttribute(
     "data-theme-mode",
     themeDetails.colorScheme
   );
-  document.documentElement.style.colorScheme = themeDetails.colorScheme;
+
+  document.documentElement.style.colorScheme =
+    themeDetails.colorScheme;
 };

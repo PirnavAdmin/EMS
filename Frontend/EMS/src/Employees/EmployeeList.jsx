@@ -1055,15 +1055,11 @@ function EmployeeList() {
 
 
       <div className="emp-table-wrapper">
-
-
-
-        <div className="emp-scroll-hint">
+        {/* <div className="emp-scroll-hint">
 
           ← Scroll horizontally to view more employee details →
 
-        </div>
-
+        </div> */}
 
 
         <div className="emp-table-container">

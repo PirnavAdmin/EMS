@@ -158,9 +158,9 @@
 
 .emp-close-btn:hover:not(:disabled),
 .emp-close-btn:focus-visible:not(:disabled) {
-  background: #16837d !important;
+  background: var(--theme-primary) !important;
   color: #ffffff !important;
-  border-color: #16837d !important;
+  border-color: var(--theme-primary) !important;
   transform: translateY(-1px);
   box-shadow: none !important;
 }
@@ -182,9 +182,9 @@
 
 .emp-close-btn:hover:not(:disabled),
 .emp-close-btn:focus-visible:not(:disabled) {
-  background: #16837d !important;
+  background: var(--theme-primary) !important;
   color: #ffffff !important;
-  border-color: #16837d !important;
+  border-color: var(--theme-primary) !important;
   transform: none;
   box-shadow: none !important;
 }

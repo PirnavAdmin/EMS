@@ -10,7 +10,7 @@ import {
     FaLinkedinIn,
     FaYoutube
 } from "react-icons/fa";
-import pirnavLogo from "../../assets/pirnav.png";
+import pirnavLogo from "../../assets/pirnav1.png";
 import "./PrivacyPolicy.css";
 import "./LandingPage.css";
 
@@ -83,7 +83,7 @@ const PrivacyPolicy = () => {
 
                         <div className="privacy-policy-eyebrow">
                             <FaShieldAlt />
-                            <span>PIRNAV LEGAL</span>
+                            <span>PEOPLEHRSYNC LEGAL</span>
                         </div>
 
                         <h1>Privacy Policy</h1>
@@ -808,7 +808,7 @@ const PrivacyPolicy = () => {
 
                             <div className="landing-footer-brand-copy">
                                 <h3 className="landing-footer-brand-name">
-                                    Pirnav HRMS
+                                    Peoplehrsync 
                                 </h3>
                                 <p className="landing-footer-brand-tagline">
                                     Intelligent people operations.
@@ -904,17 +904,17 @@ const PrivacyPolicy = () => {
                             <div className="landing-footer-contact">
                                 <a
                                     className="landing-footer-contact-link"
-                                    href="mailto:contact@pirnav.com"
+                                    href="mailto:contact@peoplehrsync.com"
                                 >
                                     <FaEnvelope aria-hidden="true" />
-                                    <span>contact@pirnav.com</span>
+                                    <span>contact@peoplehrsync.com</span>
                                 </a>
                                 <a
                                     className="landing-footer-contact-link"
-                                    href="mailto:contact@pirnav.com"
+                                    href="mailto:contact@peoplehrsync.com"
                                 >
                                     <FaEnvelope aria-hidden="true" />
-                                    <span>contact@pirnav.com</span>
+                                    <span>contact@peoplehrsync.com</span>
                                 </a>
                                 <div className="landing-footer-contact-link landing-footer-contact-link--static">
                                     <FaMapMarkerAlt aria-hidden="true" />
@@ -935,7 +935,7 @@ const PrivacyPolicy = () => {
                         className="landing-footer-bottom"
                     >
                         <p className="landing-footer-bottom-copy">
-                            {"\u00A9"} 2026 Pirnav. All rights reserved.
+                            {"\u00A9"} 2026 Peoplehrsync. All rights reserved.
                         </p>
                         <nav
                             className="landing-footer-bottom-links"

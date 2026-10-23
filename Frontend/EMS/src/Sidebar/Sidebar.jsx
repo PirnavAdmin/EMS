@@ -24,7 +24,7 @@ import {
   "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
 import "./Sidebar.css";
-import pirnavLogo from "../assets/pirnav1.png";
+import pirnavLogo from "../assets/pirnav.png";
 import { useBrandingLogo } from "../utils/brandingLogo";
 import { getStoredPermissions } from "../utils/authStorage";
 import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, isSuperAdmin } from "../utils/authorization";

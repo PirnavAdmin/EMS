@@ -293,28 +293,39 @@ function Header({ collapsed = false, onToggle }) {
                       <button
                         key={option.value}
                         type="button"
-                        className={`profile-mode-toggle ${
-                          isActive ? "active" : ""
-                        }`}
+                        className={`profile-mode-toggle ${isActive ? "active" : ""
+                          }`}
                         onClick={() => setThemeMode(option.value)}
                         aria-pressed={isActive}
                         aria-label={`Select ${option.label}`}
                       >
+
                         <span
                           className="profile-mode-toggle-icon"
                           aria-hidden="true"
-                          style={{
-                            background: option.swatch,
-                            borderColor: isActive
-                              ? "var(--theme-primary)"
-                              : "var(--border-soft)",
-                          }}
-                        />
+                        >
+                          {option.icon === "sun" ? (
+                            <FaSun className="theme-mode-symbol-sun" />
+                          ) : (
+                            <FaMoon className="theme-mode-symbol-moon" />
+                          )}
+                        </span>
+
+
 
                         <span className="profile-mode-toggle-copy">
-                          <strong>{option.label}</strong>
+                          <strong className="profile-mode-toggle-title">
+                            {/* {option.icon === "sun" ? (
+                              <FaSun className="theme-mode-symbol theme-mode-symbol-sun" />
+                            ) : (
+                              <FaMoon className="theme-mode-symbol theme-mode-symbol-moon" />
+                            )} */}
+                            <span>{option.label}</span>
+                          </strong>
+
                           <span>{option.description}</span>
                         </span>
+
 
                         <span className="profile-mode-toggle-state">
                           {isActive ? "Active" : "Select"}

@@ -771,14 +771,6 @@ function SettingsPage() {
 
          <div className="settings-hero-copy">
 
-           <div className="settings-hero-kicker">
-
-             <FaShieldAlt />
-
-             <span>Admin only control plane</span>
-
-           </div>
-
              <h1 className="settings-title">Settings Workspace</h1>
 
            <p className="settings-subtitle">
@@ -798,28 +790,6 @@ function SettingsPage() {
            <SettingsStatPill label="Active Module" value={activeDefinition.label} tone="info" />
 
            <SettingsStatPill label="Last Updated" value={lastUpdatedDisplay} tone="info" />
-
-           <SettingsStatPill label="Environment" value={environmentDisplay} tone="info" />
-
-           <SettingsStatPill
-
-             label="Unsaved Changes"
-
-             value={hasUnsavedChanges ? `${dirtyTabs.length} pending` : "Synced"}
-
-             tone={hasUnsavedChanges ? "warning" : "success"}
-
-           />
-
-           <SettingsStatPill
-
-             label="Access Level"
-
-             value="Admin"
-
-             tone="info"
-
-           />
 
          </div>
 

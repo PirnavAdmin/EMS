@@ -460,43 +460,71 @@ export default function RegisterLeft() {
   //----------------------------------------
 
   return (
-    <>
-      <div className="auth-card-top">
-        {/* <button
-           type="button"
-           className="auth-back-home-button"
-           onClick={() => navigate("/")}
-          >
-           <span className="auth-back-home-icon" aria-hidden="true">
-             <FaChevronLeft />
-           </span>
-           <span>Back to Home</span>
-          </button> */}
-
-        <div className="auth-card-head">
-
-          <p className="auth-eyebrow">
-            Employee Onboarding
-          </p>
-
-          <h2 className="auth-card-title">
-            Create Your Pirnav EMS Account
-          </h2>
-
-          {/* <p className="auth-card-subtitle">
-             Start with your name, work email,
-             and a strong password.
-            </p> */}
-
-        </div>
-      </div>
-
+    <>
+
+      <div className="auth-card-top">
+
+        {/* <button
+
+           type="button"
+
+           className="auth-back-home-button"
+
+           onClick={() => navigate("/")}
+
+          >
+
+           <span className="auth-back-home-icon" aria-hidden="true">
+
+             <FaChevronLeft />
+
+           </span>
+
+           <span>Back to Home</span>
+
+          </button> */}
+
+
+
+        <div className="auth-card-head">
+          <p className="auth-eyebrow">
+            Employee Registration
+          </p>
+
+
+
+          <h2 className="auth-card-title">
+
+            Create Your Peoplehrsync Account
+
+          </h2>
+
+
+
+          {/* <p className="auth-card-subtitle">
+
+             Start with your name, work email,
+
+             and a strong password.
+
+            </p> */}
+
+
+
+        </div>
+
+      </div>
+
+
+
       <form
         className="auth-form"
         onSubmit={handleSubmit}
         noValidate>
-        
-
+        
+
+
+
         <AuthField
           label="Full Name"
           name="fullName"
@@ -509,8 +537,10 @@ export default function RegisterLeft() {
           error={errors.fullName}
           maxLength={50}
           required />
-        
-
+        
+
+
+
         <AuthField
           label="Email Address"
           name="email"
@@ -523,8 +553,10 @@ export default function RegisterLeft() {
           error={errors.email}
           maxLength={40}
           required />
-        
-
+        
+
+
+
         <AuthField
           label="Password"
           name="password"
@@ -554,29 +586,47 @@ export default function RegisterLeft() {
               (prev) => !prev
             )
           }} />
-        
-
-        <div className="auth-strength-card">
-
-          <div className="auth-strength-head">
-
-            <span>
-              Password Strength
-            </span>
-
+        
+
+
+
+        <div className="auth-strength-card">
+
+
+
+          <div className="auth-strength-head">
+
+
+
+            <span>
+
+              Password Strength
+
+            </span>
+
+
+
             <span
               className={`auth-strength-pill ${passwordStrength.tone}`}>
-              
-              {passwordStrength.label}
-            </span>
-
-          </div>
-
+              
+
+              {passwordStrength.label}
+
+            </span>
+
+
+
+          </div>
+
+
+
           <div
             className="auth-strength-bars"
             aria-hidden="true">
-            
-
+            
+
+
+
             {Array.from({ length: 4 }).map(
               (_, index) =>
               <span
@@ -587,12 +637,18 @@ export default function RegisterLeft() {
                 ""}`
                 } />
 
-            )}
-
-          </div>
-
-          <div className="auth-rule-list">
-
+            )}
+
+
+
+          </div>
+
+
+
+          <div className="auth-rule-list">
+
+
+
             {passwordRules.map((rule) =>
             <span
               key={rule.id}
@@ -600,15 +656,23 @@ export default function RegisterLeft() {
               "passed" :
               ""}`
               }>
-              
-                {rule.label}
+              
+
+                {rule.label}
+
               </span>
-            )}
-
-          </div>
-
-        </div>
-
+            )}
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
         <AuthField
           label="Confirm Password"
           name="confirmPassword"
@@ -638,32 +702,49 @@ export default function RegisterLeft() {
               (prev) => !prev
             )
           }} />
-        
-
+        
+
+
+
         <button
           type="submit"
           className="auth-primary-button"
           disabled={loading}>
-          
+          
+
           {loading ?
           "Creating account..." :
-          "Create Account"}
-        </button>
-
-      </form>
-
-      <p className="auth-footer">
-
-        Already have an account?
-
+          "Create Account"}
+
+        </button>
+
+
+
+      </form>
+
+
+
+      <p className="auth-footer">
+
+
+
+        Already have an account?
+
+
+
         <Link
           to="/login"
           className="auth-link">
-          
-          Sign in
-        </Link>
-
-      </p>
+          
+
+          Sign in
+
+        </Link>
+
+
+
+      </p>
+
     </>);
 
 }
