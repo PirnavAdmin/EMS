@@ -28,6 +28,7 @@ import { recoverFromChunkLoadError } from "./utils/chunkLoadRecovery";
 import "./typography.css";
 import "./theme/theme-overrides.css";
 import "./mobile-palette.css";
+import "./status-system.css";
 import { PageSkeleton } from "./components/Skeletons";
 
 /* ================= HELPERS ================= */

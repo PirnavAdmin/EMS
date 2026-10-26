@@ -1,0 +1,95 @@
+/* Shared interaction and status language for authenticated EMS screens. */
+.page-shell :is(.app-button-primary, .ticket-button.primary, .ticket-upload-button, .primary-btn, .save-btn, .select-all-btn) {
+  background: var(--button-primary);
+  border-color: var(--button-primary);
+  color: var(--theme-on-primary);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.page-shell :is(.app-button-primary, .ticket-button.primary, .ticket-upload-button, .primary-btn, .save-btn, .select-all-btn):hover:not(:disabled) {
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
+  color: var(--theme-on-primary);
+}
+
+.page-shell :is(.app-button-primary, .ticket-button.primary, .ticket-upload-button, .primary-btn, .save-btn, .select-all-btn):focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+.page-shell :is(.app-button-primary, .ticket-button.primary, .ticket-upload-button, .primary-btn, .save-btn, .select-all-btn):disabled {
+  background: var(--disabled, #cbd5e1);
+  border-color: var(--disabled, #cbd5e1);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.page-shell :is(.status-badge, .ticket-status-badge, .roles-status-badge, .asset-status-badge, .leave-status-badge, .project-details-status-badge, .team-status-badge, .team-request-status, .team-change-request-badge, .super-admin-badge, .agreement-status-badge, .job-badge) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.page-shell :is(.status-badge, .ticket-status-badge, .roles-status-badge, .asset-status-badge, .leave-status-badge, .project-details-status-badge, .team-status-badge, .team-request-status, .team-change-request-badge, .super-admin-badge, .agreement-status-badge, .job-badge):is(.completed, .approved, .paid, .active, .available, .present, .status-approved, .status-completed, .status-paid, .roles-status-badge--active, .asset-status-badge--available, .is-active, .badge-present) {
+  background: var(--status-success-bg);
+  border-color: color-mix(in srgb, var(--status-success-text) 28%, transparent);
+  color: var(--status-success-text);
+}
+
+/* Approved and completed are intentionally identical in every mode. This
+   prevents module-level dark rules from falling back to a neutral gray pill. */
+.page-shell :is(.status-badge, .ticket-status-badge, .roles-status-badge, .asset-status-badge, .leave-status-badge, .project-details-status-badge, .team-status-badge, .team-request-status, .team-change-request-badge, .super-admin-badge, .agreement-status-badge, .job-badge):is(.approved, .completed, .status-approved, .status-completed) {
+  background: var(--status-approved-bg);
+  border-color: color-mix(in srgb, var(--status-approved-text) 24%, transparent);
+  color: var(--status-approved-text);
+}
+
+/* Modules created before the shared badge vocabulary use these local class
+   names. Keep their approved/completed states on the same reference pill. */
+.page-shell :is(.status, .clearance-chip, .history-status, .ticket-pill, .status-pill, .projects-status, .leave-status-approved, .resignation-status, .team-request-status, .team-change-request-badge):is(.approved, .completed, .is-approved, .is-completed, .status-approved, .status-completed, .leave-status-approved) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--status-approved-text) 24%, transparent);
+  border-radius: 999px;
+  background: var(--status-approved-bg);
+  color: var(--status-approved-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.page-shell :is(.status-badge, .ticket-status-badge, .roles-status-badge, .asset-status-badge, .leave-status-badge, .project-details-status-badge, .team-status-badge, .team-request-status, .team-change-request-badge, .super-admin-badge, .agreement-status-badge, .job-badge):is(.in-progress, .inprogress, .progress, .submitted, .assigned, .status-progress, .status-submitted, .asset-status-badge--assigned, .badge-leave, .badge-halfday) {
+  background: var(--status-info-bg);
+  border-color: color-mix(in srgb, var(--status-info-text) 28%, transparent);
+  color: var(--status-info-text);
+}
+
+.page-shell :is(.status-badge, .ticket-status-badge, .roles-status-badge, .asset-status-badge, .leave-status-badge, .project-details-status-badge, .team-status-badge, .team-request-status, .team-change-request-badge, .super-admin-badge, .agreement-status-badge, .job-badge):is(.pending, .draft, .hold, .on-hold, .repair, .status-pending, .status-draft, .asset-status-badge--repair, .badge-late, .badge-holiday, .badge-missed-checkout) {
+  background: var(--status-warning-bg);
+  border-color: color-mix(in srgb, var(--status-warning-text) 28%, transparent);
+  color: var(--status-warning-text);
+}
+
+.page-shell :is(.status-badge, .ticket-status-badge, .roles-status-badge, .asset-status-badge, .leave-status-badge, .project-details-status-badge, .team-status-badge, .team-request-status, .team-change-request-badge, .super-admin-badge, .agreement-status-badge, .job-badge):is(.rejected, .cancelled, .canceled, .overdue, .inactive, .unpaid, .status-rejected, .status-cancelled, .status-overdue, .roles-status-badge--inactive, .badge-absent, .badge-lop, .badge-late-missed-checkout) {
+  background: var(--status-danger-bg);
+  border-color: color-mix(in srgb, var(--status-danger-text) 28%, transparent);
+  color: var(--status-danger-text);
+}

@@ -54,7 +54,7 @@ function AppPagination({
   return (
     <div className={`app-pagination-bar ${className}`.trim()}>
       <div className="app-pagination-info">
-        Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of{" "}
+        <strong>{startItem}</strong> to <strong>{endItem}</strong> of{" "}
         <strong>{totalItems}</strong> {itemLabel}
       </div>
 

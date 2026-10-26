@@ -7,19 +7,23 @@ using EmployeeManagementSystem.Documents;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Hangfire;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using Microsoft.AspNetCore.Hosting;
-using Hangfire;
-
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -514,29 +518,10 @@ e.Status == "Active");
             // GET PAYSLIP TEMPLATE
             //--------------------------------
 
-          
-
-            var template = await _templateService.GetActiveTemplateAsync(
-     "PAYSLIP");
-
-            if (template == null)
-            {
-                throw new Exception(
-                    "Active Payslip template not found.");
-            }
-
-            if (string.IsNullOrWhiteSpace(template.FilePath))
-            {
-                throw new Exception(
-                    "Payslip template file path is missing.");
-            }
-
-            var relativeTemplatePath = template.FilePath
-                .TrimStart('/', '\\');
-
             var templatePath = Path.Combine(
-                _environment.WebRootPath,
-                relativeTemplatePath);
+                Directory.GetCurrentDirectory(),
+                "Templates",
+                "PaySlipTemplate.docx");
 
             if (!File.Exists(templatePath))
             {
@@ -1021,7 +1006,7 @@ e.Status == "Active");
                 throw;
             }
 
-         var employeeName = fullEmployeeName;
+            var employeeName = fullEmployeeName;
             // Notification Settings Check
 
             //var notification = await _context.NotificationSettings
@@ -1374,7 +1359,7 @@ StringComparison.OrdinalIgnoreCase))
                         continue;
                     }
 
-                        var joiningDate = employee.JoiningDate.Date;
+                    var joiningDate = employee.JoiningDate.Date;
 
                     var joiningMonthStart = new DateTime(
                         joiningDate.Year,

@@ -56,7 +56,7 @@
 
 .select-all-btn {
   min-height: 40px;
-  background: var(--theme-success);
+  background: var(--button-primary);
   color: var(--theme-on-primary);
   border: none;
   padding: 8px 18px;
@@ -68,17 +68,18 @@
 }
 
 .select-all-btn:hover {
-  background: var(--success);
+  background: var(--button-primary-hover);
 }
 
 .permission-secondary-btn {
-  background: var(--bg-page);
-  color: var(--text-strong);
-  border: 1px solid var(--border-soft);
+  background: var(--button-primary);
+  color: var(--theme-on-primary);
+  border: 1px solid var(--button-primary);
 }
 
 .permission-secondary-btn:hover:not(:disabled) {
-  background: var(--bg-muted);
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
 }
 
 .permission-loading {
@@ -261,13 +262,13 @@
 }
 
 .permission-actions button:first-child {
-  background: var(--bg-page);
-  color: var(--text-strong);
-  border: 1px solid var(--border-soft);
+  background: var(--button-primary);
+  color: var(--theme-on-primary);
+  border: 1px solid var(--button-primary);
 }
 
 .permission-actions button:last-child {
-  background: var(--theme-success);
+  background: var(--button-primary);
   color: var(--theme-on-primary);
 }
 

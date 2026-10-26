@@ -768,7 +768,7 @@
 
 .attendance-row:hover,
 .attendance-row-5:hover {
-  background: var(--attendance-bg);
+  background: var(--attendance-hover, var(--attendance-bg));
 }
 
 .attendance-row:last-child,
@@ -2320,7 +2320,7 @@
 }
 
 .attendance-row-6:hover {
-  background: var(--attendance-bg);
+  background: var(--attendance-hover, var(--attendance-bg));
 }
 
 .attendance-row-6:last-child {
@@ -2484,7 +2484,7 @@
 }
 
 .attendance-daily-table tbody tr:hover {
-  background: var(--attendance-bg);
+  background: var(--attendance-hover, var(--attendance-bg));
 }
 
 .attendance-daily-table tbody tr:last-child td {

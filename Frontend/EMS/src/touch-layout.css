@@ -1,0 +1,243 @@
+/* Phones may report desktop widths when "Request desktop site" is enabled. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  html,
+  body,
+  #root,
+  .app-layout,
+  .app-main,
+  .app-main-scroll,
+  .page-shell {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .app-layout {
+    --layout-sidebar-collapsed-width: 48px;
+    --layout-gutter: 12px;
+  }
+
+  .sidebar.collapsed {
+    width: 48px;
+    padding: 8px 4px;
+  }
+
+  .sidebar.collapsed .logo {
+    min-height: 44px;
+    margin: 0 0 10px;
+    padding: 5px;
+    border-radius: 10px;
+  }
+
+  .sidebar.collapsed .sidebar-logo-img {
+    width: 30px;
+  }
+
+  .sidebar.collapsed .menu-item {
+    min-height: 44px;
+  }
+
+  .sidebar.collapsed .menu-item-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sidebar.collapsed .menu-item:hover::after {
+    left: 52px;
+  }
+
+  .app-main.is-collapsed {
+    margin-left: 48px;
+    width: calc(100% - 48px);
+  }
+
+  .page-shell :is(
+    .app-table-scroll,
+    .table-scroll,
+    .emp-table-wrapper,
+    .emp-table-container,
+    .projects-table-wrapper,
+    .holiday-table-wrapper,
+    .company-branch-table-wrap,
+    .teams-table-scroll,
+    .attendance-table-scroll,
+    .history-table-wrapper,
+    .leave-history-table-scroll,
+    .leave-table,
+    .leave-history,
+    .assets-table-wrap,
+    .roles-table-wrap,
+    .payslip-table-wrap,
+    .reports-table-wrap,
+    .ticket-table-scroll,
+    .recent-table,
+    .task-table,
+    .ems-task-data-table-outer-wrapper
+  ) {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .page-shell :is(.app-table-scroll, .table-scroll, [class$="table-wrapper"], [class*="table-scroll"]).touch-table-scroll::after {
+    content: "Swipe for more";
+    position: sticky;
+    right: 0;
+    float: right;
+    display: block;
+    margin-top: -30px;
+    padding: 7px 8px 7px 24px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--card-bg) 30%);
+  }
+
+  .page-shell .touch-table-scroll[data-scrolled="true"]::after {
+    display: none;
+  }
+
+  .page-shell :is(.app-table-scroll, .table-scroll, .emp-table-wrapper, .emp-table-container, .projects-table-wrapper, .holiday-table-wrapper, .company-branch-table-wrap, .teams-table-scroll, .attendance-table-scroll, .history-table-wrapper, .leave-history-table-scroll, .leave-table, .leave-history, .assets-table-wrap, .roles-table-wrap, .payslip-table-wrap, .reports-table-wrap, .ticket-table-scroll, .recent-table, .task-table, .ems-task-data-table-outer-wrapper) table {
+    min-width: 640px;
+    table-layout: fixed;
+  }
+
+  .page-shell table th,
+  .page-shell table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .page-shell table :is(th:first-child, td:first-child) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 164px;
+    width: 164px;
+    background: var(--table-row);
+    border-right: 1px solid var(--border-color);
+  }
+
+  .page-shell table thead th:first-child {
+    z-index: 2;
+    background: var(--table-header-bg);
+  }
+
+  .page-shell :is(.filters, .filter-group, .filter-row, .filter-container) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .page-shell :is(.filters, .filter-group, .filter-row, .filter-container) :is(select, .select, [role="combobox"]) {
+    flex: 1 1 140px;
+    min-height: 44px;
+  }
+
+  .page-shell :is(.filters, .filter-group, .filter-row, .filter-container) :is(button[type="submit"], .primary-btn, .add-btn, .app-button-primary) {
+    flex-basis: 100%;
+    min-height: 44px;
+  }
+
+  .app-pagination-bar {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .app-pagination-info {
+    flex: 1;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .app-pagination-controls {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .app-pagination-page-size-group,
+  .app-pagination-dots,
+  .app-pagination-controls .pagination-btn:not(.active):not(:first-of-type):not(:last-of-type) {
+    display: none;
+  }
+
+  .touch-table-view-toggle {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 300;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--button-secondary-border);
+    border-radius: 999px;
+    background: var(--button-primary);
+    color: var(--theme-on-primary);
+    font-weight: 700;
+    box-shadow: var(--theme-shadow-lg);
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll {
+    overflow: visible;
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll::after {
+    display: none;
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll table {
+    min-width: 0;
+    display: block;
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll tbody,
+  html[data-table-view="cards"] .page-shell .touch-table-scroll tr {
+    display: grid;
+    gap: 8px;
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll tr {
+    margin-bottom: 10px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll td {
+    display: grid;
+    grid-template-columns: minmax(92px, 40%) minmax(0, 1fr);
+    width: auto;
+    min-width: 0;
+    padding: 3px 0;
+    border: 0;
+    white-space: normal;
+    overflow: visible;
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll td::before {
+    content: attr(data-label);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  html[data-table-view="cards"] .page-shell .touch-table-scroll td:first-child {
+    position: static;
+    background: transparent;
+    border-right: 0;
+  }
+}

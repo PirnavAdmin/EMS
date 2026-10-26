@@ -1,5 +1,5 @@
 import React from "react";
-import pirnavLogo from "../../assets/pirnav1.png";
+import pirnavLogo from "../../assets/pirnav5.png";
 import { useBrandingLogo } from "../../utils/brandingLogo";
 
 function LoginRight() {

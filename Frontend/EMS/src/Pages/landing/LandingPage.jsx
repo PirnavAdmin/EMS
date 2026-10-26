@@ -31,7 +31,7 @@ import {
   FaRegClock,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import pirnavLogo from "../../assets/pirnav1.png";
+import pirnavLogo from "../../assets/pirnav4.png";
 import DemoRequestSection from "./DemoRequestSection";
 import ProductShowcase from "./ProductShowcase";
 import { useLandingRevealObserver, useOnceInView } from "./landingMotion";
@@ -894,7 +894,7 @@ const FooterSection = () => (
               href="mailto:contact@peoplehrsync.com"
             >
               <FaEnvelope aria-hidden="true" />
-              <span>contact@peoplehrsync.com</span>
+              <span>contact@demo.com</span>
             </a>
             <div className="landing-footer-contact-link landing-footer-contact-link--static">
               <FaMapMarkerAlt aria-hidden="true" />

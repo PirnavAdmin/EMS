@@ -65,6 +65,18 @@ html[data-theme="professional-aqua"][data-theme-mode="light"] {
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
+  --status-info-bg: #e5f5fc;
+  --status-info-text: #087bae;
+  --status-success-bg: #ecfdf5;
+  --status-success-text: #059669;
+  --status-approved-bg: #e6fff4;
+  --status-approved-text: #008767;
+  --status-warning-bg: #fffbeb;
+  --status-warning-text: #b45309;
+  --status-danger-bg: #fef2f2;
+  --status-danger-text: #dc2626;
+  --status-neutral-bg: #f1f5f9;
+  --status-neutral-text: #64748b;
   --teal-50: #f0f9fd;
   --teal-100: #e5f5fc;
   --teal-200: #dceaf2;
@@ -82,58 +94,178 @@ html[data-theme="dark-executive"][data-theme-mode="dark"] {
   --primary: #18bcef;
   --secondary: #08b8eb;
   --primary-color: #18bcef;
-  --page-bg: #101c26;
-  --bg-app: #101c26;
-  --bg-primary: #101c26;
-  --bg-secondary: #152633;
-  --bg-muted: #152633;
+  --theme-background: #0f1b24;
+  --theme-background-soft: #162936;
+  --theme-surface: #162936;
+  --theme-surface-alt: #1b303d;
+  --theme-surface-strong: #294454;
+  --theme-text: #f5f7fa;
+  --theme-text-secondary: #a9c4d8;
+  --theme-text-muted: #89a4b8;
+  --theme-border: #294454;
+  --theme-border-strong: #38596d;
+  --page-bg: #0f1b24;
+  --bg-page: #162936;
+  --bg-app: #0f1b24;
+  --bg-primary: #0f1b24;
+  --bg-secondary: #162936;
+  --bg-muted: #162936;
   --bg-soft: #1a2d3b;
-  --section-bg: #152633;
-  --card-bg: #152633;
+  --section-bg: #162936;
+  --card-bg: #162936;
   --card-hover: #1a2d3b;
   --card-hover-bg: #1a2d3b;
   --hover-bg: #1a2d3b;
-  --border-color: #2b4759;
-  --border-soft: #223d4e;
-  --border-strong: #42657a;
-  --text-primary: #f3f9fc;
-  --text-strong: #f3f9fc;
-  --text-body: #c0d2dc;
-  --text-secondary: #c0d2dc;
-  --text-muted: #8ca5b5;
+  --border-color: #294454;
+  --border-soft: #294454;
+  --border-strong: #38596d;
+  --text-primary: #f5f7fa;
+  --text-strong: #f5f7fa;
+  --text-body: #a9c4d8;
+  --text-secondary: #a9c4d8;
+  --text-muted: #89a4b8;
   --input-bg: #1a2d3b;
-  --input-border: #42657a;
-  --input-text: #f3f9fc;
-  --input-placeholder: #8ca5b5;
+  --input-border: #38596d;
+  --input-text: #f5f7fa;
+  --input-placeholder: #89a4b8;
   --input-focus: rgb(24 188 239 / 24%);
-  --table-bg: #152633;
-  --table-row: #152633;
-  --table-header-bg: #1a2d3b;
-  --table-head-bg: #1a2d3b;
+  --table-bg: #162936;
+  --table-row: #162936;
+  --table-header-bg: #162936;
+  --table-head-bg: #162936;
   --table-hover: #1a2d3b;
   --table-row-hover: #1a2d3b;
   --table-selected: rgb(24 188 239 / 16%);
+  --attendance-bg: #0f1b24;
+  --attendance-card: #162936;
+  --attendance-header: #162936;
+  --attendance-summary: #162936;
+  --attendance-hover: #1b303d;
+  --attendance-border: #294454;
+  --attendance-text: #f5f7fa;
+  --attendance-muted: #a9c4d8;
+  --attendance-status-success: #6ee7b7;
+  --attendance-status-success-soft: rgb(16 185 129 / 16%);
+  --attendance-status-danger: #fca5a5;
+  --attendance-status-danger-soft: rgb(239 68 68 / 16%);
+  --attendance-status-late: #fcd34d;
+  --attendance-status-late-soft: rgb(245 158 11 / 16%);
+  --attendance-status-info: #67d8fa;
+  --attendance-status-info-soft: rgb(24 188 239 / 16%);
+  --attendance-status-purple: #c4b5fd;
+  --attendance-status-purple-soft: rgb(139 92 246 / 16%);
+  --attendance-status-orange: #fdba74;
+  --attendance-status-orange-soft: rgb(249 115 22 / 16%);
+  --attendance-status-red: #fca5a5;
+  --attendance-status-red-soft: rgb(239 68 68 / 16%);
+  --attendance-status-gray: #cbd5e1;
+  --attendance-status-gray-soft: rgb(148 163 184 / 14%);
+  --attendance-status-amber: #fcd34d;
+  --attendance-status-amber-soft: rgb(245 158 11 / 16%);
   --button-primary: #087bae;
   --button-primary-hover: #075b86;
   --button-secondary: #1a2d3b;
   --button-secondary-hover: #223d4e;
-  --button-secondary-border: #42657a;
+  --button-secondary-border: #38596d;
   --button-secondary-text: #18bcef;
-  --page-heading-color: #f3f9fc;
-  --page-subtitle-color: #c0d2dc;
+  --page-heading-color: #f5f7fa;
+  --page-subtitle-color: #a9c4d8;
   --sidebar-accent: #18bcef;
   --sidebar-accent-soft: rgb(24 188 239 / 16%);
   --sidebar-accent-hover: rgb(24 188 239 / 11%);
   --sidebar-hover: #1a2d3b;
   --header-glyph-bg: #087bae;
+  --navbar-bg: #202124;
+  --header-bg: #202124;
+  --header-icon-bg: #162936;
+  --header-badge-bg: #162936;
+  --sidebar-bg: #202124;
+  --sidebar-panel: #202124;
+  --sidebar-border: #294454;
+  --sidebar-text: #a9c4d8;
+  --sidebar-text-strong: #f5f7fa;
+  --sidebar-muted: #89a4b8;
   --auth-primary-button-bg: #087bae;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
+  --status-info-bg: rgb(24 188 239 / 16%);
+  --status-info-text: #67d8fa;
+  --status-success-bg: rgb(16 185 129 / 16%);
+  --status-success-text: #6ee7b7;
+  --status-approved-bg: #e6fff4;
+  --status-approved-text: #008767;
+  --status-warning-bg: rgb(245 158 11 / 16%);
+  --status-warning-text: #fcd34d;
+  --status-danger-bg: rgb(239 68 68 / 16%);
+  --status-danger-text: #fca5a5;
+  --status-neutral-bg: rgb(148 163 184 / 14%);
+  --status-neutral-text: #cbd5e1;
   --teal-50: #1a2d3b;
   --teal-100: #223d4e;
   --teal-200: #2b4759;
   --teal-600: #18bcef;
   --teal-700: #18bcef;
   --teal-800: #18bcef;
+}
+
+/* Shared dark surfaces. This is scoped to authenticated application content so
+   landing and authentication pages retain their own intentional designs. */
+html[data-theme="dark-executive"][data-theme-mode="dark"] .app-layout {
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark-executive"][data-theme-mode="dark"] .page-shell :is(
+  table,
+  .app-table-scroll,
+  .table-scroll,
+  .emp-table-wrapper,
+  .holiday-table-wrapper,
+  .projects-table-wrapper,
+  .branch-table-wrapper,
+  .roles-table-wrap,
+  .assets-table-wrap,
+  .payslip-table-wrap,
+  .reports-table-wrap,
+  .ticket-table-scroll,
+  .leave-table,
+  .leave-history
+) {
+  background: var(--table-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+html[data-theme="dark-executive"][data-theme-mode="dark"] .page-shell table :is(th, td) {
+  background: var(--table-row);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+html[data-theme="dark-executive"][data-theme-mode="dark"] .page-shell table :is(thead, thead tr, thead th) {
+  background: var(--table-header-bg);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark-executive"][data-theme-mode="dark"] .page-shell table tbody tr:hover :is(td, th) {
+  background: var(--table-row-hover);
+}
+
+html[data-theme="dark-executive"][data-theme-mode="dark"] .page-shell :is(
+  input,
+  select,
+  textarea,
+  .react-datepicker,
+  .react-datepicker__header,
+  .react-datepicker__month-container,
+  .react-select__menu,
+  [role="dialog"],
+  .modal-content,
+  .modal-box,
+  .app-modal
+) {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border-color: var(--input-border);
 }
