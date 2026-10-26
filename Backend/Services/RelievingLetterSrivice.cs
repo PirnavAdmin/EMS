@@ -12,6 +12,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
+using OpenXmlText = DocumentFormat.OpenXml.Wordprocessing.Text;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -126,8 +127,8 @@ namespace EmployeeManagementSystem.Services
                     runProperties.CloneNode(true));
 
             dayRun.Append(
-                new Text(day.ToString())
-                {
+               new OpenXmlText(day.ToString())
+               {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
@@ -150,8 +151,8 @@ namespace EmployeeManagementSystem.Services
             suffixRun.Append(suffixProperties);
 
             suffixRun.Append(
-                new Text(suffix)
-                {
+              new OpenXmlText(suffix)
+              {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
@@ -166,8 +167,8 @@ namespace EmployeeManagementSystem.Services
                     runProperties.CloneNode(true));
 
             restRun.Append(
-                new Text($" {date:MMM yyyy}")
-                {
+               new OpenXmlText($" {date:MMM yyyy}")
+               {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
@@ -611,8 +612,8 @@ namespace EmployeeManagementSystem.Services
             }
 
             newRun.Append(
-                new Text(text ?? string.Empty)
-                {
+             new OpenXmlText(text ?? string.Empty)
+             {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
