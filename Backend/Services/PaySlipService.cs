@@ -518,6 +518,7 @@ e.Status == "Active");
             // GET PAYSLIP TEMPLATE
             //--------------------------------
 
+
             var templatePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "Templates",
