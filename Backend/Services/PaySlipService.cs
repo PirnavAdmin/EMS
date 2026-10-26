@@ -1723,7 +1723,7 @@ StringComparison.OrdinalIgnoreCase))
                     run.RemoveAllChildren<OpenXmlText>();
 
                     run.Append(
-                   new OpenXmlText(text ?? "-")
+                   new OpenXmlText(text ?? "-"));
                 }
             }
         }
