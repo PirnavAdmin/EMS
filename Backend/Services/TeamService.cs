@@ -10,7 +10,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -66,14 +69,17 @@ namespace EmployeeManagementSystem.Services
             // 3. GET PROJECT
             // ==========================================
 
-            var project = await _context.Projects
-                .FirstOrDefaultAsync(x =>
-                    x.Id == dto.ProjectId);
+            Project? project = null;
 
-            if (project == null)
+            if (dto.ProjectId.HasValue && dto.ProjectId.Value > 0)
             {
-                return new BadRequestObjectResult(
-                    "Project not found.");
+                project = await _context.Projects
+                    .FirstOrDefaultAsync(x => x.Id == dto.ProjectId.Value);
+
+                if (project == null)
+                {
+                    return new BadRequestObjectResult("Project not found.");
+                }
             }
 
 
@@ -82,14 +88,16 @@ namespace EmployeeManagementSystem.Services
             //    FOR THIS PROJECT
             // ==========================================
 
-            var existingTeam = await _context.Teams
-                .FirstOrDefaultAsync(x =>
-                    x.ProjectId == dto.ProjectId);
-
-            if (existingTeam != null)
+            if (dto.ProjectId.HasValue && dto.ProjectId.Value > 0)
             {
-                return new BadRequestObjectResult(
-                    $"A team already exists for project '{project.Project_Name}'.");
+                var existingTeam = await _context.Teams
+                    .FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId.Value);
+
+                if (existingTeam != null)
+                {
+                    return new BadRequestObjectResult(
+                        $"A team already exists for project '{project!.Project_Name}'.");
+                }
             }
 
 
@@ -102,7 +110,9 @@ namespace EmployeeManagementSystem.Services
             var team = new Team
             {
                 TeamNumber = dto.TeamNumber,
-                TeamName = project.Project_Name,
+                TeamName = project != null
+    ? project.Project_Name
+    : dto.TeamName,
                 ReportingManagerId = dto.ReportingManagerId,
                 EngagementType = dto.EngagementType,
                 ProjectId = dto.ProjectId,
@@ -234,7 +244,7 @@ namespace EmployeeManagementSystem.Services
 
                     var fcmResult = await _fcmNotificationService.SendToEmployeeAsync(
                         employeeId: employee.Employee_Id,
-                        title: "Team Assignment",
+                        title: "Added to new team",
                         body: $"You have been assigned to team '{team.TeamName}'.",
                         type: "TEAM_ASSIGNED",
                         screen: "MyTeam",
@@ -260,6 +270,7 @@ namespace EmployeeManagementSystem.Services
                 }
             }
 
+
             // ==========================================
             // 10. RESPONSE
             // ==========================================
@@ -271,7 +282,7 @@ namespace EmployeeManagementSystem.Services
                     TeamId = team.Id,
                     TeamName = team.TeamName,
                     ProjectId = team.ProjectId,
-                    ProjectName = project.Project_Name,
+                    ProjectName = project?.Project_Name,
                     MemberCount = membersToAdd.Count
                 });
         }

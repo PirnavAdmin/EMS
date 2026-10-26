@@ -8,6 +8,23 @@ const normalizeId = (value) => String(value ?? "").trim();
 const EMPTY_MEMBERS = [];
 const WEEKDAY_OFFSETS = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
 const rowKey = (member, index) => normalizeId(member?.employeeId ?? member?.employee_Id ?? member?.userId ?? member?.id) || String(index);
+const getMemberProjectName = (member, teamData) => {
+  const project = member?.project;
+  const fromProject = typeof project === "string" ? project : project?.projectName;
+  const teamProject = [
+    teamData?.projectName,
+    teamData?.project_Name,
+    teamData?.project?.projectName
+  ].find((candidate) => String(candidate ?? "").trim());
+  const value = [
+    member?.overrideProjectName,
+    member?.projectName,
+    member?.project_Name,
+    fromProject,
+    teamProject
+  ].find((candidate) => String(candidate ?? "").trim());
+  return String(value ?? "").trim();
+};
 const getWeekStart = (date) => startOfWeek(date, { weekStartsOn: 1 });
 const getWeekLabel = (weekStart) => {
   const weekEnd = addDays(weekStart, 4);
@@ -49,7 +66,7 @@ const formatShiftTime = (value) => {
   }
   return `${String(hours).padStart(2, "0")}:${match[2]}`;
 };
-function TeamMembersTable({ members = EMPTY_MEMBERS, isAdmin = false, selfServiceShiftActions = false, currentEmployeeMember = null, authenticatedEmployeeId = "", canAddMember = false, availableShifts = [], loadingShifts = false, onLoadShifts, onAssignMemberShift, onUnassignMemberShift, onAddMember, onRequestChange, onSwapShift, onOverride, onRemove }) {
+function TeamMembersTable({ members = EMPTY_MEMBERS, teamData = null, isAdmin = false, selfServiceShiftActions = false, currentEmployeeMember = null, authenticatedEmployeeId = "", canAddMember = false, availableShifts = [], loadingShifts = false, onLoadShifts, onAssignMemberShift, onUnassignMemberShift, onAddMember, onRequestChange, onSwapShift, onOverride, onRemove }) {
   const [openUserMenu, setOpenUserMenu] = useState(null);
   const [openShiftControl, setOpenShiftControl] = useState(null);
   const [selectedShiftId, setSelectedShiftId] = useState("");
@@ -239,12 +256,12 @@ function TeamMembersTable({ members = EMPTY_MEMBERS, isAdmin = false, selfServic
             const shiftEffectiveTo = member.shiftEffectiveTo || member.effectiveTo || member.currentShift?.effectiveTo || member.shift?.effectiveTo;
             const memberName = member.name || member.employeeName || "Employee";
             const memberId = member.employeeCode || member.employeeId || member.employee_Id || member.userId || member.id;
-            const projectName = member.projectName || member.project || "ABC";
+            const projectName = getMemberProjectName(member, teamData);
             const hasKnownShiftTone = /night|afternoon|morning|general/i.test(displayShift);
             return <tr key={key} className={`team-members-reference__row ${member.isSelected || member.isHighlighted ? "is-reference-highlighted" : ""}`}>
               <td className="py-3.5 px-4 text-center align-middle whitespace-nowrap font-bold text-slate-900">{memberName}</td>
               <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap"><span className="team-members-reference__id bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded text-[11px] font-semibold">{memberId}</span></td>
-              <td className="team-members-reference__project-cell py-3.5 px-4 text-center align-middle whitespace-nowrap font-bold text-slate-800" title={projectName}><span className="team-members-reference__project-name">{projectName}</span></td>
+              <td className="team-members-reference__project-cell py-3.5 px-4 text-center align-middle whitespace-nowrap font-bold text-slate-800" title={projectName}><span className="team-members-reference__project-name">{projectName || "-"}</span></td>
               <td className="py-3.5 px-4 text-center align-middle whitespace-nowrap"><div className="inline-flex flex-col items-center gap-1">
                 {isAdmin && !selfServiceShiftActions ? (hasCurrentShift ? (
                   <div className="team-members-reference__member-shift-control" data-shift-row={key}>
