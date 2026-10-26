@@ -1,5 +1,4 @@
-﻿
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
