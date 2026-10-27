@@ -10,7 +10,7 @@ import {
     FaLinkedinIn,
     FaYoutube
 } from "react-icons/fa";
-import pirnavLogo from "../../assets/pirnav1.png";
+import pirnavLogo from "../../assets/pirnav5.png";
 import "./PrivacyPolicy.css";
 import "./LandingPage.css";
 

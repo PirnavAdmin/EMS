@@ -830,11 +830,7 @@ const FooterSection = () => (
             <img src={pirnavLogo} alt="Pirnav" className="landing-footer-mark" />
           </div>
 
-          <div className="landing-footer-brand-copy">
-            <h3 className="landing-footer-brand-name">Peoplehrsync </h3>
-
-            <p className="landing-footer-brand-tagline">Intelligent people operations.</p>
-          </div>
+       
 
           <p className="landing-footer-copy">
             A modern HRMS platform for smarter employee management, attendance, payroll, leave, and workforce operations.
@@ -889,13 +885,7 @@ const FooterSection = () => (
               <FaEnvelope aria-hidden="true" />
               <span>contact@peoplehrsync.com</span>
             </a>
-            <a
-              className="landing-footer-contact-link"
-              href="mailto:contact@peoplehrsync.com"
-            >
-              <FaEnvelope aria-hidden="true" />
-              <span>contact@demo.com</span>
-            </a>
+          
             <div className="landing-footer-contact-link landing-footer-contact-link--static">
               <FaMapMarkerAlt aria-hidden="true" />
               <span>India</span>

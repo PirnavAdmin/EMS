@@ -1,4 +1,5 @@
-﻿using ClosedXML.Excel;
+﻿
+using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
@@ -23,7 +24,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
-using OpenXmlText = DocumentFormat.OpenXml.Wordprocessing.Text;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -368,10 +368,39 @@ e.Status == "Active");
             // ATTENDANCE RATIO
             //--------------------------------
 
-            decimal ratio =
-                payrollDays == 0
-                    ? 0
+            //--------------------------------
+            // SALARY PRORATION
+            //--------------------------------
+
+            // Default: use the attendance summary for a normal month.
+            decimal salaryRatio;
+
+            bool isJoiningMonth =
+                joiningDate.Year == yearValue &&
+                joiningDate.Month == monthNumber;
+
+            if (isJoiningMonth)
+            {
+                // For the joining month, calculate salary against
+                // the entire calendar month, not just days after joining.
+                int daysInMonth =
+                    DateTime.DaysInMonth(yearValue, monthNumber);
+
+                salaryRatio = daysInMonth == 0
+                    ? 0m
+                    : paidDays / daysInMonth;
+            }
+            else
+            {
+                // Preserve existing attendance-based calculation
+                // for employees who joined in an earlier month.
+                salaryRatio = payrollDays == 0
+                    ? 0m
                     : paidDays / payrollDays;
+            }
+
+            // Prevent the ratio from exceeding 100%.
+            salaryRatio = Math.Clamp(salaryRatio, 0m, 1m);
 
 
             //--------------------------------
@@ -403,16 +432,22 @@ e.Status == "Active");
             //--------------------------------
             // EARNINGS AFTER ATTENDANCE / LOP
             //--------------------------------
-            decimal basic = RoundSalary(fullBasic * ratio);
+            //--------------------------------
+            // EARNINGS AFTER ATTENDANCE / LOP
+            //--------------------------------
 
-            decimal hra = RoundSalary(fullHRA * ratio);
+            decimal basic = RoundSalary(fullBasic * salaryRatio);
 
-            decimal conveyance = RoundSalary(fullConveyance * ratio);
+            decimal hra = RoundSalary(fullHRA * salaryRatio);
 
-            decimal medical = RoundSalary(fullMedical * ratio);
+            decimal conveyance =
+                RoundSalary(fullConveyance * salaryRatio);
+
+            decimal medical =
+                RoundSalary(fullMedical * salaryRatio);
 
             decimal specialAllowance =
-     RoundSalary(fullSpecialAllowance * ratio);
+                RoundSalary(fullSpecialAllowance * salaryRatio);
 
             //--------------------------------
             // TOTAL EARNINGS
@@ -454,8 +489,8 @@ e.Status == "Active");
             //--------------------------------
 
             decimal pf =
-     RoundSalary(
-         salaryStructure.EmployeePF * ratio);
+       RoundSalary(
+           salaryStructure.EmployeePF * salaryRatio);
 
 
             //--------------------------------
@@ -1720,10 +1755,10 @@ StringComparison.OrdinalIgnoreCase))
 
                 if (run != null)
                 {
-                    run.RemoveAllChildren<OpenXmlText>();
+                    run.RemoveAllChildren<Text>();
 
                     run.Append(
-                   new OpenXmlText(text ?? "-"));
+                        new Text(text ?? "-"));
                 }
             }
         }
