@@ -393,7 +393,7 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<EmployeeGoal>()
     .ToTable("employeegoal");
             modelBuilder.Entity<Appraisal>()
-    .ToTable("appraisal");
+     .ToTable("Appraisal");
 
             modelBuilder.Entity<GoalReview>()
                 .ToTable("goalreview");
