@@ -24,6 +24,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
+using OpenXmlText = DocumentFormat.OpenXml.Wordprocessing.Text;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -1755,10 +1756,10 @@ StringComparison.OrdinalIgnoreCase))
 
                 if (run != null)
                 {
-                    run.RemoveAllChildren<Text>();
+                    run.RemoveAllChildren<OpenXmlText>();
 
                     run.Append(
-                        new Text(text ?? "-"));
+                       new OpenXmlText(text ?? "-"));
                 }
             }
         }
