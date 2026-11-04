@@ -1,0 +1,58 @@
+﻿using EmployeeManagementSystem.Models;
+using System.ComponentModel.DataAnnotations;
+
+namespace EmployeeManagementSystem.Models
+
+{
+
+    public class Attendance
+
+    {
+
+        [Key]
+
+        public int Id { get; set; }
+
+        public string Employee_Id { get; set; }
+
+        public DateTime Attendance_Date { get; set; }
+
+        public DateTime? Check_In { get; set; }
+
+        public DateTime? Check_Out { get; set; }
+
+        public string? Status { get; set; }
+
+        public string? IpAddress { get; set; }
+
+        public string? DeviceInfo { get; set; }
+
+        public int WorkingMinutes { get; set; }
+        public int TotalBreakMinutes { get; set; }
+        public decimal? CheckInLatitude { get; set; }
+        public decimal? CheckInLongitude { get; set; }
+
+        public decimal? CheckOutLatitude { get; set; }
+        public decimal? CheckOutLongitude { get; set; }
+
+        public decimal? DistanceMeters { get; set; }
+
+        public string? LocationStatus { get; set; }
+
+        public string? CheckoutType { get; set; }
+
+        public string? AutoCheckoutReason { get; set; }
+        public bool IsLocationMismatch { get; set; } = false;
+
+        public string? LocationChangeReason { get; set; }
+        //public string? CheckInAddress { get; set; }
+        //public string? CheckOutAddress { get; set; }
+        public DateTime? LastActivityTime { get; set; }
+
+
+    }
+
+}
+
+
+ 

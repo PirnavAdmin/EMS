@@ -1,0 +1,3999 @@
+import React, {
+  useDeferredValue,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState
+} from
+  "react";
+import {
+  FaDownload,
+  FaArrowLeft,
+  FaEye,
+  FaFilter,
+  FaChevronDown,
+  FaChevronUp,
+  FaPaperclip,
+  FaPen,
+  FaPlay,
+  FaPlus,
+  FaSearch,
+  FaSort,
+  FaSortDown,
+  FaSortUp,
+  FaSpinner,
+  FaStop,
+  FaSyncAlt,
+  FaTicketAlt,
+  FaTimes,
+  FaTrash,
+  FaUpload
+} from
+  "react-icons/fa";
+import { toast } from "../components/common/Toast/toastService";
+
+import "./TicketManagement.css";
+import { buildServerUrl } from "../api/endpoints";
+import AppDatePicker from "../components/AppDatePicker";
+import AppPagination from "../components/AppPagination";
+import CompactSearchableDropdown from "../components/CompactSearchableDropdown";
+import EmptyState from "../components/EmptyState";
+import { TableSkeleton } from "../components/Skeletons";
+import { extractCollection } from "../utils/collections";
+import { hasRole } from "../utils/authorization";
+import {
+  compareDatesAsc,
+  compareDatesDesc,
+  formatDate,
+  getInputDateValue,
+  getTodayInputValue,
+  parseDate
+} from "../utils/date";
+import {
+  buildTicketPayload,
+  createEmptyTicketForm,
+  getPriorityTone,
+  getStatusTone,
+  getTicketCategoryOptions,
+  getTicketPriorityLabel,
+  getTicketSearchText,
+  getTicketSortValue,
+  getTicketStatusLabel,
+  getTicketStatusOptions,
+  normalizeEmployeeOption,
+  normalizeTicketFieldText,
+  normalizeTicketPriority,
+  normalizeTicketRecord,
+  normalizeTicketStatus,
+  TICKET_FORM_LIMITS,
+  TICKET_PRIORITY_OPTIONS,
+  truncateTicketText
+} from
+  "./ticketConfig";
+import AutoAssignConfirmModal from "./AutoAssignConfirmModal";
+import { getProjects } from "../services/projectService";
+import {
+  AUTO_ASSIGN_SUCCESS_MESSAGE,
+  autoAssignTickets,
+  buildAutoAssignPayload,
+  createTicket,
+  deleteTicket,
+  downloadTicketTemplate,
+  exportTickets,
+  fetchMyTickets,
+  fetchPendingTickets,
+  fetchTicketById,
+  fetchTickets,
+  getAutoAssignErrorMessage,
+  getTicketApiErrorMessage,
+  startTicketWork,
+  stopTicketWork,
+  updateTicket,
+  updateTicketStatus,
+  uploadTicketBulkFile,
+} from
+  "../services/ticketService";
+import { getEmployees } from "../services/employeeService";
+
+const PAGE_SIZE = 10;
+
+const TABLE_COLUMNS = [
+  { key: "ticketId", label: "Ticket ID", width: "130px" },
+  { key: "title", label: "Title", width: "240px" },
+  { key: "description", label: "Description", width: "280px" },
+  { key: "category", label: "Category", width: "150px" },
+  { key: "priority", label: "Priority", width: "120px" },
+  { key: "status", label: "Status", width: "140px" },
+  { key: "assignedBy", label: "Assigned By", width: "180px" },
+  { key: "assignedTo", label: "Assigned To", width: "180px" },
+  { key: "createdDate", label: "Created Date", width: "130px" },
+  { key: "updatedDate", label: "Updated Date", width: "130px" },
+  { key: "actions", label: "Actions", width: "380px" }];
+
+const DEFAULT_SORT = {
+  key: "updatedDate",
+  direction: "desc"
+};
+const PROJECTS_PAGE_SIZE = 5;
+
+const STATUS_OPTIONS = ["All", ...getTicketStatusOptions("admin")];
+const PRIORITY_OPTIONS = ["All", ...TICKET_PRIORITY_OPTIONS];
+const CATEGORY_OPTIONS = ["All", ...getTicketCategoryOptions()];
+
+const ACCEPTED_EXTENSIONS = [".xls", ".xlsx"];
+
+const ACTIVE_WORK_STATUSES = new Set(["In Progress", "On Hold"]);
+const EMPLOYEE_WORK_STATUS_OPTIONS = getTicketStatusOptions("user");
+
+const formatTicketDateTime = (value) => {
+  if (!value) {
+    return "-";
+  }
+
+  try {
+    const text = String(value).trim();
+
+    // Backend ticket API returns values like:
+    // 2026-09-16T10:58:10
+    //
+    // Keep the time exactly as returned by the API.
+    // Do NOT let the browser convert it through UTC.
+    const match = text.match(
+      /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/
+    );
+
+    if (match) {
+      const [, year, month, day, hours, minutes, seconds = "0"] = match;
+
+      const localDate = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hours),
+        Number(minutes),
+        Number(seconds)
+      );
+
+      if (!Number.isNaN(localDate.getTime())) {
+        return localDate.toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true
+        });
+      }
+    }
+
+    // Fallback for timestamps that contain Z or an explicit timezone offset
+    const date = new Date(text);
+
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+  } catch (error) {
+    console.error("Ticket date/time formatting error:", error);
+    return "-";
+  }
+};
+
+const isExcelFile = (file) => {
+  if (!file) {
+    return false;
+  }
+
+  const name = String(file.name || "").toLowerCase();
+  return ACCEPTED_EXTENSIONS.some((extension) => name.endsWith(extension));
+};
+
+const isTicketCompleted = (ticket) =>
+  normalizeTicketStatus(ticket?.status) === "Completed";
+
+const isTicketAssigned = (ticket) =>
+  normalizeTicketStatus(ticket?.status) === "Assigned";
+
+const hasTicketWorkStarted = (ticket) =>
+  Boolean(ticket?.workStarted || ticket?.startedDate);
+
+const hasTicketWorkStopped = (ticket) =>
+  Boolean(ticket?.stoppedDate || ticket?.completedDate);
+
+const isTicketWorkActive = (ticket) => {
+  if (!ticket || isTicketCompleted(ticket) || hasTicketWorkStopped(ticket)) {
+    return false;
+  }
+
+  return Boolean(
+    ticket.workActive ||
+    hasTicketWorkStarted(ticket) ||
+    ACTIVE_WORK_STATUSES.has(normalizeTicketStatus(ticket.status))
+  );
+};
+
+const getEmployeeRowStatusOptions = (ticket) => {
+  const currentStatus = normalizeTicketStatus(ticket?.status);
+  const options = [...EMPLOYEE_WORK_STATUS_OPTIONS];
+
+  if (currentStatus && !options.includes(currentStatus)) {
+    options.unshift(currentStatus);
+  }
+
+  return options;
+};
+
+const normalizeSummary = (payload = {}) => ({
+  total: Number(
+    payload.totalRecords ??
+    payload.total ??
+    payload.records ??
+    payload.rowCount ??
+    0
+  ),
+  success: Number(
+    payload.successCount ??
+    payload.insertedCount ??
+    payload.createdCount ??
+    payload.succeeded ??
+    0
+  ),
+  failed: Number(
+    payload.failedCount ??
+    payload.failureCount ??
+    payload.invalidCount ??
+    payload.rejectedCount ??
+    0
+  ),
+  skipped: Number(payload.skippedCount ?? payload.ignoredCount ?? 0)
+});
+
+const deduplicateTickets = (ticketList = []) => {
+  const seen = new Set();
+  return ticketList.filter((ticket) => {
+    const ticketId = String(ticket.ticketId || "").trim();
+    const projectId = String(ticket.projectId ?? "").trim();
+    if (!ticketId || !projectId || projectId === "0") {
+      return true;
+    }
+
+    const key = `${projectId}:${ticketId}`;
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
+const getDefaultSortDirection = (key) =>
+  ["createdDate", "updatedDate", "ticketId"].includes(key) ? "desc" : "asc";
+
+const isDateInRange = (value, fromDate, toDate) => {
+  if (!fromDate && !toDate) {
+    return true;
+  }
+
+  const parsedValue = parseDate(value);
+  if (!parsedValue) {
+    return true;
+  }
+
+  const from = fromDate ? parseDate(fromDate) : null;
+  const to = toDate ? parseDate(toDate) : null;
+
+  if (from && parsedValue < from) {
+    return false;
+  }
+
+  if (to) {
+    const endOfDay = new Date(to.getTime());
+    endOfDay.setHours(23, 59, 59, 999);
+
+    if (parsedValue > endOfDay) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const compareValues = (left, right, key, direction) => {
+  const leftValue = getTicketSortValue(left, key);
+  const rightValue = getTicketSortValue(right, key);
+
+  if (key === "createdDate" || key === "updatedDate") {
+    return direction === "asc" ?
+      compareDatesAsc(leftValue, rightValue) :
+      compareDatesDesc(leftValue, rightValue);
+  }
+
+  if (key === "status" || key === "priority") {
+    const comparison = Number(leftValue) - Number(rightValue);
+    return direction === "asc" ? comparison : -comparison;
+  }
+
+  const collator = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: "base"
+  });
+
+  const comparison = collator.compare(
+    String(leftValue || ""),
+    String(rightValue || "")
+  );
+  return direction === "asc" ? comparison : -comparison;
+};
+
+function StatusPill({ value }) {
+  const normalized = normalizeTicketStatus(value);
+  const tone = getStatusTone(normalized);
+
+  return (
+    <span className={`ticket-pill status-pill status-${tone}`}>
+      {getTicketStatusLabel(normalized)}
+    </span>);
+
+}
+
+function PriorityPill({ value }) {
+  const tone = getPriorityTone(value);
+
+  return (
+    <span className={`ticket-pill priority-pill priority-${tone}`}>
+      {getTicketPriorityLabel(value)}
+    </span>);
+
+}
+
+function ModalShell({
+  open,
+  title,
+  subtitle,
+  headerActions,
+  onClose,
+  children,
+  footer,
+  className = ""
+}) {
+  const titleId = useId();
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div
+      className="delete-overlay ticket-modal-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose?.();
+        }
+      }}>
+
+      <div
+        className={`ticket-modal ${className}`.trim()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}>
+
+        <div className="ticket-modal-head">
+          <div className="ticket-modal-heading">
+            <span className="ticket-eyebrow">Tickets</span>
+            <div>
+              <h3 id={titleId}>{title}</h3>
+              {subtitle ? <p>{subtitle}</p> : null}
+            </div>
+          </div>
+
+          <div className="ticket-modal-head-actions">
+            {headerActions}
+
+            <button
+              type="button"
+              className="ticket-modal-close"
+              onClick={onClose}
+              aria-label="Close dialog">
+
+              <FaTimes aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        <div className="ticket-modal-body">{children}</div>
+
+        {footer ? <div className="ticket-modal-footer">{footer}</div> : null}
+      </div>
+    </div>);
+
+}
+
+function TicketActionToolbar({
+  onCreate,
+  onBulkUpload,
+  onDownloadTemplate,
+  onAutoAssign,
+  onExport,
+  showCreate = true,
+  showAutoAssign = true,
+  autoAssignSaving = false,
+  exporting = false,
+  autoAssignCount = null,
+  exportCount = null,
+  bulkUploadSummary = null
+}) {
+  return (
+    <div className="ticket-hero-actions">
+      {showCreate ? (
+        <button
+          type="button"
+          className="ticket-button secondary"
+          onClick={onCreate}
+        >
+          <FaPlus aria-hidden="true" />
+          Create Ticket
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="ticket-button secondary"
+        onClick={onBulkUpload}
+      >
+        <FaUpload aria-hidden="true" />
+        Bulk Upload
+        {bulkUploadSummary ? (
+          <span
+            className="ticket-action-count"
+            title={`${bulkUploadSummary.success} tickets uploaded successfully`}
+          >
+            +{bulkUploadSummary.success}
+          </span>
+        ) : null}
+      </button>
+      <button
+        type="button"
+        className="ticket-button secondary"
+        onClick={onDownloadTemplate}
+      >
+        <FaDownload aria-hidden="true" />
+        Download Template
+      </button>
+      {showAutoAssign ? (
+        <button
+          type="button"
+          className="ticket-button primary"
+          onClick={onAutoAssign}
+          disabled={autoAssignSaving}
+        >
+          {autoAssignSaving ? (
+            <>
+              <FaSpinner className="ticket-button-spinner" />
+              Auto Assigning...
+            </>
+          ) : (
+            <>
+              <FaSyncAlt aria-hidden="true" />
+              Auto Assign
+            </>
+          )}
+          {autoAssignCount !== null ? (
+            <span
+              className="ticket-action-count"
+              aria-label={`${autoAssignCount} tickets eligible for auto assignment`}
+            >
+              {autoAssignCount}
+            </span>
+          ) : null}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="ticket-button primary"
+        onClick={onExport}
+        disabled={exporting}
+      >
+        {exporting ? (
+          <>
+            <FaSpinner className="ticket-button-spinner" />
+            Exporting...
+          </>
+        ) : (
+          <>
+            <FaDownload aria-hidden="true" />
+            Export Tickets
+          </>
+        )}
+        {exportCount !== null ? (
+          <span
+            className="ticket-action-count"
+            aria-label={`${exportCount} tickets will be exported`}
+          >
+            {exportCount}
+          </span>
+        ) : null}
+      </button>
+    </div>
+  );
+}
+
+function ProjectContextPickerModal({
+  open,
+  projects,
+  action,
+  onClose,
+  onSelect
+}) {
+  const [projectId, setProjectId] = useState("");
+
+  const actionLabels = {
+    create: "create a ticket",
+    autoAssign: "auto assign tickets"
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      title="Select a Project"
+      subtitle={`Choose a project to ${actionLabels[action] || "continue"}.`}
+      onClose={onClose}
+      className="ticket-modal-narrow"
+      footer={
+        <>
+          <button
+            type="button"
+            className="ticket-button secondary"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ticket-button primary"
+            onClick={() => onSelect(projectId)}
+            disabled={!projectId}
+          >
+            Continue
+          </button>
+        </>
+      }
+    >
+      <div className="ticket-field">
+        <label htmlFor="ticket-action-project">Project</label>
+        <select
+          id="ticket-action-project"
+          value={projectId}
+          onChange={(event) => setProjectId(event.target.value)}
+        >
+          <option value="">Select a project</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name || `Project ${project.id}`}
+              {project.code ? ` · ${project.code}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ProjectSelectionExportModal({
+  open,
+  exporting,
+  selectedProjectId,
+  lockedProjectId,
+  projectTicketCounts,
+  allTicketCount,
+  onClose,
+  onExport
+}) {
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [projectsError, setProjectsError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    let active = true;
+    setProjects([]);
+    setSelectedProjectIds([]);
+    setProjectsError("");
+    setLoadingProjects(true);
+
+    const loadProjects = async () => {
+      try {
+        const response = await getProjects();
+        const records = extractCollection(response.data);
+        const projectsById = new Map();
+
+        records.forEach((project) => {
+          const rawId = project?.id ?? project?.Id ?? project?.ID;
+          const numericId = Number(rawId);
+          if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+            return;
+          }
+
+          const id = String(numericId);
+          const name = String(
+            project?.project_Name ??
+            project?.Project_Name ??
+            project?.projectName ??
+            project?.name ??
+            ""
+          ).trim();
+          const code = String(
+            project?.project_Id ??
+            project?.Project_Id ??
+            project?.projectId ??
+            ""
+          ).trim();
+
+          projectsById.set(id, {
+            id,
+            label: [name, code].filter(Boolean).join(" · ") || `Project ${id}`
+          });
+        });
+
+        if (records.length > 0 && projectsById.size === 0) {
+          throw new Error("The Projects API did not return valid project IDs.");
+        }
+
+        if (active) {
+          const projectList = Array.from(projectsById.values());
+          setProjects(projectList);
+          if (selectedProjectId) {
+            const selectedId = String(selectedProjectId);
+            setSelectedProjectIds(
+              projectList.some((project) => project.id === selectedId)
+                ? [selectedId]
+                : []
+            );
+          }
+        }
+      } catch (error) {
+        const message = await getTicketApiErrorMessage(
+          error,
+          "Unable to load projects for ticket export."
+        );
+        if (active) {
+          setProjectsError(message);
+        }
+      } finally {
+        if (active) {
+          setLoadingProjects(false);
+        }
+      }
+    };
+
+    loadProjects();
+
+    return () => {
+      active = false;
+    };
+  }, [open, retryCount, selectedProjectId]);
+
+  const allProjectsSelected =
+    projects.length > 0 && selectedProjectIds.length === projects.length;
+  const selectedTicketCount = allProjectsSelected
+    ? allTicketCount
+    : selectedProjectIds.reduce(
+      (total, projectId) =>
+        total + (projectTicketCounts.get(projectId)?.total || 0),
+      0
+    );
+
+  const closeIfIdle = () => {
+    if (!exporting) {
+      onClose();
+    }
+  };
+
+  const handleExport = () => {
+    if (exporting || selectedProjectIds.length === 0) {
+      return;
+    }
+
+    onExport(
+      allProjectsSelected ? null : selectedProjectIds
+    );
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      title="Export Tickets"
+      subtitle="Select the projects to include in the Excel export."
+      onClose={closeIfIdle}
+      className="ticket-modal-narrow ticket-project-export-modal"
+      footer={
+        <>
+          <button
+            type="button"
+            className="ticket-button secondary"
+            onClick={closeIfIdle}
+            disabled={exporting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ticket-button primary"
+            onClick={handleExport}
+            disabled={
+              loadingProjects ||
+              Boolean(projectsError) ||
+              selectedProjectIds.length === 0 ||
+              exporting
+            }
+          >
+            {exporting ? (
+              <>
+                <FaSpinner className="ticket-button-spinner" aria-hidden="true" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <FaDownload aria-hidden="true" />
+                Export
+              </>
+            )}
+          </button>
+        </>
+      }
+    >
+      {loadingProjects ? (
+        <div className="ticket-modal-loading" role="status">
+          <FaSpinner className="ticket-button-spinner" aria-hidden="true" />
+          Loading projects...
+        </div>
+      ) : projectsError ? (
+        <div className="ticket-project-export-state" role="alert">
+          <p>{projectsError}</p>
+          <button
+            type="button"
+            className="ticket-button secondary"
+            onClick={() => setRetryCount((count) => count + 1)}
+          >
+            Retry
+          </button>
+        </div>
+      ) : projects.length === 0 ? (
+        <p className="ticket-project-export-state">
+          No projects are available to export.
+        </p>
+      ) : (
+        <>
+          <p className="ticket-project-export-summary" aria-live="polite">
+            {selectedProjectIds.length === 0
+              ? "Select one or more projects, or All Projects, to see the ticket count."
+              : `${selectedTicketCount} ticket${selectedTicketCount === 1 ? "" : "s"} will be exported.`}
+          </p>
+          <p className="ticket-project-export-hint">
+            Select any combination of projects to include in one export.
+          </p>
+          <div className="ticket-project-export-list">
+            {!lockedProjectId ? (
+              <label className="ticket-project-export-option">
+                <input
+                  type="checkbox"
+                  checked={allProjectsSelected}
+                  onChange={(event) =>
+                    setSelectedProjectIds(
+                      event.target.checked
+                        ? projects.map((project) => project.id)
+                        : []
+                    )
+                  }
+                  disabled={exporting}
+                />
+                <span>All Projects</span>
+              </label>
+            ) : null}
+            {projects.map((project) => (
+              <label
+                className="ticket-project-export-option"
+                key={project.id}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedProjectIds.includes(project.id)}
+                  onChange={(event) => {
+                    setSelectedProjectIds((currentProjectIds) => {
+                      if (event.target.checked) {
+                        return currentProjectIds.includes(project.id)
+                          ? currentProjectIds
+                          : [...currentProjectIds, project.id];
+                      }
+
+                      return currentProjectIds.filter(
+                        (projectId) => projectId !== project.id
+                      );
+                    });
+                  }}
+                  disabled={exporting || Boolean(lockedProjectId)}
+                />
+                <span>{project.label}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </ModalShell>
+  );
+}
+
+function TicketEditorModal({
+  open,
+  mode,
+  ticketId,
+  defaultProjectId,
+  employees,
+  loadingEmployees,
+  statusChangeMode = false,
+  requestedStatus = "",
+  onClose,
+  onSaved
+}) {
+  const isEditMode = mode === "edit" && Boolean(ticketId);
+  const firstInputRef = useRef(null);
+
+  const [loadingTicket, setLoadingTicket] = useState(isEditMode);
+  const [saving, setSaving] = useState(false);
+  const [ticketRecord, setTicketRecord] = useState(null);
+  const [formData, setFormData] = useState(() => createEmptyTicketForm("admin"));
+  const [errors, setErrors] = useState({});
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
+
+  const categoryOptions = useMemo(() => getTicketCategoryOptions(), []);
+  const today = getTodayInputValue();
+
+  useEffect(() => {
+    if (!open) {
+      setLoadingTicket(false);
+      setSaving(false);
+      setTicketRecord(null);
+      setFormData({
+        ...createEmptyTicketForm("admin"),
+        projectId: defaultProjectId || 0
+      });
+      setErrors({});
+      setAttachmentFiles([]);
+      return undefined;
+    }
+
+    if (!isEditMode) {
+      setLoadingTicket(false);
+      setTicketRecord(null);
+      setFormData({
+        ...createEmptyTicketForm("admin"),
+        projectId: defaultProjectId || 0
+      });
+      setErrors({});
+      setAttachmentFiles([]);
+      return undefined;
+    }
+
+    if (!ticketId) {
+      setLoadingTicket(false);
+      setTicketRecord(null);
+      return undefined;
+    }
+
+    let active = true;
+
+    const loadTicket = async () => {
+      try {
+        setLoadingTicket(true);
+        const record = await fetchTicketById(ticketId);
+        const rawTicket = record.raw || record;
+
+        const normalized = {
+          ...normalizeTicketRecord(rawTicket),
+          remarks:
+            rawTicket?.remarks ??
+            rawTicket?.Remarks ??
+            record?.remarks ??
+            record?.Remarks ??
+            ""
+        };
+
+        if (!active) {
+          return;
+        }
+
+        setTicketRecord(normalized);
+        setFormData({
+          projectId: normalized.projectId || 0,
+          technology: normalized.technology || "",
+          startDate: normalized.startDate
+            ? getInputDateValue(normalized.startDate)
+            : "",
+          estimatedHours: normalized.estimatedHours || "",
+
+          title: normalized.title || "",
+          description: normalized.description || "",
+          category: normalized.category || "",
+          priority: normalized.priority || "Medium",
+
+          assignedToEmployee:
+            normalized.assignedTo || normalized.createdBy || "",
+
+          assignedToEmployeeId:
+            normalized.assignedToId || normalized.createdById || "",
+
+          dueDate: normalized.dueDate
+            ? getInputDateValue(normalized.dueDate)
+            : "",
+
+          attachmentFile: null,
+          notes: "",
+          status:
+            statusChangeMode && requestedStatus
+              ? normalizeTicketStatus(requestedStatus)
+              : normalizeTicketStatus(normalized.status || "Open")
+        });
+      } catch (error) {
+
+        const message = await getTicketApiErrorMessage(
+          error,
+          "Unable to load the ticket details."
+        );
+        toast.error(message);
+        if (active) {
+          setTicketRecord(null);
+        }
+      } finally {
+        if (active) {
+          setLoadingTicket(false);
+        }
+      }
+    };
+
+    loadTicket();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    isEditMode,
+    open,
+    ticketId,
+    statusChangeMode,
+    requestedStatus,
+    defaultProjectId
+  ]);
+
+  useEffect(() => {
+    if (open && !loadingTicket) {
+      firstInputRef.current?.focus();
+    }
+  }, [loadingTicket, open]);
+
+  const validateField = (fieldName, fieldValue) => {
+    switch (fieldName) {
+      case "title": {
+        const value = normalizeTicketFieldText(fieldValue);
+        if (!value) return "Title is required.";
+        if (value.length < 3) return "Title must be at least 3 characters.";
+        if (value.length > TICKET_FORM_LIMITS.title) {
+          return `Title must be ${TICKET_FORM_LIMITS.title} characters or less.`;
+        }
+        return "";
+      }
+      case "description": {
+        const value = normalizeTicketFieldText(fieldValue);
+        if (!value) return "Description is required.";
+        if (value.length < 10) {
+          return "Description must be at least 10 characters.";
+        }
+        if (value.length > TICKET_FORM_LIMITS.description) {
+          return `Description must be ${TICKET_FORM_LIMITS.description} characters or less.`;
+        }
+        return "";
+      }
+      case "category":
+        if (!normalizeTicketFieldText(fieldValue)) {
+          return "Category is required.";
+        }
+        return "";
+      case "priority": {
+        const normalized = normalizeTicketPriority(fieldValue);
+        if (!TICKET_PRIORITY_OPTIONS.includes(normalized)) {
+          return "Select a valid priority.";
+        }
+        return "";
+      }
+      case "assignedToEmployee":
+        if (!normalizeTicketFieldText(fieldValue)) {
+          return "Assign the ticket to an employee.";
+        }
+        return "";
+      case "dueDate":
+        if (fieldValue && fieldValue < today && !isEditMode) {
+          return "Due date cannot be earlier than today.";
+        }
+        return "";
+      default:
+        return "";
+    }
+  };
+
+  const updateField = (fieldName, value) => {
+    setFormData((current) => ({
+      ...current,
+      [fieldName]:
+        fieldName === "title" || fieldName === "description" ?
+          value.replace(/\s+/g, " ") :
+          value
+    }));
+
+    const nextError = validateField(fieldName, value);
+    setErrors((current) => {
+      if (!nextError && !current[fieldName]) {
+        return current;
+      }
+
+      if (!nextError) {
+        const { [fieldName]: removedError, ...rest } = current;
+        return rest;
+      }
+
+      return {
+        ...current,
+        [fieldName]: nextError
+      };
+    });
+  };
+
+  const handleEmployeeSelect = (value) => {
+    const matchedEmployee = employees.find(
+      (employee) =>
+        employee.id === value ||
+        employee.name === value ||
+        employee.label === value
+    );
+
+    setFormData((current) => ({
+      ...current,
+      assignedToEmployee: matchedEmployee?.name || value,
+      assignedToEmployeeId: matchedEmployee?.id || value
+    }));
+
+    setErrors((current) => {
+      if (!current.assignedToEmployee) {
+        return current;
+      }
+
+      const { assignedToEmployee, ...rest } = current;
+      return rest;
+    });
+  };
+
+  const handleAttachmentChange = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    if (!files.length) {
+      return;
+    }
+
+    setAttachmentFiles((current) => [
+      ...current,
+      ...files
+    ]);
+
+    // Allow selecting the same file again later
+    event.target.value = "";
+  };
+
+  const removeAttachmentFile = (index) => {
+    setAttachmentFiles((current) =>
+      current.filter((_, fileIndex) => fileIndex !== index)
+    );
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+
+    [
+      "title",
+      "description",
+      "category",
+      "priority",
+      "assignedToEmployee",
+      "dueDate"
+    ].forEach((fieldName) => {
+      const fieldError = validateField(
+        fieldName,
+        formData[fieldName]
+      );
+
+      if (fieldError) {
+        nextErrors[fieldName] = fieldError;
+      }
+    });
+
+    if (statusChangeMode) {
+      if (!normalizeTicketFieldText(formData.status)) {
+        nextErrors.status = "Please select a status.";
+      }
+
+      if (!normalizeTicketFieldText(formData.notes)) {
+        nextErrors.notes =
+          "Please enter remarks before changing the ticket status.";
+      }
+    }
+
+    setErrors(nextErrors);
+
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (saving) {
+      return;
+    }
+
+    if (!validateForm()) {
+      toast.error("Please fix the highlighted fields.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const currentStatus = normalizeTicketStatus(
+        ticketRecord?.status || "Open"
+      );
+
+      const nextStatus = normalizeTicketStatus(
+        formData.status || currentStatus
+      );
+
+      /*
+       * STATUS CHANGE FLOW
+       *
+       * Status dropdown
+       *      ↓
+       * Edit Ticket modal
+       *      ↓
+       * Status + Remarks + Attachments
+       *      ↓
+       * UpdateStatus API
+       */
+      if (isEditMode && statusChangeMode) {
+        await updateTicketStatus(
+          ticketId,
+          nextStatus,
+          formData.notes?.trim() || "",
+          attachmentFiles
+        );
+
+        toast.success(
+          "Ticket status updated successfully."
+        );
+      }
+
+      /*
+       * NORMAL EDIT FLOW
+       */
+      else if (isEditMode) {
+        const payload = buildTicketPayload(formData, {
+          status: currentStatus
+        });
+
+        await updateTicket(ticketId, payload);
+
+        if (
+          attachmentFiles.length > 0 ||
+          formData.notes?.trim()
+        ) {
+          await updateTicketStatus(
+            ticketId,
+            currentStatus,
+            formData.notes?.trim() || "",
+            attachmentFiles
+          );
+        }
+
+        toast.success(
+          "Ticket updated successfully."
+        );
+      }
+
+      /*
+       * CREATE FLOW
+       */
+      else {
+        const payload = buildTicketPayload(formData, {
+          status: formData.status || "Open"
+        });
+
+        await createTicket(payload);
+
+        toast.success(
+          "Ticket created successfully."
+        );
+      }
+
+      await onSaved?.();
+      onClose?.();
+
+    } catch (error) {
+      const errorMessage =
+        await getTicketApiErrorMessage(
+          error,
+          statusChangeMode
+            ? "Unable to update the ticket status right now."
+            : "We could not save the ticket right now."
+        );
+
+      toast.error(errorMessage);
+
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const headerActions = isEditMode ?
+    <span className="ticket-modal-badge">Edit mode</span> :
+
+    <span className="ticket-modal-badge">New ticket</span>;
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <ModalShell
+      open={open}
+      title={isEditMode ? "Edit Ticket" : "Create Ticket"}
+      subtitle={
+        statusChangeMode
+          ? "Update the status, add remarks, and attach supporting documents."
+          : isEditMode
+            ? "Replace or add an attachment to this ticket."
+            : "Capture the request and assign it to an employee."
+      }
+      headerActions={headerActions}
+      onClose={onClose}
+      className="ticket-modal-wide"
+      footer={
+        <>
+          <button
+            type="button"
+            className="ticket-button secondary"
+            onClick={onClose}
+            disabled={saving}>
+
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            form="ticket-editor-form"
+            className="ticket-button primary"
+            disabled={saving || loadingEmployees}>
+
+            {saving ?
+              <>
+                <FaSpinner className="ticket-button-spinner" />
+                Saving...
+              </> :
+              statusChangeMode
+                ? "Update Ticket"
+                : isEditMode
+                  ? "Update Ticket"
+                  : "Create Ticket"
+            }
+          </button>
+        </>
+      }>
+
+      {loadingTicket ?
+        <div className="ticket-modal-loading">
+          <FaSpinner className="ticket-button-spinner" />
+          Loading ticket details...
+        </div> :
+
+        <form
+          id="ticket-editor-form"
+          className="ticket-form-grid ticket-modal-form"
+          onSubmit={handleSubmit}
+          noValidate
+        >
+          {/* TITLE */}
+          <div className="ticket-field">
+            <label htmlFor="ticket-title">
+              Title
+            </label>
+
+            <input
+              ref={firstInputRef}
+              id="ticket-title"
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={(event) =>
+                updateField("title", event.target.value)
+              }
+              disabled={isEditMode}
+              className={errors.title ? "has-error" : ""}
+              aria-invalid={Boolean(errors.title)}
+              aria-describedby={
+                errors.title
+                  ? "ticket-title-error"
+                  : undefined
+              }
+              maxLength={TICKET_FORM_LIMITS.title}
+              autoComplete="off"
+            />
+
+            {errors.title ? (
+              <p
+                id="ticket-title-error"
+                className="ticket-error"
+              >
+                {errors.title}
+              </p>
+            ) : (
+              <p className="ticket-help">
+                Keep the title short, specific, and action focused.
+              </p>
+            )}
+          </div>
+
+
+          {/* CATEGORY */}
+          <div className="ticket-field">
+            <label htmlFor="ticket-category">
+              Category
+            </label>
+
+            <select
+              id="ticket-category"
+              name="category"
+              value={formData.category}
+              onChange={(event) =>
+                updateField(
+                  "category",
+                  event.target.value
+                )
+              }
+              disabled={isEditMode}
+              className={errors.category ? "has-error" : ""}
+              aria-invalid={Boolean(errors.category)}
+              aria-describedby={
+                errors.category
+                  ? "ticket-category-error"
+                  : undefined
+              }
+            >
+              <option value="">
+                Select category
+              </option>
+
+              {categoryOptions.map((category) => (
+                <option
+                  key={category}
+                  value={category}
+                >
+                  {category}
+                </option>
+              ))}
+            </select>
+
+            {errors.category ? (
+              <p
+                id="ticket-category-error"
+                className="ticket-error"
+              >
+                {errors.category}
+              </p>
+            ) : (
+              <p className="ticket-help">
+                Route the request to the right queue from the start.
+              </p>
+            )}
+          </div>
+
+
+          {/* DESCRIPTION */}
+          <div className="ticket-field ticket-field-full">
+            <label htmlFor="ticket-description">
+              Description
+            </label>
+
+            <textarea
+              id="ticket-description"
+              name="description"
+              value={formData.description}
+              onChange={(event) =>
+                updateField(
+                  "description",
+                  event.target.value
+                )
+              }
+              disabled={isEditMode}
+              className={
+                errors.description
+                  ? "has-error"
+                  : ""
+              }
+              aria-invalid={Boolean(errors.description)}
+              aria-describedby={
+                errors.description
+                  ? "ticket-description-error"
+                  : undefined
+              }
+              maxLength={
+                TICKET_FORM_LIMITS.description
+              }
+            />
+
+            {errors.description ? (
+              <p
+                id="ticket-description-error"
+                className="ticket-error"
+              >
+                {errors.description}
+              </p>
+            ) : (
+              <p className="ticket-help">
+                Explain the issue, request, or outcome you need.
+              </p>
+            )}
+          </div>
+
+
+          {/* PRIORITY */}
+          <div className="ticket-field">
+            <label htmlFor="ticket-priority">
+              Priority
+            </label>
+
+            <select
+              id="ticket-priority"
+              name="priority"
+              value={formData.priority}
+              onChange={(event) =>
+                updateField(
+                  "priority",
+                  event.target.value
+                )
+              }
+              disabled={isEditMode}
+              className={
+                errors.priority
+                  ? "has-error"
+                  : ""
+              }
+              aria-invalid={Boolean(errors.priority)}
+              aria-describedby={
+                errors.priority
+                  ? "ticket-priority-error"
+                  : undefined
+              }
+            >
+              {TICKET_PRIORITY_OPTIONS.map(
+                (priority) => (
+                  <option
+                    key={priority}
+                    value={priority}
+                  >
+                    {priority}
+                  </option>
+                )
+              )}
+            </select>
+
+            {errors.priority ? (
+              <p
+                id="ticket-priority-error"
+                className="ticket-error"
+              >
+                {errors.priority}
+              </p>
+            ) : (
+              <p className="ticket-help">
+                Pick the urgency level that matches the request.
+              </p>
+            )}
+          </div>
+
+
+          {/* STATUS - ONLY FOR STATUS CHANGE */}
+          {statusChangeMode && (
+            <div className="ticket-field">
+              <label htmlFor="ticket-status">
+                Status
+              </label>
+
+              <select
+                id="ticket-status"
+                name="status"
+                value={formData.status || ""}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    status: normalizeTicketStatus(
+                      event.target.value
+                    )
+                  }))
+                }
+                disabled={saving}
+                className={
+                  errors.status
+                    ? "has-error"
+                    : ""
+                }
+              >
+                {getTicketStatusOptions("admin").map(
+                  (status) => (
+                    <option
+                      key={status}
+                      value={status}
+                    >
+                      {getTicketStatusLabel(status)}
+                    </option>
+                  )
+                )}
+              </select>
+
+              {errors.status ? (
+                <p className="ticket-error">
+                  {errors.status}
+                </p>
+              ) : (
+                <p className="ticket-help">
+                  Select the new status for this ticket.
+                </p>
+              )}
+            </div>
+          )}
+
+
+          {/* DUE DATE */}
+          <div className="ticket-field">
+            <label htmlFor="ticket-due-date">
+              Due Date
+            </label>
+
+            <AppDatePicker
+              id="ticket-due-date"
+              name="dueDate"
+              value={formData.dueDate}
+              onChange={(event) =>
+                updateField(
+                  "dueDate",
+                  event.target.value
+                )
+              }
+              disabled={isEditMode}
+              minDate={today}
+              className={
+                errors.dueDate
+                  ? "has-error"
+                  : ""
+              }
+              aria-invalid={Boolean(errors.dueDate)}
+              aria-describedby={
+                errors.dueDate
+                  ? "ticket-due-date-error"
+                  : undefined
+              }
+              placeholder="Select due date"
+            />
+
+            {errors.dueDate ? (
+              <p
+                id="ticket-due-date-error"
+                className="ticket-error"
+              >
+                {errors.dueDate}
+              </p>
+            ) : (
+              <p className="ticket-help">
+                Optional, but useful when the ticket needs follow-up.
+              </p>
+            )}
+          </div>
+
+
+          {/* ASSIGNED EMPLOYEE */}
+          <div className="ticket-field ticket-field-full">
+            <label htmlFor="ticket-assignee">
+              Assign To Employee
+            </label>
+
+            <CompactSearchableDropdown
+              id="ticket-assignee"
+              value={
+                formData.assignedToEmployeeId ||
+                formData.assignedToEmployee
+              }
+              onChange={handleEmployeeSelect}
+              groups={[
+                {
+                  label: "Employees",
+                  options: employees.map(
+                    (employee) => ({
+                      value:
+                        employee.id ||
+                        employee.name,
+                      label: employee.label
+                    })
+                  )
+                }
+              ]}
+              placeholder={
+                loadingEmployees
+                  ? "Loading employees..."
+                  : "Select employee"
+              }
+              searchPlaceholder="Search employee name or ID"
+              disabled={loadingEmployees || statusChangeMode}
+              helperText="Choose the employee who will receive the ticket."
+              error={errors.assignedToEmployee}
+            />
+          </div>
+
+
+          {/* ATTACHMENT */}
+          <div className="ticket-field ticket-field-full">
+            <label htmlFor="ticket-attachment">
+              Attachment
+            </label>
+
+            <div className="ticket-upload-row">
+              <label
+                className="ticket-upload-button"
+                htmlFor="ticket-attachment"
+              >
+                <FaPaperclip aria-hidden="true" />
+
+                {attachmentFiles.length > 0
+                  ? "Add more attachments"
+                  : "Upload attachment"}
+              </label>
+
+              <input
+                id="ticket-attachment"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
+                onChange={handleAttachmentChange}
+              />
+
+              <div className="ticket-upload-meta">
+                <strong>
+                  {attachmentFiles.length
+                    ? `${attachmentFiles.length} file${attachmentFiles.length > 1
+                      ? "s"
+                      : ""
+                    } selected`
+                    : "No new attachment selected"}
+                </strong>
+
+                <span>
+                  You can select multiple supporting files.
+                </span>
+              </div>
+            </div>
+
+            {attachmentFiles.length > 0 && (
+              <div className="ticket-attachment-list ticket-new-attachment-list">
+                {attachmentFiles.map(
+                  (file, index) => (
+                    <div
+                      className="ticket-attachment-item"
+                      key={`${file.name}-${file.lastModified}-${index}`}
+                    >
+                      <span>
+                        {file.name}
+                      </span>
+
+                      <div className="ticket-attachment-item-actions">
+                        <small>
+                          {(file.size / 1024).toFixed(1)} KB
+                        </small>
+
+                        <button
+                          type="button"
+                          className="ticket-attachment-remove"
+                          onClick={() =>
+                            removeAttachmentFile(index)
+                          }
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+
+
+          {/* REMARKS */}
+          <div className="ticket-field ticket-field-full">
+            <label htmlFor="ticket-remarks">
+              Remarks{" "}
+              {statusChangeMode && (
+                <span className="required-mark">
+                  *
+                </span>
+              )}
+            </label>
+
+            <textarea
+              id="ticket-remarks"
+              name="remarks"
+              value={formData.notes || ""}
+              onChange={(event) =>
+                setFormData((current) => ({
+                  ...current,
+                  notes: event.target.value
+                }))
+              }
+              placeholder={
+                statusChangeMode
+                  ? "Enter remarks for this status change..."
+                  : "Enter remarks"
+              }
+              className={`ticket-remarks-textarea ${errors.notes
+                ? "has-error"
+                : ""
+                }`}
+              aria-invalid={Boolean(errors.notes)}
+            />
+
+            {errors.notes ? (
+              <p className="ticket-error">
+                {errors.notes}
+              </p>
+            ) : (
+              <p className="ticket-help">
+                {statusChangeMode
+                  ? "Explain why the ticket status is being changed."
+                  : "Add remarks related to this ticket update."}
+              </p>
+            )}
+          </div>
+
+
+          {/* EXISTING ATTACHMENTS */}
+          {isEditMode &&
+            ticketRecord?.attachments?.length ? (
+            <div className="ticket-field ticket-field-full">
+              <label>
+                Existing Attachment
+              </label>
+
+              <div className="ticket-attachment-list">
+                {ticketRecord.attachments.map(
+                  (attachment, index) => {
+                    const fileName =
+                      attachment?.fileName ||
+                      attachment?.name ||
+                      attachment?.FileName ||
+                      `Attachment ${index + 1}`;
+
+                    const filePath =
+                      attachment?.filePath ||
+                      attachment?.FilePath ||
+                      attachment?.url ||
+                      attachment?.fileUrl ||
+                      attachment?.downloadUrl ||
+                      "";
+
+                    const fileUrl = filePath
+                      ? buildServerUrl(filePath)
+                      : "";
+
+                    return (
+                      <div
+                        className="ticket-attachment-item"
+                        key={
+                          attachment?.id ||
+                          attachment?.attachmentId ||
+                          `${fileName}-${index}`
+                        }
+                      >
+                        {fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ticket-attachment-link"
+                          >
+                            {fileName}
+                          </a>
+                        ) : (
+                          <span>
+                            {fileName}
+                          </span>
+                        )}
+
+                        <small>
+                          {attachment?.fileSize
+                            ? `${(
+                              Number(
+                                attachment.fileSize
+                              ) / 1024
+                            ).toFixed(1)} KB`
+                            : ""}
+                        </small>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+          ) : null}
+        </form>
+
+      }
+    </ModalShell>);
+
+}
+
+function BulkUploadModal({ open, projectId, onClose, onUploaded }) {
+  const fileInputRef = useRef(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [errorFileUrl, setErrorFileUrl] = useState("");
+
+  const summaryCards = useMemo(
+    () => [
+      { label: "Total Rows", value: summary?.total ?? 0, tone: "total" },
+      { label: "Successful", value: summary?.success ?? 0, tone: "resolved" },
+      { label: "Failed", value: summary?.failed ?? 0, tone: "open" },
+      { label: "Skipped", value: summary?.skipped ?? 0, tone: "progress" }],
+
+    [summary]
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setDragActive(false);
+      setSelectedFile(null);
+      setUploading(false);
+      setSummary(null);
+      setErrorFileUrl("");
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [open]);
+
+  const clearFile = () => {
+    setSelectedFile(null);
+    setSummary(null);
+    setErrorFileUrl("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFile = (file) => {
+    if (!file) {
+      return;
+    }
+
+    if (!isExcelFile(file)) {
+      toast.error("Please select an Excel file (.xls or .xlsx).");
+      return;
+    }
+
+    setSelectedFile(file);
+    setSummary(null);
+    setErrorFileUrl("");
+  };
+
+  const handleInputChange = (event) => {
+    handleFile(event.target.files?.[0]);
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setDragActive(false);
+    handleFile(event.dataTransfer.files?.[0]);
+  };
+
+  const handleTemplateDownload = async () => {
+    try {
+      await downloadTicketTemplate();
+      toast.success("Template download started.");
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to download the template right now."
+      );
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast.error("Choose a file before uploading.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    if (projectId) {
+      formData.append("projectId", String(projectId));
+    }
+
+    try {
+      setUploading(true);
+      setSummary(null);
+      setErrorFileUrl("");
+
+      const response = await uploadTicketBulkFile(formData);
+      const data = response?.data?.data || response?.data || {};
+
+      const uploadSummary = normalizeSummary(
+        data.summary || data.result || data
+      );
+      setSummary(uploadSummary);
+
+      const downloadUrl =
+        data.errorFileUrl ||
+        data.failedFileUrl ||
+        data.errorFilePath ||
+        data.errorFile ||
+        "";
+
+      if (downloadUrl) {
+        setErrorFileUrl(buildServerUrl(downloadUrl));
+      }
+
+      toast.success(
+        `${uploadSummary.success} tickets uploaded successfully; ${uploadSummary.failed} failed.`
+      );
+      await onUploaded?.(uploadSummary);
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to upload the ticket file right now."
+      );
+      toast.error(errorMessage);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      title="Bulk Upload Tickets"
+      subtitle={projectId
+        ? "Upload the completed template to the selected project."
+        : "Use the Project Name column to route each row to its project."}
+      headerActions={
+        <button
+          type="button"
+          className="ticket-button secondary ticket-modal-header-button"
+          onClick={handleTemplateDownload}
+          disabled={uploading}>
+
+          <FaDownload aria-hidden="true" />
+          Download Template
+        </button>
+      }
+      onClose={onClose}
+      className="ticket-modal-wide ticket-upload-modal"
+      footer={
+        <>
+          <button
+            type="button"
+            className="ticket-button secondary"
+            onClick={clearFile}
+            disabled={uploading}>
+
+            Reset
+          </button>
+
+          <button
+            type="button"
+            className="ticket-button primary"
+            onClick={handleUpload}
+            disabled={uploading || !selectedFile}>
+
+            {uploading ?
+              <>
+                <FaSpinner className="ticket-button-spinner" />
+                Uploading...
+              </> :
+
+              <>
+                <FaUpload aria-hidden="true" />
+                Upload Tickets
+              </>
+            }
+          </button>
+        </>
+      }>
+
+      <div className="ticket-upload-modal-body">
+        <div
+          className={`ticket-dropzone ${dragActive ? "is-active" : ""}`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+          }}
+          onDrop={handleDrop}>
+
+          <div className="ticket-dropzone-icon">
+            <FaUpload aria-hidden="true" />
+          </div>
+
+          <h3>Drag and drop your Excel file here</h3>
+          <p>Supported formats: .xls and .xlsx</p>
+
+          <label className="ticket-button primary" htmlFor="ticket-bulk-file">
+            <FaUpload aria-hidden="true" />
+            Choose File
+          </label>
+
+          <input
+            ref={fileInputRef}
+            id="ticket-bulk-file"
+            type="file"
+            accept=".xls,.xlsx"
+            onChange={handleInputChange} />
+
+        </div>
+
+        {selectedFile ?
+          <div className="ticket-upload-selected">
+            <div>
+              <strong>{selectedFile.name}</strong>
+              <span>{Math.round(selectedFile.size / 1024)} KB</span>
+            </div>
+
+            <button
+              type="button"
+              className="ticket-button ghost"
+              onClick={clearFile}
+              disabled={uploading}>
+
+              Remove File
+            </button>
+          </div> :
+          null}
+
+        {summary ?
+          <div className="ticket-upload-summary">
+            {summaryCards.map((card) =>
+              <div
+                className={`ticket-metric-card tone-${card.tone}`}
+                key={card.label}>
+
+                <div>
+                  <span className="ticket-metric-label">{card.label}</span>
+                  <strong className="ticket-metric-value">{card.value}</strong>
+                </div>
+              </div>
+            )}
+          </div> :
+
+          <EmptyState
+            className="ticket-empty-state compact"
+            message="Upload a completed template to see the summary here." />
+
+        }
+
+        {errorFileUrl ?
+          <div className="ticket-error-download">
+            <strong>Failed rows file available</strong>
+            <a
+              href={errorFileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ticket-button secondary">
+
+              <FaDownload aria-hidden="true" />
+              Download Error File
+            </a>
+          </div> :
+          null}
+      </div>
+    </ModalShell>);
+
+}
+
+function TicketDetailsModal({ open, ticketId, refreshKey = 0, onClose }) {
+  const [loading, setLoading] = useState(false);
+  const [ticket, setTicket] = useState(null);
+
+  useEffect(() => {
+    if (!open || !ticketId) {
+      setTicket(null);
+      setLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+
+    const loadTicket = async () => {
+      try {
+        setLoading(true);
+        const record = await fetchTicketById(ticketId);
+        const normalized = normalizeTicketRecord(record.raw || record);
+
+        if (active) {
+          setTicket(normalized);
+        }
+      } catch (error) {
+
+        const errorMessage = await getTicketApiErrorMessage(
+          error,
+          "Unable to load ticket details right now."
+        );
+        toast.error(errorMessage);
+        if (active) {
+          setTicket(null);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadTicket();
+
+    return () => {
+      active = false;
+    };
+  }, [open, ticketId, refreshKey]);
+
+  const attachmentItems = useMemo(() => {
+    if (!ticket) {
+      return [];
+    }
+
+    return (ticket.attachments || []).map((attachment, index) => {
+      const rawPath =
+        attachment?.url ||
+        attachment?.fileUrl ||
+        attachment?.path ||
+        attachment?.filePath ||
+        attachment?.downloadUrl ||
+        attachment?.FileUrl ||
+        attachment?.FilePath ||
+        "";
+
+      return {
+        key: attachment?.id || attachment?.attachmentId || `${index}`,
+        label:
+          attachment?.name ||
+          attachment?.fileName ||
+          attachment?.FileName ||
+          `Attachment ${index + 1}`,
+        url: rawPath ? buildServerUrl(rawPath) : ""
+      };
+    });
+  }, [ticket]);
+
+  const timelineItems = useMemo(() => {
+    if (!ticket) {
+      return [];
+    }
+
+    const rawTimeline = Array.isArray(ticket.raw?.timeline) ?
+      ticket.raw.timeline :
+      Array.isArray(ticket.raw?.Timeline) ?
+        ticket.raw.Timeline :
+        [];
+
+    if (rawTimeline.length > 0) {
+      return rawTimeline.map((item, index) => ({
+        label:
+          item?.label ||
+          item?.stage ||
+          item?.status ||
+          `Step ${index + 1}`,
+        detail:
+          item?.detail ||
+          item?.message ||
+          item?.description ||
+          item?.note ||
+          "",
+        date:
+          item?.date ||
+          item?.createdAt ||
+          item?.updatedAt ||
+          item?.timestamp ||
+          ""
+      }));
+    }
+
+    return [
+      {
+        label: "Created",
+        detail: ticket.createdBy || "Ticket Created",
+        date: ticket.createdDate
+      },
+      {
+        label: "Updated",
+        detail: ticket.status || "Latest status change",
+        date: ticket.updatedDate
+      },
+      {
+        label: getTicketStatusLabel(ticket.status),
+        detail: "Current ticket state",
+        date: ticket.updatedDate || ticket.createdDate
+      }];
+
+  }, [ticket]);
+
+  const body = loading ?
+    <div className="ticket-modal-loading">
+      <FaSpinner className="ticket-button-spinner" />
+      Loading ticket details...
+    </div> :
+    ticket ?
+      <div className="ticket-details-grid ticket-modal-details-grid">
+        <div className="ticket-surface ticket-details-main">
+          <div className="ticket-details-section">
+            <div className="ticket-section-heading">
+              <h3>Overview</h3>
+              <StatusPill value={ticket.status} />
+            </div>
+
+            <div className="ticket-detail-chips">
+              <span className="ticket-pill detail-chip">
+                Ticket ID: {ticket.ticketId || "-"}
+              </span>
+              <span className="ticket-pill detail-chip">
+                <strong>Priority: </strong> {getTicketPriorityLabel(ticket.priority)}
+              </span>
+              <span className="ticket-pill detail-chip">
+                <strong>Category: </strong> {ticket.category || "-"}
+              </span>
+              <span className="ticket-pill detail-chip">
+                <strong>Actual Hours: </strong>{" "}
+                {ticket.actualHours ?? 0}h
+              </span>
+            </div>
+
+            <div className="ticket-description-block">
+              <p>{ticket.description || "No description provided."}</p>
+            </div>
+          </div>
+
+          <div className="ticket-details-section">
+            <div className="ticket-section-heading">
+              <h3>Attachments</h3>
+            </div>
+
+            {attachmentItems.length === 0 ?
+              <EmptyState
+                className="ticket-empty-state compact"
+                message="No attachments were included with this ticket." /> :
+
+              <div className="ticket-attachment-list">
+                {attachmentItems.map((attachment) =>
+                  <a
+                    className="ticket-attachment-item ticket-attachment-link"
+                    href={attachment.url || "#"}
+                    target={attachment.url ? "_blank" : undefined}
+                    rel="noreferrer"
+                    key={attachment.key}>
+
+                    <span>{attachment.label}</span>
+                    {attachment.url ? <FaEye aria-hidden="true" /> : null}
+                  </a>
+                )}
+              </div>
+            }
+          </div>
+
+          <div className="ticket-details-section">
+            <div className="ticket-section-heading">
+              <h3>Remarks</h3>
+            </div>
+
+            {Array.isArray(ticket?.remarks) && ticket.remarks.length > 0 ? (
+              <div className="ticket-remarks-list">
+                {ticket.remarks.map((remark, index) => (
+                  <div
+                    className="ticket-remark-item"
+                    key={`${remark?.createdAt || "remark"}-${index}`}
+                  >
+                    <div className="ticket-remark-header">
+                      <strong>
+                        {remark?.employeeId || "System"}
+                      </strong>
+
+                      <small>
+                        {formatTicketDateTime(remark?.createdAt)}
+                      </small>
+                    </div>
+
+                    <p>
+                      {remark?.remark || "-"}
+                    </p>
+
+                    {(remark?.oldStatus || remark?.newStatus) && (
+                      <div className="ticket-remark-status">
+                        {remark?.oldStatus && (
+                          <span>
+                            {remark.oldStatus}
+                          </span>
+                        )}
+
+                        {remark?.oldStatus && remark?.newStatus && (
+                          <span> → </span>
+                        )}
+
+                        {remark?.newStatus && (
+                          <span>
+                            {remark.newStatus}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                className="ticket-empty-state compact"
+                message="No remarks are available for this ticket."
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="ticket-details-aside">
+          <div className="ticket-surface ticket-details-panel">
+            <h3>Ticket Info</h3>
+            <div className="ticket-info-list">
+              <div>
+                <span>Assigned To</span>
+                <strong>{ticket.assignedTo || "-"}</strong>
+              </div>
+              <div>
+                <span>Created Date</span>
+                <strong>{formatTicketDateTime(ticket.createdDate)}</strong>
+              </div>
+              <div>
+                <span>Updated Date</span>
+                <strong>{formatTicketDateTime(ticket.updatedDate)}</strong>
+              </div>
+              <div>
+                <span>Due Date</span>
+                <strong>{formatTicketDateTime(ticket.dueDate)}</strong>
+              </div>
+              <div>
+                <span>Current Status</span>
+                <strong className={`ticket-status-copy status-${getStatusTone(ticket.status)}`}>
+                  {getTicketStatusLabel(ticket.status)}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="ticket-surface ticket-details-panel">
+            <h3>Status Timeline</h3>
+            <div className="ticket-timeline">
+              {timelineItems.map((item, index) =>
+                <div className="ticket-timeline-item" key={`${item.label}-${index}`}>
+                  <div className="ticket-timeline-dot" />
+                  <div>
+                    <strong>{item.label}</strong>
+                    <span>{item.detail || "-"}</span>
+                    <small>{formatTicketDateTime(item.date)}</small>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div> :
+
+      <EmptyState
+        className="ticket-empty-state compact"
+        message="Ticket details are unavailable." />;
+
+  return (
+    <ModalShell
+      open={open}
+      title="Ticket Details"
+      subtitle={ticket?.title || "View the full ticket record."}
+      onClose={onClose}
+      className="ticket-modal-wide ticket-details-modal"
+      footer={
+        <button type="button" className="ticket-button secondary" onClick={onClose}>
+          Close
+        </button>
+      }>
+
+      {body}
+    </ModalShell>);
+
+}
+
+function AllTicketsPage({ scope = "admin" }) {
+  const isEmployeeScope = scope === "employee";
+  const pageTitle = isEmployeeScope ? "My Tickets" : "All Tickets";
+  const pageDescription = isEmployeeScope ?
+    "Review your assigned tickets, track status updates, and open details when needed." :
+    "Manage tickets, assign work, upload spreadsheets, and review status updates from one place.";
+
+  const [tickets, setTickets] = useState([]);
+  const [allTickets, setAllTickets] = useState(null);
+  const [pendingTickets, setPendingTickets] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(!isEmployeeScope);
+  const [projectsError, setProjectsError] = useState("");
+  const [projectsRetryCount, setProjectsRetryCount] = useState(0);
+  const [projectSearch, setProjectSearch] = useState("");
+  const [projectPage, setProjectPage] = useState(1);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [actionProject, setActionProject] = useState(null);
+  const [projectContextAction, setProjectContextAction] = useState("");
+  const [projectContextPickerOpen, setProjectContextPickerOpen] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+  const [expandedPerson, setExpandedPerson] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [sortConfig, setSortConfig] = useState(DEFAULT_SORT);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [actionTicketId, setActionTicketId] = useState("");
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const exportInFlightRef = useRef(false);
+
+  const [editorState, setEditorState] = useState({
+    open: false,
+    mode: "create",
+    ticketId: "",
+    statusChangeMode: false,
+    requestedStatus: ""
+  });
+  const [detailsState, setDetailsState] = useState({
+    open: false,
+    ticketId: ""
+  });
+  const [detailsRefreshKey, setDetailsRefreshKey] = useState(0);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [autoAssignOpen, setAutoAssignOpen] = useState(false);
+  const [autoAssignSaving, setAutoAssignSaving] = useState(false);
+  const [bulkUploadSummary, setBulkUploadSummary] = useState(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const deferredSearch = useDeferredValue(search);
+  const canAutoAssignTickets = !isEmployeeScope && !hasRole("employee", "user");
+
+  const projectTicketCounts = useMemo(() => {
+    const counts = new Map();
+    deduplicateTickets(allTickets || []).forEach((ticket) => {
+      const projectId = String(ticket.projectId ?? "").trim();
+      if (!projectId || projectId === "0") {
+        return;
+      }
+
+      const projectCounts = counts.get(projectId) || {
+        total: 0,
+        open: 0,
+        inProgress: 0,
+        closed: 0
+      };
+      const status = normalizeTicketStatus(ticket.status);
+      projectCounts.total += 1;
+      if (status === "In Progress") {
+        projectCounts.inProgress += 1;
+      } else if (["Completed", "Closed", "Rejected"].includes(status)) {
+        projectCounts.closed += 1;
+      } else {
+        projectCounts.open += 1;
+      }
+      counts.set(projectId, projectCounts);
+    });
+
+    return counts;
+  }, [allTickets]);
+
+  const filteredProjects = useMemo(() => {
+    const query = projectSearch.trim().toLowerCase();
+    if (!query) {
+      return projects;
+    }
+
+    return projects.filter((project) =>
+      `${project.name} ${project.code}`.toLowerCase().includes(query)
+    );
+  }, [projects, projectSearch]);
+  const projectTotalPages = Math.max(
+    1,
+    Math.ceil(filteredProjects.length / PROJECTS_PAGE_SIZE)
+  );
+  const visibleProjects = filteredProjects.slice(
+    (projectPage - 1) * PROJECTS_PAGE_SIZE,
+    projectPage * PROJECTS_PAGE_SIZE
+  );
+  const projectRangeStart = filteredProjects.length === 0
+    ? 0
+    : (projectPage - 1) * PROJECTS_PAGE_SIZE + 1;
+  const projectRangeEnd = Math.min(
+    projectPage * PROJECTS_PAGE_SIZE,
+    filteredProjects.length
+  );
+
+  const selectProject = async (project) => {
+    setSelectedProject(project);
+    setActionProject(null);
+    setSearch("");
+    setStatusFilter("All");
+    setPriorityFilter("All");
+    setCategoryFilter("All");
+    setCreatedFrom("");
+    setCreatedTo("");
+    setCurrentPage(1);
+    await loadTickets(project.id);
+  };
+
+  const returnToProjects = async () => {
+    setSelectedProject(null);
+    setActionProject(null);
+    setSearch("");
+    setStatusFilter("All");
+    setPriorityFilter("All");
+    setCategoryFilter("All");
+    setCreatedFrom("");
+    setCreatedTo("");
+    setCurrentPage(1);
+    await loadTickets(null);
+  };
+
+  const loadTickets = async (projectId = selectedProject?.id) => {
+    try {
+      setLoading(true);
+      const ticketRequest = isEmployeeScope
+        ? fetchMyTickets()
+        : fetchTickets();
+      const pendingRequest = isEmployeeScope
+        ? Promise.resolve(null)
+        : fetchPendingTickets();
+      const [ticketResult, pendingResult] = await Promise.allSettled([
+        ticketRequest,
+        pendingRequest
+      ]);
+      if (ticketResult.status === "rejected") {
+        throw ticketResult.reason;
+      }
+
+      const responseData = ticketResult.value;
+      let data = deduplicateTickets(responseData);
+      if (
+        !isEmployeeScope &&
+        projectId !== undefined &&
+        projectId !== null &&
+        projectId !== ""
+      ) {
+        const selectedId = String(projectId);
+        data = data.filter((ticket) => String(ticket.projectId) === selectedId);
+      }
+
+      setTickets(data);
+      if (pendingResult.status === "fulfilled") {
+        let pendingData = deduplicateTickets(pendingResult.value || []);
+        if (projectId !== undefined && projectId !== null && projectId !== "") {
+          const selectedId = String(projectId);
+          pendingData = pendingData.filter(
+            (ticket) => String(ticket.projectId) === selectedId
+          );
+        }
+        setPendingTickets(pendingData);
+      } else {
+        setPendingTickets(null);
+        const message = await getTicketApiErrorMessage(
+          pendingResult.reason,
+          "Unable to load the auto-assignment ticket count."
+        );
+        toast.error(message);
+      }
+
+      if (!isEmployeeScope && !projectId) {
+        setAllTickets(data);
+      } else if (!isEmployeeScope && projectId) {
+        setAllTickets((current) => {
+          if (!Array.isArray(current)) {
+            return current;
+          }
+
+          const selectedId = String(projectId);
+          const otherProjects = current.filter(
+            (ticket) => String(ticket.projectId) !== selectedId
+          );
+          return deduplicateTickets([...otherProjects, ...data]);
+        });
+      }
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to load tickets right now."
+      );
+      toast.error(errorMessage);
+      setTickets([]);
+      setPendingTickets(null);
+      if (!isEmployeeScope && !projectId) {
+        setAllTickets(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, [isEmployeeScope]);
+
+  useEffect(() => {
+    if (isEmployeeScope) {
+      return undefined;
+    }
+
+    let active = true;
+
+    const loadProjects = async () => {
+      try {
+        setProjectsLoading(true);
+        setProjectsError("");
+        const response = await getProjects();
+        const records = extractCollection(response.data);
+        const projectsById = new Map();
+
+        records.forEach((project) => {
+          const rawId = project?.id ?? project?.Id ?? project?.ID;
+          const id = Number(rawId);
+          if (!Number.isSafeInteger(id) || id <= 0) {
+            return;
+          }
+
+          projectsById.set(String(id), {
+            id: String(id),
+            name: String(
+              project?.project_Name ??
+              project?.Project_Name ??
+              project?.projectName ??
+              project?.name ??
+              ""
+            ).trim(),
+            code: String(
+              project?.project_Id ??
+              project?.Project_Id ??
+              project?.projectId ??
+              ""
+            ).trim()
+          });
+        });
+
+        if (records.length > 0 && projectsById.size === 0) {
+          throw new Error("The Projects API did not return valid project IDs.");
+        }
+
+        if (active) {
+          setProjects(Array.from(projectsById.values()));
+        }
+      } catch (error) {
+        const message = await getTicketApiErrorMessage(
+          error,
+          "Unable to load projects right now."
+        );
+        if (active) {
+          setProjectsError(message);
+          setProjects([]);
+        }
+      } finally {
+        if (active) {
+          setProjectsLoading(false);
+        }
+      }
+    };
+
+    loadProjects();
+
+    return () => {
+      active = false;
+    };
+  }, [isEmployeeScope, projectsRetryCount]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadEmployees = async () => {
+      try {
+        setEmployeesLoading(true);
+        const response = await getEmployees({
+          signal: controller.signal,
+          cacheTTL: 60 * 1000
+        });
+        const records = extractCollection(response.data).map((employee) =>
+          normalizeEmployeeOption(employee)
+        );
+        setEmployees(records);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const errorMessage = await getTicketApiErrorMessage(
+          error,
+          "Unable to load employee list."
+        );
+        toast.error(errorMessage);
+        setEmployees([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setEmployeesLoading(false);
+        }
+      }
+    };
+
+    loadEmployees();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    search,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    createdFrom,
+    createdTo,
+    sortConfig.key,
+    sortConfig.direction]
+  );
+
+  const filteredTickets = useMemo(() => {
+    const normalizedSearch = deferredSearch.trim().toLowerCase();
+
+    return tickets.filter((ticket) => {
+      const matchesSearch =
+        !normalizedSearch || getTicketSearchText(ticket).includes(normalizedSearch);
+      const normalizedStatus = normalizeTicketStatus(ticket.status);
+      const matchesProjectStatus =
+        statusFilter === "All" ||
+        (statusFilter === "Open" &&
+          !["In Progress", "Completed", "Closed", "Rejected"].includes(normalizedStatus)) ||
+        (statusFilter === "In Progress" && normalizedStatus === "In Progress") ||
+        (statusFilter === "Closed" &&
+          ["Completed", "Closed", "Rejected"].includes(normalizedStatus));
+      const matchesStatus = selectedProject
+        ? matchesProjectStatus
+        : statusFilter === "All" || normalizedStatus === statusFilter;
+      const matchesPriority =
+        priorityFilter === "All" || ticket.priority === priorityFilter;
+      const matchesCategory =
+        categoryFilter === "All" || ticket.category === categoryFilter;
+      const matchesDateRange = isDateInRange(
+        ticket.createdDate,
+        createdFrom,
+        createdTo
+      );
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesPriority &&
+        matchesCategory &&
+        matchesDateRange);
+
+    });
+  }, [
+    tickets,
+    selectedProject,
+    deferredSearch,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    createdFrom,
+    createdTo]
+  );
+
+  const sortedTickets = useMemo(() => {
+    const items = [...filteredTickets];
+    const { key, direction } = sortConfig;
+
+    return items.sort((left, right) => compareValues(left, right, key, direction));
+  }, [filteredTickets, sortConfig]);
+
+  const paginatedTickets = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return sortedTickets.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [currentPage, sortedTickets]);
+
+  const summaryCards = useMemo(() => {
+    const total = filteredTickets.length;
+    const inProgress = filteredTickets.filter(
+      (ticket) => normalizeTicketStatus(ticket.status) === "In Progress"
+    ).length;
+    const completed = filteredTickets.filter(
+      (ticket) => ["Completed", "Closed", "Rejected"].includes(
+        normalizeTicketStatus(ticket.status)
+      )
+    ).length;
+
+    return [
+      { label: "Total Tickets", value: total, tone: "total" },
+      { label: "In Progress", value: inProgress, tone: "progress" },
+      { label: "Completed", value: completed, tone: "resolved" }];
+
+  }, [filteredTickets]);
+
+  const handleSort = (key) => {
+    setSortConfig((current) => ({
+      key,
+      direction:
+        current.key === key ?
+          current.direction === "asc" ?
+            "desc" :
+            "asc" :
+          getDefaultSortDirection(key)
+    }));
+  };
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setStatusFilter("All");
+    setPriorityFilter("All");
+    setCategoryFilter("All");
+    setCreatedFrom("");
+    setCreatedTo("");
+  };
+
+  const handleExportTickets = () => {
+    if (!exporting) {
+      setActionProject(null);
+      setExportModalOpen(true);
+    }
+  };
+
+  const handleProjectExport = async (projectIds) => {
+    if (
+      exportInFlightRef.current ||
+      (Array.isArray(projectIds) && projectIds.length === 0)
+    ) {
+      return;
+    }
+
+    exportInFlightRef.current = true;
+    setExporting(true);
+
+    try {
+      await exportTickets(
+        {},
+        Array.isArray(projectIds) && projectIds.length === 1
+          ? projectIds[0]
+          : null,
+        Array.isArray(projectIds) && projectIds.length > 1
+          ? projectIds
+          : null
+      );
+      toast.success("Tickets export is downloading.");
+      setExportModalOpen(false);
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to export tickets right now."
+      );
+      toast.error(errorMessage);
+    } finally {
+      exportInFlightRef.current = false;
+      setExporting(false);
+    }
+  };
+
+  const openCreateTicket = () => {
+    setEditorState({
+      open: true,
+      mode: "create",
+      ticketId: "",
+      statusChangeMode: false,
+      requestedStatus: ""
+    });
+  };
+
+  const openBulkUpload = () => {
+    setBulkUploadSummary(null);
+    setBulkOpen(true);
+  };
+
+  const openAutoAssign = () => setAutoAssignOpen(true);
+
+  const openAllTicketsAutoAssign = () => {
+    setActionProject(null);
+    openAutoAssign();
+  };
+
+  const requestProjectContext = (action) => {
+    if (action === "bulk") {
+      setActionProject(null);
+      openBulkUpload();
+      return;
+    }
+
+    const activeProject = selectedProject;
+    if (activeProject) {
+      if (action === "create") {
+        openCreateTicket();
+      } else if (action === "autoAssign") {
+        openAutoAssign();
+      }
+      return;
+    }
+
+    setProjectContextAction(action);
+    setProjectContextPickerOpen(true);
+  };
+
+  const handleProjectContextSelected = (projectId) => {
+    const project = projects.find((item) => item.id === String(projectId));
+    if (!project) {
+      toast.error("Select a valid project to continue.");
+      return;
+    }
+
+    setActionProject(project);
+    setProjectContextPickerOpen(false);
+
+    if (projectContextAction === "create") {
+      openCreateTicket();
+    } else if (projectContextAction === "autoAssign") {
+      openAutoAssign();
+    }
+    setProjectContextAction("");
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!deleteCandidate) {
+      return;
+    }
+
+    try {
+      setActionTicketId(deleteCandidate.ticketId);
+      await deleteTicket(deleteCandidate.ticketId);
+      toast.success("Ticket deleted successfully.");
+      setDeleteCandidate(null);
+      await loadTickets();
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to delete the ticket right now."
+      );
+      toast.error(errorMessage);
+    } finally {
+      setActionTicketId("");
+    }
+  };
+
+  const refreshTicketsAndDetails = async (ticketId) => {
+    await loadTickets();
+
+    if (
+      detailsState.open &&
+      String(detailsState.ticketId) === String(ticketId)) {
+      setDetailsRefreshKey((current) => current + 1);
+    }
+  };
+
+  const runAutoAssignAfterCompletion = async (ticket) => {
+    try {
+      await autoAssignTickets(buildAutoAssignPayload(ticket?.projectId));
+    } catch (error) {
+
+      const message = await getAutoAssignErrorMessage(error);
+      toast.error(message);
+    }
+  };
+
+  const handleStatusUpdate = (ticket, nextStatus) => {
+    if (!ticket?.ticketId) {
+      return;
+    }
+
+    const currentStatus = normalizeTicketStatus(
+      ticket.status
+    );
+
+    const normalizedStatus = normalizeTicketStatus(
+      nextStatus
+    );
+
+    // Same status - do nothing
+    if (normalizedStatus === currentStatus) {
+      return;
+    }
+
+    /*
+     * Do NOT update the API here.
+     *
+     * Open the existing Edit Ticket modal instead.
+     */
+    setEditorState({
+      open: true,
+      mode: "edit",
+      ticketId: ticket.ticketId,
+      statusChangeMode: true,
+      requestedStatus: normalizedStatus
+    });
+  };
+
+  const handleStartWork = async (ticket) => {
+    if (!ticket?.ticketId) {
+      return;
+    }
+
+    try {
+      setActionTicketId(ticket.ticketId);
+      await startTicketWork(ticket);
+      await updateTicketStatus(ticket.ticketId, "In Progress");
+      toast.success("Work started.");
+      await refreshTicketsAndDetails(ticket.ticketId);
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to start work on this ticket right now."
+      );
+      toast.error(errorMessage);
+    } finally {
+      setActionTicketId("");
+    }
+  };
+
+  const handleStopWork = async (ticket) => {
+    if (!ticket?.ticketId) {
+      return;
+    }
+
+    try {
+      setActionTicketId(ticket.ticketId);
+      await stopTicketWork(ticket);
+      await updateTicketStatus(ticket.ticketId, "Completed");
+      toast.success("Work stopped.");
+      await refreshTicketsAndDetails(ticket.ticketId);
+      if (isEmployeeScope) {
+        await runAutoAssignAfterCompletion(ticket);
+        await loadTickets();
+      }
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to stop work on this ticket right now."
+      );
+      toast.error(errorMessage);
+    } finally {
+      setActionTicketId("");
+    }
+  };
+
+  const handleUploadComplete = async (summary) => {
+    setBulkUploadSummary(summary);
+    await loadTickets();
+  };
+
+  const handleAutoAssignConfirm = async () => {
+    if (autoAssignSaving) {
+      return;
+    }
+
+    const projectContext = selectedProject || actionProject;
+
+    try {
+      setAutoAssignSaving(true);
+      await autoAssignTickets(
+        buildAutoAssignPayload(projectContext?.id)
+      );
+      toast.success(AUTO_ASSIGN_SUCCESS_MESSAGE);
+      setAutoAssignOpen(false);
+      await loadTickets(selectedProject?.id || null);
+      setDetailsRefreshKey((current) => current + 1);
+      if (!selectedProject) {
+        setActionProject(null);
+      }
+    } catch (error) {
+
+      const message = await getAutoAssignErrorMessage(error);
+      toast.error(message);
+    } finally {
+      setAutoAssignSaving(false);
+    }
+  };
+
+  const handleTemplateDownload = async () => {
+    try {
+      await downloadTicketTemplate();
+      toast.success("Template download started.");
+    } catch (error) {
+
+      const errorMessage = await getTicketApiErrorMessage(
+        error,
+        "Unable to download the template right now."
+      );
+      toast.error(errorMessage);
+    }
+  };
+
+  const closeTicketEditor = () => {
+    setEditorState({
+      open: false,
+      mode: "create",
+      ticketId: "",
+      statusChangeMode: false,
+      requestedStatus: ""
+    });
+    if (!selectedProject) {
+      setActionProject(null);
+    }
+  };
+
+  const actionModals = (
+    <>
+      <ProjectContextPickerModal
+        key={`${projectContextAction}-${projectContextPickerOpen}`}
+        open={projectContextPickerOpen}
+        projects={projects}
+        action={projectContextAction}
+        onClose={() => {
+          setProjectContextPickerOpen(false);
+          setProjectContextAction("");
+        }}
+        onSelect={handleProjectContextSelected}
+      />
+
+      <TicketEditorModal
+        open={editorState.open}
+        mode={editorState.mode}
+        ticketId={editorState.ticketId}
+        defaultProjectId={selectedProject?.id || actionProject?.id}
+        employees={employees}
+        loadingEmployees={employeesLoading}
+        statusChangeMode={editorState.statusChangeMode}
+        requestedStatus={editorState.requestedStatus}
+        onClose={closeTicketEditor}
+        onSaved={loadTickets}
+      />
+
+      <TicketDetailsModal
+        open={detailsState.open}
+        ticketId={detailsState.ticketId}
+        refreshKey={detailsRefreshKey}
+        onClose={() =>
+          setDetailsState({
+            open: false,
+            ticketId: ""
+          })
+        }
+      />
+
+      <BulkUploadModal
+        open={bulkOpen}
+        projectId={selectedProject?.id || actionProject?.id}
+        onClose={() => {
+          setBulkOpen(false);
+          if (!selectedProject) {
+            setActionProject(null);
+          }
+        }}
+        onUploaded={handleUploadComplete}
+      />
+
+      <ProjectSelectionExportModal
+        open={exportModalOpen}
+        exporting={exporting}
+        selectedProjectId={selectedProject?.id}
+        lockedProjectId={selectedProject?.id}
+        projectTicketCounts={projectTicketCounts}
+        allTicketCount={allTickets?.length ?? 0}
+        onClose={() => setExportModalOpen(false)}
+        onExport={handleProjectExport}
+      />
+
+      <AutoAssignConfirmModal
+        open={autoAssignOpen}
+        saving={autoAssignSaving}
+        badge={
+          selectedProject?.name ||
+          actionProject?.name ||
+          "All Tickets"
+        }
+        onClose={() => {
+          if (!autoAssignSaving) {
+            setAutoAssignOpen(false);
+            if (!selectedProject) {
+              setActionProject(null);
+            }
+          }
+        }}
+        onConfirm={handleAutoAssignConfirm}
+      />
+    </>
+  );
+
+  const loadingView = loading || (
+    !isEmployeeScope &&
+    !selectedProject &&
+    projectsLoading
+  ) ?
+    <div className="ticket-page">
+      <TableSkeleton
+        rows={6}
+        columns={
+          !isEmployeeScope && !selectedProject
+            ? 4
+            : TABLE_COLUMNS.length
+        }
+      />
+    </div> :
+    null;
+
+  if (loadingView) {
+    return loadingView;
+  }
+
+  if (!isEmployeeScope && !selectedProject) {
+    return (
+      <div className="ticket-page ticket-projects-page">
+        <div className="ticket-projects-header">
+          <div className="ticket-hero-copy">
+            <h2>Tickets Management</h2>
+            <p>Select a project to view and manage its tickets.</p>
+          </div>
+          <TicketActionToolbar
+            onBulkUpload={() => requestProjectContext("bulk")}
+            onDownloadTemplate={handleTemplateDownload}
+            onAutoAssign={openAllTicketsAutoAssign}
+            onExport={handleExportTickets}
+            showCreate={false}
+            showAutoAssign={canAutoAssignTickets}
+            autoAssignSaving={autoAssignSaving}
+            exporting={exporting}
+            autoAssignCount={
+              pendingTickets === null
+                ? null
+                : pendingTickets.length
+            }
+            exportCount={allTickets === null ? null : allTickets.length}
+            bulkUploadSummary={bulkUploadSummary}
+          />
+        </div>
+
+        {projectsError ? (
+          <div className="ticket-projects-error" role="alert">
+            <p>{projectsError}</p>
+            <button
+              type="button"
+              className="ticket-button secondary"
+              onClick={() => setProjectsRetryCount((count) => count + 1)}
+            >
+              Retry
+            </button>
+          </div>
+        ) : projects.length === 0 ? (
+          <EmptyState
+            className="ticket-empty-state"
+            message="No projects are available."
+          />
+        ) : (
+          <div className="ticket-project-listing">
+            <label className="ticket-project-search">
+              <FaSearch aria-hidden="true" />
+              <input
+                type="search"
+                value={projectSearch}
+                onChange={(event) => {
+                  setProjectSearch(event.target.value);
+                  setProjectPage(1);
+                }}
+                placeholder="Search projects by name or code"
+                aria-label="Search projects by name or code"
+              />
+            </label>
+
+            {visibleProjects.length === 0 ? (
+              <EmptyState
+                className="ticket-empty-state"
+                message="No projects match your search."
+              />
+            ) : (
+              <div className="ticket-project-table-scroll">
+                <table className="ticket-project-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Project Name</th>
+                      <th scope="col">Project Code</th>
+                      <th scope="col">Total Tickets</th>
+                      <th scope="col">Open Tickets</th>
+                      <th scope="col">In Progress Tickets</th>
+                      <th scope="col">Closed Tickets</th>
+                      <th scope="col">View Tickets</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleProjects.map((project) => {
+                      const counts = projectTicketCounts.get(project.id) || {
+                        total: 0,
+                        open: 0,
+                        inProgress: 0,
+                        closed: 0
+                      };
+
+                      return (
+                        <tr key={project.id}>
+                          <td className="ticket-project-table-name">
+                            {project.name || `Project ${project.id}`}
+                          </td>
+                          <td>{project.code || "—"}</td>
+                          <td>{allTickets === null ? "—" : counts.total}</td>
+                          <td>{allTickets === null ? "—" : counts.open}</td>
+                          <td>{allTickets === null ? "—" : counts.inProgress}</td>
+                          <td>{allTickets === null ? "—" : counts.closed}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="ticket-button secondary ticket-project-view-button"
+                              onClick={() => selectProject(project)}
+                            >
+                              View Tickets
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="ticket-project-pagination">
+              <p>
+                Showing {projectRangeStart}–{projectRangeEnd} of{" "}
+                {filteredProjects.length} projects
+              </p>
+              <div
+                className="ticket-project-pagination-controls"
+                aria-label="Project pages"
+              >
+                <button
+                  type="button"
+                  className="ticket-project-page-button"
+                  onClick={() => setProjectPage((page) => page - 1)}
+                  disabled={projectPage === 1}
+                >
+                  Previous
+                </button>
+                {Array.from(
+                  { length: projectTotalPages },
+                  (_, index) => index + 1
+                ).map((page) => (
+                  <button
+                    type="button"
+                    key={page}
+                    className={`ticket-project-page-button${projectPage === page ? " is-active" : ""}`}
+                    onClick={() => setProjectPage(page)}
+                    aria-current={projectPage === page ? "page" : undefined}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="ticket-project-page-button"
+                  onClick={() => setProjectPage((page) => page + 1)}
+                  disabled={projectPage === projectTotalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {actionModals}
+      </div>
+    );
+  }
+
+  const activeStatusOptions = selectedProject
+    ? ["All", "Open", "In Progress", "Closed"]
+    : STATUS_OPTIONS;
+
+  return (
+    <div className="ticket-page ticket-admin-page">
+      {selectedProject ? (
+        <div className="ticket-project-navigation">
+          <button
+            type="button"
+            className="ticket-button secondary ticket-back-to-projects"
+            onClick={returnToProjects}
+          >
+            <FaArrowLeft aria-hidden="true" />
+            Back to Projects
+          </button>
+          <nav className="ticket-breadcrumb" aria-label="Breadcrumb">
+            <span>Tickets Management</span>
+            <span aria-hidden="true">›</span>
+            <span>{selectedProject.name || `Project ${selectedProject.id}`}</span>
+            <span aria-hidden="true">›</span>
+            <span aria-current="page">Tickets</span>
+          </nav>
+        </div>
+      ) : null}
+
+      <div className="ticket-projects-header ticket-admin-header">
+        <div className="ticket-hero-copy">
+          <h2>
+            {selectedProject
+              ? `${selectedProject.name || `Project ${selectedProject.id}`} Tickets`
+              : pageTitle}
+          </h2>
+          <p>
+            {selectedProject
+              ? `Manage tickets for ${selectedProject.name || "this project"}.`
+              : pageDescription}
+          </p>
+        </div>
+
+        {!isEmployeeScope ? (
+          <TicketActionToolbar
+            onCreate={() => requestProjectContext("create")}
+            onBulkUpload={() => requestProjectContext("bulk")}
+            onDownloadTemplate={handleTemplateDownload}
+            onAutoAssign={() => requestProjectContext("autoAssign")}
+            onExport={handleExportTickets}
+            showAutoAssign={canAutoAssignTickets}
+            autoAssignSaving={autoAssignSaving}
+            exporting={exporting}
+            autoAssignCount={
+              pendingTickets === null ? null : pendingTickets.length
+            }
+            exportCount={tickets.length}
+            bulkUploadSummary={bulkUploadSummary}
+          />
+        ) : null}
+      </div>
+
+      <div className="ticket-metric-grid ticket-metric-grid--summary">
+        {summaryCards.map((card) =>
+          <div className={`ticket-metric-card tone-${card.tone}`} key={card.label}>
+            <div>
+              <span className="ticket-metric-label">{card.label}</span>
+              <strong className="ticket-metric-value">{card.value}</strong>
+            </div>
+            <FaTicketAlt aria-hidden="true" />
+          </div>
+        )}
+      </div>
+
+      <div className="ticket-toolbar-new">
+
+        <div className="ticket-search-group">
+
+          <FaSearch />
+
+          <input
+            type="text"
+            placeholder="Search by title, employee, or ticket ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)} />
+
+
+        </div>
+
+        <button
+          className="ticket-filter-toggle"
+          onClick={() => setFiltersOpen(!filtersOpen)}>
+
+          <FaFilter />
+
+          <span>Filters</span>
+
+          {filtersOpen ?
+            <FaChevronUp className="ticket-filter-arrow" /> :
+
+            <FaChevronDown className="ticket-filter-arrow" />
+          }
+        </button>
+
+      </div>
+
+      {
+        filtersOpen &&
+
+        <div className="ticket-filter-panel">
+
+          <div className="ticket-filter-grid">
+
+            <div>
+
+              <label>Status</label>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}>
+
+
+                {
+                  activeStatusOptions.map((item) =>
+
+                    <option
+                      key={item}
+                      value={item}>
+
+
+                      {item}
+
+                    </option>
+
+                  )
+
+                }
+
+              </select>
+
+            </div>
+
+            <div>
+
+              <label>Category</label>
+
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}>
+
+
+                {
+                  CATEGORY_OPTIONS.map((item) =>
+
+                    <option
+                      key={item}
+                      value={item}>
+
+
+                      {item}
+
+                    </option>
+
+                  )
+
+                }
+
+              </select>
+
+            </div>
+
+            <div>
+
+              <label>Priority</label>
+
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}>
+
+
+                {
+                  PRIORITY_OPTIONS.map((item) =>
+
+                    <option
+                      key={item}
+                      value={item}>
+
+
+                      {item}
+
+                    </option>
+
+                  )
+
+                }
+
+              </select>
+
+            </div>
+
+            <div>
+
+              <label>From Date</label>
+
+              <AppDatePicker
+
+                value={createdFrom}
+
+                onChange={(e) => setCreatedFrom(e.target.value)}
+
+                placeholder="From date" />
+
+
+
+            </div>
+
+            <div>
+
+              <label>To Date</label>
+
+              <AppDatePicker
+
+                value={createdTo}
+
+                onChange={(e) => setCreatedTo(e.target.value)}
+
+                placeholder="To date" />
+
+
+
+            </div>
+
+          </div>
+
+          <div className="ticket-filter-footer">
+
+            <button
+              className="ticket-button secondary"
+              onClick={handleResetFilters}>
+
+              Reset
+            </button>
+          </div>
+        </div>
+
+      }
+
+      <div className={`ticket-table-card ${isEmployeeScope ? "ticket-user-table-card" : ""}`.trim()}>
+        <div className="ticket-table-scroll">
+          {/* Title and Description cells use a fixed 20-character display cap with full-value tooltips. */}
+          <table className="ticket-table">
+            <thead>
+              <tr>
+                {TABLE_COLUMNS.map((column) => {
+                  if (column.key === "actions") {
+                    return (
+                      <th
+                        key={column.key}
+                        className="ticket-table-actions-cell"
+                        style={{
+                          width: column.width,
+                          minWidth: column.width,
+                          maxWidth: column.width
+                        }}>
+
+                        <div className="ticket-table-head-actions">
+                          <span>{column.label}</span>
+                        </div>
+                      </th>);
+
+                  }
+
+                  return (
+                    <th
+                      key={column.key}
+                      style={{
+                        width: column.width,
+                        minWidth: column.width,
+                        maxWidth: column.width
+                      }}>
+
+                      {column.label}
+                    </th>);
+
+                })}
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredTickets.length === 0 ?
+                <tr>
+                  <td colSpan={TABLE_COLUMNS.length} className="ticket-empty-cell">
+                    <EmptyState
+                      className="ticket-empty-state"
+                      message="No tickets match the current filters." />
+
+                  </td>
+                </tr> :
+
+                paginatedTickets.map((ticket) => {
+                  const isUpdating = actionTicketId === ticket.ticketId;
+                  const rowStatusOptions = isEmployeeScope ?
+                    getEmployeeRowStatusOptions(ticket) :
+                    getTicketStatusOptions("admin");
+                  const showStartWork =
+                    isEmployeeScope &&
+                    isTicketAssigned(ticket) &&
+                    !isTicketCompleted(ticket);
+                  const showStopWork =
+                    isEmployeeScope &&
+                    isTicketWorkActive(ticket);
+
+                  return (
+                    <tr key={ticket.ticketId}>
+                      <td>{ticket.ticketId || "-"}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ticket-inline-link"
+                          title={ticket.title || ""}
+                          onClick={() =>
+                            setDetailsState({
+                              open: true,
+                              ticketId: ticket.ticketId
+                            })
+                          }>
+
+                          <span className="ticket-table-text-truncate">
+                            {truncateTicketText(ticket.title, 20)}
+                          </span>
+                        </button>
+                      </td>
+                      <td className="ticket-description-cell" title={ticket.description || ""}>
+                        <span className="ticket-table-text-truncate">
+                          {truncateTicketText(ticket.description, 20)}
+                        </span>
+                      </td>
+                      <td>{ticket.category || "-"}</td>
+                      <td>
+                        <PriorityPill value={ticket.priority} />
+                      </td>
+                      <td>
+                        <StatusPill value={ticket.status} />
+                      </td>
+                      <td>
+                        {ticket.assignedByName ? (
+                          <span
+                            title={ticket.assignedByName}
+                            onClick={() =>
+                              setExpandedPerson(
+                                expandedPerson === `by-${ticket.ticketId}`
+                                  ? null
+                                  : `by-${ticket.ticketId}`
+                              )
+                            }
+                            style={{ cursor: "pointer" }}
+                          >
+                            {expandedPerson === `by-${ticket.ticketId}`
+                              ? ticket.assignedByName
+                              : truncateTicketText(ticket.assignedByName, 15)}
+                            {" "}({ticket.assignedBy || "-"})
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+
+                      <td>
+                        {ticket.assignedTo ? (
+                          <span
+                            title={ticket.assignedTo}
+                            onClick={() =>
+                              setExpandedPerson(
+                                expandedPerson === `to-${ticket.ticketId}`
+                                  ? null
+                                  : `to-${ticket.ticketId}`
+                              )
+                            }
+                            style={{ cursor: "pointer" }}
+                          >
+                            {expandedPerson === `to-${ticket.ticketId}`
+                              ? ticket.assignedTo
+                              : truncateTicketText(ticket.assignedTo, 15)}
+                            {" "}({ticket.assignedToId || "-"})
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td>{formatDate(ticket.createdDate)}</td>
+                      <td>{formatDate(ticket.updatedDate)}</td>
+                      <td className="ticket-table-actions-cell">
+                        <div className="ticket-row-actions">
+                          <button
+                            type="button"
+                            className="ticket-action-button view"
+                            onClick={() =>
+                              setDetailsState({
+                                open: true,
+                                ticketId: ticket.ticketId
+                              })
+                            }
+                            title="View ticket">
+
+                            <FaEye aria-hidden="true" />
+                          </button>
+
+
+                          <button
+                            type="button"
+                            className="ticket-action-button edit"
+                            onClick={() =>
+                              setEditorState({
+                                open: true,
+                                mode: "edit",
+                                ticketId: ticket.ticketId,
+                                statusChangeMode: false,
+                                requestedStatus: ""
+                              })
+                            }
+                            title="Edit ticket"
+                          >
+                            <FaPen aria-hidden="true" />
+                          </button>
+
+
+                          {/* <button
+                            type="button"
+                            className="ticket-action-button delete"
+                            onClick={() => setDeleteCandidate(ticket)}
+                            title="Delete ticket">
+
+                            <FaTrash aria-hidden="true" />
+                          </button> */}
+
+                          {showStartWork ?
+                            <button
+                              type="button"
+                              className="ticket-action-button start"
+                              onClick={() => handleStartWork(ticket)}
+                              title="Start Work"
+                              disabled={isUpdating}>
+
+                              <FaPlay aria-hidden="true" />
+                            </button> :
+                            null}
+
+                          {showStopWork ?
+                            <button
+                              type="button"
+                              className="ticket-action-button stop"
+                              onClick={() => handleStopWork(ticket)}
+                              title="Stop Work"
+                              disabled={isUpdating}>
+
+                              <FaStop aria-hidden="true" />
+                            </button> :
+                            null}
+
+                          <select
+                            className="ticket-status-select"
+                            value={ticket.status}
+                            disabled={isUpdating}
+                            onChange={(event) =>
+                              handleStatusUpdate(ticket, event.target.value)
+                            }>
+
+                            {rowStatusOptions.map((status) =>
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            )}
+                          </select>
+
+                          {isUpdating ?
+                            <FaSpinner
+                              className="ticket-row-spinner"
+                              aria-hidden="true" /> :
+
+                            null}
+                        </div>
+                      </td>
+                    </tr>);
+
+                })
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {filteredTickets.length > 0 && (
+        <AppPagination
+          totalItems={filteredTickets.length}
+          currentPage={currentPage}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemLabel="tickets"
+          className="ticket-pagination"
+        />
+      )}
+
+
+      {actionModals}
+
+
+      {/* {deleteCandidate ?
+        <ModalShell
+          open
+          title="Delete Ticket"
+          subtitle={`Are you sure you want to delete ticket ${deleteCandidate.ticketId || "-"}?`}
+          onClose={() => setDeleteCandidate(null)}
+          className="ticket-modal-narrow"
+          footer={
+            <>
+              <button
+                type="button"
+                className="ticket-button secondary"
+                onClick={() => setDeleteCandidate(null)}
+                disabled={Boolean(actionTicketId)}>
+
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="ticket-button danger"
+                onClick={handleDeleteTicket}
+                disabled={Boolean(actionTicketId)}>
+
+                {actionTicketId === deleteCandidate.ticketId ?
+                  <>
+                    <FaSpinner className="ticket-button-spinner" />
+                    Deleting...
+                  </> :
+
+                  "Delete Ticket"
+                }
+              </button>
+            </>
+          }>
+
+          <div className="ticket-delete-icon">
+            <FaTrash aria-hidden="true" />
+          </div>
+          <p className="ticket-delete-message">
+            This action cannot be undone.
+          </p>
+        </ModalShell> :
+        null} */}
+    </div>);
+
+}
+
+export default AllTicketsPage;

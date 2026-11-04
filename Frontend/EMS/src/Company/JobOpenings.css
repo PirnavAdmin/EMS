@@ -1,0 +1,162 @@
+.job-page-unique {
+  padding: 20px;
+}
+body {
+  background: var(--bg-muted);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+.job-header-unique {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.job-header-unique h2{
+  font-size: 21px;
+  margin-bottom: 5px;
+}
+.job-add-btn {
+  background: var(--theme-secondary);
+  color: var(--theme-on-primary);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.job-grid-unique {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.job-card-unique {
+  background: var(--bg-page);
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.job-top-unique {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.job-icon-unique {
+  font-size: 20px;
+  color: var(--theme-secondary);
+}
+
+.job-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.job-open {
+  background: var(--surface-success-soft);
+  color: var(--theme-success-strong);
+}
+
+.job-closed {
+  background: var(--surface-danger-soft);
+  color: var(--theme-danger-strong);
+}
+
+.job-hold {
+  background: var(--surface-warning-soft);
+  color: var(--theme-warning-strong);
+}
+
+/* MODAL */
+
+.job-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--theme-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+}
+
+.job-modal-box {
+  background: var(--bg-page);
+  padding: 25px;
+  border-radius: 14px;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.job-modal-box input,
+.job-modal-box select {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.job-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.job-field-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+.job-modal-box input:focus,
+.job-modal-box select:focus {
+  border-color: var(--theme-secondary);
+  box-shadow: 0 0 0 3px var(--sidebar-accent-soft);
+  outline: none;
+}
+
+.job-modal-box .has-error {
+  border-color: var(--theme-danger);
+  box-shadow: 0 0 0 3px var(--surface-danger-soft);
+}
+
+.job-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--theme-danger);
+  font-weight: 500;
+}
+
+.job-modal-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.job-cancel-btn {
+  background: var(--bg-muted);
+  color: var(--text-strong);
+  border: none;
+  padding: 7px 16px;
+  border-radius: 6px;
+}
+
+.job-save-btn {
+  background: var(--theme-secondary);
+  color: var(--theme-on-primary);
+  border: none;
+  padding: 7px 16px;
+  border-radius: 6px;
+}
+
+.job-cancel-btn:disabled,
+.job-save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
