@@ -1,7 +1,11 @@
 import React from "react";
 import pirnavLogo from "../../assets/pirnav5.png";
+import { useSuperAdminLogo } from "../../utils/brandingLogo";
 
 function LoginRight() {
+  const { logoSrc } = useSuperAdminLogo();
+  const displayedLogo = logoSrc || pirnavLogo;
+
   return (
     <>
       <div
@@ -18,7 +22,7 @@ function LoginRight() {
 
       <div className="auth-hero-logo-right">
         <img
-        src={pirnavLogo}
+        src={displayedLogo}
           alt="Pirnav logo"
           className="auth-right-logo"
           loading="eager"

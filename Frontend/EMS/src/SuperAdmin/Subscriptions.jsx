@@ -22,7 +22,7 @@ const initialForm = {
   organizationId: "",
   planName: "",
   billingCycle: "Monthly",
-  price: "",
+  price:"",
   maxUsers: "",
   startDate: "",
   endDate: "",
@@ -379,7 +379,7 @@ function Subscriptions() {
               </select></label>
               <label>Plan Name<input name="planName" value={form.planName} onChange={handleChange} required /></label>
               <label>Billing Cycle<select name="billingCycle" value={form.billingCycle} onChange={handleChange} required><option>Monthly</option><option>Yearly</option></select></label>
-              <label>Price<div className="price-input-wrap"><input name="price" type="number" min="0" step="0.01" value={form.price} onChange={handleChange} required /></div></label>
+              <label>Price<div className="price-input-wrap"><span aria-hidden="true">₹</span><input name="price" type="number" min="0" step="0.01" value={form.price} onChange={handleChange} required /></div></label>
               <label>Maximum Users<input name="maxUsers" type="number" min="1" value={form.maxUsers} onChange={handleChange} required /></label>
               <label>Start Date<input name="startDate" type="date" value={form.startDate} onChange={handleChange} required /></label>
               <label>End Date<input name="endDate" type="date" value={form.endDate} onChange={handleChange} required /></label>

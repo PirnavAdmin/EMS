@@ -120,7 +120,7 @@ export default function BrandingSettings() {
 
         <p>
           Upload the logo for this organization's Admin workspace. It does not
-          change the public Landing Page or employee screens.
+          change the public Landing Page.
         </p>
       </div>
 

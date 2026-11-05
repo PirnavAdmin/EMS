@@ -1275,16 +1275,17 @@ function Sidebar({
   const location = useLocation();
   const roleName = getUserRole();
   const loadedPermissions = getStoredPermissions(roleName);
-  const organizationAdminUser = isAdmin();
   const superAdminUser = isSuperAdmin();
+  const organizationBrandingUser =
+    !superAdminUser && !isOnboardingUser();
   const { logoSrc: adminLogo, isLoading: adminLoading } =
-    useOrganizationAdminLogo("sidebarLogo", organizationAdminUser);
+    useOrganizationAdminLogo("sidebarLogo", organizationBrandingUser);
   const { logoSrc: superAdminLogo, isLoading: superAdminLoading } =
     useSuperAdminLogo(superAdminUser);
 
   const logoSrc = superAdminUser
     ? superAdminLogo || (superAdminLoading ? "" : pirnavLogo)
-    : organizationAdminUser
+    : organizationBrandingUser
       ? adminLogo || (adminLoading ? "" : pirnavLogo)
       : pirnavLogo;
   const isCompact = collapsed;

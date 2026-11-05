@@ -1169,7 +1169,7 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         // Additional sender accounts and purpose routing. Existing email settings routes remain available.
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("email-senders")]
         public async Task<IActionResult> GetEmailSenderAccounts()
         {
@@ -1180,7 +1180,7 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(new { success = true, data = accounts });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPost("email-senders")]
         public async Task<IActionResult> CreateEmailSenderAccount([FromBody] EmailSenderAccountRequest model)
         {
@@ -1209,7 +1209,7 @@ namespace EmployeeManagementSystem.Controllers
             return CreatedAtAction(nameof(GetEmailSenderAccounts), new { id = account.Id }, new { success = true, message = "Sender account created successfully.", data = new { account.Id, account.SenderEmail, account.SmtpHost, account.SmtpPort, account.EnableSSL, account.DisplayName, account.IsActive, hasPassword = true } });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("email-senders/{id:int}")]
         public async Task<IActionResult> UpdateEmailSenderAccount(int id, [FromBody] EmailSenderAccountRequest model)
         {
@@ -1234,7 +1234,7 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(new { success = true, message = "Sender account updated successfully.", data = new { account.Id, account.SenderEmail, account.SmtpHost, account.SmtpPort, account.EnableSSL, account.DisplayName, account.IsActive, hasPassword = !string.IsNullOrEmpty(account.EncryptedPassword) } });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("email-purpose-mappings")]
         public async Task<IActionResult> GetEmailPurposeMappings()
         {
@@ -1246,7 +1246,7 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(new { success = true, data = mappings, supportedPurposes = new[] { EmailPurposes.DemoRequestNotification, EmailPurposes.DemoRequestReply, EmailPurposes.General } });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("email-purpose-mappings")]
         public async Task<IActionResult> UpsertEmailPurposeMapping([FromBody] EmailPurposeMappingRequest model)
         {

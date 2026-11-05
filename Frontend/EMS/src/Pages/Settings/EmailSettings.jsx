@@ -46,6 +46,9 @@ const validateSender = (sender, isEditing) => {
   return errors;
 };
 
+const normalizePurpose = (value) =>
+  String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
 function EmailSettings({
   values,
   errors,
@@ -54,6 +57,8 @@ function EmailSettings({
   loadError,
   loading = false,
   disabled = false,
+  senderAccountsOnly = false,
+  senderPurposeScope = ["general"],
 }) {
   const timestamp = formatSettingsTimestamp(lastUpdated);
   const [senderAccounts, setSenderAccounts] = useState([]);
@@ -67,6 +72,33 @@ function EmailSettings({
   const [senderForm, setSenderForm] = useState(EMPTY_SENDER);
   const [editingSenderId, setEditingSenderId] = useState(null);
   const [senderFormOpen, setSenderFormOpen] = useState(false);
+  const allowedPurposeSet = new Set(senderPurposeScope.map(normalizePurpose));
+  const isAllowedPurpose = (purpose) =>
+    allowedPurposeSet.has(normalizePurpose(purpose?.code)) ||
+    allowedPurposeSet.has(normalizePurpose(purpose?.label));
+  const visibleSupportedPurposes = supportedPurposes.filter(isAllowedPurpose);
+  const visiblePurposeMappings = purposeMappings.filter((mapping) =>
+    isAllowedPurpose(
+      supportedPurposes.find((purpose) => purpose.code === mapping.purpose) || {
+        code: mapping.purpose,
+      }
+    )
+  );
+  const visibleSenderAccounts = senderAccounts.filter((account) => {
+    const assignedMappings = purposeMappings.filter(
+      (mapping) => mapping.senderAccountId === account.id
+    );
+    return (
+      assignedMappings.length === 0 ||
+      assignedMappings.every((mapping) =>
+        isAllowedPurpose(
+          supportedPurposes.find((purpose) => purpose.code === mapping.purpose) || {
+            code: mapping.purpose,
+          }
+        )
+      )
+    );
+  });
 
   const loadSenderData = useCallback(async () => {
     setSenderLoading(true);
@@ -99,7 +131,7 @@ function EmailSettings({
   };
 
   const startEditSender = (account) => {
-    const assignedPurposes = purposeMappings.filter(
+    const assignedPurposes = visiblePurposeMappings.filter(
       (mapping) => mapping.senderAccountId === account.id
     ).map((mapping) => mapping.purpose);
     setEditingSenderId(account.id);
@@ -156,7 +188,7 @@ function EmailSettings({
   };
 
   const toggleSenderActive = async (account) => {
-    const assignedPurposes = purposeMappings
+    const assignedPurposes = visiblePurposeMappings
       .filter((mapping) => mapping.senderAccountId === account.id)
       .map((mapping) => supportedPurposes.find((purpose) => purpose.code === mapping.purpose)?.label || mapping.purpose);
     if (account.isActive && assignedPurposes.length) {
@@ -198,6 +230,7 @@ function EmailSettings({
         />
       )}
 
+      {!senderAccountsOnly && (
       <SettingsCard
           title="Email Settings"
           description="Configure the SMTP connection and sender identity used by the backend."
@@ -324,10 +357,13 @@ function EmailSettings({
           </SettingsField>
         </div>
       </SettingsCard>
+      )}
 
       <SettingsCard
         title="Sender Email Accounts"
-        description="Manage SMTP senders and assign the default sender for each email type."
+        description={senderAccountsOnly
+          ? "Manage SMTP senders for demo request notifications and replies."
+          : "Manage SMTP senders for the General email purpose."}
         meta={
           <button
             type="button"
@@ -378,8 +414,8 @@ function EmailSettings({
                 </tr>
               </thead>
               <tbody>
-                {senderAccounts.length ? senderAccounts.map((account) => {
-                  const purposes = purposeMappings
+                {visibleSenderAccounts.length ? visibleSenderAccounts.map((account) => {
+                  const purposes = visiblePurposeMappings
                     .filter((mapping) => mapping.senderAccountId === account.id)
                     .map((mapping) =>
                       supportedPurposes.find((purpose) => purpose.code === mapping.purpose)?.label
@@ -498,8 +534,8 @@ function EmailSettings({
               hint="Select one or more server-supported purposes. Existing assignments are preserved; selecting a purpose assigned to another sender reassigns it."
             >
               <div className="settings-form-grid">
-                {supportedPurposes.map(({ code, label }) => {
-                  const alreadyAssignedToSender = purposeMappings.some(
+                {visibleSupportedPurposes.map(({ code, label }) => {
+                  const alreadyAssignedToSender = visiblePurposeMappings.some(
                     (mapping) =>
                       mapping.purpose === code &&
                       mapping.senderAccountId === editingSenderId
@@ -523,8 +559,8 @@ function EmailSettings({
                     </label>
                   );
                 })}
-                {!supportedPurposes.length && !senderLoading && !senderLoadError && (
-                  <span>No supported email purposes are available.</span>
+                {!visibleSupportedPurposes.length && !senderLoading && !senderLoadError && (
+                  <span>No supported email purposes are available for this settings screen.</span>
                 )}
               </div>
             </SettingsField>

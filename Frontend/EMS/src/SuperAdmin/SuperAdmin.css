@@ -1220,22 +1220,41 @@
   color: #fff;
 }
 
-/* --- new: compact currency prefix for subscription price fields --- */
+/* Keep the currency symbol separate from the editable numeric value. */
 .price-input-wrap {
-  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding-left: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--text-strong);
 }
 
-.price-input-wrap::before {
-  content: "₹";
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
+.price-input-wrap > span {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  line-height: 1;
 }
 
-.price-input-wrap input {
-  padding-left: 24px;
+.emp-modal-box .price-input-wrap input,
+.super-admin-form .price-input-wrap input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 46px;
+  padding: 8px 12px 8px 0 !important;
+  border: 0 !important;
+  border-radius: 0 12px 12px 0 !important;
+  outline: 0;
+  background: transparent !important;
+  color: var(--text-strong) !important;
+  box-shadow: none !important;
+}
+
+.price-input-wrap:focus-within {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px var(--input-focus);
 }
 
 @media (max-width: 576px) {
@@ -1455,50 +1474,35 @@
 .org-action-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 10px;
   flex-wrap: nowrap;
 }
 
 .org-action-cell button {
-  font-size: 12px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--sidebar-accent-hover);
+  border-radius: 12px;
+  background: var(--sidebar-accent-soft);
+  color: var(--text-strong);
+  font-size: 14px;
   font-weight: 600;
-  padding: 6px 9px;
-  border-radius: 8px;
   white-space: nowrap;
   flex: 0 0 auto;
   cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
-.org-action-cell .status-btn.active {
-  border: 1px solid #f5c6c1;
-  background: #fdeceb;
-  color: #c0392b;
+.org-action-cell button:hover:not(:disabled) {
+  border-color: var(--sidebar-accent-hover);
+  background: var(--sidebar-accent-hover);
+  color: var(--theme-on-primary);
 }
 
-.org-action-cell .status-btn.inactive {
-  border: 1px solid #bfe9cf;
-  background: #e3f7ea;
-  color: #1a9b52;
-}
-
-.org-action-cell .edit-btn {
-  border: 1px solid var(--border-soft);
-  background: #fff;
-  color: var(--primary-dark);
-}
-
-.org-action-cell .edit-btn:hover {
-  background: #eafaf8;
-}
-
-.org-action-cell .delete-btn {
-  border: 1px solid #f5c6c1;
-  background: #fff;
-  color: #c0392b;
-}
-
-.org-action-cell .delete-btn:hover {
-  background: #fdeceb;
+.org-action-cell button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .organization-table-row {
@@ -1593,9 +1597,9 @@
 .organization-administrators {
   margin-top: 22px;
   padding: 20px;
-  border: 1px solid #bde5e5;
+  border: 1px solid var(--border-soft);
   border-radius: 16px;
-  background: #fff;
+  background: var(--card-bg, #fff);
 }
 
 .organization-details-summary h4,
@@ -1612,13 +1616,13 @@
   grid-template-columns: 1fr auto;
   gap: 10px 14px;
   padding: 16px;
-  border: 1px solid #bde5e5;
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: #fbfefe;
+  background: var(--bg-soft, #fbfefe);
 }
 .organization-admin-card > div { display: grid; grid-template-columns: 36px 1fr; column-gap: 10px; align-items: center; }
 .organization-admin-card > div small { grid-column: 2; }
-.organization-admin-avatar { grid-row: span 2; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--theme-primary); background: #eafaf8; }
+.organization-admin-avatar { grid-row: span 2; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--theme-primary); background: var(--theme-surface-alt, #eafaf8); }
 .organization-admin-card p { grid-column: span 2; margin: 0; color: var(--text-body); font-size: 13px; }
 .organization-admin-empty,
 .organization-admin-error { margin: 0; padding: 18px 0 0; color: var(--text-muted); text-align: center; }
