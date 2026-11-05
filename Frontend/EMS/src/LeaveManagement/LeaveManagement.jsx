@@ -2340,7 +2340,7 @@ function LeaveManagement() {
 
     const startDate = parseDate(leave.fromDate);
     return Boolean(
-      startDate && getLocalDateKey(startDate) <= todayDateKey
+      startDate && getLocalDateKey(startDate) < todayDateKey
     );
   };
 
