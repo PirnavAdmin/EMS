@@ -315,19 +315,38 @@ namespace EmployeeManagementSystem.Services
             var result = teams.Select(x =>
             {
                 // Declare this FIRST - Filter only active reporting days
-                var teamReportingDays = reportingDayHistory
-                    .Where(d => d.TeamId == x.Id && (d.EffectiveTo == null || d.EffectiveTo > DateTime.Now))
-                    .Select(d => new ReportingDayDto
-                    {
-                        DayName = GetShortDayName(d.DayName),
-                        EffectiveFrom = d.EffectiveFrom,
-                        EffectiveTo = d.EffectiveTo,
-                        ActualDates = GetActualReportingDates(
-                            d.DayName,
-                            d.EffectiveFrom ?? DateTime.MinValue,
-                            d.EffectiveTo)
-                    })
-                    .ToList();
+              var teamReportingDays = reportingDayHistory
+
+    .Where(d =>
+
+        d.TeamId == x.Id &&
+
+        (d.EffectiveTo == null || d.EffectiveTo > DateTime.Now) &&
+
+        !string.Equals(d.DayName, "NONE", StringComparison.OrdinalIgnoreCase))
+
+    .Select(d => new ReportingDayDto
+
+    {
+
+        DayName = GetShortDayName(d.DayName),
+
+        EffectiveFrom = d.EffectiveFrom,
+
+        EffectiveTo = d.EffectiveTo,
+
+        ActualDates = GetActualReportingDates(
+
+            d.DayName,
+
+            d.EffectiveFrom ?? DateTime.MinValue,
+
+            d.EffectiveTo)
+
+    })
+
+    .ToList();
+ 
 
                 // Create the DTO AFTER the variable is declared
                 return new TeamListDto
