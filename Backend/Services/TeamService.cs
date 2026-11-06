@@ -1023,17 +1023,30 @@ namespace EmployeeManagementSystem.Services
                     _context.TeamReportingDays.RemoveRange(existingWeekDays);
                 }
 
-                // Add the week-specific days
-                foreach (var day in requestedDays)
-                {
-                    _context.TeamReportingDays.Add(new TeamReportingDay
-                    {
-                        TeamId = dto.TeamId,
-                        DayName = day,
-                        EffectiveFrom = start,
-                        EffectiveTo = end
-                    });
-                }
+              // Save explicit empty override when no WFO days are selected
+if (!requestedDays.Any())
+{
+    _context.TeamReportingDays.Add(new TeamReportingDay
+    {
+        TeamId = dto.TeamId,
+        DayName = "NONE",
+        EffectiveFrom = start,
+        EffectiveTo = end
+    });
+}
+else
+{
+    foreach (var day in requestedDays)
+    {
+        _context.TeamReportingDays.Add(new TeamReportingDay
+        {
+            TeamId = dto.TeamId,
+            DayName = day,
+            EffectiveFrom = start,
+            EffectiveTo = end
+        });
+    }
+}
 
                 // Reset custom reporting days overrides for all members in this team
                 // so that every member inherits the newly updated team reporting days.
