@@ -1625,12 +1625,13 @@ namespace EmployeeManagementSystem.Services
             personalSheet.Cell(2, 5).Value = "Phone Number";
             personalSheet.Cell(2, 6).Value = "Email";
             personalSheet.Cell(2, 7).Value = "Gender";
-            personalSheet.Cell(2, 8).Value = "DOB";
-            personalSheet.Cell(2, 9).Value = "Aadhaar";
-            personalSheet.Cell(2, 10).Value = "PAN";
-            personalSheet.Cell(2, 11).Value = "Address";
+            personalSheet.Cell(2, 8).Value = "Marital Status";
+            personalSheet.Cell(2, 9).Value = "DOB";
+            personalSheet.Cell(2, 10).Value = "Aadhaar";
+            personalSheet.Cell(2, 11).Value = "PAN";
+            personalSheet.Cell(2, 12).Value = "Address";
 
-            var personalHeader = personalSheet.Range(2, 1, 2, 11);
+            var personalHeader = personalSheet.Range(2, 1, 2, 12);
             personalHeader.Style.Font.Bold = true;
             personalHeader.Style.Fill.BackgroundColor = XLColor.DarkGreen;
             personalHeader.Style.Font.FontColor = XLColor.White;
@@ -1654,20 +1655,23 @@ namespace EmployeeManagementSystem.Services
                 personalSheet.Cell(personalRow, 5).Value = p.PhoneNumber;
                 personalSheet.Cell(personalRow, 6).Value = p.Email;
                 personalSheet.Cell(personalRow, 7).Value = p.Gender;
+                personalSheet.Cell(personalRow, 8).Value = !string.IsNullOrWhiteSpace(p.Marital_Status)
+                    ? p.Marital_Status
+                    : "-";
 
                 if (p.DateOfBirth != DateTime.MinValue)
                 {
-                    personalSheet.Cell(personalRow, 8).Value = p.DateOfBirth;
-                    personalSheet.Cell(personalRow, 8).Style.DateFormat.Format = "dd-MMM-yyyy";
+                    personalSheet.Cell(personalRow, 9).Value = p.DateOfBirth;
+                    personalSheet.Cell(personalRow, 9).Style.DateFormat.Format = "dd-MMM-yyyy";
                 }
 
-                personalSheet.Cell(personalRow, 9).Value = p.AadhaarNumber;
-                personalSheet.Cell(personalRow, 10).Value = p.PanNumber;
+                personalSheet.Cell(personalRow, 10).Value = p.AadhaarNumber;
+                personalSheet.Cell(personalRow, 11).Value = p.PanNumber;
 
                 var address =
                     $"{p.HouseNo}, {p.Street}, {p.City}, {p.District}, {p.State}, {p.Country} - {p.Pincode}";
 
-                personalSheet.Cell(personalRow, 11).Value = address;
+                personalSheet.Cell(personalRow, 12).Value = address;
 
                 personalRow++;
             }

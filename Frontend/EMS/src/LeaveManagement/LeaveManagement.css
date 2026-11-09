@@ -731,6 +731,11 @@ body {
   opacity: 0.62;
 }
 
+.leave-table tbody tr.leave-request-overdue .action-cell {
+  position: relative;
+  z-index: 1;
+}
+
 .center {
   text-align: center;
 }

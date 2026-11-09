@@ -1,234 +1,106 @@
-# =========================
+# dependencies
 
-# .NET Build Output
+/node_modules
 
-# =========================
+**/node_modules/
 
-bin/
+/.pnp
 
-obj/
+.pnp.*
 
-out/
+.yarn/*
 
-publish/
+!.yarn/patches
+
+!.yarn/plugins
+
+!.yarn/releases
+
+!.yarn/versions
  
-# =========================
+# testing and local caches
 
-# Visual Studio / Rider
+/coverage/
 
-# =========================
+**/coverage/
 
-.vs/
+**/.cache/
 
-.vscode/
+**/.vite/
 
-.idea/
+**/TestResults/
  
-*.suo
+# next.js & vite & build outputs
 
-*.user
+/.next/
 
-*.userosscache
+/.vinext/
 
-*.userprefs
+/out/
 
-*.sln.docstates
+/dist/
+
+**/dist/
+
+/.wrangler/
+
+/outputs/
+
+/work/
  
-# =========================
-
-# .NET User Files
-
-# =========================
-
-*.rsuser
-
-*.nupkg
-
-*.snupkg
- 
-# =========================
-
-# NuGet
-
-# =========================
-
-packages/
-
-*.nuget.props
-
-*.nuget.targets
- 
-# =========================
-
-# Logs
-
-# =========================
-
-logs/
-
-*.log
-
-*.log.*
-
-log/
- 
-# =========================
-
-# Environment / Secrets
-
-# =========================
-
-.env
-
-.env.*
-
-!.env.example
-
-appsettings.Development.json
-
-appsettings.Local.json
-
-appsettings.*.local.json
- 
-# =========================
-
-# ASP.NET Generated Files
-
-# =========================
-
-wwwroot/uploads/
-
-wwwroot/GeneratedPayslips/
-
-wwwroot/GeneratedLetters/
- 
-# =========================
-
-# EMS Generated Documents
-
-# =========================
-
-GeneratedPayslips/
-
-GeneratedLetters/
-
-GeneratedOffers/
-
-GeneratedAgreements/
-
-Uploads/
-
-uploads/
- 
-# =========================
-
-# Temporary Files
-
-# =========================
-
-*.tmp
-
-*.temp
-
-*.cache
-
-*.bak
-
-*.backup
-
-*.old
- 
-# =========================
-
-# Database Backups
-
-# =========================
-
-*.sql
-
-*.sql.gz
-
-*.dump
-
-*.db
-
-*.sqlite
-
-*.sqlite3
- 
-# =========================
-
-# Certificates / Keys
-
-# =========================
-
-*.pfx
-
-*.p12
-
-*.pem
-
-*.key
-
-*.crt
- 
-# =========================
-
-# Docker
-
-# =========================
-
-*.tar
-
-*.tar.gz
- 
-# =========================
-
-# Coverage / Test Results
-
-# =========================
-
-TestResults/
-
-test-results/
-
-coverage/
-
-.coverage
-
-*.trx
- 
-# =========================
-
-# OS Files
-
-# =========================
+# misc & OS
 
 .DS_Store
 
 Thumbs.db
 
-Desktop.ini
+*.tmp
+
+*.log
+
+*.pem
  
-# =========================
+# debug
 
-# ReSharper
+npm-debug.log*
 
-# =========================
+yarn-debug.log*
 
-_ReSharper*/
+yarn-error.log*
 
-*.[Rr]e[Ss]harper
-
-*.DotSettings.user
+.pnpm-debug.log*
  
-# =========================
+ 
+ 
+# deployment and generated files
 
-# Swagger / Generated
+.vercel
 
-# =========================
+next-env.d.ts
 
-swagger.json
+docker-data/
 
-swagger.yaml
+**/.openai/
+ 
+# BACKEND - .NET
+
+**/bin/
+
+**/obj/
+
+**/publish/
+ 
+# Visual Studio & VS Code
+
+.vs/
+
+**/.vs/
+
+*.user
+
+*.suo
+
+.vscode/
+
+scratch/
  

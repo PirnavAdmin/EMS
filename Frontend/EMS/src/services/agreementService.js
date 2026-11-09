@@ -216,6 +216,7 @@ requestAgreementBlob({
 export const signAgreement = ({
   employeeId,
   onboardingId,
+  agreementId,
   agreementCode,
   signatureName,
   signedLocation,
@@ -234,6 +235,7 @@ export const signAgreement = ({
     params.OnboardingId = onboardingId;
   } else {
     params.EmployeeId = employeeId;
+    params.AgreementId = agreementId;
   }
 
   return api.post(API_ENDPOINTS.agreements.sign, formData, {

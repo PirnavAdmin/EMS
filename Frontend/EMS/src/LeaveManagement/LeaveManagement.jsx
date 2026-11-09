@@ -1557,7 +1557,6 @@
 
 
 
-
 import React, { useState, useEffect, useRef } from "react";
 import "./LeaveManagement.css";
 import api from "../api/axiosInstance";
@@ -2332,7 +2331,7 @@ function LeaveManagement() {
 
   const isOverduePendingLeave = (leave) => {
     if (
-      leave.requestType !== "Leave" ||
+      !["Leave", "WFH"].includes(leave.requestType) ||
       !isPendingStatus(leave.status)
     ) {
       return false;
@@ -2473,18 +2472,16 @@ function LeaveManagement() {
                   const days = calculateDays(leave.fromDate, leave.toDate);
                   const isFinalRequest = isFinalApprovalStatus(leave.status);
                   const isRowActionLoading = actionLoading.startsWith(`${leave.id}-`);
-                  const isRowActionDisabled = isFinalRequest || isRowActionLoading;
+                  const isOverdue = isOverduePendingLeave(leave);
+                  const isRowActionDisabled =
+                    isFinalRequest || isRowActionLoading || isOverdue;
                   const reasonText = String(leave.reason ?? "").trim();
                   const reasonTitle = reasonText || "No reason provided";
 
                   return (
                     <tr
                       key={`${leave.requestType}-${leave.id}`}
-                      className={
-                        isOverduePendingLeave(leave)
-                          ? "leave-request-overdue"
-                          : undefined
-                      }>
+                      className={isOverdue ? "leave-request-overdue" : undefined}>
                       <td className="leave-employee-cell">
                         <div className="leave-employee-content">
                           <span
@@ -2537,6 +2534,7 @@ function LeaveManagement() {
                         className="action-cell"
                         onClick={(e) => e.stopPropagation()}>
                         <button
+                          type="button"
                           className="approve-btn"
                           onClick={() => !isRowActionDisabled && setPendingApproval(leave)}
                           disabled={isRowActionDisabled}>
@@ -2546,6 +2544,7 @@ function LeaveManagement() {
                         </button>
 
                         <button
+                          type="button"
                           className="reject-btn"
                           onClick={() => {
                             if (isRowActionDisabled) return;

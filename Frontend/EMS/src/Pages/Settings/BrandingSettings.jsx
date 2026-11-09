@@ -4,6 +4,17 @@ import {
   notifyOrganizationAdminLogoUpdated } from
 "../../utils/brandingLogo";
 import { uploadBrandingLogo } from "../../services/settingsService";
+import { toastError, toastSuccess, toastWarning } from "@/components/common/Toast/toastService";
+import { FaSpinner } from "react-icons/fa";
+
+const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_LOGO_EXTENSIONS = /\.(png|jpe?g|webp|svg)$/i;
+const ALLOWED_LOGO_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml"
+]);
 
 export default function BrandingSettings() {
   const [companyLogo, setCompanyLogo] = useState("");
@@ -14,6 +25,7 @@ export default function BrandingSettings() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const loadRequestIdRef = useRef(0);
+  const uploadInFlightRef = useRef(false);
 
   const refreshCompanyLogo = async (forceRefresh = false) => {
     const requestId = ++loadRequestIdRef.current;
@@ -67,7 +79,35 @@ export default function BrandingSettings() {
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
 
-    if (!file) return;
+    if (!file) {
+      setSelectedFile(null);
+      setPreview("");
+      return;
+    }
+
+    const hasAllowedExtension = ALLOWED_LOGO_EXTENSIONS.test(file.name);
+    const hasAllowedType =
+      !file.type || ALLOWED_LOGO_TYPES.has(file.type.toLowerCase());
+
+    if (!hasAllowedExtension || !hasAllowedType) {
+      toastWarning("Choose a PNG, JPG, JPEG, SVG, or WebP logo.");
+      event.target.value = "";
+      setSelectedFile(null);
+      setPreview("");
+      return;
+    }
+
+    if (file.size === 0 || file.size > MAX_LOGO_SIZE_BYTES) {
+      toastWarning(
+        file.size === 0
+          ? "The selected logo file is empty."
+          : "The logo must be no larger than 2 MB."
+      );
+      event.target.value = "";
+      setSelectedFile(null);
+      setPreview("");
+      return;
+    }
 
     setSelectedFile(file);
     setPreview(URL.createObjectURL(file));
@@ -75,38 +115,39 @@ export default function BrandingSettings() {
   };
 
   const handleUpload = async () => {
+    if (uploadInFlightRef.current) return;
+
     if (!selectedFile) {
-      alert("Please select a logo first.");
+      toastWarning("Please select a logo first.");
       return;
     }
 
     try {
+      uploadInFlightRef.current = true;
       setUploading(true);
 
       const formData = new FormData();
       formData.append("file", selectedFile);
 
       await uploadBrandingLogo(formData);
-
       const refreshedCompanyLogo = await refreshCompanyLogo(true);
+
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
 
       if (refreshedCompanyLogo) {
         setPreview("");
-        setSelectedFile(null);
         setImageLoadError(false);
-
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-
-        notifyOrganizationAdminLogoUpdated();
       }
 
-      alert("Logo uploaded successfully.");
-    } catch (error) {
-
-      alert(error?.response?.data?.message || "Failed to upload logo.");
+      notifyOrganizationAdminLogoUpdated();
+      toastSuccess("Logo added successfully!");
+    } catch {
+      toastError("Failed to upload logo. Please try again.");
     } finally {
+      uploadInFlightRef.current = false;
       setUploading(false);
     }
   };
@@ -185,7 +226,7 @@ export default function BrandingSettings() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".png,.jpg,.jpeg,.webp,.svg"
+          accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
           onChange={handleFileChange} />
         
 
@@ -196,7 +237,12 @@ export default function BrandingSettings() {
             onClick={handleUpload}
             disabled={uploading}>
             
-            {uploading ? "Uploading..." : "Upload Logo"}
+            {uploading ? (
+              <>
+                <FaSpinner className="documents-button-spinner" aria-hidden="true" />
+                Uploading...
+              </>
+            ) : "Upload Logo"}
           </button>
         </div>
       </div>

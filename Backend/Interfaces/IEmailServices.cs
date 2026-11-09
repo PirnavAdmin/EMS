@@ -1,4 +1,4 @@
-﻿namespace EmployeeManagementSystem.Interfaces
+namespace EmployeeManagementSystem.Interfaces
 {
     public interface IEmailService
     {
@@ -41,7 +41,13 @@
     decimal checkOutLongitude,
     decimal distance,
     string reason);
-        Task SendEmailForPurposeAsync(string purpose, string toEmail, string subject, string body);
+        Task SendEmailForPurposeAsync(
+            string purpose, 
+            string toEmail, 
+            string subject, 
+            string body, 
+            string? replyToEmail = null, 
+            string? senderDisplayName = null);
     }
 
 }

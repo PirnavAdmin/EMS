@@ -446,12 +446,19 @@ function DemoRequests() {
   const pageCount = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
   const visibleRequests = filteredRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  const syncRequestStatus = (request) => {
+    setRequests((current) => current.map((item) =>
+      item.id === request.id ? { ...item, status: request.status } : item
+    ));
+  };
+
   const openDetails = async (id) => {
     setPageError("");
     setLoadingRequestId(id);
     try {
       const request = await getDemoRequestById(id);
       if (!request) throw new Error("This demo request is no longer available.");
+      syncRequestStatus(request);
       setSelectedRequest({ mode: "view", request });
     } catch (error) {
       setPageError(error?.message || "The request details could not be loaded.");
@@ -467,6 +474,7 @@ function DemoRequests() {
     try {
       const currentRequest = await getDemoRequestById(request.id);
       if (!currentRequest) throw new Error("This demo request is no longer available.");
+      syncRequestStatus(currentRequest);
       setReplyMessage(getAdminReplyTemplate(currentRequest).message);
       setSelectedRequest({ mode: "reply", request: currentRequest });
     } catch (error) {

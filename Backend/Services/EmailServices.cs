@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -437,13 +437,26 @@ Pirnav EMS Team";
         }
 
 
-        public async Task SendEmailForPurposeAsync(string purpose, string toEmail, string subject, string body)
+        public async Task SendEmailForPurposeAsync(
+            string purpose, 
+            string toEmail, 
+            string subject, 
+            string body, 
+            string? replyToEmail = null, 
+            string? senderDisplayName = null)
         {
             if (string.IsNullOrWhiteSpace(purpose))
                 throw new ArgumentException("Email purpose is required.", nameof(purpose));
 
             var mapping = await _context.EmailPurposeMappings.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Purpose == purpose);
+
+            // Fallback: If DemoRequestNotification mapping does not exist, use DemoRequestReply
+            if (mapping == null && purpose == EmailPurposes.DemoRequestNotification)
+            {
+                mapping = await _context.EmailPurposeMappings.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Purpose == EmailPurposes.DemoRequestReply);
+            }
 
             if (mapping == null)
                 throw new InvalidOperationException($"No sender account is mapped for email purpose '{purpose}'. Configure it in Settings > Email Settings.");
@@ -473,13 +486,23 @@ Pirnav EMS Team";
                 Timeout = 60000
             };
 
+            string displayName = !string.IsNullOrWhiteSpace(senderDisplayName)
+                ? senderDisplayName
+                : account.DisplayName;
+
             using var message = new MailMessage
             {
-                From = new MailAddress(account.SenderEmail, account.DisplayName),
+                From = new MailAddress(account.SenderEmail, displayName),
                 Subject = subject,
                 Body = body,
                 IsBodyHtml = true
             };
+
+            if (!string.IsNullOrWhiteSpace(replyToEmail))
+            {
+                message.ReplyToList.Add(new MailAddress(replyToEmail));
+            }
+
             message.To.Add(toEmail);
             await smtp.SendMailAsync(message);
         }

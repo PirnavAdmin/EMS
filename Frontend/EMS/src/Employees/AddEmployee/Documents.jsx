@@ -43,6 +43,7 @@ import { formatDateTime } from "../../utils/date";
 import {
   downloadSignedAgreement,
   getAgreementTypes,
+  getMyAgreements,
   getPendingAgreementCount,
   getSignedAgreementCount,
   signAgreement,
@@ -909,6 +910,14 @@ const normalizeAgreement = (agreement = {}) => {
       agreement.id ??
       agreement.Id ??
       "",
+    pendingEmployeeAgreementId:
+      agreement.pendingEmployeeAgreementId ??
+      agreement.PendingEmployeeAgreementId ??
+      "",
+    signedEmployeeAgreementId:
+      agreement.signedEmployeeAgreementId ??
+      agreement.SignedEmployeeAgreementId ??
+      "",
     agreementName,
     agreementCode,
     description: toText(agreement.description ?? agreement.Description),
@@ -1024,11 +1033,13 @@ const mergeAgreementLifecycleIds = (
   const normalizedSignedMatch = signedMatch ? normalizeAgreement(signedMatch) : null;
 
   const pendingEmployeeAgreementId =
+    normalizedPendingMatch?.pendingEmployeeAgreementId ||
     normalizedPendingMatch?.employeeAgreementId ||
     normalizedPendingMatch?.agreementId ||
     "";
 
   const signedEmployeeAgreementId =
+    normalizedSignedMatch?.signedEmployeeAgreementId ||
     normalizedSignedMatch?.employeeAgreementId ||
     normalizedSignedMatch?.agreementId ||
     "";
@@ -1083,6 +1094,40 @@ const getResponseHeaderValue = (headers, key) =>
   headers?.[key.toUpperCase()] ||
   "";
 
+const getAgreementErrorMessage = async (error, fallbackMessage) => {
+  const status = error?.response?.status;
+  const contentType = getResponseHeaderValue(
+    error?.response?.headers,
+    "content-type"
+  );
+
+  if (status === 404) {
+    return fallbackMessage;
+  }
+
+  if (status >= 500) {
+    return `Agreement service request failed (HTTP ${status}). Please try again later.`;
+  }
+
+  if (status && !/application\/json|application\/[^;]+\+json/i.test(contentType)) {
+    return `${fallbackMessage} (HTTP ${status})`;
+  }
+
+  return getDownloadErrorMessage(error, fallbackMessage);
+};
+
+const validateAgreementBlob = (blob, contentType) => {
+  if (!blob.size) {
+    throw new Error("The agreement file is empty.");
+  }
+
+  if (/application\/json|application\/[^;]+\+json|text\/html/i.test(contentType || blob.type)) {
+    throw new Error("The server returned an error response instead of an agreement file.");
+  }
+
+  return blob;
+};
+
 const buildAgreementPreviewDocument = async (response, agreement, fallbackFileName) => {
   const rawContentType = getResponseHeaderValue(response.headers, "content-type");
   const initialFileName = extractDownloadFileName(
@@ -1094,6 +1139,7 @@ const buildAgreementPreviewDocument = async (response, agreement, fallbackFileNa
     response.data instanceof Blob
       ? response.data
       : new Blob([response.data], { type: rawContentType || "" });
+  validateAgreementBlob(blob, rawContentType);
   const contentType = await resolveDocumentMimeType({
     blob,
     fileName: initialFileName,
@@ -1129,6 +1175,7 @@ const triggerAgreementBlobDownload = async (response, fallbackFileName) => {
     response.data instanceof Blob
       ? response.data
       : new Blob([response.data], { type: rawContentType || "" });
+  validateAgreementBlob(blob, rawContentType);
   const contentType = await resolveDocumentMimeType({
     blob,
     fileName: initialFileName,
@@ -1152,28 +1199,16 @@ const buildAgreementPreviewFromResponse = async (response, agreement) => {
       : new Blob([response.data], {
           type: rawContentType || "application/pdf"
         });
+  validateAgreementBlob(blob, rawContentType);
 
-  try {
-    return await buildAgreementPreviewDocument(
-      {
-        headers: response.headers,
-        data: blob
-      },
-      agreement,
-      fallbackFileName
-    );
-  } catch (error) {
-    return {
-      ...agreement,
-      fileName: fallbackFileName,
-      originalFileName: fallbackFileName,
-      fileType: rawContentType || "application/pdf",
-      mimeType: rawContentType || "application/pdf",
-      contentType: rawContentType || "application/pdf",
-      blob,
-      uploadedAt: agreement.createdDate || agreement.assignedDate
-    };
-  }
+  return buildAgreementPreviewDocument(
+    {
+      headers: response.headers,
+      data: blob
+    },
+    agreement,
+    fallbackFileName
+  );
 };
 
 const buildLocalDocumentRecord = (file, documentType, employeeKey) =>
@@ -1289,6 +1324,7 @@ const Documents = forwardRef(function Documents(
   const signatureImageInputRef = useRef(null);
   const isMountedRef = useRef(true);
   const uploadInFlightRef = useRef(false);
+  const signingAgreementInFlightRef = useRef(false);
 
   const clearSelectedFile = useCallback(() => {
     setSelectedFile(null);
@@ -1368,22 +1404,21 @@ const Documents = forwardRef(function Documents(
     () => (selectedAgreement ? normalizeAgreement(selectedAgreement) : null),
     [selectedAgreement]
   );
+  const selectedAgreementActionKey =
+    selectedAgreementDetails?.agreementId ||
+    selectedAgreementDetails?.employeeAgreementId ||
+    selectedAgreementDetails?.agreementCode ||
+    "";
 
-  const isAgreementSelected = !selectedAgreementDetails;
+  const isAgreementSelected = Boolean(selectedAgreementDetails);
 
   const isAgreementSigned = Boolean(
-    selectedAgreementDetails &&
-      (String(selectedAgreementDetails.status).toLowerCase().includes("signed") ||
-        selectedAgreementDetails.signedEmployeeAgreementId)
+    selectedAgreementDetails?.isSignedForEmployee
   );
   const selectedAgreementStatus = isAgreementSigned
     ? "Signed"
     : selectedAgreementDetails?.status || "";
 
-  const isSignatureFormValid =
-    signatureName.trim() !== "" &&
-    signedLocation.trim() !== "" &&
-    signatureImage;
   const isAgreementReadOnly =
     typeof agreementReadOnly === "boolean"
       ? agreementReadOnly
@@ -1394,18 +1429,17 @@ const Documents = forwardRef(function Documents(
   const canSubmitAgreement =
     isAgreementSelected &&
     !isAgreementReadOnly &&
-    !isAgreementSigned &&
-    isSignatureFormValid;
+    !isAgreementSigned;
 
-  const canViewSigned = Boolean(isAgreementSigned);
-  const canDownloadSigned = canViewSigned;
+  const canViewSigned = isAgreementSelected;
+  const canDownloadSigned = isAgreementSelected;
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
       isMountedRef.current = false;
-    },
-    []
-  );
+    };
+  }, []);
 
   useEffect(() => {
     if (!successMsg) return undefined;
@@ -1508,7 +1542,9 @@ const Documents = forwardRef(function Documents(
           await Promise.all([
             getPendingAgreementCount(entityIdForAgreements, requestConfig),
             getSignedAgreementCount(entityIdForAgreements, requestConfig),
-            getAgreementTypes(requestConfig)
+            isOnboardingMode
+              ? getAgreementTypes(requestConfig)
+              : getMyAgreements(requestConfig)
           ]);
         const pendingAgreementIndex = buildAgreementIdentityIndex(pendingAgreements);
         const signedAgreementIndex = buildAgreementIdentityIndex(signedAgreements);
@@ -1531,7 +1567,11 @@ const Documents = forwardRef(function Documents(
             : normalizedAgreement.status || "Pending";
 
           const mergedAgreement = mergeAgreementLifecycleIds(
-            { ...normalizedAgreement, status: agreementStatus },
+            {
+              ...normalizedAgreement,
+              status: agreementStatus,
+              isSignedForEmployee: Boolean(signedMatch)
+            },
             pendingMatch,
             signedMatch
           );
@@ -1539,6 +1579,7 @@ const Documents = forwardRef(function Documents(
           return normalizeAgreement({
             ...normalizedAgreement,
             ...mergedAgreement,
+            isSignedForEmployee: Boolean(signedMatch),
             status: agreementStatus
           });
         });
@@ -1547,12 +1588,7 @@ const Documents = forwardRef(function Documents(
           const normalizedOverride = normalizeAgreement({
             ...signedAgreementOverride,
             status: "Signed",
-            signedEmployeeAgreementId:
-              signedAgreementOverride.signedEmployeeAgreementId ||
-              signedAgreementOverride.employeeAgreementId ||
-              signedAgreementOverride.agreementId ||
-              signedAgreementOverride.agreementCode ||
-              ""
+            isSignedForEmployee: true
           });
 
           const normalizedOverrideCode = String(
@@ -1583,12 +1619,11 @@ const Documents = forwardRef(function Documents(
                 ? normalizeAgreement({
                     ...agreement,
                     ...normalizedOverride,
+                    isSignedForEmployee: true,
                     status: "Signed",
                     signedEmployeeAgreementId:
                       normalizedOverride.signedEmployeeAgreementId ||
                       agreement.signedEmployeeAgreementId ||
-                      agreement.employeeAgreementId ||
-                      agreement.agreementId ||
                       ""
                   })
                 : agreement
@@ -1602,20 +1637,13 @@ const Documents = forwardRef(function Documents(
         }
 
         const agreementIdentityIndex = buildAgreementIdentityIndex(normalizedAgreements);
-        const nextPendingAgreementCount = normalizedAgreements.filter(
-          (agreement) => !String(agreement.status || "").toLowerCase().includes("signed")
-        ).length;
-        const nextSignedAgreementCount = normalizedAgreements.filter((agreement) =>
-          String(agreement.status || "").toLowerCase().includes("signed")
-        ).length;
-
         if (!isMountedRef.current) {
           return { pendingAgreements, signedAgreements, normalizedAgreements };
         }
 
         setAgreementList(normalizedAgreements);
-        setPendingAgreementCount(nextPendingAgreementCount);
-        setSignedAgreementCount(nextSignedAgreementCount);
+        setPendingAgreementCount(pendingAgreements.length);
+        setSignedAgreementCount(signedAgreements.length);
         setSelectedAgreement((currentAgreement) => {
           if (!normalizedAgreements.length) return null;
           return findAgreementMatch(agreementIdentityIndex, currentAgreement) || null;
@@ -2064,7 +2092,10 @@ const Documents = forwardRef(function Documents(
     } catch (error) {
       if (!isMountedRef.current) return;
 
-      const message = "Unable to preview this agreement.";
+      const message = await getAgreementErrorMessage(
+        error,
+        "Unable to preview this agreement."
+      );
       setPreviewDocument({
         ...normalizedAgreement,
         fileName: getAgreementFileName(normalizedAgreement),
@@ -2083,6 +2114,13 @@ const Documents = forwardRef(function Documents(
 
   const handleViewSignedAgreement = async (agreement) => {
     const normalizedAgreement = normalizeAgreement(agreement);
+    if (!normalizedAgreement.isSignedForEmployee) {
+      const message = "No signed agreement is available for this employee.";
+      setApiError(message);
+      toastError(message);
+      return;
+    }
+
     const previewKey =
       normalizedAgreement.agreementId ||
       normalizedAgreement.employeeAgreementId ||
@@ -2111,15 +2149,19 @@ const Documents = forwardRef(function Documents(
     } catch (error) {
       if (!isMountedRef.current) return;
 
+      const message = await getAgreementErrorMessage(
+        error,
+        "No signed agreement is available for this employee."
+      );
       setPreviewDocument({
         ...normalizedAgreement,
         fileName: `Signed-${getAgreementFileName(normalizedAgreement)}`,
         originalFileName: `Signed-${getAgreementFileName(normalizedAgreement)}`,
-        errorMessage: "Unable to load agreement.",
+        errorMessage: message,
         blob: null
       });
-      setApiError("Unable to load agreement.");
-      toastError("Unable to load agreement.");
+      setApiError(message);
+      toastError(message);
     } finally {
       if (isMountedRef.current) {
         setAgreementActionLoading("");
@@ -2129,6 +2171,13 @@ const Documents = forwardRef(function Documents(
 
   const handleDownloadSignedAgreement = async (agreement) => {
     const normalizedAgreement = normalizeAgreement(agreement);
+    if (!normalizedAgreement.isSignedForEmployee) {
+      const message = "No signed agreement is available for this employee.";
+      setApiError(message);
+      toastError(message);
+      return;
+    }
+
     const downloadKey =
       normalizedAgreement.agreementId ||
       normalizedAgreement.employeeAgreementId ||
@@ -2150,9 +2199,9 @@ const Documents = forwardRef(function Documents(
         `Signed-${getAgreementFileName(normalizedAgreement)}`
       );
     } catch (error) {
-      const message = await getDownloadErrorMessage(
+      const message = await getAgreementErrorMessage(
         error,
-        "Signed agreement download failed"
+        "No signed agreement is available for this employee."
       );
       setApiError(message);
       toastError(message);
@@ -2164,12 +2213,21 @@ const Documents = forwardRef(function Documents(
   };
 
   const handleSubmitSignature = async () => {
+    if (signingAgreementInFlightRef.current) return;
+
     const agreement = selectedAgreementDetails;
     const entityIdForSignature =
       employeeKey || (isOnboardingMode ? "" : storedEmployeeId);
 
     if (!entityIdForSignature) {
       const message = `${isOnboardingMode ? "Onboarding" : "Employee"} ID missing`;
+      setApiError(message);
+      toastError(message);
+      return;
+    }
+
+    if (!agreement?.agreementId) {
+      const message = "Agreement ID missing";
       setApiError(message);
       toastError(message);
       return;
@@ -2204,12 +2262,14 @@ const Documents = forwardRef(function Documents(
     }
 
     try {
+      signingAgreementInFlightRef.current = true;
       setSigningAgreement(true);
       setApiError("");
 
       await signAgreement({
         employeeId: isOnboardingMode ? undefined : entityIdForSignature,
         onboardingId: isOnboardingMode ? entityIdForSignature : undefined,
+        agreementId: agreement.agreementId,
         agreementCode: agreement.agreementCode,
         signatureName: signatureName.trim(),
         signedLocation: signedLocation.trim(),
@@ -2221,18 +2281,16 @@ const Documents = forwardRef(function Documents(
       setSignatureName("");
       setSignedLocation("");
       setSignatureImage(null);
+      if (signatureImageInputRef.current) {
+        signatureImageInputRef.current.value = "";
+      }
       setSuccessMsg("Agreement Signed Successfully");
       toastSuccess("Agreement Signed Successfully");
 
       const signedAgreementOverride = normalizeAgreement({
         ...agreement,
         status: "Signed",
-        signedEmployeeAgreementId:
-          agreement.signedEmployeeAgreementId ||
-          agreement.employeeAgreementId ||
-          agreement.agreementId ||
-          agreement.agreementCode ||
-          ""
+        isSignedForEmployee: true
       });
 
       setSelectedAgreement(signedAgreementOverride);
@@ -2248,26 +2306,38 @@ const Documents = forwardRef(function Documents(
             ? normalizeAgreement({
                 ...item,
                 ...signedAgreementOverride,
+                isSignedForEmployee: true,
                 status: "Signed"
               })
             : item
         )
       );
-      setPendingAgreementCount((currentCount) => Math.max(0, currentCount - 1));
-      setSignedAgreementCount((currentCount) => currentCount + 1);
-
       await loadAgreements({
-        silent: true,
         forceRefresh: true,
         signedAgreementOverride
       });
-      await onRefresh?.();
+      try {
+        await onRefresh?.();
+      } catch (error) {
+        const message = await getAgreementErrorMessage(
+          error,
+          "Agreement was signed, but employee details could not be refreshed."
+        );
+        if (isMountedRef.current) {
+          setApiError(message);
+          toastWarning(message);
+        }
+      }
     } catch (error) {
       if (!isMountedRef.current) return;
-      const message = error?.response?.data?.message || "Agreement signing failed";
+      const message = await getAgreementErrorMessage(
+        error,
+        "Agreement signing failed"
+      );
       setApiError(message);
       toastError(message);
     } finally {
+      signingAgreementInFlightRef.current = false;
       if (isMountedRef.current) {
         setSigningAgreement(false);
       }
@@ -2946,7 +3016,7 @@ const Documents = forwardRef(function Documents(
                     disabled={!canViewAgreement}
                     onClick={() => handleViewAgreement(selectedAgreementDetails)}
                   >
-                    {agreementActionLoading === `view-${selectedAgreementDetails?.agreementId}` ? (
+                    {agreementActionLoading === `view-${selectedAgreementActionKey}` ? (
                       <FaSpinner className="documents-button-spinner" aria-hidden="true" />
                     ) : (
                       <FaEye aria-hidden="true" />
@@ -2960,7 +3030,7 @@ const Documents = forwardRef(function Documents(
                     disabled={!canViewSigned}
                     onClick={() => handleViewSignedAgreement(selectedAgreementDetails)}
                   >
-                    {agreementActionLoading === `signed-${selectedAgreementDetails?.agreementId}` ? (
+                    {agreementActionLoading === `signed-${selectedAgreementActionKey}` ? (
                       <FaSpinner className="documents-button-spinner" aria-hidden="true" />
                     ) : (
                       <FaEye aria-hidden="true" />
@@ -2974,7 +3044,7 @@ const Documents = forwardRef(function Documents(
                     disabled={!canDownloadSigned}
                     onClick={() => handleDownloadSignedAgreement(selectedAgreementDetails)}
                   >
-                    {agreementDownloadLoading === selectedAgreementDetails?.agreementId ? (
+                    {agreementDownloadLoading === selectedAgreementActionKey ? (
                       <FaSpinner className="documents-button-spinner" aria-hidden="true" />
                     ) : (
                       <FaDownload aria-hidden="true" />
