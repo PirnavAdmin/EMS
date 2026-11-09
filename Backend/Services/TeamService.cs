@@ -316,18 +316,37 @@ namespace EmployeeManagementSystem.Services
             {
                 // Declare this FIRST - Filter only active reporting days
                 var teamReportingDays = reportingDayHistory
-                    .Where(d => d.TeamId == x.Id && (d.EffectiveTo == null || d.EffectiveTo > DateTime.Now))
-                    .Select(d => new ReportingDayDto
-                    {
-                        DayName = GetShortDayName(d.DayName),
-                        EffectiveFrom = d.EffectiveFrom,
-                        EffectiveTo = d.EffectiveTo,
-                        ActualDates = GetActualReportingDates(
-                            d.DayName,
-                            d.EffectiveFrom ?? DateTime.MinValue,
-                            d.EffectiveTo)
-                    })
-                    .ToList();
+
+      .Where(d =>
+
+          d.TeamId == x.Id &&
+
+          (d.EffectiveTo == null || d.EffectiveTo > DateTime.Now) &&
+
+          !string.Equals(d.DayName, "NONE", StringComparison.OrdinalIgnoreCase))
+
+      .Select(d => new ReportingDayDto
+
+      {
+
+          DayName = GetShortDayName(d.DayName),
+
+          EffectiveFrom = d.EffectiveFrom,
+
+          EffectiveTo = d.EffectiveTo,
+
+          ActualDates = GetActualReportingDates(
+
+              d.DayName,
+
+              d.EffectiveFrom ?? DateTime.MinValue,
+
+              d.EffectiveTo)
+
+      })
+
+      .ToList();
+
 
                 // Create the DTO AFTER the variable is declared
                 return new TeamListDto
@@ -1023,16 +1042,29 @@ namespace EmployeeManagementSystem.Services
                     _context.TeamReportingDays.RemoveRange(existingWeekDays);
                 }
 
-                // Add the week-specific days
-                foreach (var day in requestedDays)
+                // Save explicit empty override when no WFO days are selected
+                if (!requestedDays.Any())
                 {
                     _context.TeamReportingDays.Add(new TeamReportingDay
                     {
                         TeamId = dto.TeamId,
-                        DayName = day,
+                        DayName = "NONE",
                         EffectiveFrom = start,
                         EffectiveTo = end
                     });
+                }
+                else
+                {
+                    foreach (var day in requestedDays)
+                    {
+                        _context.TeamReportingDays.Add(new TeamReportingDay
+                        {
+                            TeamId = dto.TeamId,
+                            DayName = day,
+                            EffectiveFrom = start,
+                            EffectiveTo = end
+                        });
+                    }
                 }
 
                 // Reset custom reporting days overrides for all members in this team
