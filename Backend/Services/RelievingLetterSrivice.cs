@@ -6,13 +6,9 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
-using OpenXmlText = DocumentFormat.OpenXml.Wordprocessing.Text;
+using System.Text.RegularExpressions;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -127,8 +123,8 @@ namespace EmployeeManagementSystem.Services
                     runProperties.CloneNode(true));
 
             dayRun.Append(
-               new OpenXmlText(day.ToString())
-               {
+                new Text(day.ToString())
+                {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
@@ -151,8 +147,8 @@ namespace EmployeeManagementSystem.Services
             suffixRun.Append(suffixProperties);
 
             suffixRun.Append(
-              new OpenXmlText(suffix)
-              {
+                new Text(suffix)
+                {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
@@ -167,8 +163,8 @@ namespace EmployeeManagementSystem.Services
                     runProperties.CloneNode(true));
 
             restRun.Append(
-               new OpenXmlText($" {date:MMM yyyy}")
-               {
+                new Text($" {date:MMM yyyy}")
+                {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
@@ -184,6 +180,121 @@ namespace EmployeeManagementSystem.Services
             bookmark.Parent?.InsertAfter(
                 restRun,
                 suffixRun);
+        }
+        private static void ReplacePronouns(
+    WordprocessingDocument doc,
+    string? title)
+        {
+            var normalizedTitle = title?
+                .Trim()
+                .TrimEnd('.')
+                .ToLowerInvariant();
+
+            bool isFemale = normalizedTitle switch
+            {
+                "miss" or "ms" or "mrs" => true,
+                "mr" => false,
+                _ => throw new ArgumentException(
+                    "Unsupported title. Please select Mr., Miss, Ms., or Mrs.")
+            };
+
+            var body = doc.MainDocumentPart?.Document.Body;
+
+            if (body == null)
+            {
+                throw new InvalidOperationException(
+                    "Word document body was not found.");
+            }
+
+            var paragraphs = body
+                .Descendants<Paragraph>()
+                .ToList();
+
+            foreach (var paragraph in paragraphs)
+            {
+                var runs = paragraph.Elements<Run>().ToList();
+
+                if (runs.Count == 0)
+                    continue;
+
+                // Combine text across runs because Word may split
+                // his/her, him/her, or He/She into separate runs.
+                var originalText = string.Concat(
+                    runs.SelectMany(run => run.Descendants<Text>())
+                        .Select(text => text.Text));
+
+                if (!Regex.IsMatch(
+                        originalText,
+                        @"(?:his/her|him/her|he/she)",
+                        RegexOptions.IgnoreCase))
+                {
+                    continue;
+                }
+
+                // Replace the alternatives according to the title.
+                var updatedText = Regex.Replace(
+                    originalText,
+                    @"his/her|him/her|he/she",
+                    match =>
+                    {
+                        var pronoun = match.Value.ToLowerInvariant();
+
+                        string replacement = pronoun switch
+                        {
+                            "his/her" => isFemale ? "her" : "his",
+                            "him/her" => isFemale ? "her" : "him",
+                            "he/she" => isFemale ? "she" : "he",
+                            _ => match.Value
+                        };
+
+                        // Preserve the initial capitalization.
+                        if (char.IsUpper(match.Value[0]))
+                        {
+                            replacement =
+                                char.ToUpperInvariant(replacement[0]) +
+                                replacement.Substring(1);
+                        }
+
+                        return replacement;
+                    },
+                    RegexOptions.IgnoreCase);
+
+                if (updatedText == originalText)
+                    continue;
+
+                // Preserve the first run's formatting.
+                var firstRun = runs.FirstOrDefault(
+                    run => run.Descendants<Text>().Any());
+
+                if (firstRun == null)
+                    continue;
+
+                var runProperties = firstRun.RunProperties?
+                    .CloneNode(true) as RunProperties;
+
+                var newRun = new Run();
+
+                if (runProperties != null)
+                {
+                    newRun.Append(runProperties);
+                }
+
+                newRun.Append(new Text(updatedText)
+                {
+                    Space = SpaceProcessingModeValues.Preserve
+                });
+
+                // Insert the new run before the existing runs.
+                firstRun.InsertBeforeSelf(newRun);
+
+                // Remove the old text runs.
+                foreach (var run in runs)
+                {
+                    run.Remove();
+                }
+            }
+
+            doc.MainDocumentPart.Document.Save();
         }
         public async Task<object> GenerateRelievingLetterAsync(
       RelievingLetterRequestDto dto)
@@ -284,6 +395,7 @@ namespace EmployeeManagementSystem.Services
 
             if (string.IsNullOrWhiteSpace(template.FilePath))
                 throw new Exception("Relieving Letter template file path is missing.");
+
             var storedPath = template.FilePath?.Trim();
 
             if (string.IsNullOrWhiteSpace(storedPath))
@@ -378,6 +490,8 @@ namespace EmployeeManagementSystem.Services
                     wordDoc,
                     "Title",
                     dto.Title);
+
+                ReplacePronouns(wordDoc, dto.Title);
 
                 ReplaceBookmark(
                     wordDoc,
@@ -612,8 +726,8 @@ namespace EmployeeManagementSystem.Services
             }
 
             newRun.Append(
-             new OpenXmlText(text ?? string.Empty)
-             {
+                new Text(text ?? string.Empty)
+                {
                     Space = SpaceProcessingModeValues.Preserve
                 });
 
