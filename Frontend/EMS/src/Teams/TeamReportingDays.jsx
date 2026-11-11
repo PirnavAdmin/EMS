@@ -1,11 +1,13 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { FaCheck, FaClock, FaPen, FaTimes } from "react-icons/fa";
+import { FaCalendarAlt, FaCheck, FaClock, FaPen, FaTimes } from "react-icons/fa";
 import { TEAM_REPORTING_DAY_OPTIONS } from "./teamsData";
+import { normalizeWeeklyOffDays } from "./weeklyOffDays";
 
 function TeamReportingDays({
   teamName,
   days = TEAM_REPORTING_DAY_OPTIONS,
+  weeklyOffDays = [],
   draftDays = TEAM_REPORTING_DAY_OPTIONS,
   isEditing = false,
   saving = false,
@@ -17,6 +19,7 @@ function TeamReportingDays({
   onEdit,
   onCancel,
   onSave,
+  onAssignWeekends,
   onToggleDay,
   onTimelineChange,
   onRetrySchedule,
@@ -26,6 +29,12 @@ function TeamReportingDays({
   canCreateShift = false,
 }) {
   const activeDays = days;
+  const weeklyOffDayNames = new Set(
+    normalizeWeeklyOffDays(weeklyOffDays).map((day) => day.slice(0, 3))
+  );
+  const visibleReportingDays = TEAM_REPORTING_DAY_OPTIONS.filter(
+    (day) => !weeklyOffDayNames.has(day)
+  );
 
   return (
     <section className="teams-reporting-card">
@@ -47,6 +56,14 @@ function TeamReportingDays({
               >
                 <FaClock />
                 Assign Shift
+              </button>
+              <button
+                type="button"
+                className="team-action-btn secondary"
+                onClick={onAssignWeekends}
+              >
+                <FaCalendarAlt />
+                Assign Weekends
               </button>
               {canCreateShift && (
                 <button
@@ -81,7 +98,7 @@ function TeamReportingDays({
       </div>
 
       <div className="teams-day-grid" aria-label={`Reporting days for ${teamName || "team"}`}>
-        {TEAM_REPORTING_DAY_OPTIONS.map((day) => {
+        {visibleReportingDays.map((day) => {
           const isSelected = activeDays.includes(day);
 
           return (
@@ -96,6 +113,13 @@ function TeamReportingDays({
             </button>
           );
         })}
+      </div>
+
+      <div className="team-weekly-off-display" aria-label={`Weekly off days for ${teamName || "team"}`}>
+        <strong>Weekly Off Days:</strong>
+        {weeklyOffDays.length > 0
+          ? weeklyOffDays.join(", ")
+          : "None configured"}
       </div>
 
       {isEditing &&

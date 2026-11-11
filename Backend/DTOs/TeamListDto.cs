@@ -23,6 +23,8 @@
 
         public int? ShiftId { get; set; }
 
+        public List<string> WeeklyOffDays { get; set; } = new();
+
         public string? ShiftName { get; set; }
 
         public List<ReportingDayDto> ReportingDays { get; set; }

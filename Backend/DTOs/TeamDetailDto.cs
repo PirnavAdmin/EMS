@@ -20,6 +20,8 @@
 
         public int? ShiftId { get; set; } // <--- ADDED
 
+        public List<string> WeeklyOffDays { get; set; } = new();
+
         public string? ShiftName { get; set; } // <--- ADDED
 
         public List<string> ReportingDays { get; set; } = new();
@@ -50,6 +52,8 @@
         public int? ShiftId { get; set; }
 
         public string? ShiftName { get; set; }
+
+        public List<string> WeeklyOffDays { get; set; } = new();
 
         public int? OverrideShiftId { get; set; }
 

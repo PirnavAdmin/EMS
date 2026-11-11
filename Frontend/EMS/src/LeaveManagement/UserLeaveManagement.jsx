@@ -1461,13 +1461,29 @@ function UserLeaveManagement() {
         }
       };
 
-      if (form.leaveType === "Work From Home") {
-        await applyWfh(payload, requestConfig);
-      } else {
-        await createLeaveRequest(payload, requestConfig);
-      }
+      // if (form.leaveType === "Work From Home") {
+      //   await applyWfh(payload, requestConfig);
+      // } else {
+      //   await createLeaveRequest(payload, requestConfig);
+      // }
 
-      toast.success("Leave applied successfully ✅");
+      // toast.success("Leave applied successfully ✅");
+       
+            let response;
+      if (form.leaveType === "Work From Home") {
+        response = await applyWfh(payload, requestConfig);
+      } else {
+        response = await createLeaveRequest(payload, requestConfig);
+      }
+ 
+      const successMessage =
+        response?.data?.message ||
+        (form.leaveType === "Work From Home"
+          ? "Work From Home applied successfully ✅"
+          : "Leave applied successfully ✅");
+ 
+      toast.success(successMessage);
+ 
 
       await fetchLeaves();
       await fetchMyWFH();

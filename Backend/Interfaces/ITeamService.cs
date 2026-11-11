@@ -12,6 +12,7 @@ namespace EmployeeManagementSystem.Interfaces
         Task<IActionResult> UpdateTeam(UpdateTeamDto dto);
         Task<IActionResult> DeleteTeam(int teamId);
         Task<IActionResult> UpdateReportingDays(UpdateReportingDaysDto dto);
+        Task<IActionResult> UpdateTeamWeeklyOff(UpdateTeamWeeklyOffDto dto);
         Task<IActionResult> MemberOverride(MemberOverrideDto dto);
         Task<IActionResult> AddMembers(AddTeamMembersDto dto);
         Task<IActionResult> RemoveMember(int teamId, string employeeId);

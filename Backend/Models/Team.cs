@@ -22,6 +22,7 @@ namespace EmployeeManagementSystem.Models
 
         public int? ProjectId { get; set; }
         public int? ShiftId { get; set; }
+        public string WeeklyOffDays { get; set; } = "Saturday,Sunday";
         [ForeignKey(nameof(ShiftId))]
         public ShiftMaster? Shift { get; set; }
         public bool IsActive { get; set; } = true;

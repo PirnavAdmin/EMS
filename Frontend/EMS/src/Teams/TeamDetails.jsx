@@ -12,6 +12,7 @@ import TeamRequestPanels from "./TeamRequestPanels";
 import TeamChangeRequestPanel from "./TeamChangeRequestPanel";
 import TeamReportingDays from "./TeamReportingDays";
 import AssignTeamShiftModal from "./AssignTeamShiftModal";
+import AssignWeekendsModal from "./AssignWeekendsModal";
 import CreateShiftModal from "./CreateShiftModal";
 import { ShiftChangeModal, ShiftSwapModal } from "./ShiftRequestModal";
 import OverrideMemberModal from "./OverrideMemberModal";
@@ -26,10 +27,12 @@ import {
   deleteTeam,
   getMyTeam,
   getTeamById,
+  getTeams,
   removeTeamMember,
   updateTeam,
   updateTeamMemberOverride,
-  updateTeamReportingDays
+  updateTeamReportingDays,
+  updateTeamWeeklyOff
 } from "../services/teamService";
 import {
   createHrmsSettingsRecord,
@@ -231,6 +234,7 @@ function TeamDetails({ mode = "management" }) {
   const [isSavingTeam, setIsSavingTeam] = useState(false);
   const [isSavingReportingDays, setIsSavingReportingDays] = useState(false);
   const [isAssignShiftOpen, setIsAssignShiftOpen] = useState(false);
+  const [isAssignWeekendsOpen, setIsAssignWeekendsOpen] = useState(false);
   const [isCreateShiftOpen, setIsCreateShiftOpen] = useState(false);
   const [availableShifts, setAvailableShifts] = useState([]);
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
@@ -699,14 +703,9 @@ function TeamDetails({ mode = "management" }) {
 
       notifyTeamDataChanged({ teamId: team.teamId, reason: "reporting-days-updated" });
 
-      const savedWfoDays = [...draftReportingDays];
-      const savedWfhDays = TEAM_REPORTING_DAY_OPTIONS.filter(
-        (day) => !savedWfoDays.includes(day)
+      toastSuccess(
+        `Reporting days updated: ${payload.reportingDays.join(", ") || "none"}`
       );
-      const wfoLabel = savedWfoDays.length === 0
-        ? "No WFO days — all available days assigned to WFH"
-        : `WFO: ${savedWfoDays.join(", ")} | WFH: ${savedWfhDays.join(", ") || "none"}`;
-      toastSuccess(`Reporting days updated. ${wfoLabel}`);
 
       setIsEditingReportingDays(false);
       reportingScheduleController.current?.abort();
@@ -1258,6 +1257,9 @@ function TeamDetails({ mode = "management" }) {
     setIsSavingTeam(true);
 
     try {
+      const selectedWeeklyOffDays = Array.isArray(form.weeklyOffDays)
+        ? [...form.weeklyOffDays]
+        : [];
       await updateTeam(
         buildUpdateTeamPayload({
           teamId: team.teamId,
@@ -1276,10 +1278,58 @@ function TeamDetails({ mode = "management" }) {
         })
       );
 
-      notifyTeamDataChanged({ teamId: team.teamId, reason: "team-updated" });
-      toastSuccess("Team updated successfully");
+      try {
+        await updateTeamWeeklyOff({
+          teamId: Number(team.teamId),
+          weeklyOffDays: selectedWeeklyOffDays
+        });
+      } catch (error) {
+        toastError(
+          `Team details were updated, but weekly off days were not saved: ${
+            extractApiErrorMessage(error, "Please retry saving the weekly off days.")
+          }`
+        );
+        return;
+      }
+
+      let refreshedWeeklyOffDays = selectedWeeklyOffDays;
+      try {
+        const response = await getTeams({ cacheTTL: 0, dedupe: false });
+        const refreshedTeam = normalizeCollection(response.data)
+          .map((item) => normalizeTeamRecord(item))
+          .find((item) => String(item?.teamId ?? "") === String(team.teamId));
+        if (refreshedTeam) {
+          refreshedWeeklyOffDays = refreshedTeam.weeklyOffDays ?? selectedWeeklyOffDays;
+        } else {
+          toastError("Team changes were saved, but the refreshed team list did not include this team.");
+        }
+      } catch (error) {
+        toastError(
+          `Team changes were saved, but the team list could not be refreshed: ${
+            extractApiErrorMessage(error, "Unable to reload teams.")
+          }`
+        );
+      }
+
+      notifyTeamDataChanged({
+        teamId: team.teamId,
+        reason: "team-updated",
+        weeklyOffDays: refreshedWeeklyOffDays
+      });
+      toastSuccess("Team and weekly off days updated successfully");
       setIsEditTeamOpen(false);
-      await refreshTeam().catch(() => { });
+      try {
+        await refreshTeam();
+      } catch (error) {
+        toastError(
+          `Team changes were saved, but the details could not be refreshed: ${
+            extractApiErrorMessage(error, "Unable to reload team details.")
+          }`
+        );
+      }
+      setTeam((current) =>
+        current ? { ...current, weeklyOffDays: refreshedWeeklyOffDays } : current
+      );
     } catch (error) {
       toastError(extractApiErrorMessage(error, "Unable to update team"));
     } finally {
@@ -1516,6 +1566,7 @@ function TeamDetails({ mode = "management" }) {
       {!isMyTeamMode && <TeamReportingDays
         teamName={team.teamName}
         days={summary?.reportingDays ?? []}
+        weeklyOffDays={team.weeklyOffDays ?? []}
         draftDays={draftReportingDays}
         isEditing={isEditingReportingDays}
         saving={isSavingReportingDays}
@@ -1532,6 +1583,7 @@ function TeamDetails({ mode = "management" }) {
         onRetrySchedule={() => loadReportingSchedule(selectedReportingTimeline)}
         shift={team.shift}
         onAssignShift={handleOpenAssignShift}
+        onAssignWeekends={() => setIsAssignWeekendsOpen(true)}
         onCreateShift={() => setIsCreateShiftOpen(true)}
         canCreateShift={canCreateShift}
       />}
@@ -1607,6 +1659,20 @@ function TeamDetails({ mode = "management" }) {
         />
       )}
 
+      <AssignWeekendsModal
+        open={isAssignWeekendsOpen}
+        initialTeamId={team?.teamId ?? ""}
+        fixedTeamId={team?.teamId ?? ""}
+        onClose={() => setIsAssignWeekendsOpen(false)}
+        onSaved={(savedTeam) => {
+          setTeam((current) =>
+            current && String(current.teamId) === String(savedTeam?.teamId)
+              ? { ...current, weeklyOffDays: savedTeam.weeklyOffDays ?? [] }
+              : current
+          );
+        }}
+      />
+
       {isCreateShiftOpen && <CreateShiftModal
         open={isCreateShiftOpen}
         saving={isSavingShift}
@@ -1640,6 +1706,7 @@ function TeamDetails({ mode = "management" }) {
       />
 
       <EditTeamModal
+        key={`${isEditTeamOpen ? "open" : "closed"}-${team?.teamId ?? ""}`}
         open={isEditTeamOpen}
         team={team}
         onClose={() => setIsEditTeamOpen(false)}

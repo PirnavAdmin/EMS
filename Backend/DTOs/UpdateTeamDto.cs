@@ -14,6 +14,8 @@
 
         public int? ShiftId { get; set; } // <--- ADDED
 
+        public List<string>? WeeklyOffDays { get; set; }
+
         public List<string> ReportingDays { get; set; } = new();
 
         public List<string> EmployeeIds { get; set; } = new();

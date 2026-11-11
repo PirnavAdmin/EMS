@@ -145,7 +145,7 @@
 
 .teams-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   margin-bottom: 20px;
@@ -156,6 +156,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: min(100%, 700px);
   min-height: 48px;
   padding: 0 14px;
   border-radius: var(--radius-md);
@@ -195,16 +196,6 @@
 
 .teams-search-input:focus {
   outline: none;
-}
-
-.teams-toolbar-note {
-  padding: 0.8rem 1rem;
-  border-radius: 14px;
-  background: var(--bg-page);
-  border: 1px dashed var(--border-soft);
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .teams-grid {
@@ -382,6 +373,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.team-card-weekly-off {
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.team-card-weekly-off strong,
+.team-weekly-off-display strong {
+  color: var(--text-strong);
 }
 
 .team-day-chip,
@@ -1034,8 +1036,7 @@
 .teams-stat-card p,
 .teams-table-head p,
 .teams-reporting-header p,
-.team-modal-subtitle,
-.teams-toolbar-note {
+.team-modal-subtitle {
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.55;
@@ -1617,6 +1618,68 @@
   gap: 18px;
 }
 
+.weekly-off-modal__body {
+  display: grid;
+  gap: 18px;
+}
+
+.weekly-off-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.weekly-off-fieldset legend {
+  margin-bottom: 10px;
+  color: var(--text-body);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.weekly-off-day-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+}
+
+.weekly-off-day-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--bg-page);
+  color: var(--text-body);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.weekly-off-day-option:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.weekly-off-day-option input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.team-weekly-off-display {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .team-reporting-days-modal__fieldset {
   min-width: 0;
   margin: 0;
@@ -2012,6 +2075,7 @@
 
   .teams-count-badge,
   .teams-export-btn,
+  .teams-assign-weekends-btn,
   .teams-add-btn,
   .teams-back-btn {
     width: 100%;
@@ -2019,6 +2083,10 @@
 
   .teams-grid {
     grid-template-columns: 1fr;
+  }
+
+  .teams-search-wrap {
+    width: 100%;
   }
 
   .teams-summary-header,

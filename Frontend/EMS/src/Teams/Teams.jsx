@@ -314,9 +314,6 @@
 //           />
 //         </label>
 
-//         <div className="teams-toolbar-note">
-//           Search state ready for future API integration.
-//         </div>
 //       </div>
 
 //       {filteredTeams.length === 0 ? (
@@ -380,7 +377,7 @@
 
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FaFileExcel, FaPlus, FaSearch, FaUsers } from "react-icons/fa";
+import { FaCalendarAlt, FaFileExcel, FaPlus, FaSearch, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toastError, toastSuccess } from "@/components/common/Toast/toastService";
 import "./Teams.css";
@@ -388,6 +385,7 @@ import AppPagination from "../components/AppPagination";
 import EmptyState from "../components/EmptyState";
 import { CardSkeleton } from "../components/Skeletons";
 import AddTeamModal from "./AddTeamModal";
+import AssignWeekendsModal from "./AssignWeekendsModal";
 import TeamCard from "./TeamCard";
 import { BASE_URL } from "../api/config";
 import { API_ENDPOINTS } from "../api/endpoints";
@@ -395,14 +393,16 @@ import {
   createTeam,
   exportTeams,
   getTeamById,
-  getTeams
+  getTeams,
+  updateTeamWeeklyOff
 } from "../services/teamService";
 import {
   extractDownloadFileName,
   getDownloadContentType,
   getDownloadErrorMessage
 } from "../utils/downloadUtils";
-import { hasAddPermission } from "../utils/authorization";
+import { hasAddPermission, hasEditPermission } from "../utils/authorization";
+import { notifyTeamDataChanged, subscribeToTeamDataChanges } from "./teamDataSync";
 import {
   buildCreateTeamPayload,
   extractApiErrorMessage,
@@ -514,15 +514,17 @@ function Teams() {
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
   const [isSavingTeam, setIsSavingTeam] = useState(false);
   const [isExportingTeams, setIsExportingTeams] = useState(false);
+  const [isAssignWeekendsOpen, setIsAssignWeekendsOpen] = useState(false);
   const canAddTeam = hasAddPermission("Teams");
+  const canEditTeams = hasEditPermission("Teams");
 
-  const fetchTeams = useCallback(async (signal) => {
-    setIsLoading(true);
+  const fetchTeams = useCallback(async (signal, { showLoading = true, cacheTTL = 60 * 1000 } = {}) => {
+    if (showLoading) setIsLoading(true);
 
     try {
       const res = await getTeams({
         signal,
-        cacheTTL: 60 * 1000
+        cacheTTL
       });
 
       const normalizedTeams = normalizeCollection(res.data)
@@ -540,11 +542,11 @@ function Teams() {
         return [];
       }
 
-      setTeams([]);
+      if (showLoading) setTeams([]);
       toastError(extractApiErrorMessage(error, "Failed to load teams"));
       return [];
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, []);
 
@@ -554,6 +556,10 @@ function Teams() {
 
     return () => controller.abort();
   }, [fetchTeams]);
+
+  useEffect(() => subscribeToTeamDataChanges(() => {
+    void fetchTeams(undefined, { showLoading: false, cacheTTL: 0 });
+  }), [fetchTeams]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -617,6 +623,7 @@ function Teams() {
     logCreateTeamDebug("ENGAGEMENT TYPE:", requestPayload.engagementType);
     logCreateTeamDebug("PROJECT ID:", requestPayload.projectId);
     logCreateTeamDebug("DEFAULT REPORTING DAYS:", requestPayload.reportingDays);
+    logCreateTeamDebug("WEEKLY OFF DAYS:", payload.weeklyOffDays);
     logCreateTeamDebug("TEAM MEMBERS:", requestPayload.employeeIds);
     logCreateTeamDebug("CREATE TEAM API URL:", createTeamApiUrl);
     logCreateTeamDebug("CREATE TEAM API METHOD:", "POST");
@@ -628,13 +635,57 @@ function Teams() {
 
       logCreateTeamDebug("CREATE TEAM API RESPONSE:", response?.data ?? response);
 
-      toastSuccess("Team created successfully");
-      await fetchTeams().catch(() => {});
+      let teamId = normalizeTeamRecord(response?.data)?.teamId;
+      if (teamId == null) {
+        try {
+          const teamsResponse = await getTeams({ cacheTTL: 0, dedupe: false });
+          const createdTeam = normalizeCollection(teamsResponse.data)
+            .map((item) => normalizeTeamRecord(item))
+            .find((item) =>
+              item &&
+              String(item.teamNumber || "").trim().toUpperCase() === requestPayload.teamNumber &&
+              String(item.teamName || "").trim().toLowerCase() === requestPayload.teamName.toLowerCase()
+            );
+          teamId = createdTeam?.teamId;
+        } catch (error) {
+          const message = extractApiErrorMessage(error, "Unable to resolve the created team's ID.");
+          toastError(`Team created, but weekly off days could not be saved: ${message}`);
+          await fetchTeams(undefined, { showLoading: false, cacheTTL: 0 });
+          return response?.data ?? { created: true };
+        }
+      }
 
-      return response.data;
+      const numericTeamId = Number(teamId);
+      if (teamId == null || !Number.isInteger(numericTeamId) || numericTeamId <= 0) {
+        toastError("Team created, but weekly off days could not be saved because its team ID was unavailable.");
+        await fetchTeams(undefined, { showLoading: false, cacheTTL: 0 });
+        return response?.data ?? { created: true };
+      }
+
+      let weeklyOffSaved = false;
+      try {
+        await updateTeamWeeklyOff({
+          teamId: numericTeamId,
+          weeklyOffDays: Array.isArray(payload.weeklyOffDays) ? payload.weeklyOffDays : []
+        });
+        weeklyOffSaved = true;
+        notifyTeamDataChanged({ teamId: numericTeamId, reason: "weekly-off-updated" });
+        toastSuccess("Team and weekly off days created successfully.");
+      } catch (error) {
+        const message = extractApiErrorMessage(error, "Weekly off days could not be saved.");
+        toastError(`Team created, but weekly off days could not be saved: ${message}`);
+      }
+      if (!weeklyOffSaved) {
+        await fetchTeams(undefined, { showLoading: false, cacheTTL: 0 });
+      }
+
+      return response?.data ?? { created: true };
     } catch (error) {
       logCreateTeamDebug("CREATE TEAM API ERROR:", error?.response?.data ?? error);
-      toastError(extractApiErrorMessage(error, "Unable to create team"));
+      toastError(extractApiErrorMessage(
+        error,
+        "Unable to create team or resolve its ID for weekly-off setup."
+      ));
       return null;
     } finally {
       setIsSavingTeam(false);
@@ -750,6 +801,17 @@ function Teams() {
             {isExportingTeams ? "Exporting..." : "Export Excel"}
           </button>
 
+          {canEditTeams && (
+            <button
+              type="button"
+              className="team-action-btn secondary teams-assign-weekends-btn"
+              onClick={() => setIsAssignWeekendsOpen(true)}
+            >
+              <FaCalendarAlt />
+              Assign Weekends
+            </button>
+          )}
+
           {canAddTeam && (
             <button
               type="button"
@@ -777,9 +839,6 @@ function Teams() {
           />
         </label>
 
-        <div className="teams-toolbar-note">
-          Search state ready for future API integration.
-        </div>
       </div>
 
       {filteredTeams.length === 0 ? (
@@ -821,6 +880,7 @@ function Teams() {
       )}
 
       <AddTeamModal
+        key={isAddTeamOpen ? "open" : "closed"}
         open={isAddTeamOpen}
         defaultTeamNumber={nextTeamNumber}
         onClose={() => setIsAddTeamOpen(false)}
@@ -833,6 +893,12 @@ function Teams() {
         }}
         saving={isSavingTeam}
       />
+      {canEditTeams && (
+        <AssignWeekendsModal
+          open={isAssignWeekendsOpen}
+          onClose={() => setIsAssignWeekendsOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -648,6 +648,7 @@ export const API = {
         REMOVE_MEMBER: (teamId, employeeId) =>
             `/Team/${teamId}/member/${employeeId}`,
         UPDATE_REPORTING_DAYS: "/Team/update-reporting-days",
+        UPDATE_WEEKLY_OFF: "/Team/update-weekly-off",
         MEMBER_OVERRIDE: "/Team/member-override",
         AVAILABLE_EMPLOYEES: "/Team/available-employees",
         AVAILABLEEMPLOYEES: "/Team/available-employees",
@@ -1323,6 +1324,7 @@ export const API_ENDPOINTS = {
         addMembers: API.TEAM.ADD_MEMBERS,
         removeMember: API.TEAM.REMOVE_MEMBER,
         updateReportingDays: API.TEAM.UPDATE_REPORTING_DAYS,
+        updateWeeklyOff: API.TEAM.UPDATE_WEEKLY_OFF,
         memberOverride: API.TEAM.MEMBER_OVERRIDE,
         availableEmployees: API.TEAM.AVAILABLE_EMPLOYEES,
         managers: API.TEAM.MANAGERS,

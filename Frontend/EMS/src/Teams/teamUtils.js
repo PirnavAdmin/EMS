@@ -1,31 +1,82 @@
-import { TEAM_DAY_OPTIONS } from "./teamsData";
+import { TEAM_DAY_OPTIONS, TEAM_REPORTING_DAY_OPTIONS } from "./teamsData";
+import { getWeeklyOffDays } from "./weeklyOffDays";
 
-const DISPLAY_DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DISPLAY_DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DISPLAY_DAYS_BY_UTC_INDEX = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_ALIASES = new Map([
   ["mon", "Mon"], ["monday", "Mon"],
   ["tue", "Tue"], ["tues", "Tue"], ["tuesday", "Tue"],
   ["wed", "Wed"], ["wednesday", "Wed"],
   ["thu", "Thu"], ["thur", "Thu"], ["thurs", "Thu"], ["thursday", "Thu"],
-  ["fri", "Fri"], ["friday", "Fri"]
+  ["fri", "Fri"], ["friday", "Fri"],
+  ["sat", "Sat"], ["saturday", "Sat"],
+  ["sun", "Sun"], ["sunday", "Sun"]
 ]);
 
+const normalizeAssignmentDay = (value) => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return DISPLAY_DAYS_BY_UTC_INDEX[value.getUTCDay()];
+  }
+
+  const label = String(
+    value?.dayName ??
+      value?.day ??
+      value?.name ??
+      value?.date ??
+      value?.Date ??
+      value ??
+      ""
+  ).trim();
+  const normalizedLabel = label.toLowerCase();
+  const day = DAY_ALIASES.get(normalizedLabel);
+  if (day) return day;
+
+  const dateMatch = label.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
+  if (!dateMatch) return "";
+
+  const [, year, month, date] = dateMatch;
+  const timestamp = Date.UTC(Number(year), Number(month) - 1, Number(date));
+  const parsedDate = new Date(timestamp);
+  if (
+    parsedDate.getUTCFullYear() !== Number(year) ||
+    parsedDate.getUTCMonth() !== Number(month) - 1 ||
+    parsedDate.getUTCDate() !== Number(date)
+  ) {
+    return "";
+  }
+
+  return DISPLAY_DAYS_BY_UTC_INDEX[parsedDate.getUTCDay()];
+};
+
 const normalizeDisplayDays = (days) => {
-  if (!Array.isArray(days)) return [];
+  const records = Array.isArray(days)
+    ? days
+    : Array.isArray(days?.$values)
+      ? days.$values
+      : [];
 
   const normalized = new Set();
-  days.forEach((day) => {
-    const label = String(day ?? "").trim().toLowerCase();
-    const canonicalDay = DAY_ALIASES.get(label);
+  records.forEach((value) => {
+    const canonicalDay = normalizeAssignmentDay(value);
     if (canonicalDay) normalized.add(canonicalDay);
   });
 
   return DISPLAY_DAY_ORDER.filter((day) => normalized.has(day));
 };
 
-export const getDisplayDays = (wfoDays, wfhDays) => {
-  const normalizedWfoDays = normalizeDisplayDays(wfoDays);
+export const getDisplayDays = (wfoDays, wfhDays, weeklyOffDays = []) => {
+  const weeklyOffSet = new Set(
+    getWeeklyOffDays({ weeklyOffDays }).map((day) =>
+      DAY_ALIASES.get(day.toLowerCase())
+    )
+  );
+  const normalizedWfoDays = normalizeDisplayDays(wfoDays).filter(
+    (day) => !weeklyOffSet.has(day)
+  );
   const wfoSet = new Set(normalizedWfoDays);
-  const normalizedWfhDays = normalizeDisplayDays(wfhDays).filter((day) => !wfoSet.has(day));
+  const normalizedWfhDays = normalizeDisplayDays(wfhDays)
+    .filter((day) => !weeklyOffSet.has(day))
+    .filter((day) => !wfoSet.has(day));
 
   return { wfoDays: normalizedWfoDays, wfhDays: normalizedWfhDays };
 };
@@ -439,11 +490,13 @@ export const resolveLoggedInEmployee = (members = [], currentUser = {}) => {
 };
 
 export const normalizeReportingDays = (value) => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  const days = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.$values)
+      ? value.$values
+      : [];
 
-  return value
+  return days
     .map((day) => {
       if (typeof day === "string") {
         return day.trim();
@@ -540,11 +593,13 @@ const normalizeReportingDayLabel = (value, target = "ui") => {
 };
 
 export const normalizeReportingDaysForUi = (value) => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  const days = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.$values)
+      ? value.$values
+      : [];
 
-  return value.map((day) => normalizeReportingDayLabel(day, "ui")).filter(Boolean);
+  return days.map((day) => normalizeReportingDayLabel(day, "ui")).filter(Boolean);
 };
 
 export const normalizeReportingDaysForApi = (value) => {
@@ -596,7 +651,7 @@ const resolveDisplayName = (value, depth = 0) => {
 };
 
 export const getComplementDays = (days = []) =>
-  TEAM_DAY_OPTIONS.filter((day) => !days.includes(day));
+  TEAM_REPORTING_DAY_OPTIONS.filter((day) => !days.includes(day));
 
 const sameDayList = (leftDays = [], rightDays = []) =>
   normalizeReportingDaysForUi(leftDays)
@@ -912,7 +967,13 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
       resolveMemberTeamMemberId(record) ??
       resolveMemberTeamMemberId(override?.raw || {}) ??
       null,
-    teamId: toNumberId(record.teamId ?? teamContext.teamId),
+    teamId: toNumberId(
+      record.teamId ??
+        record.team_Id ??
+        record.teamID ??
+        record.TeamId ??
+        teamContext.teamId
+    ),
     employeeId: resolveMemberEmployeeId({
       employeeId: record.employeeId,
       employee,
@@ -1152,6 +1213,7 @@ export const normalizeTeamRecord = (team = {}) => {
     memberCount,
     membersCount: memberCount,
     reportingDays,
+    weeklyOffDays: getWeeklyOffDays(record),
     reportingDayRecords: normalizeCollection(record.reportingDays),
     shift,
     shiftId: shift?.shiftId ?? null,

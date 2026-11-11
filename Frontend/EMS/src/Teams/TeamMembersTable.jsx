@@ -6,7 +6,7 @@ import { hasEmployeeShift } from "../utils/shiftUtils";
 
 const normalizeId = (value) => String(value ?? "").trim();
 const EMPTY_MEMBERS = [];
-const WEEKDAY_OFFSETS = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
+const WEEKDAY_OFFSETS = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
 const rowKey = (member, index) => normalizeId(member?.employeeId ?? member?.employee_Id ?? member?.userId ?? member?.id) || String(index);
 const getMemberProjectName = (member, teamData) => {
   const project = member?.project;
@@ -27,7 +27,7 @@ const getMemberProjectName = (member, teamData) => {
 };
 const getWeekStart = (date) => startOfWeek(date, { weekStartsOn: 1 });
 const getWeekLabel = (weekStart) => {
-  const weekEnd = addDays(weekStart, 4);
+  const weekEnd = addDays(weekStart, 6);
   return weekStart.getFullYear() === weekEnd.getFullYear()
     ? `${format(weekStart, "d MMM")} – ${format(weekEnd, "d MMM yyyy")}`
     : `${format(weekStart, "d MMM yyyy")} – ${format(weekEnd, "d MMM yyyy")}`;
@@ -295,7 +295,33 @@ function TeamMembersTable({
             </tr>
           ) : members.map((member, index) => {
             if (!member || typeof member !== "object") return null;
-            const { wfoDays: wfoList, wfhDays: wfhList } = getDisplayDays(member.wfoDays, member.wfhDays);
+            const memberTeamId = normalizeId(
+              member.teamId ??
+                member.team_Id ??
+                member.teamID ??
+                member.TeamId ??
+                member.raw?.teamId ??
+                member.raw?.team_Id
+            );
+            const displayedTeamId = normalizeId(
+              teamData?.teamId ?? teamData?.team_Id ?? teamData?.teamID
+            );
+            const weeklyOffDays =
+              memberTeamId && memberTeamId !== displayedTeamId
+                ? member.weeklyOffDays ??
+                  member.WeeklyOffDays ??
+                  member.raw?.weeklyOffDays ??
+                  member.raw?.WeeklyOffDays ??
+                  []
+                : teamData?.weeklyOffDays ??
+                  member.weeklyOffDays ??
+                  member.WeeklyOffDays ??
+                  [];
+            const { wfoDays: wfoList, wfhDays: wfhList } = getDisplayDays(
+              member.wfoDays,
+              member.wfhDays,
+              weeklyOffDays
+            );
             const getChipDate = (day) => weekDates[day];
             const isPastChipDate = (day) => isBefore(getChipDate(day), today) && !isSameDay(getChipDate(day), today);
             const renderDayChip = (day, kind) => {

@@ -31,6 +31,9 @@ export const removeTeamMember = (teamId, employeeId, config = {}) =>
 export const updateTeamReportingDays = (payload, config = {}) =>
   api.put(API_ENDPOINTS.team.updateReportingDays, payload, config);
 
+export const updateTeamWeeklyOff = (payload, config = {}) =>
+  api.put(API_ENDPOINTS.team.updateWeeklyOff, payload, config);
+
 export const updateTeamMemberOverride = (payload, config = {}) =>
   api.put(API_ENDPOINTS.team.memberOverride, payload, config);
 

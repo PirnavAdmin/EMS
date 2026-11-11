@@ -1,18 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaTimes } from "react-icons/fa";
-import { getTeamManagers, getTeamProjects } from "../services/teamService";
+import { getTeamManagers, getTeamProjects, getTeams } from "../services/teamService";
 import { TEAM_ENGAGEMENT_OPTIONS } from "./teamsData";
+import { WEEKLY_OFF_DAY_OPTIONS } from "./weeklyOffDays";
 import {
   normalizeCollection,
   normalizeEmployeeRecord,
-  normalizeProjectTeamRecord
+  normalizeProjectTeamRecord,
+  normalizeTeamRecord,
+  extractApiErrorMessage
 } from "./teamUtils";
 
 const createInitialForm = (team = {}) => ({
   teamName: team.teamName || "",
   projectId: team.projectId || "",
   reportingManagerId: team.reportingManagerId || "",
-  engagementType: team.engagementType || ""
+  engagementType: team.engagementType || "",
+  weeklyOffDays: Array.isArray(team.weeklyOffDays) ? [...team.weeklyOffDays] : []
 });
 
 function EditTeamModal({
@@ -25,6 +29,9 @@ function EditTeamModal({
   const [form, setForm] = useState(() => createInitialForm(team));
   const [projects, setProjects] = useState([]);
   const [managers, setManagers] = useState([]);
+  const [weeklyOffLoading, setWeeklyOffLoading] = useState(true);
+  const [weeklyOffLookupError, setWeeklyOffLookupError] = useState("");
+  const [weeklyOffAttempt, setWeeklyOffAttempt] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -32,7 +39,6 @@ function EditTeamModal({
     }
 
     const controller = new AbortController();
-    setForm(createInitialForm(team));
 
     const fetchLookups = async () => {
       try {
@@ -74,6 +80,43 @@ function EditTeamModal({
     fetchLookups();
     return () => controller.abort();
   }, [open, team]);
+
+  useEffect(() => {
+    if (!open || team?.teamId == null) return undefined;
+
+    const controller = new AbortController();
+    getTeams({
+      signal: controller.signal,
+      cacheTTL: 0,
+      dedupe: false
+    })
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        const savedTeam = normalizeCollection(response.data)
+          .map((item) => normalizeTeamRecord(item))
+          .find((item) => String(item?.teamId ?? "") === String(team.teamId));
+        if (!savedTeam) {
+          setWeeklyOffLookupError("This team's saved weekly off days were not found in GET /api/Team.");
+          return;
+        }
+        setForm((current) => ({
+          ...current,
+          weeklyOffDays: [...(savedTeam.weeklyOffDays ?? [])]
+        }));
+        setWeeklyOffLookupError("");
+      })
+      .catch((error) => {
+        if (error?.code === "ERR_CANCELED") return;
+        setWeeklyOffLookupError(
+          extractApiErrorMessage(error, "Unable to load saved weekly off days.")
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setWeeklyOffLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [open, team?.teamId, weeklyOffAttempt]);
 
   const visibleProjects = useMemo(() => {
     const projectList = [...projects];
@@ -131,6 +174,15 @@ function EditTeamModal({
       (project) => String(project.projectId ?? project.id ?? "").trim() === value
     );
   }, [form.projectId, visibleProjects]);
+
+  const toggleWeeklyOffDay = (day) => {
+    setForm((current) => ({
+      ...current,
+      weeklyOffDays: current.weeklyOffDays.includes(day)
+        ? current.weeklyOffDays.filter((selectedDay) => selectedDay !== day)
+        : [...current.weeklyOffDays, day]
+    }));
+  };
 
   if (!open) {
     return null;
@@ -254,6 +306,46 @@ function EditTeamModal({
               ))}
             </select>
           </div>
+
+          <fieldset
+            className="team-form-field team-form-field-wide weekly-off-fieldset"
+            disabled={weeklyOffLoading || Boolean(weeklyOffLookupError)}
+            aria-busy={weeklyOffLoading}
+          >
+            <legend>Weekly Off Days</legend>
+            {weeklyOffLoading ? (
+              <span className="team-reporting-days-modal__status" role="status">
+                Loading saved weekly off days...
+              </span>
+            ) : null}
+            <div className="weekly-off-day-list">
+              {WEEKLY_OFF_DAY_OPTIONS.map((day) => (
+                <label className="weekly-off-day-option" key={day}>
+                  <input
+                    type="checkbox"
+                    checked={form.weeklyOffDays.includes(day)}
+                    onChange={() => toggleWeeklyOffDay(day)}
+                  />
+                  <span>{day}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {weeklyOffLookupError ? (
+            <div className="team-reporting-days-modal__error" role="alert">
+              <span>{weeklyOffLookupError}</span>
+              <button
+                type="button"
+                className="team-action-btn secondary"
+                onClick={() => {
+                  setWeeklyOffLoading(true);
+                  setWeeklyOffAttempt((attempt) => attempt + 1);
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="team-modal-footer">
@@ -269,7 +361,7 @@ function EditTeamModal({
             className="team-action-btn"
             onClick={() => onSave(form)}
             type="button"
-            disabled={saving}
+            disabled={saving || weeklyOffLoading || Boolean(weeklyOffLookupError)}
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>

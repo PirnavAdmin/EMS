@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./UserAttendance.css";
 import { toastSuccess, toastError, toastWarning } from "@/components/common/Toast/toastService";
 import {
@@ -6,7 +6,6 @@ import {
   getDayName,
   getInputDateValue } from
 "../utils/date";
-import { getStoredIdentityParams } from "../utils/authStorage";
 import {
   acquireReliableLocation,
   getGeolocationErrorMessage } from
@@ -34,11 +33,6 @@ import {
 
 function UserAttendance() {
   const today = new Date();
-  const attendanceIdentityParams = useMemo(
-    () => getStoredIdentityParams(),
-    []
-  );
-
   // --- NEW STATES FOR LOCATION REASON POPUP ---
   const [showReasonPopup, setShowReasonPopup] = useState(false);
   const [reason, setReason] = useState("");
@@ -111,60 +105,55 @@ function UserAttendance() {
     return `${hrs}h ${mins}m`;
   };
 
-  const normalizeStatus = (status) => {
-    const value = (status || "").toString().trim().toUpperCase();
-
-    if (value === "P") return "Present";
-    if (value === "A") return "Absent";
-    if (value === "W") return "Weekend";
-    if (value === "L") return "Late";
-    if (value === "HD") return "Half Day";
-    if (value === "OL") return "On Leave";
-    if (value === "LOP") return "Loss Of Pay";
-    if (value === "MC") return "Missed Checkout";
-    if (value === "LMC") return "Late & Missed Checkout";
-    if (value === "H") return "Holiday";
-    if (value === "UP") return "Upcoming";
-
-    return status || "-";
-  };
   const formatDateLabel = (item) => {
-    if (item.date) {
-      return formatDate(item.date);
+    const date = item.date ?? item.Date;
+    if (date) {
+      return formatDate(date);
     }
 
-    if (item.day) {
-      return `Day ${item.day}`;
+    if (item.day ?? item.Day) {
+      return `Day ${item.day ?? item.Day}`;
     }
 
     return "";
   };
 
   const formatDayName = (item) => {
-    if (item.date) {
-      return getDayName(item.date, "-").slice(0, 3);
+    const date = item.date ?? item.Date;
+    if (date) {
+      return getDayName(date, "-").slice(0, 3);
     }
 
-    if (item.dayName) return item.dayName;
+    if (item.dayName ?? item.DayName) return item.dayName ?? item.DayName;
     return "-";
   };
 
   const mapApiData = (data) => {
-    return (Array.isArray(data) ? data : []).map((item, index) => ({
-      id: item.id || `${item.date || item.day || index}-${index}`,
-      rawDate: item.date || "",
+    const records = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.$values)
+        ? data.$values
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+    return records.map((item, index) => ({
+      id: item.id || item.Id || `${item.date || item.Date || item.day || item.Day || index}-${index}`,
+      rawDate: item.date || item.Date || "",
       day: formatDayName(item),
       dateLabel: formatDateLabel(item),
-      checkIn: formatTime(item.checkIn),
+      checkIn: formatTime(item.checkIn ?? item.CheckIn),
       checkOut: formatTime(
         item.checkOut ||
+        item.CheckOut ||
         item.checkOutTime ||
         item.checkoutTime ||
         item.checkout ||
         item.outTime
       ),
-      hours: item.hours || formatHoursFromMinutes(item.workingMinutes),
-      status: normalizeStatus(item.status)
+      hours: item.workingHours ?? item.WorkingHours ?? item.hours ??
+        formatHoursFromMinutes(item.workingMinutes ?? item.WorkingMinutes),
+      status: item.status ?? item.Status ?? "-"
     }));
   };
 
@@ -265,7 +254,6 @@ function UserAttendance() {
     try {
       setHistoryLoading(true);
       const config = {
-        params: attendanceIdentityParams,
         dedupe: !forceRefresh,
         cacheTTL: forceRefresh ? 0 : ATTENDANCE_HISTORY_CACHE_TTL
       };
@@ -293,12 +281,18 @@ function UserAttendance() {
         updateTopStats(mapped);
         updateTodayAttendanceState(mapped);
       }
-    } catch {
+    } catch (error) {
       if (requestId !== attendanceRequestRef.current) {
         return;
       }
 
       setAttendanceData([]);
+      toastError(
+        error?.response?.data?.message ||
+        error?.response?.data?.title ||
+        error?.message ||
+        "Unable to load attendance history."
+      );
     } finally {
       if (requestId === attendanceRequestRef.current) {
         setHistoryLoading(false);
@@ -492,19 +486,19 @@ function UserAttendance() {
   // ---------------------------------------------------------
 
   const getStatusClass = (status) => {
-    const value = normalizeStatus(status).toLowerCase().replace(/\s+/g, "");
+    const value = String(status ?? "").trim().toLowerCase().replace(/\s+/g, "");
 
-    if (value === "present") return "present";
-    if (value === "absent") return "absent";
-    if (value === "late") return "late";
-    if (value === "halfday") return "halfday";
-    if (value === "onleave") return "leave";
-    if (value === "weekend") return "weekend";
-    if (value === "lossofpay") return "lop";
-    if (value === "missedcheckout") return "missed-checkout";
-    if (value === "late&missedcheckout") return "late-missed";
-    if (value === "holiday") return "holiday";
-    if (value === "upcoming") return "upcoming";
+    if (["present", "p"].includes(value)) return "present";
+    if (["absent", "a"].includes(value)) return "absent";
+    if (["late", "l"].includes(value)) return "late";
+    if (["halfday", "hd"].includes(value)) return "halfday";
+    if (["onleave", "ol"].includes(value)) return "leave";
+    if (["weekend", "w"].includes(value)) return "weekend";
+    if (["lossofpay", "lop"].includes(value)) return "lop";
+    if (["missedcheckout", "mc"].includes(value)) return "missed-checkout";
+    if (["late&missedcheckout", "lmc"].includes(value)) return "late-missed";
+    if (["holiday", "h"].includes(value)) return "holiday";
+    if (["upcoming", "up"].includes(value)) return "upcoming";
 
     return "default";
   };
@@ -828,18 +822,11 @@ function UserAttendance() {
 
           <div
             className="week-table-header">
-            
-
             <span>DAY</span>
-
             <span>CHECK IN</span>
-
             <span>CHECK OUT</span>
-
             <span>HOURS</span>
-
             <span>STATUS</span>
-
           </div>
 
 
@@ -863,29 +850,15 @@ function UserAttendance() {
             
 
                 <div className="week-day-cell">
-
                   <div>{item.day}</div>
-
-                  <small>{item.dateLabel}</small>
-
+                  <small>{item.dateLabel || "-"}</small>
                 </div>
-
-
-
                 <span>{item.checkIn}</span>
-
                 <span>{item.checkOut}</span>
-
                 <span>{item.hours}</span>
-
-
-
                 <span className={`status ${getStatusClass(item.status)}`}>
-
                   {item.status}
-
                 </span>
-
               </div>
           )
           }

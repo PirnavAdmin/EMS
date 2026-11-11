@@ -99,6 +99,11 @@ function TeamCard({ team, onClick }) {
           })}
         </div>
 
+        <div className="team-card-weekly-off">
+          <strong>Weekly Off Days:</strong>{" "}
+          {team.weeklyOffDays?.length ? team.weeklyOffDays.join(", ") : "None configured"}
+        </div>
+
         <div className="team-card-footer">
           <span>Reporting days</span>
 

@@ -9,6 +9,7 @@ import {
   TEAM_DAY_OPTIONS,
   TEAM_ENGAGEMENT_OPTIONS
 } from "./teamsData";
+import { WEEKLY_OFF_DAY_OPTIONS } from "./weeklyOffDays";
 import {
   normalizeCollection,
   normalizeEmployeeRecord,
@@ -70,6 +71,7 @@ const createInitialForm = (defaultTeamNumber = "") => ({
   engagementType: "Project",
   projectId: "",
   reportingDays: [],
+  weeklyOffDays: [],
   employeeIds: []
 });
 
@@ -161,11 +163,6 @@ function AddTeamModal({
     }
 
     const controller = new AbortController();
-
-    setForm(createInitialForm(defaultTeamNumber));
-    setErrors({});
-    setMembersOpen(false);
-    setMemberSearch("");
 
     const fetchDropdowns = async () => {
       try {
@@ -277,30 +274,6 @@ function AddTeamModal({
     };
   }, [defaultTeamNumber, onClose, open]);
 
-  /*
-   * When a project is selected, all employees already related to that
-   * project are selected automatically. Extra employees can still be added.
-   */
-  useEffect(() => {
-    if (!selectedProject) {
-      return;
-    }
-
-    const existingProjectMemberIds = getProjectEmployees(selectedProject)
-      .map((employee) => getEmployeeId(employee))
-      .filter((id) => id !== "");
-
-    setForm((current) => ({
-      ...current,
-      employeeIds: Array.from(
-        new Set([
-          ...existingProjectMemberIds,
-          ...current.employeeIds.map(normalizeSelectionId)
-        ])
-      )
-    }));
-  }, [selectedProject]);
-
   useEffect(() => {
     if (!open) {
       document.body.style.overflow = "";
@@ -316,10 +289,29 @@ function AddTeamModal({
   }, [open]);
 
   const updateField = (name, value) => {
-    setForm((current) => ({
-      ...current,
-      [name]: value
-    }));
+    if (name === "projectId") {
+      const selected = projects.find((project) =>
+        normalizeSelectionId(project.projectId ?? project.id) ===
+        normalizeSelectionId(value)
+      );
+      const requiredMemberIds = getProjectEmployees(selected)
+        .map((employee) => getEmployeeId(employee))
+        .filter((id) => id !== "");
+
+      setForm((current) => ({
+        ...current,
+        [name]: value,
+        employeeIds: Array.from(new Set([
+          ...requiredMemberIds,
+          ...current.employeeIds.map(normalizeSelectionId)
+        ]))
+      }));
+    } else {
+      setForm((current) => ({
+        ...current,
+        [name]: value
+      }));
+    }
 
     setErrors((current) => ({
       ...current,
@@ -339,6 +331,16 @@ function AddTeamModal({
         reportingDays: nextDays
       };
     });
+  };
+
+  const toggleWeeklyOffDay = (day) => {
+    setForm((current) => ({
+      ...current,
+      weeklyOffDays: current.weeklyOffDays.includes(day)
+        ? current.weeklyOffDays.filter((selectedDay) => selectedDay !== day)
+        : [...current.weeklyOffDays, day]
+    }));
+    setErrors((current) => ({ ...current, weeklyOffDays: "" }));
   };
 
   const toggleMember = (employeeId) => {
@@ -407,6 +409,9 @@ function AddTeamModal({
     if (!form.reportingManagerId.trim()) {
       nextErrors.reportingManagerId = "Reporting Manager is required";
     }
+    if (form.weeklyOffDays.some((day) => !WEEKLY_OFF_DAY_OPTIONS.includes(day))) {
+      nextErrors.weeklyOffDays = "Select valid weekdays.";
+    }
 
     // if (!form.projectId.trim()) {
     //   nextErrors.projectId = "Project is required";
@@ -456,6 +461,7 @@ function AddTeamModal({
       projectId: normalizeProjectId(form.projectId),
       reportingDays:
         form.reportingDays.length > 0 ? [...form.reportingDays] : [...TEAM_DAY_OPTIONS],
+      weeklyOffDays: [...form.weeklyOffDays],
       employeeIds: form.employeeIds
         .map((id) => normalizeSelectionId(id))
         .filter((id) => id !== "")
@@ -668,6 +674,25 @@ function AddTeamModal({
                 })}
               </div>
             </div>
+
+            <fieldset className="team-form-field team-form-field-wide weekly-off-fieldset">
+              <legend>Weekly Off Days</legend>
+              <div className="weekly-off-day-list">
+                {WEEKLY_OFF_DAY_OPTIONS.map((day) => (
+                  <label className="weekly-off-day-option" key={day}>
+                    <input
+                      type="checkbox"
+                      checked={form.weeklyOffDays.includes(day)}
+                      onChange={() => toggleWeeklyOffDay(day)}
+                    />
+                    <span>{day}</span>
+                  </label>
+                ))}
+              </div>
+              {errors.weeklyOffDays ? (
+                <span className="team-form-error">{errors.weeklyOffDays}</span>
+              ) : null}
+            </fieldset>
 
             <div className="team-form-field team-form-field-wide team-multiselect">
               <label>Team Members</label>

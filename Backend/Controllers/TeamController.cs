@@ -72,6 +72,12 @@ namespace EmployeeManagementSystem.Controllers
             return await _service.RemoveMember(teamId, employeeId);
         }
 
+        [HttpPut("update-weekly-off")]
+        public async Task<IActionResult> UpdateWeeklyOff(UpdateTeamWeeklyOffDto dto)
+        {
+            return await _service.UpdateTeamWeeklyOff(dto);
+        }
+
         [HttpPut("update-reporting-days")]
         public async Task<IActionResult> UpdateReportingDays(UpdateReportingDaysDto dto)
         {
