@@ -306,8 +306,9 @@ function TeamMembersTable({
             const displayedTeamId = normalizeId(
               teamData?.teamId ?? teamData?.team_Id ?? teamData?.teamID
             );
-            const weeklyOffDays =
-              memberTeamId && memberTeamId !== displayedTeamId
+            const weeklyOffDays = member.customWeeklyOffDays === true
+              ? member.overrideWeeklyOffDays ?? member.weeklyOffDays ?? []
+              : memberTeamId && memberTeamId !== displayedTeamId
                 ? member.weeklyOffDays ??
                   member.WeeklyOffDays ??
                   member.raw?.weeklyOffDays ??

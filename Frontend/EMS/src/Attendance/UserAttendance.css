@@ -178,6 +178,18 @@ button:hover::after {
   content: none !important;
 }
 
+.attendance-weekly-off-message {
+  margin: -12px 0 24px;
+  padding: 10px 14px;
+  border: 1px solid var(--attendance-status-gray-soft);
+  border-radius: 12px;
+  background: var(--attendance-status-gray-soft);
+  color: var(--attendance-status-gray);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
 .attendance-checkin-btn,
 .checkin-btn {
   background: linear-gradient(
@@ -491,6 +503,12 @@ button:hover::after {
   color: var(--attendance-status-gray);
 }
 
+.status.weekly-off {
+  background: var(--attendance-status-gray-soft);
+  color: var(--attendance-status-gray);
+  border: 1px solid var(--attendance-border);
+}
+
 .status.default {
   background: transparent;
   color: var(--attendance-muted);
@@ -599,6 +617,12 @@ button:hover::after {
 .status.weekend {
   background: var(--attendance-status-gray-soft) !important;
   color: var(--attendance-status-gray) !important;
+}
+
+.status.weekly-off {
+  background: var(--attendance-status-gray-soft) !important;
+  color: var(--attendance-status-gray) !important;
+  border: 1px solid var(--attendance-border) !important;
 }
 
 .status.holiday {

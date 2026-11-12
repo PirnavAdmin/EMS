@@ -48,6 +48,10 @@
 
         public List<string> OverrideWfhDays { get; set; } = new();
 
+        public bool CustomWeeklyOffDays { get; set; }
+        public List<string> OverrideWeeklyOffDays { get; set; } = new();
+
+
     }
 
 }

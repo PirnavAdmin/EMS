@@ -1,79 +1,100 @@
+
+
 services:
- 
+
   backend:
- 
+
     build:
- 
+
       context: ./Backend
- 
+
       dockerfile: Dockerfile
  
     image: ems-pirnav-backend:${IMAGE_TAG:-latest}
- 
+
     restart: unless-stopped
  
     env_file:
- 
+
       - ./.env
  
     environment:
- 
+
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
- 
+
       ASPNETCORE_URLS: http://+:8080
+
       FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-admin.json
  
     extra_hosts:
- 
+
       - "host.docker.internal:host-gateway"
  
     ports:
- 
+
       - "${BACKEND_PORT:-5007}:8080"
  
     volumes:
- 
+
+      # Existing persistent storage
+
       - /home/ubuntu/ems-storage/GeneratedLetters:/app/GeneratedLetters
- 
+
       - /home/ubuntu/ems-storage/GeneratedPayslips:/app/GeneratedPayslips
- 
+
       - /home/ubuntu/ems-storage/GeneratedPayslips:/app/wwwroot/GeneratedPayslips
  
-#     - /home/ubuntu/ems-storage/uploads:/app/wwwroot/uploads/employee-documents
- 
       - /home/ubuntu/ems-storage/uploads/employee-documents:/app/wwwroot/uploads/employee-documents
+
       - /home/ubuntu/ems-storage/uploads/leave-attachments:/app/wwwroot/uploads/leave-attachments
-      - /home/ubuntu/ems-storage/RelievingLetters:/app/wwwroot/RelievingLetters
+
       - /home/ubuntu/ems-storage/uploads/branding:/app/wwwroot/uploads/branding
+
       - /home/ubuntu/ems-storage/uploads/templates:/app/wwwroot/uploads/templates
  
+      - /home/ubuntu/ems-storage/RelievingLetters:/app/wwwroot/RelievingLetters
+
       - /home/ubuntu/ems-storage/Agreements:/app/wwwroot/Agreements
+ 
+      # New permanent storage folders
+
+      - /home/ubuntu/ems-storage/Signatures:/app/wwwroot/Signatures
+
+      - /home/ubuntu/ems-storage/SignedAgreements:/app/wwwroot/SignedAgreements
+
+      - /home/ubuntu/ems-storage/ExperienceLetters:/app/wwwroot/ExperienceLetters
+
+      - /home/ubuntu/ems-storage/NewFolder1:/app/wwwroot/NewFolder1
+ 
+      # Firebase credentials
+
       - /etc/peoplehrsync/secrets/peoplehrsync-firebase-admin.json:/run/secrets/firebase-admin.json:ro
  
+      # Backend templates
+
       - ./Backend/Templates:/app/Templates
  
   frontend:
- 
+
     build:
- 
+
       context: ./Frontend/EMS
- 
+
       dockerfile: Dockerfile
- 
+
       args:
- 
+
         VITE_API_ORIGIN: ${VITE_API_ORIGIN:-https://peoplehrsync.com}
  
     image: ems-pirnav-frontend:${IMAGE_TAG:-latest}
- 
+
     restart: unless-stopped
  
     depends_on:
- 
+
       - backend
  
     ports:
- 
-      - "${FRONTEND_PORT:-3000}:8080"
 
+      - "${FRONTEND_PORT:-3000}:8080"
  

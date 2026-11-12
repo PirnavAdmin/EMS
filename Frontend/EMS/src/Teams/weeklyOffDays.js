@@ -19,11 +19,27 @@ const DAY_ALIASES = new Map([
 ]);
 
 export const normalizeWeeklyOffDays = (value) => {
-  const days = Array.isArray(value)
+  let days = Array.isArray(value)
     ? value
     : Array.isArray(value?.$values)
       ? value.$values
       : [];
+
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      days = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.$values)
+          ? parsed.$values
+          : typeof parsed === "string"
+            ? [parsed]
+            : [];
+    } catch {
+      days = [value];
+    }
+  }
+
   const selected = new Set();
 
   days.forEach((value) => {

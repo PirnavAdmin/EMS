@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaCheck, FaChevronDown, FaTimes } from "react-icons/fa";
-import { TEAM_DAY_OPTIONS } from "./teamsData";
+import { normalizeWeeklyOffDays, WEEKLY_OFF_DAY_OPTIONS } from "./weeklyOffDays";
 import { getTeamProjects } from "../services/teamService";
 import {
   normalizeCollection,
   normalizeProjectTeamRecord
 } from "./teamUtils";
+
+const REPORTING_DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const createInitialState = (member, teamProjectName) => {
   const hasProjectOverride = Boolean(
@@ -16,6 +18,11 @@ const createInitialState = (member, teamProjectName) => {
   );
   const hasDayOverride = Boolean(
     member?.customReportingDays || member?.overrideReportingDays?.length
+  );
+  const hasWeeklyOffOverride = Boolean(
+    member?.customWeeklyOffDays ??
+      member?.teamMemberOverride?.customWeeklyOffDays ??
+      member?.teamMemberOverride?.CustomWeeklyOffDays
   );
 
   return {
@@ -52,9 +59,32 @@ const createInitialState = (member, teamProjectName) => {
           ? [...member.wfoDays]
           : member?.reportingDays?.length > 0
             ? [...member.reportingDays]
-            : [...TEAM_DAY_OPTIONS]
+            : [...REPORTING_DAY_OPTIONS],
+    customWeeklyOffDays: hasWeeklyOffOverride,
+    weeklyOffDays: hasWeeklyOffOverride
+      ? normalizeWeeklyOffDays(
+          member?.overrideWeeklyOffDays ??
+            member?.teamMemberOverride?.overrideWeeklyOffDays ??
+            member?.teamMemberOverride?.weeklyOffDays ??
+            []
+        )
+      : []
   };
 };
+
+const matchesWeekday = (day, weeklyOffDay) =>
+  String(day).slice(0, 3).toLowerCase() ===
+  String(weeklyOffDay).slice(0, 3).toLowerCase();
+
+const getAvailableReportingDays = (form) =>
+  form.customWeeklyOffDays
+    ? form.reportingDays.filter(
+        (day) =>
+          !form.weeklyOffDays.some((weeklyOffDay) =>
+            matchesWeekday(day, weeklyOffDay)
+          )
+      )
+    : form.reportingDays;
 
 function OverrideMemberModal({
   open,
@@ -69,6 +99,7 @@ function OverrideMemberModal({
   const [form, setForm] = useState(() => createInitialState(member, teamProjectName));
   const [errors, setErrors] = useState({});
   const [projects, setProjects] = useState([]);
+  const submissionInFlight = useRef(false);
 
   useEffect(() => {
     if (!open) {
@@ -171,6 +202,25 @@ function OverrideMemberModal({
     });
   };
 
+  const toggleWeeklyOffDay = (day) => {
+    setForm((current) => {
+      const isSelected = current.weeklyOffDays.includes(day);
+      const weeklyOffDays = isSelected
+        ? current.weeklyOffDays.filter((selectedDay) => selectedDay !== day)
+        : [...current.weeklyOffDays, day];
+
+      return {
+        ...current,
+        weeklyOffDays,
+        reportingDays: isSelected
+          ? current.reportingDays
+          : current.reportingDays.filter(
+              (reportingDay) => !matchesWeekday(reportingDay, day)
+            )
+      };
+    });
+  };
+
   const validate = () => {
     const nextErrors = {};
 
@@ -178,7 +228,10 @@ function OverrideMemberModal({
       nextErrors.projectName = "Select a project";
     }
 
-    if (form.customReportingDays && form.reportingDays.length === 0) {
+    if (
+      form.customReportingDays &&
+      getAvailableReportingDays(form).length === 0
+    ) {
       nextErrors.reportingDays = "Select at least one reporting day";
     }
 
@@ -191,10 +244,15 @@ function OverrideMemberModal({
   };
 
   const handleSubmit = async () => {
+    if (saving || submissionInFlight.current) {
+      return;
+    }
+
     if (!validate()) {
       return;
     }
 
+    submissionInFlight.current = true;
     try {
       const savedMember = await onSave({
         customShift: form.customShift,
@@ -203,14 +261,18 @@ function OverrideMemberModal({
         projectId: form.projectId,
         projectName: form.projectName,
         customReportingDays: form.customReportingDays,
-        reportingDays: form.reportingDays
+        reportingDays: getAvailableReportingDays(form),
+        customWeeklyOffDays: form.customWeeklyOffDays,
+        weeklyOffDays: form.weeklyOffDays
       });
 
       if (savedMember) {
         onClose?.();
       }
-    } catch (error) {
+    } catch {
       // Parent handles notifications.
+    } finally {
+      submissionInFlight.current = false;
     }
   };
 
@@ -239,7 +301,7 @@ function OverrideMemberModal({
               Override for {member.employeeName}
             </h3>
             <p className="team-modal-subtitle">
-              Override this member’s shift, project, or reporting days.
+              Override this member’s shift, project, reporting days, or weekly off days.
             </p>
           </div>
 
@@ -363,8 +425,12 @@ function OverrideMemberModal({
             <div className="team-form-field">
               <label>Day Selection Chips</label>
               <div className="teams-day-grid">
-                {TEAM_DAY_OPTIONS.map((day) => {
-                  const isSelected = form.reportingDays.includes(day);
+                {REPORTING_DAY_OPTIONS.map((day) => {
+                  const isWeeklyOff = form.customWeeklyOffDays &&
+                    form.weeklyOffDays.some((weeklyOffDay) =>
+                      matchesWeekday(day, weeklyOffDay)
+                    );
+                  const isSelected = !isWeeklyOff && form.reportingDays.includes(day);
 
                   return (
                     <button
@@ -372,13 +438,15 @@ function OverrideMemberModal({
                       type="button"
                       className={`teams-day-button ${
                         isSelected ? "is-active" : ""
-                      } ${form.customReportingDays ? "is-editable" : "is-locked"}`}
+                      } ${form.customReportingDays && !isWeeklyOff ? "is-editable" : "is-locked"}`}
                       onClick={() => {
-                        if (form.customReportingDays) {
+                        if (form.customReportingDays && !isWeeklyOff) {
                           toggleDay(day);
                         }
                       }}
-                      disabled={!form.customReportingDays}
+                      disabled={!form.customReportingDays || isWeeklyOff}
+                      title={isWeeklyOff ? "This day is configured as a weekly off." : undefined}
+                      aria-pressed={isSelected}
                     >
                       {isSelected ? <FaCheck aria-hidden="true" /> : null}
                       <span>{day}</span>
@@ -391,6 +459,44 @@ function OverrideMemberModal({
                 <span className="team-form-error">{errors.reportingDays}</span>
               ) : null}
             </div>
+
+            <label className="team-checkbox-field">
+              <input
+                type="checkbox"
+                checked={form.customWeeklyOffDays}
+                onChange={(event) =>
+                  updateField("customWeeklyOffDays", event.target.checked)
+                }
+              />
+              <span>Custom Weekly Off Days</span>
+            </label>
+
+            {form.customWeeklyOffDays && (
+              <div className="team-form-field">
+                <label>Weekly Off Day Selection</label>
+                <div className="teams-day-grid">
+                  {WEEKLY_OFF_DAY_OPTIONS.map((day) => {
+                    const isSelected = form.weeklyOffDays.includes(day);
+
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        className={`teams-day-button ${
+                          isSelected ? "is-active" : ""
+                        } is-editable`}
+                        onClick={() => toggleWeeklyOffDay(day)}
+                        disabled={saving}
+                        aria-pressed={isSelected}
+                      >
+                        {isSelected ? <FaCheck aria-hidden="true" /> : null}
+                        <span>{day}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -18,6 +18,10 @@ namespace EmployeeManagementSystem.Models
 
         public int? OverrideProjectId { get; set; }
 
+        public bool CustomWeeklyOffDays { get; set; }
+
+        public string? OverrideWeeklyOffDays { get; set; }
+
         [ForeignKey(nameof(TeamMemberId))]
 
         public bool CustomShift { get; set; } = false;

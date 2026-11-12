@@ -31,6 +31,7 @@ import {
   getOrganizationById,
   getOrganizationsPage,
   updateAdmin,
+  updateAdminStatus,
   updateOrganization,
   updateOrganizationStatus,
   assignAdminOrganization,
@@ -57,6 +58,21 @@ const displayValue = (value, fallback = "-") => {
 };
 
 const statusClass = (status) => String(status ?? "").toLowerCase().replace(/\s+/g, "-");
+const getAdminStatus = (admin) => {
+  const source = admin?.raw ?? admin;
+  const status = source?.status ?? source?.Status;
+  if (status !== undefined && status !== null && String(status).trim()) {
+    return ["active", "true", "1", "yes", "enabled"].includes(String(status).trim().toLowerCase())
+      ? "Active"
+      : "Inactive";
+  }
+  const isActive = source?.isActive ?? source?.IsActive ?? source?.active ?? source?.Active;
+  return isActive === undefined || isActive === null || isActive === ""
+    ? "Active"
+    : isActive === true || isActive === 1 || ["true", "1", "yes"].includes(String(isActive).toLowerCase())
+      ? "Active"
+      : "Inactive";
+};
 
 function Organizations() {
   const [organizations, setOrganizations] = useState([]);
@@ -283,6 +299,8 @@ function Organizations() {
         phoneNumber: admin.phoneNumber || admin.phone || "",
         email: admin.email || "",
         password: "",
+        status: getAdminStatus(admin),
+        statusDirty: false,
         assignmentOnly,
       })),
     ]);
@@ -301,6 +319,8 @@ function Organizations() {
         phoneNumber: admin.phoneNumber || admin.phone || "",
         email: admin.email || "",
         password: "",
+        status: getAdminStatus(admin),
+        statusDirty: false,
       })));
     } catch (requestError) {
       // Keep the optimistic page update when the follow-up detail request fails.
@@ -453,6 +473,9 @@ function Organizations() {
       for (const admin of admins) {
         if (admin.assignmentOnly && admin.adminId) {
           await assignAdminOrganization(admin.adminId, organizationId);
+          if (admin.statusDirty) {
+            await updateAdminStatus(admin.adminId, admin.status === "Active");
+          }
           continue;
         }
 
@@ -462,6 +485,9 @@ function Organizations() {
           // This admin was already assigned through assign-organization in
           // this form session. Do not send that assignment through updateAdmin.
           if (newlyAssignedAdminIdsRef.current.delete(getAdminId(admin))) {
+            if (admin.statusDirty) {
+              await updateAdminStatus(admin.adminId, admin.status === "Active");
+            }
             continue;
           }
           await updateAdmin(admin.adminId, {
@@ -469,8 +495,10 @@ function Organizations() {
             fullName: admin.fullName.trim(),
             phoneNumber: admin.phoneNumber.trim(),
             organizationId,
-            isActive: form.status === "Active",
           });
+          if (admin.statusDirty) {
+            await updateAdminStatus(admin.adminId, admin.status === "Active");
+          }
           continue;
         }
 
@@ -487,7 +515,7 @@ function Organizations() {
           fullName: admin.fullName.trim(),
           phoneNumber: admin.phoneNumber.trim(),
           organizationId,
-          isActive: form.status === "Active",
+          isActive: admin.status === "Active",
         };
 
         if (!admin.adminId) {
@@ -563,6 +591,8 @@ function Organizations() {
         phoneNumber: admin.phoneNumber || admin.phone || "",
         email: admin.email || "",
         password: "",
+        status: getAdminStatus(admin),
+        statusDirty: false,
       })));
     } catch (requestError) {
       setForm({
@@ -1290,7 +1320,7 @@ function Organizations() {
                     onClick={() =>
                       setAdmins((current) => [
                         ...current,
-                        { fullName: "", phoneNumber: "", email: "", password: "" },
+                          { fullName: "", phoneNumber: "", email: "", password: "", status: "Active" },
                       ])
                     }
                   >
@@ -1344,6 +1374,22 @@ function Organizations() {
                           <input type="email" value={admin.email} readOnly aria-readonly="true" />
                         </div>
                       </label>
+                      <label>
+                        Admin Status
+                        <div className="org-input-wrap">
+                          <select
+                            value={admin.status || "Active"}
+                            onChange={(event) => setAdmins((current) => current.map((entry, entryIndex) =>
+                              entryIndex === index
+                                ? { ...entry, status: event.target.value, statusDirty: true }
+                                : entry
+                            ))}
+                          >
+                            <option>Active</option>
+                            <option>Inactive</option>
+                          </select>
+                        </div>
+                      </label>
                     </div>
                     <div className="admin-block-footer">
                       <button className="remove-btn" type="button" onClick={() => handleUnassignAdmin(admin, index)}>
@@ -1355,6 +1401,20 @@ function Organizations() {
                   <div className="assigned-admin-chip" key={`admin-${admin.adminId}`}>
                     <span className="assigned-admin-chip-avatar">{(admin.fullName || admin.email || "A").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>
                     <div className="assigned-admin-chip-info"><strong>{admin.fullName || admin.email}</strong><small>{admin.email}</small></div>
+                    <label>
+                      Admin Status
+                      <select
+                        value={admin.status || "Active"}
+                        onChange={(event) => setAdmins((current) => current.map((entry, entryIndex) =>
+                          entryIndex === index
+                            ? { ...entry, status: event.target.value, statusDirty: true }
+                            : entry
+                        ))}
+                      >
+                        <option>Active</option>
+                        <option>Inactive</option>
+                      </select>
+                    </label>
                     <button type="button" className="assigned-admin-unassign-btn" aria-label={`Remove ${admin.fullName || admin.email}`} onClick={() => handleUnassignAdmin(admin, index)} title="Remove administrator"><FaTimes /></button>
                   </div>
                 ) : (
@@ -1430,6 +1490,22 @@ function Organizations() {
                               )
                             }
                           />
+                        </div>
+                      </label>
+                      <label>
+                        Admin Status
+                        <div className="org-input-wrap">
+                          <select
+                            value={admin.status || "Active"}
+                            onChange={(event) => setAdmins((current) => current.map((entry, entryIndex) =>
+                              entryIndex === index
+                                ? { ...entry, status: event.target.value, statusDirty: true }
+                                : entry
+                            ))}
+                          >
+                            <option>Active</option>
+                            <option>Inactive</option>
+                          </select>
                         </div>
                       </label>
                     </div>

@@ -146,6 +146,29 @@
 //                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 //        }
 
+//        private async Task<HashSet<DayOfWeek>> GetWeeklyOffDaysAsync(string employeeId)
+//        {
+//            var configuredDays = await _context.TeamMembers
+//                .Where(tm => tm.EmployeeId == employeeId && tm.Team != null && tm.Team.IsActive)
+//                .OrderBy(tm => tm.Id)
+//                .Select(tm => tm.Team!.WeeklyOffDays)
+//                .FirstOrDefaultAsync();
+
+//            if (string.IsNullOrWhiteSpace(configuredDays))
+//                return new HashSet<DayOfWeek> { DayOfWeek.Saturday, DayOfWeek.Sunday };
+
+//            var result = new HashSet<DayOfWeek>();
+//            foreach (var value in configuredDays.Split(',', StringSplitOptions.RemoveEmptyEntries))
+//            {
+//                if (Enum.TryParse<DayOfWeek>(value.Trim(), true, out var day))
+//                    result.Add(day);
+//            }
+
+//            return result.Count > 0
+//                ? result
+//                : new HashSet<DayOfWeek> { DayOfWeek.Saturday, DayOfWeek.Sunday };
+//        }
+
 //        private AttendanceSettings? GetAttendanceSettings()
 //        {
 //            lock (_attendanceSettingsCacheLock)
@@ -857,6 +880,7 @@
 
 //            foreach (var emp in employees)
 //            {
+//                var weeklyOffDays = await GetWeeklyOffDaysAsync(emp.Employee_Id);
 //                var att = attendanceList
 //                    .FirstOrDefault(x => x.Employee_Id == emp.Employee_Id);
 //                var approvedLeave = leaves.FirstOrDefault(l =>
@@ -870,6 +894,10 @@
 //                {
 //                    // ✅ Attendance has priority over leave/WFH
 //                    finalStatus = MapStatus(att.Status);
+//                }
+//                else if (weeklyOffDays.Contains(date.DayOfWeek))
+//                {
+//                    finalStatus = "Weekend";
 //                }
 //                else if (approvedLeave != null &&
 //                         string.Equals(
@@ -1089,6 +1117,7 @@
 //                // RemainingLeaves already includes carry forward
 //                int balanceLeaves = latestBalance?.RemainingLeaves ?? 0;
 
+//                var weeklyOffDays = await GetWeeklyOffDaysAsync(emp.Employee_Id);
 //                var days = new List<AdminAttendanceDayDto>();
 
 //                // YOUR EXISTING CODE CONTINUES...
@@ -1120,8 +1149,7 @@
 //                    }
 
 //                    // Weekend
-//                    if (date.DayOfWeek == DayOfWeek.Saturday ||
-//                        date.DayOfWeek == DayOfWeek.Sunday)
+//                    if (weeklyOffDays.Contains(date.DayOfWeek))
 //                    {
 //                        days.Add(new AdminAttendanceDayDto
 //                        {
@@ -1370,15 +1398,15 @@
 //                .AsNoTracking()
 //                .ToListAsync();
 
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(emp.Employee_Id);
 //            var result = new List<object>();
 
 //            for (int i = 0; i < 7; i++)
 //            {
 //                var date = monday.AddDays(i);
 
-//                // Weekend
-//                if (date.DayOfWeek == DayOfWeek.Saturday ||
-//                    date.DayOfWeek == DayOfWeek.Sunday)
+//                // Team-specific weekly off
+//                if (weeklyOffDays.Contains(date.DayOfWeek))
 //                {
 //                    result.Add(new
 //                    {
@@ -1540,6 +1568,7 @@
 //    .AsNoTracking()
 //    .ToListAsync();
 
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(emp.Employee_Id);
 //            var result = new List<object>();
 
 
@@ -1547,8 +1576,8 @@
 //            {
 //                var date = monday.AddDays(i);
 
-//                // ✅ Weekend
-//                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+//                // Team-specific weekly off
+//                if (weeklyOffDays.Contains(date.DayOfWeek))
 //                {
 //                    result.Add(new
 //                    {
@@ -1656,6 +1685,7 @@
 
 //            var tomorrow = today.Date.AddDays(1);
 //            var employeeId = emp.Employee_Id;
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(employeeId);
 
 //            var attendances = await _context.Attendance
 
@@ -1698,7 +1728,7 @@
 
 //                // ✅ Weekend check
 
-//                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+//                if (weeklyOffDays.Contains(date.DayOfWeek))
 
 //                {
 
@@ -1825,6 +1855,7 @@
 //            var lastMonthStart = new DateTime(lastMonthEnd.Year, lastMonthEnd.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
 //            var employeeId = emp.Employee_Id;
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(employeeId);
 
 //            var attendances = await _context.Attendance
 //                .Where(a => a.Employee_Id == employeeId &&
@@ -1864,7 +1895,7 @@
 //                );
 
 //                // ✅ Weekend
-//                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+//                if (weeklyOffDays.Contains(date.DayOfWeek))
 //                {
 //                    result.Add(new
 //                    {
@@ -2142,6 +2173,7 @@
 //                return new UnauthorizedObjectResult("Invalid user");
 
 //            var employeeId = emp.Employee_Id;
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(employeeId);
 
 //            var daysInMonth = DateTime.DaysInMonth(year, month);
 //            var monthStart = new DateTime(
@@ -2189,7 +2221,7 @@
 //);
 
 //                // ✅ WEEKEND
-//                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+//                if (weeklyOffDays.Contains(date.DayOfWeek))
 //                {
 //                    result.Add(new
 //                    {
@@ -2382,9 +2414,9 @@
 //            if (date.Date > DateTime.UtcNow.Date)
 //                return new BadRequestObjectResult("Cannot mark future attendance");
 
-//            // Weekend validation
-//            if (date.DayOfWeek == DayOfWeek.Saturday ||
-//                date.DayOfWeek == DayOfWeek.Sunday)
+//            // Team-specific weekly off validation
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(employeeId);
+//            if (weeklyOffDays.Contains(date.DayOfWeek))
 //            {
 //                return new BadRequestObjectResult(
 //                    "Weekend attendance cannot be updated");
@@ -2502,6 +2534,7 @@
 //     int year,
 //     DateTime? calculationFromDate = null)
 //        {
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(employeeId);
 //            // ==========================================
 //            // MONTH RANGE
 //            // ==========================================
@@ -2639,8 +2672,7 @@
 //                // WEEKEND
 //                // ==========================================
 
-//                if (date.DayOfWeek == DayOfWeek.Saturday ||
-//                    date.DayOfWeek == DayOfWeek.Sunday)
+//                if (weeklyOffDays.Contains(date.DayOfWeek))
 //                {
 //                    weekendDays++;
 //                    continue;
@@ -3854,6 +3886,7 @@
 
 //            foreach (var emp in employees)
 //            {
+//                var weeklyOffDays = await GetWeeklyOffDaysAsync(emp.Employee_Id);
 //                int presentCount = 0;
 //                int absentCount = 0;
 //                int leaveCount = 0;
@@ -3870,8 +3903,7 @@
 
 //                    string status;
 
-//                    if (date.DayOfWeek == DayOfWeek.Saturday ||
-//                        date.DayOfWeek == DayOfWeek.Sunday)
+//                    if (weeklyOffDays.Contains(date.DayOfWeek))
 //                    {
 //                        status = "W";
 //                    }
@@ -4482,11 +4514,11 @@
 //            int halfDay = 0;
 //            int leave = 0;
 //            int workingDays = 0;
+//            var weeklyOffDays = await GetWeeklyOffDaysAsync(emp.Employee_Id);
 
 //            for (var date = monthStart.Date; date <= today; date = date.AddDays(1))
 //            {
-//                if (date.DayOfWeek == DayOfWeek.Saturday ||
-//                    date.DayOfWeek == DayOfWeek.Sunday)
+//                if (weeklyOffDays.Contains(date.DayOfWeek))
 //                    continue;
 
 //                if (holidays.Contains(date))
@@ -5224,6 +5256,7 @@
 //}
 
 
+
 using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
@@ -5374,11 +5407,22 @@ namespace EmployeeManagementSystem.Services
 
         private async Task<HashSet<DayOfWeek>> GetWeeklyOffDaysAsync(string employeeId)
         {
-            var configuredDays = await _context.TeamMembers
+            var memberSchedule = await _context.TeamMembers
                 .Where(tm => tm.EmployeeId == employeeId && tm.Team != null && tm.Team.IsActive)
                 .OrderBy(tm => tm.Id)
-                .Select(tm => tm.Team!.WeeklyOffDays)
+                .Select(tm => new
+                {
+                    tm.Team!.WeeklyOffDays,
+                    CustomWeeklyOffDays = tm.TeamMemberOverride != null && tm.TeamMemberOverride.CustomWeeklyOffDays,
+                    OverrideWeeklyOffDays = tm.TeamMemberOverride != null
+                        ? tm.TeamMemberOverride.OverrideWeeklyOffDays
+                        : null
+                })
                 .FirstOrDefaultAsync();
+
+            var configuredDays = memberSchedule?.CustomWeeklyOffDays == true
+                ? memberSchedule.OverrideWeeklyOffDays
+                : memberSchedule?.WeeklyOffDays;
 
             if (string.IsNullOrWhiteSpace(configuredDays))
                 return new HashSet<DayOfWeek> { DayOfWeek.Saturday, DayOfWeek.Sunday };
@@ -7033,7 +7077,8 @@ employeeInfo.Email ?? "",
 
                 result.Add(new
                 {
-                    Day = day,
+                    Day = date.DayOfWeek.ToString(),
+                    Date = date.ToString("dd MMM yyyy"),
                     Status = date.Date > DateTime.UtcNow.Date
     ? "-"
     : (att != null
@@ -7187,7 +7232,8 @@ employeeInfo.Email ?? "",
 
                 result.Add(new
                 {
-                    Day = day,
+                    Day = date.DayOfWeek.ToString(),
+                    Date = date.ToString("dd MMM yyyy"),
                     Status = date.Date > DateTime.UtcNow.Date
     ? "-"
     : (att != null

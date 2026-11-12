@@ -31,6 +31,11 @@ import {
 
 /* eslint-disable react-hooks/exhaustive-deps */
 
+const isWeeklyOffStatus = (status) =>
+  ["weeklyoff", "weeklyoffday"].includes(
+    String(status ?? "").trim().toLowerCase().replace(/[\s_-]/g, "")
+  );
+
 function UserAttendance() {
   const today = new Date();
   // --- NEW STATES FOR LOCATION REASON POPUP ---
@@ -42,6 +47,7 @@ function UserAttendance() {
 
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkedOut, setCheckedOut] = useState(false);
+  const [weeklyOffToday, setWeeklyOffToday] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkOutLoading, setCheckOutLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -221,6 +227,7 @@ function UserAttendance() {
       todayRow.checkOut &&
       todayRow.checkOut !== "--";
 
+      setWeeklyOffToday(isWeeklyOffStatus(todayRow.status));
       setCheckedIn(!!hasCheckIn);
       setCheckedOut(!!hasCheckOut);
 
@@ -242,6 +249,7 @@ function UserAttendance() {
 
     } else {
 
+      setWeeklyOffToday(false);
       setCheckedIn(false);
       setCheckedOut(false);
 
@@ -355,6 +363,11 @@ function UserAttendance() {
 
   const handleCheckIn = async () => {
 
+    if (weeklyOffToday) {
+      toastWarning("Today is your Weekly Off Day. Attendance actions are unavailable.");
+      return;
+    }
+
     if (checkedIn) {
       toastWarning("Already checked in");
       return;
@@ -393,6 +406,11 @@ function UserAttendance() {
 
   // --- HANDLE CHECKOUT WITH RELIABLE GEOLOCATION ---
   const handleCheckOut = async () => {
+    if (weeklyOffToday) {
+      toastWarning("Today is your Weekly Off Day. Attendance actions are unavailable.");
+      return;
+    }
+
     setCheckOutLoading(true);
 
     const payload = await resolveAccurateLocation();
@@ -437,6 +455,11 @@ function UserAttendance() {
 
   // --- NEW FUNCTION TO SUBMIT REASON AND COMPLETE CHECKOUT ---
   const submitCheckoutReason = async () => {
+    if (weeklyOffToday) {
+      toastWarning("Today is your Weekly Off Day. Attendance actions are unavailable.");
+      return;
+    }
+
     if (reasonSubmitting) {
       return;
     }
@@ -494,6 +517,7 @@ function UserAttendance() {
     if (["halfday", "hd"].includes(value)) return "halfday";
     if (["onleave", "ol"].includes(value)) return "leave";
     if (["weekend", "w"].includes(value)) return "weekend";
+    if (["weeklyoff", "weeklyoffday"].includes(value.replace(/[\s_-]/g, ""))) return "weekly-off";
     if (["lossofpay", "lop"].includes(value)) return "lop";
     if (["missedcheckout", "mc"].includes(value)) return "missed-checkout";
     if (["late&missedcheckout", "lmc"].includes(value)) return "late-missed";
@@ -645,6 +669,7 @@ function UserAttendance() {
               }}
               disabled={
               checkedIn ||
+              weeklyOffToday ||
               checkInLoading ||
               checkOutLoading
               }>
@@ -673,6 +698,7 @@ function UserAttendance() {
               }}
               disabled={
               !checkedIn ||
+              weeklyOffToday ||
               checkedOut ||
               checkInLoading ||
               checkOutLoading
@@ -693,6 +719,12 @@ function UserAttendance() {
 
 
           </div>
+
+          {weeklyOffToday &&
+          <p className="attendance-weekly-off-message" role="status">
+            Today is your Weekly Off Day. Attendance actions are unavailable.
+          </p>
+          }
 
 
 

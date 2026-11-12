@@ -19,6 +19,43 @@
 //{
 //    public class TeamService : ITeamService
 //    {
+//        private static readonly string[] ValidWeekDays =
+//            { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+
+//        private static List<string> NormalizeWeeklyOffDays(IEnumerable<string>? days)
+//        {
+//            if (days == null)
+//                return new List<string> { "Saturday", "Sunday" };
+
+//            return days
+//                .Where(x => !string.IsNullOrWhiteSpace(x))
+//                .Select(x => ValidWeekDays.FirstOrDefault(d =>
+//                    d.Equals(x.Trim(), StringComparison.OrdinalIgnoreCase)))
+//                .Where(x => x != null)
+//                .Distinct(StringComparer.OrdinalIgnoreCase)
+//                .Cast<string>()
+//                .ToList();
+//        }
+
+//        private static bool HasValidWeeklyOffDays(IEnumerable<string>? days)
+//        {
+//            if (days == null)
+//                return true;
+
+//            var values = days.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+//            return values.Count >= 1 &&
+//                   values.Count <= 6 &&
+//                   values.All(x => ValidWeekDays.Any(d =>
+//                       d.Equals(x.Trim(), StringComparison.OrdinalIgnoreCase)));
+//        }
+
+//        private static List<string> ParseWeeklyOffDays(string? days)
+//        {
+//            if (string.IsNullOrWhiteSpace(days))
+//                return new List<string> { "Saturday", "Sunday" };
+
+//            return NormalizeWeeklyOffDays(days.Split(',', StringSplitOptions.RemoveEmptyEntries));
+//        }
 //        private readonly AppDbContext _context;
 //        private readonly IAdminNotificationService _notificationService;
 //        private readonly IHttpContextAccessor _httpContextAccessor;
@@ -38,6 +75,9 @@
 
 //        public async Task<IActionResult> CreateTeam(CreateTeamDto dto)
 //        {
+//            if (!HasValidWeeklyOffDays(dto.WeeklyOffDays))
+//                return new BadRequestObjectResult("Select between 1 and 6 valid weekly off days.");
+
 //            // ==========================================
 //            // 1. VALIDATE TEAM NUMBER
 //            // ==========================================
@@ -117,6 +157,7 @@
 //                EngagementType = dto.EngagementType,
 //                ProjectId = dto.ProjectId,
 //                ShiftId = dto.ShiftId,            // <--- ADD THIS
+//                WeeklyOffDays = string.Join(",", NormalizeWeeklyOffDays(dto.WeeklyOffDays)),
 //                IsActive = true,
 //                CreatedAt = DateTime.Now
 //            };
@@ -359,6 +400,7 @@
 //                    EngagementType = x.EngagementType,
 //                    ShiftId = x.ShiftId,
 //                    ShiftName = x.Shift?.ShiftName,
+//                    WeeklyOffDays = ParseWeeklyOffDays(x.WeeklyOffDays),
 
 //                    EmployeeNames = x.Members
 //                        .Where(m => m.Employee != null)
@@ -593,6 +635,7 @@
 //                EngagementType = team.EngagementType,
 //                ShiftId = team.ShiftId,
 //                ShiftName = team.Shift?.ShiftName,
+//                WeeklyOffDays = ParseWeeklyOffDays(team.WeeklyOffDays),
 //                ReportingDays = activeTeamDays,
 
 //                Members = (team.Members ?? new List<TeamMember>()).Select(x =>
@@ -676,6 +719,9 @@
 //        }
 //        public async Task<IActionResult> UpdateTeam(UpdateTeamDto dto)
 //        {
+//            if (!HasValidWeeklyOffDays(dto.WeeklyOffDays))
+//                return new BadRequestObjectResult("Select between 1 and 6 valid weekly off days.");
+
 //            var team = await _context.Teams
 //            .FirstOrDefaultAsync(x => x.Id == dto.TeamId);
 
@@ -713,6 +759,8 @@
 //            // Assigns Team Shift (all members without explicit overrides inherit this)
 //            // =========================================================================
 //            team.ShiftId = dto.ShiftId.HasValue && dto.ShiftId.Value > 0 ? dto.ShiftId : null;
+//            if (dto.WeeklyOffDays != null)
+//                team.WeeklyOffDays = string.Join(",", NormalizeWeeklyOffDays(dto.WeeklyOffDays));
 
 //            // Update Reporting Days
 //            var oldDays = await _context.TeamReportingDays
@@ -1004,6 +1052,30 @@
 //                managers
 //            });
 //        }
+//        public async Task<IActionResult> UpdateTeamWeeklyOff(UpdateTeamWeeklyOffDto dto)
+//        {
+//            var team = await _context.Teams
+//                .FirstOrDefaultAsync(x => x.Id == dto.TeamId);
+
+//            if (team == null)
+//                return new NotFoundObjectResult("Team not found.");
+
+//            if (!HasValidWeeklyOffDays(dto.WeeklyOffDays))
+//                return new BadRequestObjectResult("Select between 1 and 6 valid weekly off days.");
+
+//            var requestedDays = NormalizeWeeklyOffDays(dto.WeeklyOffDays);
+
+//            team.WeeklyOffDays = string.Join(",", requestedDays);
+//            await _context.SaveChangesAsync();
+
+//            return new OkObjectResult(new
+//            {
+//                Message = "Team weekly off days updated successfully.",
+//                TeamId = team.Id,
+//                WeeklyOffDays = requestedDays
+//            });
+//        }
+
 //        public async Task<IActionResult> UpdateReportingDays(UpdateReportingDaysDto dto)
 //        {
 //            Console.WriteLine($"Received TeamId: {dto.TeamId}");
@@ -1474,6 +1546,7 @@
 //                teamShiftId = team.ShiftId,
 //                teamShiftName = team.Shift?.ShiftName,
 //                reportingDays = effectiveReportingDays,
+//                weeklyOffDays = ParseWeeklyOffDays(team.WeeklyOffDays),
 //                members = memberDtos
 //            });
 //        }
@@ -1986,6 +2059,8 @@
 //        }
 //    }
 //}
+
+
 using Aspose.Words.XAttr;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Spreadsheet;
@@ -2689,6 +2764,10 @@ namespace EmployeeManagementSystem.Services
                         EmployeeName = x.Employee?.Name ?? "",
                         Email = x.Employee?.Email ?? "",
                         CustomReportingDays = memberOverride?.CustomReportingDays ?? false,
+                        CustomWeeklyOffDays = memberOverride?.CustomWeeklyOffDays ?? false,
+                        OverrideWeeklyOffDays = string.IsNullOrWhiteSpace(memberOverride?.OverrideWeeklyOffDays)
+                            ? new List<string>()
+                            : ParseWeeklyOffDays(memberOverride.OverrideWeeklyOffDays),
                         OverrideProjectId = memberOverride?.OverrideProjectId,
                         OverrideProjectName = memberOverride?.OverrideProject?.Project_Name ?? "",
                         CustomShift = hasExplicitCustomShift,
@@ -3469,6 +3548,10 @@ namespace EmployeeManagementSystem.Services
                     overrideShiftName = hasExplicitCustomShift ? effectiveName : null,
                     crossTeam = mo?.DifferentProject ?? false,
                     customReportingDays = mo?.CustomReportingDays ?? false,
+                    customWeeklyOffDays = mo?.CustomWeeklyOffDays ?? false,
+                    overrideWeeklyOffDays = string.IsNullOrWhiteSpace(mo?.OverrideWeeklyOffDays)
+                        ? new List<string>()
+                        : ParseWeeklyOffDays(mo.OverrideWeeklyOffDays),
                     overrideWfoDays = shortDays,
                     overrideWfhDays = memberWfhDays
                 };
@@ -3919,6 +4002,9 @@ namespace EmployeeManagementSystem.Services
         {
             try
             {
+                if (dto.CustomWeeklyOffDays && (dto.WeeklyOffDays == null || !HasValidWeeklyOffDays(dto.WeeklyOffDays)))
+                    return new BadRequestObjectResult("Select between 1 and 6 valid weekly off days.");
+
                 TeamMember? member = null;
 
                 // 1. First try TeamMemberId
@@ -3979,6 +4065,10 @@ namespace EmployeeManagementSystem.Services
                 overrideData.OverrideProjectId = dto.OverrideProjectId;
                 overrideData.DifferentProject = dto.DifferentProject;
                 overrideData.CustomReportingDays = dto.CustomReportingDays;
+                overrideData.CustomWeeklyOffDays = dto.CustomWeeklyOffDays;
+                overrideData.OverrideWeeklyOffDays = dto.CustomWeeklyOffDays
+                    ? string.Join(",", NormalizeWeeklyOffDays(dto.WeeklyOffDays))
+                    : null;
 
                 // =========================================================================
                 // KEY FIX: ASSIGN VS UNASSIGN LOGIC

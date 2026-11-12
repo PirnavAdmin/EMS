@@ -15,5 +15,7 @@
         public bool CustomReportingDays { get; set; }
         public bool IsCrossMapped { get; set; }
         public List<string>? ReportingDays { get; set; }
+        public bool CustomWeeklyOffDays { get; set; }
+        public List<string>? WeeklyOffDays { get; set; }
     }
 }

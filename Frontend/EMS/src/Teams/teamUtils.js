@@ -1,5 +1,5 @@
 import { TEAM_DAY_OPTIONS, TEAM_REPORTING_DAY_OPTIONS } from "./teamsData";
-import { getWeeklyOffDays } from "./weeklyOffDays";
+import { getWeeklyOffDays, normalizeWeeklyOffDays } from "./weeklyOffDays";
 
 const DISPLAY_DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DISPLAY_DAYS_BY_UTC_INDEX = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -811,6 +811,13 @@ const normalizeMemberOverride = (override = {}) => {
     record.reportingDays
   );
   const overrideWfhDays = normalizeReportingDaysForUi(record.overrideWfhDays);
+  const overrideWeeklyOffDays = normalizeWeeklyOffDays(
+    record.overrideWeeklyOffDays ??
+      record.OverrideWeeklyOffDays ??
+      record.weeklyOffDays ??
+      record.WeeklyOffDays ??
+      []
+  );
 
   return {
     id: toNumberId(record.id),
@@ -832,6 +839,11 @@ const normalizeMemberOverride = (override = {}) => {
         record.customReportingDaysEnabled ??
         record.isCustomReportingDays
     ),
+    customWeeklyOffDays:
+      record.customWeeklyOffDays ??
+      record.CustomWeeklyOffDays ??
+      record.isCustomWeeklyOffDays ??
+      record.IsCustomWeeklyOffDays,
     overrideProjectId: toNumberId(
       record.overrideProjectId ??
         record.overrideProjectID ??
@@ -845,6 +857,7 @@ const normalizeMemberOverride = (override = {}) => {
     reportingDays: overrideReportingDays,
     overrideReportingDays,
     overrideWfoDays: overrideReportingDays,
+    overrideWeeklyOffDays,
     overrideWfhDays:
       overrideWfhDays.length > 0
         ? overrideWfhDays
@@ -888,7 +901,13 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
   }
 
   const employee = normalizeEmployeeRecord(record.employee ?? record.Employee ?? {});
-  const override = normalizeMemberOverride(record.teamMemberOverride ?? record.override ?? {});
+  const override = normalizeMemberOverride(
+    record.teamMemberOverride ??
+      record.TeamMemberOverride ??
+      record.override ??
+      record.Override ??
+      {}
+  );
   const memberShiftRecord =
     record.shiftOverride ??
     override?.raw?.shiftOverride ??
@@ -923,6 +942,33 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
     record.wfoDays,
     record.reportingDays
   );
+  const teamWeeklyOffDays = normalizeWeeklyOffDays(
+    teamContext.weeklyOffDays ??
+      record.team?.weeklyOffDays ??
+      record.team?.WeeklyOffDays ??
+      []
+  );
+  const customWeeklyOffDays = Boolean(
+    override?.customWeeklyOffDays ??
+      record.CustomWeeklyOffDays ??
+      record.customWeeklyOffDays ??
+      record.IsCustomWeeklyOffDays ??
+      record.isCustomWeeklyOffDays
+  );
+  const overrideWeeklyOffDays = normalizeWeeklyOffDays(
+    override?.raw?.overrideWeeklyOffDays ??
+      override?.raw?.OverrideWeeklyOffDays ??
+      override?.raw?.weeklyOffDays ??
+      override?.raw?.WeeklyOffDays ??
+      record.OverrideWeeklyOffDays ??
+      record.overrideWeeklyOffDays ??
+      record.WeeklyOffDays ??
+      record.weeklyOffDays ??
+      []
+  );
+  const effectiveWeeklyOffDays = customWeeklyOffDays
+    ? overrideWeeklyOffDays
+    : teamWeeklyOffDays;
   const teamProjectId = toNumberId(teamContext.projectId);
   const resolvedProjectId = toNumberId(
     override?.overrideProjectId ??
@@ -1046,6 +1092,10 @@ export const normalizeTeamMemberRecord = (member = {}, teamContext = {}) => {
       employee?.engagementType
     ),
     reportingDays: effectiveReportingDays,
+    weeklyOffDays: effectiveWeeklyOffDays,
+    baseWeeklyOffDays: teamWeeklyOffDays,
+    overrideWeeklyOffDays: customWeeklyOffDays ? overrideWeeklyOffDays : [],
+    customWeeklyOffDays,
     wfoDays: effectiveReportingDays,
     wfhDays: getComplementDays(effectiveReportingDays),
     baseReportingDays: teamReportingDays,
@@ -1145,6 +1195,7 @@ export const normalizeTeamRecord = (team = {}) => {
       record.reporting_days ??
       []
   );
+  const weeklyOffDays = getWeeklyOffDays(record);
   const shift = normalizeShift(
     record.shift ?? record.teamShift ?? record.assignedShift ?? record.defaultShift ?? record
   );
@@ -1163,6 +1214,7 @@ export const normalizeTeamRecord = (team = {}) => {
         projectId: project?.projectId,
         projectName: project?.projectName,
         reportingDays,
+        weeklyOffDays,
         shift,
         engagementType: firstNonEmpty(record.engagementType, project?.status)
       })
@@ -1213,7 +1265,7 @@ export const normalizeTeamRecord = (team = {}) => {
     memberCount,
     membersCount: memberCount,
     reportingDays,
-    weeklyOffDays: getWeeklyOffDays(record),
+    weeklyOffDays,
     reportingDayRecords: normalizeCollection(record.reportingDays),
     shift,
     shiftId: shift?.shiftId ?? null,
@@ -1470,5 +1522,9 @@ export const buildMemberOverridePayload = (teamId, member = {}, form = {}) => ({
   isCrossMapped: Boolean(form.differentProject),
   reportingDays: form.customReportingDays
     ? normalizeReportingDaysForApi(form.reportingDays)
+    : [],
+  customWeeklyOffDays: Boolean(form.customWeeklyOffDays),
+  weeklyOffDays: form.customWeeklyOffDays
+    ? normalizeWeeklyOffDays(form.weeklyOffDays)
     : []
 });

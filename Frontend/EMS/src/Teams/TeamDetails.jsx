@@ -56,6 +56,7 @@ import {
 } from "../utils/authorization";
 import { getAuthenticatedUserSnapshot, getStoredAuthValue, getStoredEmployeeId, getStoredUserId } from "../utils/authStorage";
 import { TEAM_DAY_OPTIONS, TEAM_REPORTING_DAY_OPTIONS } from "./teamsData";
+import { normalizeWeeklyOffDays } from "./weeklyOffDays";
 import {
   buildMemberOverridePayload,
   buildAddMembersPayload,
@@ -1184,6 +1185,7 @@ function TeamDetails({ mode = "management" }) {
       }
       const selectedProjectId = toNumberId(form.projectId);
       const selectedReportingDays = normalizeReportingDays(form.reportingDays);
+      const selectedWeeklyOffDays = normalizeWeeklyOffDays(form.weeklyOffDays);
       const returnedProjectId = toNumberId(
         refreshedMember.overrideProjectId ?? refreshedMember.projectId
       );
@@ -1193,6 +1195,11 @@ function TeamDetails({ mode = "management" }) {
           : refreshedMember.wfoDays
       );
       const returnedCustomDaysFlag = refreshedMember.customReportingDays === true;
+      const returnedCustomWeeklyOffDaysFlag =
+        refreshedMember.customWeeklyOffDays === true;
+      const returnedWeeklyOffDays = normalizeWeeklyOffDays(
+        refreshedMember.overrideWeeklyOffDays
+      );
 
       if (form.differentProject) {
         if (selectedProjectId == null) {
@@ -1219,15 +1226,32 @@ function TeamDetails({ mode = "management" }) {
         }
       }
 
+      if (returnedCustomWeeklyOffDaysFlag !== Boolean(form.customWeeklyOffDays)) {
+        mismatches.push("custom weekly off days flag");
+      }
+
+      if (
+        form.customWeeklyOffDays &&
+        JSON.stringify(returnedWeeklyOffDays) !== JSON.stringify(selectedWeeklyOffDays)
+      ) {
+        mismatches.push("custom weekly off days");
+      }
+
       logOverrideDebug("RETURNED CUSTOM DAYS:", returnedReportingDays);
       logOverrideDebug("RETURNED FLAG:", returnedCustomDaysFlag);
+      logOverrideDebug("RETURNED CUSTOM WEEKLY OFF DAYS:", returnedWeeklyOffDays);
+      logOverrideDebug("RETURNED CUSTOM WEEKLY OFF FLAG:", returnedCustomWeeklyOffDaysFlag);
       logOverrideDebug("OVERRIDE COMPARISON:", {
         sentProjectId: selectedProjectId,
         returnedProjectId,
         sentCustomDays: selectedReportingDays,
         returnedCustomDays: returnedReportingDays,
+        sentCustomWeeklyOffDays: selectedWeeklyOffDays,
+        returnedCustomWeeklyOffDays: returnedWeeklyOffDays,
         sentFlag: Boolean(form.customReportingDays),
         returnedFlag: returnedCustomDaysFlag,
+        sentCustomWeeklyOffFlag: Boolean(form.customWeeklyOffDays),
+        returnedCustomWeeklyOffFlag: returnedCustomWeeklyOffDaysFlag,
         sentEmployeeId: payload.employeeId,
         returnedEmployeeId: refreshedMember.employeeId,
         returnedUserId: refreshedMember.userId
