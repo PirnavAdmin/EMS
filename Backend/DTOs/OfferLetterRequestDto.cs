@@ -30,6 +30,19 @@
 
         public DateTime Joining_Date { get; set; }
 
+        // Generated Date for Offer Letter (same functionality as Relieving Letter) //varsha
+        public DateTime? GeneratedDate { get; set; } //varsha
+        public DateTime? Generated_Date { get; set; } //varsha
+
+        public DateTime GetEffectiveGeneratedDate() //varsha
+        { //varsha
+            if (GeneratedDate.HasValue && GeneratedDate.Value != default) //varsha
+                return GeneratedDate.Value; //varsha
+            if (Generated_Date.HasValue && Generated_Date.Value != default) //varsha
+                return Generated_Date.Value; //varsha
+            return DateTime.Now; //varsha
+        } //varsha
+
         // NEW
         //public string? ReportingManager { get; set; }
 

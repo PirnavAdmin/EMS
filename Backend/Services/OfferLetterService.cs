@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml; //varsha
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
@@ -39,7 +40,7 @@ namespace EmployeeManagementSystem.Services
          OfferLetterRequestDto dto)
         {
             var template = await _templateService.GetActiveTemplateAsync(
-               
+
                 "OFFER");
 
             if (template == null)
@@ -74,8 +75,9 @@ namespace EmployeeManagementSystem.Services
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
 
+            var generatedDate = dto.GetEffectiveGeneratedDate(); //varsha
             var fileName =
-                $"OfferLetter_{dto.Candidate_Name}_{DateTime.Now:yyyyMMddHHmmss}.docx";
+                $"OfferLetter_{dto.Candidate_Name}_{generatedDate:yyyyMMddHHmmss}.docx"; //varsha
 
             var outputPath = Path.Combine(
                 outputFolder,
@@ -352,7 +354,7 @@ namespace EmployeeManagementSystem.Services
             using (WordprocessingDocument wordDoc =
                 WordprocessingDocument.Open(outputPath, true))
             {
-                ReplaceOrdinalDateBookmark(wordDoc, "Date", DateTime.Now);
+                ReplaceOrdinalDateBookmark(wordDoc, "Date", generatedDate); //varsha
                 ReplaceBookmark(wordDoc, "CandidateName", candidateFullName);
                 ReplaceBookmark(wordDoc, "Address", dto.Address);
                 ReplaceOrdinalDateBookmark(wordDoc, "JoiningDate", dto.Joining_Date);
@@ -500,7 +502,7 @@ namespace EmployeeManagementSystem.Services
                 Position = dto.Position,
                 Joining_Date = dto.Joining_Date,
                 CTC_Annual = dto.CTC_Annual,
-                Generated_On = DateTime.UtcNow,
+                Generated_On = generatedDate, //varsha
                 File_Path = pdfPath,
                 PreviewPath = pdfPath,
                 Status = "Draft",
@@ -519,8 +521,8 @@ namespace EmployeeManagementSystem.Services
                 OfferLetterId = offerLetter.Id,
                 PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}"
             };
-        
-          
+
+
         }
 
 
@@ -750,22 +752,35 @@ namespace EmployeeManagementSystem.Services
     string bookmarkName,
     DateTime date)
         {
-            var bookmark = doc.MainDocumentPart.RootElement
+            var bookmark = doc.MainDocumentPart?.RootElement //varsha
                 .Descendants<BookmarkStart>()
                 .FirstOrDefault(b => b.Name == bookmarkName);
 
             if (bookmark == null)
                 return;
 
-            var run = bookmark.NextSibling<Run>();
+            RunProperties? runProperties = null; //varsha
 
-            if (run == null)
-                return;
+            // Remove all old date content and preserve its formatting //varsha
+            OpenXmlElement? current = bookmark.NextSibling(); //varsha
 
-            var runProperties =
-                run.RunProperties?.CloneNode(true) as RunProperties;
+            while (current != null && current is not BookmarkEnd) //varsha
+            {
+                var next = current.NextSibling(); //varsha
 
-            run.RemoveAllChildren<Text>();
+                if (current is Run oldRun && //varsha
+                    oldRun.RunProperties != null && //varsha
+                    runProperties == null) //varsha
+                {
+                    runProperties = //varsha
+                        oldRun.RunProperties.CloneNode(true) //varsha
+                        as RunProperties; //varsha
+                }
+
+                current.Remove(); //varsha
+
+                current = next; //varsha
+            }
 
             int day = date.Day;
 
@@ -781,50 +796,55 @@ namespace EmployeeManagementSystem.Services
                 }
             };
 
-            // Day
-            var dayRun = new Run();
+            // Day //varsha
+            var dayRun = new Run(); //varsha
 
-            if (runProperties != null)
-                dayRun.Append(runProperties.CloneNode(true));
+            if (runProperties != null) //varsha
+                dayRun.Append(runProperties.CloneNode(true)); //varsha
 
-            dayRun.Append(new Text(day.ToString()));
+            dayRun.Append(new Text(day.ToString()) //varsha
+            { //varsha
+                Space = SpaceProcessingModeValues.Preserve //varsha
+            }); //varsha
 
-            // Superscript suffix
-            var suffixRun = new Run();
+            // Superscript suffix //varsha
+            var suffixRun = new Run(); //varsha
 
-            if (runProperties != null)
-                suffixRun.Append(runProperties.CloneNode(true));
+            var suffixProperties = //varsha
+                runProperties?.CloneNode(true) as RunProperties //varsha
+                ?? new RunProperties(); //varsha
 
-            var suffixProperties =
-                suffixRun.GetFirstChild<RunProperties>();
+            suffixProperties.VerticalTextAlignment = new VerticalTextAlignment //varsha
+            { //varsha
+                Val = VerticalPositionValues.Superscript //varsha
+            }; //varsha
 
-            if (suffixProperties == null)
-            {
-                suffixProperties = new RunProperties();
-                suffixRun.PrependChild(suffixProperties);
-            }
+            suffixRun.Append(suffixProperties); //varsha
 
-            suffixProperties.VerticalTextAlignment =
-      new VerticalTextAlignment
-      {
-          Val = VerticalPositionValues.Superscript
-      };
+            suffixRun.Append(new Text(suffix) //varsha
+            { //varsha
+                Space = SpaceProcessingModeValues.Preserve //varsha
+            }); //varsha
 
-            suffixRun.Append(new Text(suffix));
+            // Month + Year //varsha
+            var restRun = new Run(); //varsha
 
-            // Month + Year
-            var restRun = new Run();
+            if (runProperties != null) //varsha
+                restRun.Append(runProperties.CloneNode(true)); //varsha
 
-            if (runProperties != null)
-                restRun.Append(runProperties.CloneNode(true));
+            string monthYear = bookmarkName.Equals("DateOfJoining", StringComparison.OrdinalIgnoreCase) //varsha
+                ? $" {date:MMM yyyy} " //varsha
+                : $" {date:MMM yyyy}"; //varsha
 
-            restRun.Append(new Text($" {date:MMM yyyy}"));
+            restRun.Append(new Text(monthYear) //varsha
+            { //varsha
+                Space = SpaceProcessingModeValues.Preserve //varsha
+            }); //varsha
 
-            run.InsertBeforeSelf(dayRun);
-            run.InsertBeforeSelf(suffixRun);
-            run.InsertBeforeSelf(restRun);
-
-            run.Remove();
+            // Insert new date runs in order //varsha
+            bookmark.Parent?.InsertAfter(dayRun, bookmark); //varsha
+            bookmark.Parent?.InsertAfter(suffixRun, dayRun); //varsha
+            bookmark.Parent?.InsertAfter(restRun, suffixRun); //varsha
         }
         private void ReplaceBookmark(
       WordprocessingDocument doc,

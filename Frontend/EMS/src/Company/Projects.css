@@ -267,6 +267,11 @@
   color: var(--theme-info-strong);
 }
 
+.projects-status.live-support {
+  background: var(--surface-info-soft);
+  color: var(--theme-info-strong);
+}
+
 .projects-status.completed {
   background: var(--surface-success-soft);
   color: var(--success);

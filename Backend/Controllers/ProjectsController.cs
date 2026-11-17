@@ -318,7 +318,27 @@ public class ProjectsController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok("Project deleted successfully.");
-    }   // ========================= EXPORT =========================
+    }
+
+    // ========================= STATUSES =========================
+    // //varsha: Endpoint to get available project statuses including "After Live Support"
+    [HttpGet("statuses")]
+    public IActionResult GetStatuses()
+    {
+        var statuses = new List<string>
+        {
+            "Yet to Start",
+            "In Progress",
+            "Active",
+            "On Hold",
+            "Completed",
+            "After Live Support"
+        };
+
+        return Ok(statuses);
+    }
+
+    // ========================= EXPORT =========================
 
     //[Permission(ModuleIds.Projects, PermissionAction.View)]
     [HttpGet("export")]

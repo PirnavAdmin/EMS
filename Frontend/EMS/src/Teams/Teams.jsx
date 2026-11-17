@@ -491,20 +491,6 @@ const enrichTeamMemberCount = async (team, signal) => {
   }
 };
 
-const getNextTeamNumber = (teams = []) => {
-  const highestNumber = teams.reduce((max, team) => {
-    const match = String(team.teamNumber || "").match(/(\d+)/);
-
-    if (!match) {
-      return max;
-    }
-
-    return Math.max(max, Number.parseInt(match[1], 10) || max);
-  }, 0);
-
-  return `TM-${String(highestNumber + 1 || 1).padStart(2, "0")}`;
-};
-
 function Teams() {
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
@@ -605,8 +591,6 @@ function Teams() {
     const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
     return filteredTeams.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredTeams, safeCurrentPage]);
-
-  const nextTeamNumber = useMemo(() => getNextTeamNumber(teams), [teams]);
 
   const handleCreateTeam = async (payload) => {
     const requestPayload = buildCreateTeamPayload(payload);
@@ -882,7 +866,6 @@ function Teams() {
       <AddTeamModal
         key={isAddTeamOpen ? "open" : "closed"}
         open={isAddTeamOpen}
-        defaultTeamNumber={nextTeamNumber}
         onClose={() => setIsAddTeamOpen(false)}
         onCreate={handleCreateTeam}
         onOpenExistingTeam={(teamId) => {

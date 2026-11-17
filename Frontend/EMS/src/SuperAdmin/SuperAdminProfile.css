@@ -1,0 +1,113 @@
+.super-admin-profile-page {
+  gap: 22px;
+}
+
+.super-admin-profile-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.super-admin-profile-heading h1 {
+  margin: 4px 0 6px;
+  color: var(--text-strong);
+  font-size: clamp(24px, 3vw, 32px);
+}
+
+.super-admin-profile-heading p,
+.super-admin-profile-card__identity p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.super-admin-profile-eyebrow {
+  color: var(--theme-primary-strong, #087fae);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.super-admin-profile-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--card-bg, #fff);
+  color: var(--text-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.super-admin-profile-card {
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: var(--card-bg, #fff);
+  box-shadow: 0 12px 32px rgb(25 54 75 / 7%);
+}
+
+.super-admin-profile-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 26px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-page, #f7fbfd);
+}
+
+.super-admin-profile-card__identity > svg {
+  width: 54px;
+  height: 54px;
+  color: var(--theme-primary-strong, #087fae);
+}
+
+.super-admin-profile-card__identity h2 {
+  margin: 0 0 5px;
+  color: var(--text-strong);
+  font-size: 21px;
+}
+
+.super-admin-profile-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: var(--border-soft);
+}
+
+.super-admin-profile-details > div {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 20px 26px;
+  background: var(--card-bg, #fff);
+}
+
+.super-admin-profile-details dt {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.super-admin-profile-details dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .super-admin-profile-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .super-admin-profile-details {
+    grid-template-columns: 1fr;
+  }
+}

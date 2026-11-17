@@ -34,7 +34,8 @@ namespace EmployeeManagementSystem.Services
             if (!Directory.Exists(outputFolder))
                 Directory.CreateDirectory(outputFolder);
 
-            var fileName = $"OfferLetter_{dto.Candidate_Name}_{DateTime.Now:yyyyMMddHHmmss}.docx";
+            var generatedDate = dto.GetEffectiveGeneratedDate(); //varsha
+            var fileName = $"OfferLetter_{dto.Candidate_Name}_{generatedDate:yyyyMMddHHmmss}.docx"; //varsha
             var outputPath = Path.Combine(outputFolder, fileName);
 
             File.Copy(templatePath, outputPath, true);
@@ -87,7 +88,7 @@ namespace EmployeeManagementSystem.Services
             {
                 var joiningDate = dto.Joining_Date.ToString("dd MMM yyyy");
 
-                ReplaceBookmark(wordDoc, "Date", DateTime.Now.ToString("dd MMM yyyy"));
+                ReplaceBookmark(wordDoc, "Date", generatedDate.ToString("dd MMM yyyy")); //varsha
                 ReplaceBookmark(wordDoc, "CandidateName", dto.Candidate_Name);
                 ReplaceBookmark(wordDoc, "Address", dto.Address); // ✅ multi-line supported
                 ReplaceBookmark(wordDoc, "JoiningDate", joiningDate);
@@ -183,7 +184,7 @@ namespace EmployeeManagementSystem.Services
                 Position = dto.Position,
                 Joining_Date = dto.Joining_Date,
                 CTC_Annual = dto.CTC_Annual,
-                Generated_On = DateTime.UtcNow,
+                Generated_On = generatedDate, //varsha
                 File_Path = pdfPath
             };
 
@@ -304,7 +305,7 @@ namespace EmployeeManagementSystem.Services
             if (bookmarkName == "Address")
             {
                 var rawLines = text
-                    .Replace("\r", "")  
+                    .Replace("\r", "")
                     .Split(new[] { ',', '\n' });
 
                 var lines = rawLines

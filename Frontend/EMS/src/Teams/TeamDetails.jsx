@@ -412,6 +412,7 @@ function TeamDetails({ mode = "management" }) {
           });
 
         let normalizedTeam = normalizeTeamRecord(res.data);
+        const myTeamRecord = isMyTeamMode ? normalizedTeam : null;
         let requestedRosterDate = "";
         if (isMyTeamMode && normalizedTeam?.teamId != null) {
           requestedRosterDate = getWeekDateValue(selectedRosterWeekRef.current);
@@ -426,10 +427,21 @@ function TeamDetails({ mode = "management" }) {
           ) {
             return null;
           }
-          normalizedTeam = normalizeTeamResponse(weekResponse.data);
-          if (!normalizedTeam) {
+          const weeklyTeam = normalizeTeamResponse(weekResponse.data);
+          if (!weeklyTeam) {
             throw new Error("The selected week's team details response was empty.");
           }
+          normalizedTeam = {
+            ...weeklyTeam,
+            teamNumber: weeklyTeam.teamNumber || myTeamRecord.teamNumber,
+            teamName: weeklyTeam.teamName || myTeamRecord.teamName,
+            projectId: weeklyTeam.projectId || myTeamRecord.projectId,
+            projectName: weeklyTeam.projectName || myTeamRecord.projectName,
+            engagementType: weeklyTeam.engagementType || myTeamRecord.engagementType,
+            reportingManagerId: weeklyTeam.reportingManagerId || myTeamRecord.reportingManagerId,
+            reportingManagerName: weeklyTeam.reportingManagerName || myTeamRecord.reportingManagerName,
+            reportingManager: weeklyTeam.reportingManager || myTeamRecord.reportingManager
+          };
         }
 
         setTeam(normalizedTeam);
@@ -552,10 +564,18 @@ function TeamDetails({ mode = "management" }) {
       });
       if (requestId !== rosterRequestId.current) return null;
 
-      const normalizedTeam = normalizeTeamResponse(response.data);
-      if (!normalizedTeam) {
+      const weeklyTeam = normalizeTeamResponse(response.data);
+      if (!weeklyTeam) {
         throw new Error("The team details response was empty.");
       }
+
+      const normalizedTeam = isMyTeamMode
+        ? {
+          ...weeklyTeam,
+          teamNumber: weeklyTeam.teamNumber || team?.teamNumber,
+          teamName: weeklyTeam.teamName || team?.teamName
+        }
+        : weeklyTeam;
 
       setTeam(normalizedTeam);
       setDraftReportingDays([...normalizedTeam.reportingDays]);
@@ -575,7 +595,7 @@ function TeamDetails({ mode = "management" }) {
         rosterRequestController.current = null;
       }
     }
-  }, [isMyTeamMode, team?.teamId, teamId]);
+  }, [isMyTeamMode, team?.teamId, team?.teamName, team?.teamNumber, teamId]);
 
   const loadReportingSchedule = useCallback(async (timelineValue) => {
     const requestId = reportingScheduleRequestId.current + 1;
@@ -1287,7 +1307,7 @@ function TeamDetails({ mode = "management" }) {
       await updateTeam(
         buildUpdateTeamPayload({
           teamId: team.teamId,
-          teamNumber: team.teamNumber,
+          teamNumber: form.teamNumber,
           teamName: form.teamName,
           projectId: form.projectId ?? team.projectId,
           reportingManagerId: form.reportingManagerId ?? team.reportingManagerId,

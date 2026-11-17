@@ -44,6 +44,7 @@ import { sortByNewestIdFirst } from "../utils/collections";
 import {
   formatDate,
   getInputDateValue,
+  parseDate,
   toIsoDateString
 } from "../utils/date";
 import { extractDownloadFileName } from "../utils/downloadUtils";
@@ -107,6 +108,18 @@ const getEmployeeName = (employee) => {
 const formatDisplayValue = (value) => {
   const normalizedValue = String(value ?? "").trim();
   return normalizedValue || "-";
+};
+
+const formatOfferLetterGeneratedDate = (value) => {
+  const date = parseDate(value);
+
+  return date ?
+    date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    }) :
+    "-";
 };
 
 const getEmployeeDropdownName = (employee) =>
@@ -356,6 +369,7 @@ function OfferLetters() {
     email: "",
     address: "",
     position: "",
+    generated_On: getTodayDate(),
     joining_Date: "",
     ctc_Annual: "",
     monthlyCTC: "",
@@ -456,6 +470,7 @@ function OfferLetters() {
     email: useRef(null),
     address: useRef(null),
     position: useRef(null),
+    generated_On: useRef(null),
     joining_Date: useRef(null),
     ctc_Annual: useRef(null),
     basic: useRef(null),
@@ -1081,6 +1096,14 @@ HR Team`
       return false;
     }
 
+    if (!formData.generated_On) {
+      newErrors.generated_On = "Offer letter generated date is required";
+
+      setErrors(newErrors);
+      scrollToField("generated_On");
+      return false;
+    }
+
     // Joining Date
     if (!formData.joining_Date) {
       newErrors.joining_Date =
@@ -1172,6 +1195,8 @@ HR Team`
 
         position: formData.position.trim(),
 
+        Generated_On: formData.generated_On,
+
         joining_Date: formData.joining_Date,
 
         ctc_Annual: Number(
@@ -1228,6 +1253,8 @@ HR Team`
         address: "",
 
         position: "",
+
+        generated_On: getTodayDate(),
 
         joining_Date: "",
 
@@ -2437,6 +2464,30 @@ HR Team`
                 }
               </div>
 
+              {/* Offer Letter Generated Date */}
+              <div className="form-group full-width" ref={fieldRefs.generated_On}>
+                <label>
+                  <FaCalendarAlt /> Offer Letter Generated Date
+                </label>
+
+                <AppDatePicker
+                  name="generated_On"
+                  value={formData.generated_On}
+                  onChange={handleChange} />
+
+                {errors.generated_On &&
+                  <p
+                    style={{
+                      color: "red",
+                      fontSize: "12px",
+                      marginTop: "3px",
+                      minHeight: "16px"
+                    }}>
+                    {errors.generated_On}
+                  </p>
+                }
+              </div>
+
               {/* Joining Date */}
               <div className="form-group full-width" ref={fieldRefs.joining_Date}>
                 <label>
@@ -2781,6 +2832,10 @@ HR Team`
                       <FaBriefcase /> Position
                     </th>
 
+                    <th>
+                      <FaCalendarAlt /> Generated Date
+                    </th>
+
                     <th className="offer-actions-cell offer-actions-header">
                       <span className="offer-actions-header-content">
                         <FaFileAlt aria-hidden="true" />
@@ -2820,6 +2875,12 @@ HR Team`
 
                           <td>{item.email}</td>
                           <td>{item.position}</td>
+                          <td>
+                            {formatOfferLetterGeneratedDate(
+                              item.generated_On ||
+                              item.Generated_On
+                            )}
+                          </td>
 
                           <td className="offer-actions-cell">
                             <div className="offer-actions-wrapper">
@@ -2888,7 +2949,7 @@ HR Team`
                     }) :
 
                     <tr>
-                      <td colSpan="5" style={{ textAlign: "center" }}>
+                      <td colSpan="6" style={{ textAlign: "center" }}>
                         No offer letters found
                       </td>
                     </tr>

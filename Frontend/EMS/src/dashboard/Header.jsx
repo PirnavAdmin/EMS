@@ -177,7 +177,7 @@ function Header({
 
   const handleProfileClick = () => {
     setOpenProfile(false);
-    navigate("/add-employee");
+    navigate(isSuperAdminUser ? "/super-admin/profile" : "/add-employee");
   };
 
   const handleChangePassword = () => {

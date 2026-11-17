@@ -980,6 +980,7 @@ const DemoRequests = lazyRoute("demo-requests", () => import("./SuperAdmin/DemoR
 // const Billing = lazyRoute("billing", () => import("./SuperAdmin/Billing"));
 // const SuperAdminSettings = lazyRoute("super-admin-settings", () => import("./SuperAdmin/SuperAdminSettings"));
 const SuperAdminSearch = lazyRoute("super-admin-search", () => import("./SuperAdmin/SuperAdminSearch"));
+const SuperAdminProfile = lazyRoute("super-admin-profile", () => import("./SuperAdmin/SuperAdminProfile"));
 // const Support = lazyRoute("support", () => import("./SuperAdmin/Support"));
 const SuperAdminPermissions = lazyRoute("super-admin-permissions", () => import("./SuperAdmin/SuperAdminPermissions"));
 
@@ -1209,6 +1210,15 @@ function App() {
                 <PermissionRoute module="Dashboard">
                   <Dashboard />
                 </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/super-admin/profile"
+              element={
+                <RoleRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+                  <SuperAdminProfile />
+                </RoleRoute>
               }
             />
 

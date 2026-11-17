@@ -12,6 +12,7 @@ import {
 } from "./teamUtils";
 
 const createInitialForm = (team = {}) => ({
+  teamNumber: team.teamNumber || "",
   teamName: team.teamName || "",
   projectId: team.projectId || "",
   reportingManagerId: team.reportingManagerId || "",
@@ -175,6 +176,13 @@ function EditTeamModal({
     );
   }, [form.projectId, visibleProjects]);
 
+  const isCurrentTeamProject = Boolean(
+    selectedProject &&
+    (String(selectedProject.teamId ?? "") === String(team?.teamId ?? "") ||
+      String(selectedProject.teamNumber ?? "").trim().toUpperCase() ===
+        String(team?.teamNumber ?? "").trim().toUpperCase())
+  );
+
   const toggleWeeklyOffDay = (day) => {
     setForm((current) => ({
       ...current,
@@ -187,6 +195,14 @@ function EditTeamModal({
   if (!open) {
     return null;
   }
+
+  const handleSave = () => {
+    const teamNumber = form.teamNumber.trim().toUpperCase();
+    if (!teamNumber) {
+      return;
+    }
+    onSave({ ...form, teamNumber });
+  };
 
   return (
     <div className="team-modal-overlay">
@@ -203,6 +219,22 @@ function EditTeamModal({
         </div>
 
         <div className="team-modal-body">
+          <div className="team-form-field">
+            <label htmlFor="edit-team-number">Team Number</label>
+            <input
+              id="edit-team-number"
+              className="team-form-input"
+              value={form.teamNumber}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  teamNumber: event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+                })
+              }
+              placeholder="Enter team number"
+            />
+          </div>
+
           <div className="team-form-field">
             <label>Team Name</label>
             <input
@@ -248,9 +280,11 @@ function EditTeamModal({
               <div className="team-project-summary is-available">
                 <strong>{selectedProject.projectName}</strong>
                 <span>
-                  {selectedProject.teamExists
-                    ? `Team ${selectedProject.teamNumber || selectedProject.teamId || ""} already exists`
-                    : "No team exists yet for this project"}
+                  {isCurrentTeamProject
+                    ? `Team ${form.teamNumber || ""} (current team)`
+                    : selectedProject.teamExists
+                      ? `Team ${selectedProject.teamNumber || selectedProject.teamId || ""} already exists`
+                      : "No team exists yet for this project"}
                 </span>
               </div>
             ) : null}
@@ -359,9 +393,9 @@ function EditTeamModal({
 
           <button
             className="team-action-btn"
-            onClick={() => onSave(form)}
+            onClick={handleSave}
             type="button"
-            disabled={saving || weeklyOffLoading || Boolean(weeklyOffLookupError)}
+            disabled={saving || weeklyOffLoading || Boolean(weeklyOffLookupError) || !form.teamNumber.trim()}
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>

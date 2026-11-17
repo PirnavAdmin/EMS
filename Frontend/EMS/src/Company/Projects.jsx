@@ -17,7 +17,8 @@ const PROJECT_STATUSES = [
 "In Progress",
 "Completed",
 "On Hold",
-"Go Live"];
+"Go Live",
+"Live Project Support"];
 
 const ROLES = [
 "Frontend",
@@ -309,6 +310,7 @@ const mapProjectValidationErrors = (errors = {}) => {
 const getStatusClassName = (status) => {
   const normalized = String(status).toLowerCase();
   if (normalized.includes("progress")) return "progress";
+  if (normalized.includes("live project support")) return "live-support";
   if (normalized.includes("completed")) return "completed";
   if (normalized.includes("hold")) return "hold";
   return "planned";

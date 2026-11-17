@@ -67,6 +67,10 @@ namespace EmployeeManagementSystem.Controllers
                     x.Email,
                     x.Position,
                     x.Department,
+                    GeneratedDate = x.Generated_On, //varsha
+                    Generated_On = x.Generated_On, //varsha
+                    Joining_Date = x.Joining_Date, //varsha
+                    x.Status, //varsha
                     DownloadUrl = $"{Request.Scheme}://{Request.Host}/api/OfferLetter/download/{x.Id}"
                 })
                 .ToListAsync();

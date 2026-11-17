@@ -64,8 +64,8 @@ const getProjectEmployees = (project) => {
     .filter(Boolean);
 };
 
-const createInitialForm = (defaultTeamNumber = "") => ({
-  teamNumber: defaultTeamNumber,
+const createInitialForm = () => ({
+  teamNumber: "",
   teamName: "",
   reportingManagerId: "",
   engagementType: "Project",
@@ -86,10 +86,9 @@ function AddTeamModal({
   onClose,
   onCreate,
   onOpenExistingTeam,
-  defaultTeamNumber = "TM-04",
   saving = false
 }) {
-  const [form, setForm] = useState(createInitialForm(defaultTeamNumber));
+  const [form, setForm] = useState(createInitialForm());
   const [errors, setErrors] = useState({});
   const [employees, setEmployees] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -272,7 +271,7 @@ function AddTeamModal({
       controller.abort();
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [defaultTeamNumber, onClose, open]);
+  }, [onClose, open]);
 
   useEffect(() => {
     if (!open) {
@@ -468,7 +467,7 @@ function AddTeamModal({
     });
 
     if (createdTeam) {
-      setForm(createInitialForm(defaultTeamNumber));
+      setForm(createInitialForm());
       setErrors({});
       setMembersOpen(false);
       onClose?.();
