@@ -92,33 +92,10 @@ appsettings.*.local.json
  
 # =========================
 
-# ASP.NET Generated Files
-
-# =========================
-
-wwwroot/uploads/
-
-wwwroot/GeneratedPayslips/
-
-wwwroot/GeneratedLetters/
  
 # =========================
 
-# EMS Generated Documents
 
-# =========================
-
-GeneratedPayslips/
-
-GeneratedLetters/
-
-GeneratedOffers/
-
-GeneratedAgreements/
-
-Uploads/
-
-uploads/
  
 # =========================
 
