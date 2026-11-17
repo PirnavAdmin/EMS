@@ -1,340 +1,1135 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace EmployeeManagementSystem.Services
 {
-    public class ExperienceOfferLetterService : IOfferLetterService
+    public class ExperienceLetterService : IExperienceLetterService
     {
         private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _environment;
         private readonly IEmailService _emailService;
 
-        public ExperienceOfferLetterService(AppDbContext context, IEmailService emailService)
+        public ExperienceLetterService(
+            AppDbContext context,
+            IWebHostEnvironment environment,
+            IEmailService emailService)
         {
             _context = context;
+            _environment = environment;
             _emailService = emailService;
         }
 
-        public async Task<OfferLetterResponseDto> GenerateAsync(OfferLetterRequestDto dto)
+
+        // =========================================
+        // GENERATE EXPERIENCE LETTER
+        // =========================================
+
+        public async Task<object> GenerateExperienceLetterAsync(
+     ExperienceLetterRequestDto dto)
         {
+            // =====================================
+            // VALIDATION
+            // =====================================
+
+            // FIRST CHECK DTO
+            if (dto == null)
+            {
+                throw new ArgumentNullException(
+                    nameof(dto),
+                    "Request body is required.");
+            }
+
+            // THEN CHECK EMPLOYEE ID
+            if (string.IsNullOrWhiteSpace(dto.EmployeeId))
+            {
+                throw new Exception(
+                    "Employee ID is required.");
+            }
+
+            // CHECK END DATE
+            if (dto.EndDate == default)
+            {
+                throw new Exception(
+                    "End Date is required.");
+            }
+
+
+
+
+
+            // =====================================
+            // EMPLOYEE
+            // =====================================
+
+            var employee = await _context.Employees
+                    .FirstOrDefaultAsync(
+                        x => x.Employee_Id == dto.EmployeeId);
+
+            if (employee == null)
+            {
+                throw new Exception(
+                    "Employee not found.");
+            }
+
+
+            // =====================================
+            // PERSONAL INFO
+            // =====================================
+
+            var personalInfo =
+                await _context.EmployeePersonalInfos
+                    .FirstOrDefaultAsync(
+                        x => x.Employee_Id ==
+                             dto.EmployeeId);
+
+            if (personalInfo == null)
+            {
+                throw new Exception(
+                    "Employee Personal Info not found.");
+            }
+
+            if (!personalInfo.JoiningDate.HasValue)
+            {
+                throw new Exception(
+                    "Employee Joining Date not found.");
+            }
+
+
+            // =====================================
+            // START / END DATE
+            // =====================================
+
+            DateTime startDate =
+                personalInfo.JoiningDate.Value;
+
+            DateTime endDate =
+                dto.EndDate;
+
+            if (endDate < startDate)
+            {
+                throw new Exception(
+                    "End Date cannot be before Joining Date.");
+            }
+
+
+            // =====================================
+            // EMPLOYEE FULL NAME
+            // =====================================
+
+            string employeeName =
+     employee.Name;
+
+            string employeeFullName =
+                $"{dto.Title} {employee.Name}".Trim();
+
+
+            // =====================================
+            // DESIGNATION
+            // =====================================
+
+            string designation =
+                !string.IsNullOrWhiteSpace(
+                    dto.Designation)
+                    ? dto.Designation
+                    : personalInfo.Designation ?? "-";
+
+
+            // =====================================
+            // DEPARTMENT
+            // =====================================
+
+            string department =
+                !string.IsNullOrWhiteSpace(
+                    dto.Department)
+                    ? dto.Department
+                    : "-";
+
+
+            // =====================================
+            // EMPLOYMENT TENURE
+            // =====================================
+
+            string employmentTenure =
+                CalculateEmploymentTenure(
+                    startDate,
+                    endDate);
+
+
+            // =====================================
+            // FORMATTED DATES
+            // =====================================
+
+            // =====================================
+            // FLEXIBLE GENERATED DATE
+            // =====================================
+
+            DateTime generatedDate = dto.GeneratedDate.HasValue
+                ? dto.GeneratedDate.Value.Date
+                : DateTime.UtcNow.AddHours(5.5).Date;
+
+            string generationDate =
+                generatedDate.ToString("dd MMMM yyyy");
+
+            string formattedStartDate =
+                startDate.ToString(
+                    "dd/MM/yyyy");
+
+            string formattedEndDate =
+                endDate.ToString(
+                    "dd/MM/yyyy");
+
+
+            // =====================================
+            // REFERENCE NUMBER
+            // =====================================
+
+            string serialNo =
+                DateTime.Now.ToString(
+                    "yyyyMMddHHmmss");
+
+
+            // =====================================
+            // SIGNATORY
+            // =====================================
+
+            string authorizedSignatory =
+                string.IsNullOrWhiteSpace(
+                    dto.AuthorizedSignatory)
+                    ? "-"
+                    : dto.AuthorizedSignatory;
+
+            string authorizedSignatoryDesignation =
+                string.IsNullOrWhiteSpace(
+                    dto.AuthorizedSignatoryDesignation)
+                    ? "Head of Human Resources"
+                    : dto.AuthorizedSignatoryDesignation;
+
+
+            // =====================================
+            // TEMPLATE
+            // =====================================
+
             var templatePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "Templates",
-                "ExperienceOfferLetterTemplate.docx");
+                "Experience_Letter_All_Bookmarks.docx");
+
+            if (!File.Exists(templatePath))
+            {
+                throw new Exception(
+                    $"Experience Letter template not found: " +
+                    $"{templatePath}");
+            }
+
+
+            // =====================================
+            // OUTPUT FOLDER
+            // =====================================
 
             var outputFolder = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "GeneratedLetters");
+                _environment.WebRootPath,
+                "ExperienceLetters",
+                dto.EmployeeId);
 
             if (!Directory.Exists(outputFolder))
-                Directory.CreateDirectory(outputFolder);
+            {
+                Directory.CreateDirectory(
+                    outputFolder);
+            }
 
-            var generatedDate = dto.GetEffectiveGeneratedDate(); //varsha
-            var fileName = $"OfferLetter_{dto.Candidate_Name}_{generatedDate:yyyyMMddHHmmss}.docx"; //varsha
-            var outputPath = Path.Combine(outputFolder, fileName);
 
-            File.Copy(templatePath, outputPath, true);
+            // =====================================
+            // CREATE DOCX
+            // =====================================
 
-            // =============================
-            // Salary Calculations
-            // =============================
+            var fileName =
+                $"ExperienceLetter_{dto.EmployeeId}_" +
+                $"{DateTime.Now:yyyyMMddHHmmss}.docx";
 
-            decimal annualCTC = dto.CTC_Annual;
-            decimal monthlyCTC = annualCTC / 12;
+            var outputPath =
+                Path.Combine(
+                    outputFolder,
+                    fileName);
 
-            decimal basic = Math.Round(monthlyCTC * 0.40m, 2);
-            decimal basicYearly = basic * 12;
+            File.Copy(
+                templatePath,
+                outputPath,
+                true);
 
-            decimal hra = Math.Round(basic * 0.40m, 2);
-            decimal hraYearly = hra * 12;
 
-            decimal conveyance = 1600;
-            decimal conveyanceYearly = conveyance * 12;
-
-            decimal medicalAllowance = 1250;
-            decimal medicalAllowanceYearly = medicalAllowance * 12;
-
-            decimal employerPfMonthly = Math.Round(basic * 0.12m, 2);
-            decimal employerPfAnnual = employerPfMonthly * 12;
-
-            decimal gross = monthlyCTC - employerPfMonthly;
-            decimal grossYearly = gross * 12;
-
-            decimal otherAllowance = Math.Round(
-                gross - (basic + hra + conveyance + medicalAllowance), 2);
-
-            decimal otherAllowanceYearly = otherAllowance * 12;
-
-            decimal providentfundMonthly = employerPfMonthly;
-            decimal providentfundAnnual = providentfundMonthly * 12;
-
-            decimal professionaltaxMonthly = 200;
-            decimal professionaltaxAnnual = professionaltaxMonthly * 12;
-
-            decimal netMonthly = gross - (providentfundMonthly + professionaltaxMonthly);
-            decimal netAnnual = netMonthly * 12;
-
-            // =============================
-            // Replace Bookmarks
-            // =============================
+            // =====================================
+            // REPLACE ALL 18 BOOKMARKS
+            // =====================================
 
             using (WordprocessingDocument wordDoc =
-                WordprocessingDocument.Open(outputPath, true))
+                WordprocessingDocument.Open(
+                    outputPath,
+                    true))
             {
-                var joiningDate = dto.Joining_Date.ToString("dd MMM yyyy");
+                // -------------------------------
+                // DATE
+                // -------------------------------
 
-                ReplaceBookmark(wordDoc, "Date", generatedDate.ToString("dd MMM yyyy")); //varsha
-                ReplaceBookmark(wordDoc, "CandidateName", dto.Candidate_Name);
-                ReplaceBookmark(wordDoc, "Address", dto.Address); // ✅ multi-line supported
-                ReplaceBookmark(wordDoc, "JoiningDate", joiningDate);
-                ReplaceBookmark(wordDoc, "DateOfJoining", joiningDate);
-                ReplaceBookmark(wordDoc, "Position", dto.Position);
+                ReplaceBookmark(
+                    wordDoc,
+                    "GenerationDate",
+                    generationDate);
 
-                ReplaceBookmark(wordDoc, "CTCAnnual",
-                   annualCTC.ToString("N0", new CultureInfo("en-IN")) + "/-");
 
-                ReplaceBookmark(wordDoc, "MonthlySalary",
-                    monthlyCTC.ToString("N0", new CultureInfo("en-IN")) + "/-");
+                // -------------------------------
+                // SERIAL NUMBER
+                // -------------------------------
 
-                ReplaceBookmark(wordDoc, "Basic", basic.ToString("F0"));
-                ReplaceBookmark(wordDoc, "BasicYearly", basicYearly.ToString("F0"));
+                ReplaceBookmark(
+                    wordDoc,
+                    "SerialNo",
+                    serialNo);
 
-                ReplaceBookmark(wordDoc, "HRA", hra.ToString("F0"));
-                ReplaceBookmark(wordDoc, "HRAYearly", hraYearly.ToString("F0"));
 
-                ReplaceBookmark(wordDoc, "Conveyance", conveyance.ToString("F0"));
-                ReplaceBookmark(wordDoc, "ConveyanceYearly", conveyanceYearly.ToString("F0"));
+                // -------------------------------
+                // EMPLOYEE NAME
+                // Appears 3 times
+                // -------------------------------
 
-                ReplaceBookmark(wordDoc, "MedicalAllowance", medicalAllowance.ToString("F0"));
-                ReplaceBookmark(wordDoc, "MedicalAllowanceYearly", medicalAllowanceYearly.ToString("F0"));
+                ReplaceBookmark(
+     wordDoc,
+     "EmployeeName",
+     employeeName);
 
-                ReplaceBookmark(wordDoc, "OtherAllowance", otherAllowance.ToString("F0"));
-                ReplaceBookmark(wordDoc, "OtherAllowanceYearly", otherAllowanceYearly.ToString("F0"));
+                ReplaceBookmark(
+                    wordDoc,
+                    "EmployeeName2",
+                    employeeName);
 
-                ReplaceBookmark(wordDoc, "Gross", gross.ToString("F0"));
-                ReplaceBookmark(wordDoc, "GrossYearly", grossYearly.ToString("F0"));
+                ReplaceBookmark(
+                    wordDoc,
+                    "EmployeeName3",
+                    employeeName);
 
-                ReplaceBookmark(wordDoc, "Gross1", gross.ToString("F0"));
-                ReplaceBookmark(wordDoc, "GrossYearly1", grossYearly.ToString("F0"));
 
-                ReplaceBookmark(wordDoc, "ProfessionalTax", professionaltaxMonthly.ToString("F0"));
-                ReplaceBookmark(wordDoc, "ProfessionalTaxYearly", professionaltaxAnnual.ToString("F0"));
+                // -------------------------------
+                // EMPLOYEE ID
+                // Appears 2 times
+                // -------------------------------
 
-                ReplaceBookmark(wordDoc, "ProvidentFund", providentfundMonthly.ToString("F0"));
-                ReplaceBookmark(wordDoc, "ProvidentFundYearly", providentfundAnnual.ToString("F0"));
+                ReplaceBookmark(
+                    wordDoc,
+                    "EmployeeId",
+                    employee.Employee_Id);
 
-                ReplaceBookmark(wordDoc, "NetTakeHome", netMonthly.ToString("F0"));
-                ReplaceBookmark(wordDoc, "NetTakeHomeYearly", netAnnual.ToString("F0"));
+                ReplaceBookmark(
+                    wordDoc,
+                    "EmployeeId2",
+                    employee.Employee_Id);
 
-                ReplaceBookmark(wordDoc, "ProvidentFund1", employerPfMonthly.ToString("F0"));
-                ReplaceBookmark(wordDoc, "ProvidentFund1Yearly", employerPfAnnual.ToString("F0"));
 
-                ReplaceBookmark(wordDoc, "MonthlyCTC", monthlyCTC.ToString("F0"));
-                ReplaceBookmark(wordDoc, "CTCAnnual1", annualCTC.ToString("F0"));
+                // -------------------------------
+                // EMPLOYMENT TENURE
+                // -------------------------------
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "EmploymentTenure",
+                    employmentTenure);
+
+
+                // -------------------------------
+                // START DATE
+                // Appears 2 times
+                // -------------------------------
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "StartDate",
+                    formattedStartDate);
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "StartDate2",
+                    formattedStartDate);
+
+
+                // -------------------------------
+                // END DATE
+                // Appears 2 times
+                // -------------------------------
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "EndDate",
+                    formattedEndDate);
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "EndDate2",
+                    formattedEndDate);
+
+
+                // -------------------------------
+                // DESIGNATION
+                // Appears 2 times
+                // -------------------------------
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "Designation",
+                    designation);
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "Designation2",
+                    designation);
+
+
+                // -------------------------------
+                // DEPARTMENT
+                // Appears 2 times
+                // -------------------------------
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "Department",
+                    department);
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "Department2",
+                    department);
+
+
+                // -------------------------------
+                // AUTHORIZED SIGNATORY
+                // -------------------------------
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "AuthorizedSignatory",
+                    authorizedSignatory);
+
+                ReplaceBookmark(
+                    wordDoc,
+                    "AuthorizedSignatoryDesignation",
+                    authorizedSignatoryDesignation);
             }
 
-            // =============================
-            // Convert DOCX to PDF
-            // =============================
 
-            var pdfPath = outputPath.Replace(".docx", ".pdf");
+            // =====================================
+            // CONVERT DOCX -> PDF
+            // =====================================
 
-            var process = new System.Diagnostics.Process();
+            var pdfPath =
+                Path.ChangeExtension(
+                    outputPath,
+                    ".pdf");
+
+            var process =
+                new Process();
+
+            var sofficePath =
+                RuntimeInformation.IsOSPlatform(
+                    OSPlatform.Windows)
+                    ? @"C:\Program Files\LibreOffice\program\soffice.exe"
+                    : "/usr/bin/soffice";
+
             process.StartInfo.FileName =
-                @"C:\Program Files\LibreOffice\program\soffice.exe";
+                sofficePath;
 
             process.StartInfo.Arguments =
-                $"--headless --convert-to pdf \"{outputPath}\" --outdir \"{outputFolder}\"";
+                $"--headless " +
+                $"--nologo " +
+                $"--nofirststartwizard " +
+                $"--convert-to pdf " +
+                $"\"{outputPath}\" " +
+                $"--outdir \"{outputFolder}\"";
 
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.RedirectStandardOutput =
+                true;
+
+            process.StartInfo.RedirectStandardError =
+                true;
+
+            process.StartInfo.UseShellExecute =
+                false;
+
+            process.StartInfo.CreateNoWindow =
+                true;
 
             process.Start();
-            process.WaitForExit();
+
+            string output =
+                await process.StandardOutput
+                    .ReadToEndAsync();
+
+            string error =
+                await process.StandardError
+                    .ReadToEndAsync();
+
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                throw new Exception(
+                    $"LibreOffice failed." +
+                    $"\nOutput: {output}" +
+                    $"\nError: {error}");
+            }
+
+            if (!File.Exists(pdfPath))
+            {
+                throw new Exception(
+                    "Experience Letter PDF generation failed.");
+            }
+
+
+            // =====================================
+            // DELETE TEMP DOCX
+            // =====================================
 
             if (File.Exists(outputPath))
+            {
                 File.Delete(outputPath);
+            }
 
-            // =============================
-            // Send Email
-            // =============================
 
-            await _emailService.SendEmailWithAttachment(
-                dto.Email,
-                "Offer Letter - EMS",
-                "Dear Candidate,\n\nPlease find attached your offer letter.\n\nRegards,\nHR Team",
-                pdfPath);
+            // =====================================
+            // RELATIVE PDF PATH
+            // =====================================
 
-            // =============================
-            // Save Record
-            // =============================
+            var relativePdfPath =
+                Path.Combine(
+                    "ExperienceLetters",
+                    dto.EmployeeId,
+                    Path.GetFileName(pdfPath))
+                .Replace("\\", "/");
 
-            var offerLetter = new OfferLetter
+
+            // =====================================
+            // DATABASE
+            // =====================================
+
+            // =====================================
+            // SAVE EXPERIENCE LETTER TO DATABASE
+            // =====================================
+
+            var experienceLetter =
+                new ExperienceLetter
+                {
+                    EmployeeId =
+                        dto.EmployeeId,
+
+                    Title =
+                        dto.Title,
+
+                    Designation =
+                        designation,
+
+                    Department =
+                        department,
+
+                    StartDate =
+                        startDate,
+
+                    EndDate =
+                        endDate,
+
+                    EmploymentTenure =
+                        employmentTenure,
+
+                    SerialNo =
+                        serialNo,
+
+                    AuthorizedSignatory =
+                        authorizedSignatory,
+
+                    AuthorizedSignatoryDesignation =
+                        authorizedSignatoryDesignation,
+
+                    GeneratedDate = generatedDate,
+
+                    PdfPath =
+                        relativePdfPath,
+
+                    Status =
+                        "Draft",
+
+                    IsSent =
+                        false,
+
+                    SentOn =
+                        null,
+
+                    SentCount =
+                        0
+                };
+
+            _context.ExperienceLetters.Add(
+                experienceLetter);
+
+            await _context.SaveChangesAsync(); // =====================================
+                                               // RESPONSE
+                                               // =====================================
+
+            return new
             {
-                Candidate_Name = dto.Candidate_Name,
-                Email = dto.Email,
-                Address = dto.Address,
-                Position = dto.Position,
-                Joining_Date = dto.Joining_Date,
-                CTC_Annual = dto.CTC_Annual,
-                Generated_On = generatedDate, //varsha
-                File_Path = pdfPath
-            };
+                Message =
+            "Experience Letter Generated Successfully.",
 
-            _context.OfferLetters.Add(offerLetter);
-            await _context.SaveChangesAsync();
+                ExperienceLetterId =
+            experienceLetter.Id,
 
-            return new OfferLetterResponseDto
-            {
-                Success = true,
-                Message = "Offer letter generated and sent successfully."
+                EmployeeId =
+            experienceLetter.EmployeeId,
+
+                EmployeeName =
+            employeeFullName,
+
+                Title =
+            experienceLetter.Title,
+
+                Designation =
+            experienceLetter.Designation,
+
+                Department =
+            experienceLetter.Department,
+
+                StartDate =
+            experienceLetter.StartDate,
+
+                EndDate =
+            experienceLetter.EndDate,
+
+                EmploymentTenure =
+            experienceLetter.EmploymentTenure,
+
+                SerialNo =
+            experienceLetter.SerialNo,
+
+                AuthorizedSignatory =
+            experienceLetter.AuthorizedSignatory,
+
+                AuthorizedSignatoryDesignation =
+            experienceLetter.AuthorizedSignatoryDesignation,
+
+                GeneratedDate =
+            experienceLetter.GeneratedDate,
+
+                Status =
+            experienceLetter.Status
             };
         }
 
-        // =============================
-        // FIXED BOOKMARK METHOD
-        // =============================
-
-
-        public async Task<byte[]> PreviewOfferLetter(int id)
+        public async Task SendExperienceLetterAsync(
+    SendExperienceLetterDto dto)
         {
-            var letter = await _context.OfferLetters
-                .FirstOrDefaultAsync(x => x.Id == id);
+            // =====================================
+            // EXPERIENCE LETTER
+            // =====================================
+
+            var letter =
+                await _context.ExperienceLetters
+                    .FirstOrDefaultAsync(
+                        x => x.Id ==
+                             dto.ExperienceLetterId);
 
             if (letter == null)
-                throw new Exception("Experience Offer Letter not found.");
-
-            if (!System.IO.File.Exists(letter.File_Path))
-                throw new Exception("PDF not found.");
-
-            return await System.IO.File.ReadAllBytesAsync(letter.File_Path);
-        }
-        public async Task<OfferLetterSendStatusDto> GetSendStatusAsync(int id)
-        {
-            var letter = await _context.OfferLetters
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (letter == null)
-                throw new Exception("Offer Letter not found.");
-
-            return new OfferLetterSendStatusDto
             {
-                OfferLetterId = letter.Id,
-                CandidateName = letter.Candidate_Name,
-                Position = letter.Position,
-                IsSent = letter.IsSent,
-                SentCount = letter.SentCount,
-                SentOn = letter.SentOn,
-                Status = letter.Status
-            };
-        }
-        public async Task SendOfferLetterAsync(SendOfferLetterDto dto)
-        {
-            var letter = await _context.OfferLetters
-                .FirstOrDefaultAsync(x => x.Id == dto.OfferLetterId);
+                throw new Exception(
+                    "Experience Letter not found.");
+            }
 
-            if (letter == null)
-                throw new Exception("Offer Letter not found.");
 
-            if (string.IsNullOrWhiteSpace(letter.File_Path) || !File.Exists(letter.File_Path))
-                throw new Exception("Offer Letter PDF not found.");
+            // =====================================
+            // EMPLOYEE
+            // =====================================
 
-            await _emailService.SendEmailWithAttachment(
-                letter.Email,
-                dto.Subject,
-                dto.Body,
-                letter.File_Path);
+            var employee =
+                await _context.Employees
+                    .FirstOrDefaultAsync(
+                        x => x.Employee_Id ==
+                             letter.EmployeeId);
+
+            if (employee == null)
+            {
+                throw new Exception(
+                    "Employee not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(employee.Email))
+            {
+                throw new Exception(
+                    "Employee email not found.");
+            }
+
+
+            // =====================================
+            // PDF
+            // =====================================
+
+            if (string.IsNullOrWhiteSpace(
+                letter.PdfPath))
+            {
+                throw new Exception(
+                    "Experience Letter PDF path is empty.");
+            }
+
+            var fullPath =
+                Path.Combine(
+                    _environment.WebRootPath,
+                    letter.PdfPath.Replace(
+                        "/",
+                        Path.DirectorySeparatorChar
+                            .ToString()));
+
+            if (!File.Exists(fullPath))
+            {
+                throw new Exception(
+                    "Experience Letter PDF not found.");
+            }
+
+
+            // =====================================
+            // SEND EMAIL
+            // =====================================
+
+            await _emailService
+                .SendEmailWithAttachment(
+                    employee.Email,
+                    dto.Subject,
+                    dto.Body,
+                    fullPath);
+
+
+            // =====================================
+            // UPDATE SEND STATUS
+            // =====================================
 
             letter.Status = "Sent";
-            await _context.SaveChangesAsync();
-        }
 
+            letter.IsSent = true;
 
-        public async Task DeleteOfferLetterAsync(int id)
-        {
-            var offerLetter = await _context.OfferLetters
-                .FirstOrDefaultAsync(x => x.Id == id);
+            letter.SentOn = DateTime.UtcNow;
 
-            if (offerLetter == null)
-                throw new Exception("Experience Offer Letter not found.");
-
-            // Prevent deleting already sent letters (optional)
-            if (offerLetter.Status == "Sent")
-                throw new Exception("Sent Experience Offer Letter cannot be deleted.");
-
-            // Delete PDF
-            if (!string.IsNullOrWhiteSpace(offerLetter.File_Path) &&
-                File.Exists(offerLetter.File_Path))
-            {
-                File.Delete(offerLetter.File_Path);
-            }
-
-            // Delete DOCX (if stored)
-            if (!string.IsNullOrWhiteSpace(offerLetter.PreviewPath) &&
-                File.Exists(offerLetter.PreviewPath))
-            {
-                File.Delete(offerLetter.PreviewPath);
-            }
-
-            _context.OfferLetters.Remove(offerLetter);
+            letter.SentCount += 1;
 
             await _context.SaveChangesAsync();
         }
-        private void ReplaceBookmark(
-      WordprocessingDocument doc,
-      string bookmarkName,
-      string text)
+
+        public async Task<ExperienceLetterSendStatusDto>
+    GetSendStatusAsync(int id)
         {
-            var bookmark = doc.MainDocumentPart.RootElement
-                .Descendants<BookmarkStart>()
-                .FirstOrDefault(b => b.Name == bookmarkName);
+            var letter =
+                await _context.ExperienceLetters
+                    .FirstOrDefaultAsync(
+                        x => x.Id == id);
 
-            if (bookmark == null) return;
-
-            var run = bookmark.NextSibling<Run>();
-            if (run == null) return;
-
-            // 🔥 ADDRESS MULTI-LINE FIX
-            if (bookmarkName == "Address")
+            if (letter == null)
             {
-                var rawLines = text
-                    .Replace("\r", "")
-                    .Split(new[] { ',', '\n' });
+                throw new Exception(
+                    "Experience Letter not found.");
+            }
 
-                var lines = rawLines
-                    .Select(x => x.Trim())
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .ToList();
+            var employee =
+                await _context.Employees
+                    .FirstOrDefaultAsync(
+                        x => x.Employee_Id ==
+                             letter.EmployeeId);
 
-                run.RemoveAllChildren<Text>();
+            return new ExperienceLetterSendStatusDto
+            {
+                ExperienceLetterId =
+                    letter.Id,
 
-                for (int i = 0; i < lines.Count; i++)
+                EmployeeId =
+                    letter.EmployeeId,
+
+                EmployeeName =
+                    employee?.Name ?? "",
+
+                Designation =
+                    letter.Designation,
+
+                IsSent =
+                    letter.IsSent,
+
+                SentCount =
+                    letter.SentCount,
+
+                SentOn =
+                    letter.SentOn,
+
+                Status =
+                    letter.Status
+            };
+        }
+        // =========================================
+        // CALCULATE EMPLOYMENT TENURE
+        // =========================================
+
+
+        public async Task<ExperienceLetterDownloadDto?>
+    DownloadExperienceLetterAsync(int id)
+        {
+            var letter =
+                await _context.ExperienceLetters
+                    .FirstOrDefaultAsync(
+                        x => x.Id == id);
+
+            if (letter == null)
+                throw new Exception(
+                    "Experience Letter not found.");
+
+            if (string.IsNullOrWhiteSpace(
+                letter.PdfPath))
+            {
+                throw new Exception(
+                    "Experience Letter PDF path is empty.");
+            }
+
+            var fullPath =
+                Path.Combine(
+                    _environment.WebRootPath,
+                    letter.PdfPath.Replace(
+                        "/",
+                        Path.DirectorySeparatorChar
+                            .ToString()));
+
+            if (!File.Exists(fullPath))
+            {
+                throw new Exception(
+                    "Experience Letter PDF file not found.");
+            }
+
+            return new ExperienceLetterDownloadDto
+            {
+                FileBytes =
+                    await File.ReadAllBytesAsync(
+                        fullPath),
+
+                FileName =
+                    Path.GetFileName(fullPath)
+            };
+        }
+
+        public async Task<byte[]>
+    PreviewExperienceLetterAsync(int id)
+        {
+            var letter =
+                await _context.ExperienceLetters
+                    .FirstOrDefaultAsync(
+                        x => x.Id == id);
+
+            if (letter == null)
+            {
+                throw new Exception(
+                    "Experience Letter not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                letter.PdfPath))
+            {
+                throw new Exception(
+                    "Experience Letter PDF path is empty.");
+            }
+
+            var fullPath =
+                Path.Combine(
+                    _environment.WebRootPath,
+                    letter.PdfPath.Replace(
+                        "/",
+                        Path.DirectorySeparatorChar
+                            .ToString()));
+
+            if (!File.Exists(fullPath))
+            {
+                throw new Exception(
+                    "Experience Letter PDF not found.");
+            }
+
+            return await File.ReadAllBytesAsync(
+                fullPath);
+        }
+
+        public async Task DeleteExperienceLetterAsync(
+    int id)
+        {
+            var letter =
+                await _context.ExperienceLetters
+                    .FirstOrDefaultAsync(
+                        x => x.Id == id);
+
+            if (letter == null)
+            {
+                throw new Exception(
+                    "Experience Letter not found.");
+            }
+
+            if (letter.Status == "Sent")
+            {
+                throw new Exception(
+                    "Sent Experience Letter cannot be deleted.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(
+                letter.PdfPath))
+            {
+                var fullPath =
+                    Path.Combine(
+                        _environment.WebRootPath,
+                        letter.PdfPath.Replace(
+                            "/",
+                            Path.DirectorySeparatorChar
+                                .ToString()));
+
+                if (File.Exists(fullPath))
                 {
-                    string value = lines[i];
-
-                    if (i < lines.Count - 1)
-                        value += ",";
-
-                    run.Append(new Text(value));
-
-                    if (i < lines.Count - 1)
-                        run.Append(new Break());
+                    File.Delete(fullPath);
                 }
             }
-            else
+
+            _context.ExperienceLetters.Remove(
+                letter);
+
+            await _context.SaveChangesAsync();
+        }
+        private static string CalculateEmploymentTenure(
+            DateTime startDate,
+            DateTime endDate)
+        {
+            int years =
+                endDate.Year -
+                startDate.Year;
+
+            int months =
+                endDate.Month -
+                startDate.Month;
+
+            int days =
+                endDate.Day -
+                startDate.Day;
+
+            if (days < 0)
             {
-                // ✅ FIXED
-                run.RemoveAllChildren<Text>();
-                run.Append(new Text(text));
+                months--;
+
+                var previousMonth =
+                    endDate.AddMonths(-1);
+
+                days +=
+                    DateTime.DaysInMonth(
+                        previousMonth.Year,
+                        previousMonth.Month);
             }
+
+            if (months < 0)
+            {
+                years--;
+                months += 12;
+            }
+
+            var parts =
+                new List<string>();
+
+            if (years > 0)
+            {
+                parts.Add(
+                    years == 1
+                        ? "1 Year"
+                        : $"{years} Years");
+            }
+
+            if (months > 0)
+            {
+                parts.Add(
+                    months == 1
+                        ? "1 Month"
+                        : $"{months} Months");
+            }
+
+            if (days > 0)
+            {
+                parts.Add(
+                    days == 1
+                        ? "1 Day"
+                        : $"{days} Days");
+            }
+
+            if (parts.Count == 0)
+            {
+                return "1 Day";
+            }
+
+            return string.Join(
+                " ",
+                parts);
+        }
+
+
+        // =========================================
+        // REPLACE BOOKMARK
+        // =========================================
+
+        public async Task<object> GetAllExperienceLettersAsync()
+        {
+            var letters =
+                await _context.ExperienceLetters
+                    .Join(
+                        _context.Employees,
+
+                        el => el.EmployeeId,
+
+                        e => e.Employee_Id,
+
+                        (el, e) => new
+                        {
+                            el.Id,
+
+                            el.EmployeeId,
+
+                            EmployeeName =
+                                e.Name,
+
+                            el.Title,
+
+                            el.Designation,
+
+                            el.Department,
+
+                            el.StartDate,
+
+                            el.EndDate,
+
+                            el.EmploymentTenure,
+
+                            el.SerialNo,
+
+                            el.GeneratedDate,
+
+                            el.Status,
+
+                            el.IsSent,
+
+                            el.SentOn,
+
+                            el.SentCount
+                        })
+                    .OrderByDescending(
+                        x => x.GeneratedDate)
+                    .ToListAsync();
+
+            return letters;
+        }
+        private void ReplaceBookmark(
+     WordprocessingDocument doc,
+     string bookmarkName,
+     string text)
+        {
+            var bookmarkStart =
+                doc.MainDocumentPart?
+                    .Document
+                    .Descendants<BookmarkStart>()
+                    .FirstOrDefault(
+                        b => b.Name?.Value == bookmarkName);
+
+            if (bookmarkStart == null)
+            {
+                Console.WriteLine(
+                    $"Bookmark not found: {bookmarkName}");
+
+                return;
+            }
+
+            var bookmarkId =
+                bookmarkStart.Id?.Value;
+
+            if (string.IsNullOrWhiteSpace(bookmarkId))
+                return;
+
+            var bookmarkEnd =
+                doc.MainDocumentPart?
+                    .Document
+                    .Descendants<BookmarkEnd>()
+                    .FirstOrDefault(
+                        b => b.Id?.Value == bookmarkId);
+
+            if (bookmarkEnd == null)
+            {
+                Console.WriteLine(
+                    $"BookmarkEnd not found: {bookmarkName}");
+
+                return;
+            }
+
+            var parent =
+                bookmarkStart.Parent;
+
+            if (parent == null)
+                return;
+
+
+            // Preserve formatting from the existing run
+            RunProperties? runProperties = null;
+
+            var existingRun =
+                bookmarkStart
+                    .ElementsAfter()
+                    .OfType<Run>()
+                    .FirstOrDefault();
+
+            if (existingRun?.RunProperties != null)
+            {
+                runProperties =
+                    (RunProperties)
+                    existingRun.RunProperties.CloneNode(true);
+            }
+
+
+            // Remove existing content between bookmark
+            var current =
+                bookmarkStart.NextSibling();
+
+            while (
+                current != null &&
+                current != bookmarkEnd)
+            {
+                var next =
+                    current.NextSibling();
+
+                current.Remove();
+
+                current = next;
+            }
+
+
+            // Create new run
+            var newRun =
+                new Run();
+
+            if (runProperties != null)
+            {
+                newRun.RunProperties =
+                    runProperties;
+            }
+
+            newRun.AppendChild(
+                new Text(text ?? string.Empty)
+                {
+                    Space =
+                        SpaceProcessingModeValues.Preserve
+                });
+
+
+            // Insert without changing paragraph/table alignment
+            parent.InsertAfter(
+                newRun,
+                bookmarkStart);
         }
     }
 }
-
