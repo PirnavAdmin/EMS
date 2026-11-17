@@ -61,17 +61,17 @@ namespace EmployeeManagementSystem.Services
                     "End Date is required.");
             }
 
-         
-        
 
 
-        // =====================================
-        // EMPLOYEE
-        // =====================================
 
-        var employee = await _context.Employees
-                .FirstOrDefaultAsync(
-                    x => x.Employee_Id == dto.EmployeeId);
+
+            // =====================================
+            // EMPLOYEE
+            // =====================================
+
+            var employee = await _context.Employees
+                    .FirstOrDefaultAsync(
+                        x => x.Employee_Id == dto.EmployeeId);
 
             if (employee == null)
             {
@@ -167,9 +167,16 @@ namespace EmployeeManagementSystem.Services
             // FORMATTED DATES
             // =====================================
 
+            // =====================================
+            // FLEXIBLE GENERATED DATE
+            // =====================================
+
+            DateTime generatedDate = dto.GeneratedDate.HasValue
+                ? dto.GeneratedDate.Value.Date
+                : DateTime.UtcNow.AddHours(5.5).Date;
+
             string generationDate =
-                DateTime.Now.ToString(
-                    "dd MMMM yyyy");
+                generatedDate.ToString("dd MMMM yyyy");
 
             string formattedStartDate =
                 startDate.ToString(
@@ -545,8 +552,7 @@ namespace EmployeeManagementSystem.Services
                     AuthorizedSignatoryDesignation =
                         authorizedSignatoryDesignation,
 
-                    GeneratedDate =
-                        DateTime.Now,
+                    GeneratedDate = generatedDate,
 
                     PdfPath =
                         relativePdfPath,
