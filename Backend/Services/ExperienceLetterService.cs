@@ -167,16 +167,9 @@ namespace EmployeeManagementSystem.Services
             // FORMATTED DATES
             // =====================================
 
-            // =====================================
-            // FLEXIBLE GENERATED DATE
-            // =====================================
-
-            DateTime generatedDate = dto.GeneratedDate.HasValue
-                ? dto.GeneratedDate.Value.Date
-                : DateTime.UtcNow.AddHours(5.5).Date;
-
             string generationDate =
-                generatedDate.ToString("dd MMMM yyyy");
+                DateTime.Now.ToString(
+                    "dd MMMM yyyy");
 
             string formattedStartDate =
                 startDate.ToString(
@@ -552,7 +545,8 @@ namespace EmployeeManagementSystem.Services
                     AuthorizedSignatoryDesignation =
                         authorizedSignatoryDesignation,
 
-                    GeneratedDate = generatedDate,
+                    GeneratedDate =
+                        DateTime.Now,
 
                     PdfPath =
                         relativePdfPath,
