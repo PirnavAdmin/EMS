@@ -182,45 +182,30 @@ function Clients() {
     }
 
     if (name === "email") {
-
-      if (!value) {
+      if (!value || !value.trim()) {
         return "Email is required";
       }
 
-      if (value.length > 40) {
-        return "Email cannot exceed 40 characters";
+      const trimmed = value.trim();
+
+      if (trimmed.length > 100) {
+        return "Email cannot exceed 100 characters";
       }
 
       // NO SPACES
-      if (/\s/.test(value)) {
+      if (/\s/.test(trimmed)) {
         return "Email cannot contain spaces";
       }
 
-      // MUST START WITH LETTER
-      if (!/^[A-Za-z]/.test(value)) {
-        return "Email must start with an alphabet";
-      }
-
       // ONLY ONE @
-      if ((value.match(/@/g) || []).length !== 1) {
+      if ((trimmed.match(/@/g) || []).length !== 1) {
         return "Email must contain exactly one @";
       }
 
-      // ONLY ONE .com
-      if ((value.match(/\.com/g) || []).length !== 1) {
-        return ".com is allowed only once";
-      }
-
-      // ALLOW ONLY gmail/yahoo/pirnav
-      if (
-      !/^[A-Za-z][A-Za-z0-9]*@(gmail|yahoo|pirnav)\.com$/.test(value))
-      {
-        return "Email must be like demo@gmail.com";
-      }
-
-      // NO SPECIAL CHARACTERS
-      if (!/^[A-Za-z0-9@.]+$/.test(value)) {
-        return "Special characters are not allowed";
+      // VALID EMAIL FORMAT FOR ANY COMPANY DOMAIN
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(trimmed)) {
+        return "Please enter a valid email address (e.g. contact@peoplehrsync.com)";
       }
 
       return "";

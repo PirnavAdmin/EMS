@@ -8,5 +8,6 @@
 
         public string PreviewUrl { get; set; }
         public byte[]? PdfBytes { get; set; }
+        public DateTime GeneratedDate { get; set; }
     }
 }

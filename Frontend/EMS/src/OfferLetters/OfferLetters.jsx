@@ -249,16 +249,6 @@ const RELIEVING_LETTER_TYPE_OPTIONS = [
   { label: "Employee Relieving Letter", value: "employee" },
   { label: "External Relieving Letter", value: "external" }];
 
-const getTodayDate = () => {
-  const today = new Date();
-
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-};
-
 const EMPTY_RELIEVING_FORM = {
   employeeId: "",
   employeeName: "",
@@ -369,7 +359,7 @@ function OfferLetters() {
     email: "",
     address: "",
     position: "",
-    generated_On: getTodayDate(),
+    generated_On: "",
     joining_Date: "",
     ctc_Annual: "",
     monthlyCTC: "",
@@ -737,6 +727,20 @@ HR Team`
     },
     [setRelievingLetterSendStatus]
   );
+
+  const handleGeneratedDateChange = (event) => {
+    const value = event.target.value;
+
+    setFormData((previous) => ({
+      ...previous,
+      generated_On: value
+    }));
+
+    setErrors((previous) => ({
+      ...previous,
+      generated_On: ""
+    }));
+  };
 
   /* ================= HANDLE INPUT ================= */
   const handleChange = async (e) => {
@@ -1195,7 +1199,7 @@ HR Team`
 
         position: formData.position.trim(),
 
-        Generated_On: formData.generated_On,
+        generatedDate: `${formData.generated_On}T00:00:00`,
 
         joining_Date: formData.joining_Date,
 
@@ -1254,7 +1258,7 @@ HR Team`
 
         position: "",
 
-        generated_On: getTodayDate(),
+        generated_On: "",
 
         joining_Date: "",
 
@@ -2467,13 +2471,13 @@ HR Team`
               {/* Offer Letter Generated Date */}
               <div className="form-group full-width" ref={fieldRefs.generated_On}>
                 <label>
-                  <FaCalendarAlt /> Offer Letter Generated Date
+                  <FaCalendarAlt /> Generated Date
                 </label>
 
                 <AppDatePicker
                   name="generated_On"
                   value={formData.generated_On}
-                  onChange={handleChange} />
+                  onChange={handleGeneratedDateChange} />
 
                 {errors.generated_On &&
                   <p
@@ -2877,8 +2881,12 @@ HR Team`
                           <td>{item.position}</td>
                           <td>
                             {formatOfferLetterGeneratedDate(
+                              item.generatedDate ||
+                              item.generated_Date ||
                               item.generated_On ||
-                              item.Generated_On
+                              item.Generated_On ||
+                              item.GeneratedDate ||
+                              item.GeneratedOn
                             )}
                           </td>
 

@@ -521,7 +521,8 @@ namespace EmployeeManagementSystem.Services
                 Success = true,
                 Message = "Offer Letter Generated Successfully",
                 OfferLetterId = offerLetter.Id,
-                PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}"
+                PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}",
+                GeneratedDate = generatedDate
             };
 
 
