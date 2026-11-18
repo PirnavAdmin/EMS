@@ -17,6 +17,7 @@ import {
   FaMapMarkerAlt,
   FaBriefcase,
   FaRupeeSign,
+  FaPercent,
   FaCalendarAlt,
   FaTrash
 } from
@@ -108,6 +109,25 @@ const getEmployeeName = (employee) => {
 const formatDisplayValue = (value) => {
   const normalizedValue = String(value ?? "").trim();
   return normalizedValue || "-";
+};
+
+const calculatePercentageAmount = (annualCTC, percentage) => {
+  const annualAmount = Number(String(annualCTC ?? "").replace(/,/g, ""));
+  const percentageValue = Number(percentage);
+
+  if (
+    !String(annualCTC ?? "").trim() ||
+    !String(percentage ?? "").trim() ||
+    !Number.isFinite(annualAmount) ||
+    !Number.isFinite(percentageValue) ||
+    annualAmount < 0 ||
+    percentageValue < 0 ||
+    percentageValue > 100
+  ) {
+    return "";
+  }
+
+  return annualAmount * percentageValue / 100;
 };
 
 const formatOfferLetterGeneratedDate = (value) => {
@@ -362,6 +382,8 @@ function OfferLetters() {
     generated_On: "",
     joining_Date: "",
     ctc_Annual: "",
+    percentage: "",
+    percentageAmount: "",
     monthlyCTC: "",
 
     basic: "",
@@ -402,6 +424,8 @@ function OfferLetters() {
   const [previewOfferLetterContentType, setPreviewOfferLetterContentType] =
     useState("");
   const previewRequestRef = useRef(0);
+  const salaryStructureRequestRef = useRef(0);
+  const percentageEditedRef = useRef(false);
   const [sendOfferLetterOpen, setSendOfferLetterOpen] = useState(false);
   const [sendOfferLetterTarget, setSendOfferLetterTarget] = useState(null);
   const [sendOfferLetterSubject, setSendOfferLetterSubject] = useState("");
@@ -746,60 +770,152 @@ HR Team`
   const handleChange = async (e) => {
     const { name, value } = e.target;
 
-    // remove error while typing
-    setErrors((prev) => ({
-      ...prev,
-      [name]: ""
-    }));
+    if (name === "ctc_Annual" || name === "percentage") {
+      const isCtcChange = name === "ctc_Annual";
+      let updatedValue = value;
 
-    /* ================= CTC AUTO CALCULATION ================= */
-    if (name === "ctc_Annual") {
-      const numericValue = value.
-        replace(/\D/g, "").
-        slice(0, 8);
-      const annualCTC = Number(numericValue);
+      if (isCtcChange) {
+        if (value.includes("-")) {
+          setErrors((previous) => ({
+            ...previous,
+            ctc_Annual: "Annual CTC cannot be negative."
+          }));
+          return;
+        }
 
-      setFormData((prev) => ({
-        ...prev,
-        ctc_Annual: new Intl.NumberFormat("en-IN").format(annualCTC)
+        updatedValue = value.replace(/\D/g, "").slice(0, 8);
+      } else if (!/^\d*\.?\d*$/.test(value)) {
+        setErrors((previous) => ({
+          ...previous,
+          percentage: "Enter a percentage between 0 and 100."
+        }));
+        return;
+      } else if (value !== "" && value !== "." && Number(value) > 100) {
+        setErrors((previous) => ({
+          ...previous,
+          percentage: "Enter a percentage between 0 and 100."
+        }));
+        return;
+      }
+
+      setErrors((previous) => ({
+        ...previous,
+        [name]: ""
       }));
 
-      if (!annualCTC || annualCTC <= 0) return;
+      if (!isCtcChange) {
+        percentageEditedRef.current = true;
+      }
+
+      const annualCTCText = isCtcChange ?
+        updatedValue :
+        formData.ctc_Annual.replace(/,/g, "");
+      const annualCTC = Number(annualCTCText);
+      const percentage = isCtcChange ?
+        formData.percentage :
+        updatedValue;
+      const formattedCTC = annualCTCText ?
+        new Intl.NumberFormat("en-IN").format(annualCTC) :
+        "";
+      const requestId = ++salaryStructureRequestRef.current;
+
+      setFormData((previous) => ({
+        ...previous,
+        ...(isCtcChange ? { ctc_Annual: formattedCTC } : {}),
+        ...(!isCtcChange ? { percentage: updatedValue } : {}),
+        percentageAmount: calculatePercentageAmount(
+          annualCTCText,
+          percentage
+        ),
+        monthlyCTC: "",
+        basic: "",
+        hra: "",
+        conveyance: "",
+        medicalAllowance: "",
+        otherAllowance: "",
+        providentFund: "",
+        professionalTax: "",
+        gross: "",
+        netTakeHome: ""
+      }));
+
+      if (!annualCTCText) {
+        return;
+      }
+
+      const requestPercentage =
+        percentage === "" || percentage === "." ?
+          undefined :
+          Number(percentage);
 
       try {
         const response = await calculateOfferLetterBreakup({
           AnnualCtc: annualCTC,
+          pfPercentage: requestPercentage,
           ManualOverrideFields: []
         });
 
-        const data = response.data;
+        if (requestId !== salaryStructureRequestRef.current) {
+          return;
+        }
 
-        setFormData((prev) => ({
-          ...prev,
+        const data = response.data || {};
+        setFormData((previous) => {
+          const returnedPercentage =
+            data.percentage ?? data.pfPercentage;
+          const returnedPercentageValue = Number(returnedPercentage);
+          const hasValidReturnedPercentage =
+            returnedPercentage !== null &&
+            returnedPercentage !== undefined &&
+            String(returnedPercentage).trim() !== "" &&
+            Number.isFinite(returnedPercentageValue) &&
+            returnedPercentageValue >= 0 &&
+            returnedPercentageValue <= 100;
+          const resolvedPercentage =
+            previous.percentage ||
+            (
+              percentageEditedRef.current ||
+              !hasValidReturnedPercentage ?
+              "" :
+              String(returnedPercentage)
+            );
 
-          ctc_Annual: new Intl.NumberFormat("en-IN").format(
-            annualCTC
-          ),
-
-          monthlyCTC: data.monthlyCTC ?? "",
-          basic: data.basic ?? "",
-          hra: data.hra ?? "",
-          conveyance: data.conveyance ?? "",
-          medicalAllowance: data.medicalAllowance ?? "",
-          otherAllowance: data.otherAllowance ?? "",
-          providentFund: data.providentFund ?? "",
-          professionalTax: data.professionalTax ?? "",
-          gross: data.gross ?? "",
-          netTakeHome: data.netTakeHome ?? ""
-
-        }));
-
+          return {
+            ...previous,
+            percentage: resolvedPercentage,
+            percentageAmount: calculatePercentageAmount(
+              previous.ctc_Annual,
+              resolvedPercentage
+            ),
+            monthlyCTC: data.monthlyCTC ?? "",
+            basic: data.basic ?? "",
+            hra: data.hra ?? "",
+            conveyance: data.conveyance ?? "",
+            medicalAllowance: data.medicalAllowance ?? "",
+            otherAllowance: data.otherAllowance ?? "",
+            providentFund: data.providentFund ?? "",
+            professionalTax: data.professionalTax ?? "",
+            gross: data.gross ?? "",
+            netTakeHome: data.netTakeHome ?? ""
+          };
+        });
       } catch (error) {
-
+        if (requestId === salaryStructureRequestRef.current) {
+          const message = await getOfferLetterApiErrorMessage(
+            error,
+            "Unable to calculate the salary structure."
+          );
+          toast.error(message);
+        }
       }
 
       return;
     }
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: ""
+    }));
 
     /* ================= FORMAT SALARY INPUTS ================= */
     if (
@@ -1100,6 +1216,20 @@ HR Team`
       return false;
     }
 
+    if (
+      formData.percentage !== "" &&
+      (
+        !/^\d*\.?\d*$/.test(formData.percentage) ||
+        formData.percentage === "." ||
+        Number(formData.percentage) < 0 ||
+        Number(formData.percentage) > 100
+      )
+    ) {
+      newErrors.percentage = "Enter a percentage between 0 and 100.";
+      setErrors(newErrors);
+      return false;
+    }
+
     if (!formData.generated_On) {
       newErrors.generated_On = "Offer letter generated date is required";
 
@@ -1207,6 +1337,16 @@ HR Team`
           formData.ctc_Annual.replace(/,/g, "")
         ),
 
+        percentage:
+          formData.percentage === "" ?
+            null :
+            Number(formData.percentage),
+
+        percentageAmount:
+          formData.percentageAmount === "" ?
+            null :
+            Number(formData.percentageAmount),
+
         basic: Number(
           formData.basic.replace(/,/g, "")
         ),
@@ -1245,6 +1385,7 @@ HR Team`
       toast.success(
         "Offer Letter Generated Successfully"
       );
+      percentageEditedRef.current = false;
 
       setFormData({
 
@@ -1263,6 +1404,10 @@ HR Team`
         joining_Date: "",
 
         ctc_Annual: "",
+
+        percentage: "",
+
+        percentageAmount: "",
 
         monthlyCTC: "",
 
@@ -2401,7 +2546,7 @@ HR Team`
               </div>
 
               {/* Position */}
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>
                   <FaBriefcase /> Position
                 </label>
@@ -2429,43 +2574,48 @@ HR Team`
                 }
               </div>
 
-              {/* Annual CTC */}
-              <div className="form-group">
-                <label>
-                  <FaRupeeSign /> Annual CTC
-                </label>
+              <div className="ctc-percentage-grid full-width">
+                <div className="form-group">
+                  <label>
+                    <FaRupeeSign /> Annual CTC
+                  </label>
+                  <input
+                    ref={fieldRefs.ctc_Annual}
+                    type="text"
+                    name="ctc_Annual"
+                    className="no-spinner"
+                    value={formData.ctc_Annual}
+                    onChange={handleChange}
+                    placeholder="Enter annual CTC"
+                    inputMode="numeric"
+                    onKeyDown={(event) => {
+                      if (["e", "E", "+", "-", "."].includes(event.key)) {
+                        event.preventDefault();
+                      }
+                    }} />
+                  {errors.ctc_Annual &&
+                    <p className="field-error">{errors.ctc_Annual}</p>
+                  }
+                </div>
 
-                <input
-                  ref={fieldRefs.ctc_Annual}
-                  type="text"
-                  name="ctc_Annual"
-                  className="no-spinner"
-                  value={formData.ctc_Annual}
-                  onChange={handleChange}
-                  placeholder="Enter annual CTC"
-                  inputMode="numeric"
-                  onKeyDown={(e) => {
-                    if (
-                      ["e", "E", "+", "-", "."].includes(
-                        e.key
-                      )) {
-                      e.preventDefault();
-                    }
-                  }} />
+                <div className="form-group">
+                  <label>
+                    <FaPercent /> PF Percentage (%)
+                  </label>
+                  <input
+                    type="text"
+                    name="percentage"
+                    value={formData.percentage}
+                    onChange={handleChange}
+                    placeholder="Enter PF percentage"
+                    inputMode="decimal"
+                    aria-invalid={Boolean(errors.percentage)}
+                  />
+                  {errors.percentage &&
+                    <p className="field-error">{errors.percentage}</p>
+                  }
+                </div>
 
-
-                {errors.ctc_Annual &&
-                  <p
-                    style={{
-                      color: "red",
-                      fontSize: "12px",
-                      marginTop: "3px",
-                      minHeight: "16px"
-                    }}>
-
-                    {errors.ctc_Annual || ""}
-                  </p>
-                }
               </div>
 
               {/* Offer Letter Generated Date */}

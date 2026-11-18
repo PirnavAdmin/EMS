@@ -262,8 +262,23 @@ namespace EmployeeManagementSystem.Services
             // DEDUCTIONS - FROM FRONTEND OR DEFAULT
             // ================================
 
+            // ================================
+            // FLEXIBLE PF PERCENTAGE
+            // ================================
+
+            decimal pfPercentage =
+                dto.ProvidentFundPercentage ?? 12m;
+
+            if (pfPercentage < 0 || pfPercentage > 100)
+            {
+                throw new Exception(
+                    "Provident Fund Percentage must be between 0 and 100.");
+            }
+
             decimal providentfundMonthly =
-                dto.ProvidentFund ?? Math.Round(basic * 0.12m, 2);
+                dto.ProvidentFundPercentage.HasValue
+                    ? Math.Round(basic * pfPercentage / 100m, 2)
+                    : dto.ProvidentFund ?? Math.Round(basic * 0.12m, 2);
 
             decimal professionaltaxMonthly =
                 dto.ProfessionalTax ?? 200;
@@ -403,7 +418,8 @@ namespace EmployeeManagementSystem.Services
                 ReplaceBookmark(wordDoc, "ProvidentFund1Yearly", employerPfAnnual.ToString("N2"));
 
                 ReplaceBookmark(wordDoc, "MonthlyCTC", monthlyCTC.ToString("N2"));
-                ReplaceBookmark(wordDoc, "CTCAnnual1", annualCTC.ToString("N2"));
+                ReplaceBookmark(wordDoc, "CTCAnnual1", annualCTC.ToString("N2", new CultureInfo("en-IN")));
+
             }
 
             // =============================
@@ -522,7 +538,7 @@ namespace EmployeeManagementSystem.Services
                 Message = "Offer Letter Generated Successfully",
                 OfferLetterId = offerLetter.Id,
                 PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}",
-                GeneratedDate = generatedDate
+                GeneratedDate = generatedDate,
             };
 
 
@@ -845,7 +861,7 @@ namespace EmployeeManagementSystem.Services
             var run = bookmark.NextSibling<Run>();
             if (run == null) return;
 
-            // 🔥 ADDRESS MULTI-LINE FIX
+            // ?? ADDRESS MULTI-LINE FIX
             if (bookmarkName == "Address")
             {
                 var rawLines = text
@@ -874,7 +890,7 @@ namespace EmployeeManagementSystem.Services
             }
             else
             {
-                // ✅ FIXED
+                // ? FIXED
                 run.RemoveAllChildren<Text>();
                 run.Append(new Text(text));
             }

@@ -118,6 +118,8 @@
 
         public decimal? ProvidentFund { get; set; }
 
+        public decimal? ProvidentFundPercentage { get; set; }
+
         public DateTime? GeneratedDate { get; set; }
 
         // ============================
@@ -135,3 +137,4 @@
     }
 
 }
+

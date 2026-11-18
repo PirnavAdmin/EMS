@@ -211,9 +211,20 @@ export const calculateOfferLetterBreakup = (payload, config = {}) =>
   const ctc = resolveSalaryStructureCtc(payload);
   const url = API_ENDPOINTS.offerLetters.calculateBreakup(ctc);
   const headers = withAuthHeaders(config);
+  const pfPercentage =
+    payload && typeof payload === "object" ?
+      payload.pfPercentage ?? payload.PfPercentage :
+      undefined;
+  const params = {
+    ...headers.params,
+    ...(pfPercentage === undefined || pfPercentage === null || pfPercentage === "" ?
+      {} :
+      { pfPercentage })
+  };
 
   return api.get(url, {
     ...headers,
+    ...(Object.keys(params).length ? { params } : {}),
     dedupe: false
   });
 };
