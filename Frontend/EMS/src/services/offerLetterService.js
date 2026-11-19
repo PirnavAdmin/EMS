@@ -223,7 +223,8 @@ export const calculateOfferLetterBreakup = (payload, config = {}) =>
       ...(payload.hra === undefined || payload.hra === null || payload.hra === "" ? {} : { hra: payload.hra }),
       ...(payload.conveyance === undefined || payload.conveyance === null || payload.conveyance === "" ? {} : { conveyance: payload.conveyance }),
       ...(payload.medicalAllowance === undefined || payload.medicalAllowance === null || payload.medicalAllowance === "" ? {} : { medicalAllowance: payload.medicalAllowance }),
-      ...(payload.professionalTax === undefined || payload.professionalTax === null || payload.professionalTax === "" ? {} : { professionalTax: payload.professionalTax })
+      ...(payload.professionalTax === undefined || payload.professionalTax === null || payload.professionalTax === "" ? {} : { professionalTax: payload.professionalTax }),
+      ...(payload.providentFund === undefined || payload.providentFund === null || payload.providentFund === "" ? {} : { providentFund: payload.providentFund })
     } : {})
   };
 

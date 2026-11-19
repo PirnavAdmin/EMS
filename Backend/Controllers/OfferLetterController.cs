@@ -295,7 +295,9 @@ namespace EmployeeManagementSystem.Controllers
 
             [FromQuery] decimal? medicalAllowance = null,
 
-            [FromQuery] decimal? professionalTax = null)
+            [FromQuery] decimal? professionalTax = null,
+
+            [FromQuery] decimal? providentFund = null)
 
         {
 
@@ -324,6 +326,10 @@ namespace EmployeeManagementSystem.Controllers
                 return BadRequest("Salary components cannot be negative.");
 
             }
+
+            if (providentFund < 0)
+
+                return BadRequest("Provident Fund cannot be negative.");
 
             // =====================================
 
@@ -373,13 +379,49 @@ namespace EmployeeManagementSystem.Controllers
 
             // =====================================
 
-            decimal employerPf = Math.Round(
+            decimal employerPf;
 
-                calculatedBasic * pfPercentage / 100m,
+            decimal calculatedPfPercentage;
 
-                0,
+            if (providentFund.HasValue)
 
-                MidpointRounding.AwayFromZero);
+            {
+
+                // PF Amount was manually edited
+
+                employerPf = providentFund.Value;
+
+                calculatedPfPercentage = calculatedBasic > 0
+
+                    ? Math.Round(
+
+                        employerPf / calculatedBasic * 100m,
+
+                        2,
+
+                        MidpointRounding.AwayFromZero)
+
+                    : 0m;
+
+            }
+
+            else
+
+            {
+
+                // PF Percentage is the source
+
+                calculatedPfPercentage = pfPercentage;
+
+                employerPf = Math.Round(
+
+                    calculatedBasic * calculatedPfPercentage / 100m,
+
+                    0,
+
+                    MidpointRounding.AwayFromZero);
+
+            }
 
             decimal calculatedProfessionalTax =
 
@@ -471,7 +513,7 @@ namespace EmployeeManagementSystem.Controllers
 
                 monthlyCTC = monthlyCTC.ToString("N2"),
 
-                pfPercentage = pfPercentage.ToString("N2"),
+                pfPercentage = calculatedPfPercentage.ToString("N2"),
 
                 basic = calculatedBasic.ToString("N2"),
 

@@ -767,9 +767,183 @@ HR Team`
     }));
   };
 
+  const recalculateSalaryComponent = async (name, value) => {
+    const requestId = ++salaryStructureRequestRef.current;
+    const normalizedValue = value.replace(/,/g, "");
+    const annualCTC = Number(String(formData.ctc_Annual || "").replace(/,/g, ""));
+
+    if (value !== "" && !/^(?:\d+(?:\.\d*)?|\.\d*)$/.test(normalizedValue)) {
+      setErrors((previous) => ({ ...previous, [name]: "Enter a valid amount." }));
+      setSalaryCalculationLoading(false);
+      return;
+    }
+
+    setErrors((previous) => ({ ...previous, [name]: "" }));
+    setFormData((previous) => ({ ...previous, [name]: value }));
+
+    if (!normalizedValue || normalizedValue === "." || !Number.isFinite(annualCTC) || annualCTC <= 0) {
+      setSalaryCalculationLoading(false);
+      return;
+    }
+
+    const toQueryNumber = (currentValue) => {
+      if (currentValue === undefined || currentValue === null || currentValue === "") return undefined;
+      const parsed = Number(String(currentValue).replace(/,/g, ""));
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const calculationInput = {
+      AnnualCtc: annualCTC,
+      pfPercentage: toQueryNumber(formData.percentage),
+      basic: toQueryNumber(formData.basic),
+      hra: toQueryNumber(formData.hra),
+      conveyance: toQueryNumber(formData.conveyance),
+      medicalAllowance: toQueryNumber(formData.medicalAllowance),
+      professionalTax: toQueryNumber(formData.professionalTax),
+      providentFund: toQueryNumber(formData.providentFund),
+      [name]: Number(normalizedValue)
+    };
+
+    setSalaryCalculationLoading(true);
+    try {
+      const response = await calculateOfferLetterBreakup(calculationInput);
+      if (requestId !== salaryStructureRequestRef.current) return;
+
+      const data = response.data || {};
+      const returnedPfPercentage = data.pfPercentage ?? formData.percentage;
+      setFormData((previous) => ({
+        ...previous,
+        percentage: String(returnedPfPercentage ?? ""),
+        percentageAmount: calculatePercentageAmount(previous.ctc_Annual, returnedPfPercentage),
+        monthlyCTC: previous.monthlyCTC,
+        basic: name === "basic" ? previous.basic : data.basic ?? previous.basic,
+        hra: name === "hra" ? previous.hra : data.hra ?? previous.hra,
+        conveyance: name === "conveyance" ? previous.conveyance : data.conveyance ?? previous.conveyance,
+        medicalAllowance: name === "medicalAllowance" ? previous.medicalAllowance : data.medicalAllowance ?? previous.medicalAllowance,
+        otherAllowance: data.otherAllowance ?? previous.otherAllowance,
+        providentFund: name === "providentFund" ? previous.providentFund : data.providentFund ?? previous.providentFund,
+        professionalTax: name === "professionalTax" ? previous.professionalTax : data.professionalTax ?? previous.professionalTax,
+        gross: data.gross ?? previous.gross,
+        netTakeHome: data.netTakeHome ?? previous.netTakeHome
+      }));
+    } catch (error) {
+      if (requestId === salaryStructureRequestRef.current) {
+        toast.error(await getOfferLetterApiErrorMessage(
+          error,
+          "Unable to recalculate the salary structure."
+        ));
+      }
+    } finally {
+      if (requestId === salaryStructureRequestRef.current) {
+        setSalaryCalculationLoading(false);
+      }
+    }
+  };
+
   /* ================= HANDLE INPUT ================= */
   const handleChange = async (e) => {
     const { name, value } = e.target;
+
+    if (
+      isEditMode &&
+      ["basic", "hra", "conveyance", "medicalAllowance", "professionalTax", "providentFund"].includes(name)
+    ) {
+      await recalculateSalaryComponent(name, value);
+      return;
+    }
+
+    if (name === "monthlyCTC" && isEditMode) {
+      const requestId = ++salaryStructureRequestRef.current;
+      const normalizedMonthly = value.replace(/,/g, "");
+
+      if (value !== "" && !/^(?:\d+(?:\.\d*)?|\.\d*)$/.test(normalizedMonthly)) {
+        setErrors((previous) => ({ ...previous, monthlyCTC: "Enter a valid Monthly CTC amount." }));
+        setSalaryCalculationLoading(false);
+        return;
+      }
+
+      setErrors((previous) => ({ ...previous, monthlyCTC: "" }));
+      const monthlyAmount = Number(normalizedMonthly);
+      const annualCTC = normalizedMonthly && normalizedMonthly !== "." ? monthlyAmount * 12 : 0;
+      const formattedAnnualCTC = annualCTC > 0 ?
+        new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(annualCTC) :
+        "";
+      setFormData((previous) => ({
+        ...previous,
+        monthlyCTC: value,
+        ctc_Annual: formattedAnnualCTC,
+        percentageAmount: calculatePercentageAmount(formattedAnnualCTC, previous.percentage)
+      }));
+
+      if (!normalizedMonthly || normalizedMonthly === "." || !Number.isFinite(annualCTC) || annualCTC <= 0) {
+        if (!normalizedMonthly || normalizedMonthly === ".") {
+          setFormData((previous) => ({
+            ...previous,
+            basic: "",
+            hra: "",
+            conveyance: "",
+            medicalAllowance: "",
+            otherAllowance: "",
+            providentFund: "",
+            professionalTax: "",
+            gross: "",
+            netTakeHome: ""
+          }));
+        }
+        setSalaryCalculationLoading(false);
+        return;
+      }
+
+      const toQueryNumber = (currentValue) => {
+        if (currentValue === undefined || currentValue === null || currentValue === "") return undefined;
+        const parsed = Number(String(currentValue).replace(/,/g, ""));
+        return Number.isFinite(parsed) ? parsed : undefined;
+      };
+      setSalaryCalculationLoading(true);
+      try {
+        const response = await calculateOfferLetterBreakup({
+          AnnualCtc: annualCTC,
+          pfPercentage: toQueryNumber(formData.percentage),
+          basic: toQueryNumber(formData.basic),
+          hra: toQueryNumber(formData.hra),
+          conveyance: toQueryNumber(formData.conveyance),
+          medicalAllowance: toQueryNumber(formData.medicalAllowance),
+          professionalTax: toQueryNumber(formData.professionalTax),
+          providentFund: toQueryNumber(formData.providentFund)
+        });
+        if (requestId !== salaryStructureRequestRef.current) return;
+
+        const data = response.data || {};
+        const returnedPfPercentage = data.pfPercentage ?? formData.percentage;
+        setFormData((previous) => ({
+          ...previous,
+          percentage: String(returnedPfPercentage ?? ""),
+          percentageAmount: calculatePercentageAmount(previous.ctc_Annual, returnedPfPercentage),
+          // Keep the user's in-progress monthly amount stable while typing.
+          monthlyCTC: previous.monthlyCTC,
+          basic: data.basic ?? previous.basic,
+          hra: data.hra ?? previous.hra,
+          conveyance: data.conveyance ?? previous.conveyance,
+          medicalAllowance: data.medicalAllowance ?? previous.medicalAllowance,
+          otherAllowance: data.otherAllowance ?? previous.otherAllowance,
+          providentFund: data.providentFund ?? previous.providentFund,
+          professionalTax: data.professionalTax ?? previous.professionalTax,
+          gross: data.gross ?? previous.gross,
+          netTakeHome: data.netTakeHome ?? previous.netTakeHome
+        }));
+      } catch (error) {
+        if (requestId === salaryStructureRequestRef.current) {
+          toast.error(await getOfferLetterApiErrorMessage(
+            error,
+            "Unable to recalculate the salary structure."
+          ));
+        }
+      } finally {
+        if (requestId === salaryStructureRequestRef.current) {
+          setSalaryCalculationLoading(false);
+        }
+      }
+      return;
+    }
 
     if (name === "ctc_Annual" || name === "percentage") {
       const isCtcChange = name === "ctc_Annual";
@@ -927,78 +1101,6 @@ HR Team`
         "medicalAllowance",
         "otherAllowance"].
         includes(name)) {
-      if (name === "hra" && isEditMode) {
-        const requestId = ++salaryStructureRequestRef.current;
-        const annualCTC = Number(String(formData.ctc_Annual || "").replace(/,/g, ""));
-        const normalizedHra = value.replace(/,/g, "");
-
-        if (value !== "" && !/^(?:\d+(?:\.\d*)?|\.\d*)$/.test(normalizedHra)) {
-          setErrors((previous) => ({ ...previous, hra: "Enter a valid HRA amount." }));
-          setSalaryCalculationLoading(false);
-          return;
-        }
-
-        setErrors((previous) => ({ ...previous, hra: "" }));
-        setFormData((previous) => ({ ...previous, hra: value }));
-
-        if (normalizedHra === "" || normalizedHra === "." || !Number.isFinite(annualCTC) || annualCTC <= 0) {
-          setSalaryCalculationLoading(false);
-          return;
-        }
-
-        const toQueryNumber = (currentValue) => {
-          if (currentValue === undefined || currentValue === null || currentValue === "") {
-            return undefined;
-          }
-          const parsed = Number(String(currentValue).replace(/,/g, ""));
-          return Number.isFinite(parsed) ? parsed : undefined;
-        };
-        const calculationInput = {
-          AnnualCtc: annualCTC,
-          pfPercentage: toQueryNumber(formData.percentage),
-          basic: toQueryNumber(formData.basic),
-          hra: Number(normalizedHra),
-          conveyance: toQueryNumber(formData.conveyance),
-          medicalAllowance: toQueryNumber(formData.medicalAllowance),
-          professionalTax: toQueryNumber(formData.professionalTax)
-        };
-
-        setSalaryCalculationLoading(true);
-        try {
-          const response = await calculateOfferLetterBreakup(calculationInput);
-          if (requestId !== salaryStructureRequestRef.current) return;
-
-          const data = response.data || {};
-          setFormData((previous) => ({
-            ...previous,
-            // CTC did not change, so keep the displayed Monthly CTC fixed.
-            monthlyCTC: previous.monthlyCTC,
-            basic: data.basic ?? previous.basic,
-            // Keep HRA in the user's in-progress format until the field blurs.
-            conveyance: data.conveyance ?? previous.conveyance,
-            medicalAllowance: data.medicalAllowance ?? previous.medicalAllowance,
-            otherAllowance: data.otherAllowance ?? previous.otherAllowance,
-            providentFund: data.providentFund ?? previous.providentFund,
-            professionalTax: data.professionalTax ?? previous.professionalTax,
-            gross: data.gross ?? previous.gross,
-            netTakeHome: data.netTakeHome ?? previous.netTakeHome
-          }));
-        } catch (error) {
-          if (requestId === salaryStructureRequestRef.current) {
-            const message = await getOfferLetterApiErrorMessage(
-              error,
-              "Unable to recalculate the salary structure."
-            );
-            toast.error(message);
-          }
-        } finally {
-          if (requestId === salaryStructureRequestRef.current) {
-            setSalaryCalculationLoading(false);
-          }
-        }
-        return;
-      }
-
       const numericValue = value.
         replace(/\D/g, "").
         slice(0, 8);
@@ -1036,6 +1138,23 @@ HR Team`
       return {
         ...previous,
         hra: new Intl.NumberFormat("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(amount)
+      };
+    });
+  };
+
+  const handleMonthlyCtcBlur = () => {
+    setFormData((previous) => {
+      const rawMonthly = String(previous.monthlyCTC || "").replace(/,/g, "");
+      if (!rawMonthly || rawMonthly === ".") return previous;
+      const amount = Number(rawMonthly);
+      if (!Number.isFinite(amount)) return previous;
+
+      return {
+        ...previous,
+        monthlyCTC: new Intl.NumberFormat("en-IN", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2
         }).format(amount)
@@ -2839,8 +2958,12 @@ HR Team`
                         name="monthlyCTC"
                         value={formData.monthlyCTC}
                         onChange={handleChange}
+                        onBlur={handleMonthlyCtcBlur}
                         placeholder="Enter Monthly CTC"
                         disabled={!isEditMode} />
+                      {errors.monthlyCTC &&
+                        <p className="field-error">{errors.monthlyCTC}</p>
+                      }
 
                     </div>
                   </div>
@@ -2993,6 +3116,9 @@ HR Team`
                         onChange={handleChange}
                         placeholder="Enter Provident Fund"
                         disabled={!isEditMode} />
+                      {errors.providentFund &&
+                        <p className="field-error">{errors.providentFund}</p>
+                      }
 
                     </div>
                   </div>
@@ -3011,6 +3137,9 @@ HR Team`
                         onChange={handleChange}
                         placeholder="Enter Professional Tax"
                         disabled={!isEditMode} />
+                      {errors.professionalTax &&
+                        <p className="field-error">{errors.professionalTax}</p>
+                      }
 
                     </div>
                   </div>
