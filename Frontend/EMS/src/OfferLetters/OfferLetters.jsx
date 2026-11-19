@@ -402,6 +402,7 @@ function OfferLetters() {
   const [employees, setEmployees] = useState([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [salaryCalculationLoading, setSalaryCalculationLoading] = useState(false);
   const [relievingLoading, setRelievingLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [relievingDownloadingId, setRelievingDownloadingId] = useState(null);
@@ -926,15 +927,93 @@ HR Team`
         "medicalAllowance",
         "otherAllowance"].
         includes(name)) {
+      if (name === "hra" && isEditMode) {
+        const requestId = ++salaryStructureRequestRef.current;
+        const annualCTC = Number(String(formData.ctc_Annual || "").replace(/,/g, ""));
+        const normalizedHra = value.replace(/,/g, "");
+
+        if (value !== "" && !/^(?:\d+(?:\.\d*)?|\.\d*)$/.test(normalizedHra)) {
+          setErrors((previous) => ({ ...previous, hra: "Enter a valid HRA amount." }));
+          setSalaryCalculationLoading(false);
+          return;
+        }
+
+        setErrors((previous) => ({ ...previous, hra: "" }));
+        setFormData((previous) => ({ ...previous, hra: value }));
+
+        if (normalizedHra === "" || normalizedHra === "." || !Number.isFinite(annualCTC) || annualCTC <= 0) {
+          setSalaryCalculationLoading(false);
+          return;
+        }
+
+        const toQueryNumber = (currentValue) => {
+          if (currentValue === undefined || currentValue === null || currentValue === "") {
+            return undefined;
+          }
+          const parsed = Number(String(currentValue).replace(/,/g, ""));
+          return Number.isFinite(parsed) ? parsed : undefined;
+        };
+        const calculationInput = {
+          AnnualCtc: annualCTC,
+          pfPercentage: toQueryNumber(formData.percentage),
+          basic: toQueryNumber(formData.basic),
+          hra: Number(normalizedHra),
+          conveyance: toQueryNumber(formData.conveyance),
+          medicalAllowance: toQueryNumber(formData.medicalAllowance),
+          professionalTax: toQueryNumber(formData.professionalTax)
+        };
+
+        setSalaryCalculationLoading(true);
+        try {
+          const response = await calculateOfferLetterBreakup(calculationInput);
+          if (requestId !== salaryStructureRequestRef.current) return;
+
+          const data = response.data || {};
+          setFormData((previous) => ({
+            ...previous,
+            // CTC did not change, so keep the displayed Monthly CTC fixed.
+            monthlyCTC: previous.monthlyCTC,
+            basic: data.basic ?? previous.basic,
+            // Keep HRA in the user's in-progress format until the field blurs.
+            conveyance: data.conveyance ?? previous.conveyance,
+            medicalAllowance: data.medicalAllowance ?? previous.medicalAllowance,
+            otherAllowance: data.otherAllowance ?? previous.otherAllowance,
+            providentFund: data.providentFund ?? previous.providentFund,
+            professionalTax: data.professionalTax ?? previous.professionalTax,
+            gross: data.gross ?? previous.gross,
+            netTakeHome: data.netTakeHome ?? previous.netTakeHome
+          }));
+        } catch (error) {
+          if (requestId === salaryStructureRequestRef.current) {
+            const message = await getOfferLetterApiErrorMessage(
+              error,
+              "Unable to recalculate the salary structure."
+            );
+            toast.error(message);
+          }
+        } finally {
+          if (requestId === salaryStructureRequestRef.current) {
+            setSalaryCalculationLoading(false);
+          }
+        }
+        return;
+      }
+
       const numericValue = value.
         replace(/\D/g, "").
         slice(0, 8);
+      const formattedValue = numericValue ?
+        new Intl.NumberFormat("en-IN").format(numericValue) :
+        "";
+
+      if (name !== "hra") {
+        ++salaryStructureRequestRef.current;
+        setSalaryCalculationLoading(false);
+      }
 
       setFormData((prev) => ({
         ...prev,
-        [name]: new Intl.NumberFormat("en-IN").format(
-          numericValue
-        )
+        [name]: formattedValue
       }));
 
       return;
@@ -945,6 +1024,23 @@ HR Team`
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleHraBlur = () => {
+    setFormData((previous) => {
+      const rawHra = String(previous.hra || "").replace(/,/g, "");
+      if (!rawHra || rawHra === ".") return previous;
+      const amount = Number(rawHra);
+      if (!Number.isFinite(amount)) return previous;
+
+      return {
+        ...previous,
+        hra: new Intl.NumberFormat("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(amount)
+      };
+    });
   };
 
   /* ================= FETCH OFFER LETTERS ================= */
@@ -1302,6 +1398,11 @@ HR Team`
 
   /* ================= GENERATE OFFER LETTER ================= */
   const handleGenerate = async () => {
+    if (salaryCalculationLoading) {
+      toast.error("Please wait for salary recalculation to finish.");
+      return;
+    }
+
     if (!validateForm()) return;
 
     try {
@@ -2757,6 +2858,7 @@ HR Team`
                         name="hra"
                         value={formData.hra}
                         onChange={handleChange}
+                        onBlur={handleHraBlur}
                         placeholder="Enter HRA"
                         disabled={!isEditMode} />
 
@@ -2771,6 +2873,11 @@ HR Team`
                           }}>
 
                           {errors.hra || ""}
+                        </p>
+                      }
+                      {salaryCalculationLoading &&
+                        <p role="status" style={{ fontSize: "12px", marginTop: "3px" }}>
+                          Recalculating salary components…
                         </p>
                       }
                     </div>
@@ -2951,11 +3058,13 @@ HR Team`
               <button
                 className="btn-primary"
                 onClick={handleGenerate}
-                disabled={loading}>
+                disabled={loading || salaryCalculationLoading}>
 
                 <FaFileAlt />
 
-                {loading ?
+                {salaryCalculationLoading ?
+                  " Recalculating..." :
+                  loading ?
                   " Generating..." :
                   " Generate Letter"}
               </button>

@@ -240,8 +240,11 @@ namespace EmployeeManagementSystem.Services
             decimal annualCTC = dto.CTC_Annual;
 
             decimal monthlyCTC =
-                Math.Round(annualCTC / 12, 2);
-
+       Math.Round(
+           annualCTC / 12,
+           0,
+           MidpointRounding.AwayFromZero
+       );
             // ================================
             // EARNINGS - FROM FRONTEND OR DEFAULT
             // ================================
@@ -417,8 +420,8 @@ namespace EmployeeManagementSystem.Services
                 ReplaceBookmark(wordDoc, "ProvidentFund1", employerPfMonthly.ToString("N2"));
                 ReplaceBookmark(wordDoc, "ProvidentFund1Yearly", employerPfAnnual.ToString("N2"));
 
-                ReplaceBookmark(wordDoc, "MonthlyCTC", monthlyCTC.ToString("N2"));
-                ReplaceBookmark(wordDoc, "CTCAnnual1",annualCTC.ToString("N2", new CultureInfo("en-IN")));
+                ReplaceBookmark(wordDoc, "MonthlyCTC", monthlyCTC.ToString("N2", new CultureInfo("en-IN")));
+                ReplaceBookmark(wordDoc, "CTCAnnual1", annualCTC.ToString("N2"));
             }
 
             // =============================

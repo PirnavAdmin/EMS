@@ -217,9 +217,14 @@ export const calculateOfferLetterBreakup = (payload, config = {}) =>
       undefined;
   const params = {
     ...headers.params,
-    ...(pfPercentage === undefined || pfPercentage === null || pfPercentage === "" ?
-      {} :
-      { pfPercentage })
+    ...(payload && typeof payload === "object" ? {
+      ...(pfPercentage === undefined || pfPercentage === null || pfPercentage === "" ? {} : { pfPercentage }),
+      ...(payload.basic === undefined || payload.basic === null || payload.basic === "" ? {} : { basic: payload.basic }),
+      ...(payload.hra === undefined || payload.hra === null || payload.hra === "" ? {} : { hra: payload.hra }),
+      ...(payload.conveyance === undefined || payload.conveyance === null || payload.conveyance === "" ? {} : { conveyance: payload.conveyance }),
+      ...(payload.medicalAllowance === undefined || payload.medicalAllowance === null || payload.medicalAllowance === "" ? {} : { medicalAllowance: payload.medicalAllowance }),
+      ...(payload.professionalTax === undefined || payload.professionalTax === null || payload.professionalTax === "" ? {} : { professionalTax: payload.professionalTax })
+    } : {})
   };
 
   return api.get(url, {
