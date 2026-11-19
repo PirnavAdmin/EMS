@@ -2025,7 +2025,8 @@ StringComparison.OrdinalIgnoreCase))
                                 .FirstOrDefaultAsync(
                                     e =>
                                         e.Employee_Id ==
-                                        payslip.EmployeeId,
+                                        payslip.EmployeeId &&
+                                        e.Status == "Active", // varsha: exclude inactive employees from bulk payslip emails
                                     cancellationToken);
 
 
@@ -2035,7 +2036,7 @@ StringComparison.OrdinalIgnoreCase))
                                 ref failedCount);
 
                             failedEmployees.Add(
-                                $"{payslip.EmployeeId} - Employee not found");
+                                $"{payslip.EmployeeId} - Employee not found or is inactive"); // varsha
 
                             return;
                         }

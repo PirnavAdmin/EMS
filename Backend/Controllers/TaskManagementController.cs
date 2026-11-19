@@ -139,8 +139,8 @@ public class TaskManagementController : ControllerBase
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email == email);
 
-        if (employee == null)
-            return NotFound("Employee not found");
+        if (employee == null || employee.Status != "Active") // varsha: block inactive employee from task retrieval
+            return NotFound("Employee not found or is inactive"); // varsha
 
         var today = DateTime.UtcNow.Date;
 

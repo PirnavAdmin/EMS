@@ -226,6 +226,14 @@ namespace EmployeeManagementSystem.Services
 
                 return "Asset not found";
 
+            // varsha: Validate that employee exists and is active before assigning asset
+            var employee = await _context.Employees // varsha
+                .AsNoTracking() // varsha
+                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId); // varsha
+
+            if (employee == null || employee.Status != "Active") // varsha
+                return "Cannot assign asset: employee is inactive or not found"; // varsha
+
             asset.AssignedTo = employeeId;
 
             asset.Status = "Assigned";

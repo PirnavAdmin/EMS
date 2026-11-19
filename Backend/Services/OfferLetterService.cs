@@ -418,8 +418,7 @@ namespace EmployeeManagementSystem.Services
                 ReplaceBookmark(wordDoc, "ProvidentFund1Yearly", employerPfAnnual.ToString("N2"));
 
                 ReplaceBookmark(wordDoc, "MonthlyCTC", monthlyCTC.ToString("N2"));
-                ReplaceBookmark(wordDoc, "CTCAnnual1", annualCTC.ToString("N2", new CultureInfo("en-IN")));
-
+                ReplaceBookmark(wordDoc, "CTCAnnual1",annualCTC.ToString("N2", new CultureInfo("en-IN")));
             }
 
             // =============================

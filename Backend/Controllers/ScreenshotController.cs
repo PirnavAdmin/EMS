@@ -44,6 +44,17 @@ namespace EmployeeManagementSystem.Controllers
                     });
                 }
 
+                var isEmployeeActive = await _context.Employees
+                    .AnyAsync(e => e.Employee_Id == dto.EmployeeId && e.Status == "Active"); // varsha: only active employees can upload screenshots
+
+                if (!isEmployeeActive)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Employee is inactive or not found"
+                    });
+                }
+
                 // REMOVE BASE64 PREFIX IF EXISTS
 
                 var base64Data = dto.Image;

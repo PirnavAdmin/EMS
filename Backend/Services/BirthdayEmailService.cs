@@ -79,6 +79,7 @@ namespace EmployeeManagementSystem.Services
          where personal.DateOfBirth.Month == todayIst.Month
                && personal.DateOfBirth.Day == todayIst.Day
                && !string.IsNullOrWhiteSpace(employee.Email)
+               && employee.Status == "Active" // varsha: exclude inactive employees from birthday notifications
          select new
          {
              employee.Employee_Id,

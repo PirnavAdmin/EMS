@@ -362,12 +362,12 @@ namespace EmployeeManagementSystem.Services
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(x => x.Employee_Id == dto.EmployeeId);
 
-            if (employee == null)
+            if (employee == null || employee.Status != "Active") // varsha: inactive employees cannot sign agreements
             {
                 return new
                 {
                     Status = false,
-                    Message = "Employee not found."
+                    Message = "Employee is inactive or not found." // varsha
                 };
             }
 

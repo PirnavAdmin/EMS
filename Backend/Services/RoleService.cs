@@ -44,7 +44,7 @@
                     Name = r.Name,
                     IsActive = r.IsActive,
 
-                    UsersCount = _context.Employees.Count(e => e.RoleId == r.RoleId)
+                    UsersCount = _context.Employees.Count(e => e.RoleId == r.RoleId && e.Status == "Active") // varsha
                 })
                 .ToListAsync();
         }

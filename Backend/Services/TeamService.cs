@@ -638,7 +638,7 @@
 //                WeeklyOffDays = ParseWeeklyOffDays(team.WeeklyOffDays),
 //                ReportingDays = activeTeamDays,
 
-//                Members = (team.Members ?? new List<TeamMember>()).Select(x =>
+//                Members = (team.Members ?? new List<TeamMember>())
 //                {
 //                    var empId = x.Employee?.Employee_Id ?? x.EmployeeId ?? "";
 //                    var roster = rostersToday.FirstOrDefault(r => r.Employee_Id == empId);
@@ -2159,12 +2159,13 @@ namespace EmployeeManagementSystem.Services
 
             var manager = await _context.Employees
                 .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == dto.ReportingManagerId);
+                    x.Employee_Id == dto.ReportingManagerId &&
+                    x.Status == "Active"); // varsha: validate reporting manager is active
 
             if (manager == null)
             {
                 return new BadRequestObjectResult(
-                    "Reporting Manager not found.");
+                    "Reporting Manager not found or is inactive."); // varsha
             }
 
 
@@ -2286,12 +2287,12 @@ namespace EmployeeManagementSystem.Services
             foreach (var employeeId in membersToAdd)
             {
                 var employeeExists = await _context.Employees
-                    .AnyAsync(x => x.Employee_Id == employeeId);
+                    .AnyAsync(x => x.Employee_Id == employeeId && x.Status == "Active"); // varsha: ensure employee is active
 
                 if (!employeeExists)
                 {
                     return new BadRequestObjectResult(
-                        $"Employee '{employeeId}' does not exist.");
+                        $"Employee '{employeeId}' does not exist or is inactive."); // varsha
                 }
 
                 var alreadyExists = await _context.TeamMembers
@@ -2466,12 +2467,12 @@ namespace EmployeeManagementSystem.Services
                     WeeklyOffDays = ParseWeeklyOffDays(x.WeeklyOffDays),
 
                     EmployeeNames = x.Members
-                        .Where(m => m.Employee != null)
+                        .Where(m => m.Employee != null && m.Employee.Status == "Active") // varsha: exclude inactive employees
                         .Select(m => m.Employee.Name)
                         .ToList(),
 
                     Members = x.Members
-                        .Where(m => m.Employee != null)
+                        .Where(m => m.Employee != null && m.Employee.Status == "Active") // varsha: exclude inactive employees
                         .Select(m => new TeamMemberSummaryDto
                         {
                             EmployeeId = m.Employee.Employee_Id,
@@ -2545,20 +2546,20 @@ namespace EmployeeManagementSystem.Services
             return new OkObjectResult(result);
         }
 
-        // varsha: Normalize day name to standard 3-letter short format
-        private static string GetShortDayName(string day) // varsha
+
+        private static string GetShortDayName(string day)
         {
-            if (string.IsNullOrWhiteSpace(day)) return string.Empty; // varsha
-            return day.Trim().ToLowerInvariant() switch // varsha
+            if (string.IsNullOrWhiteSpace(day)) return string.Empty;
+            return day.Trim().ToLowerInvariant() switch
             {
-                "monday" or "mon" => "Mon", // varsha
-                "tuesday" or "tue" => "Tue", // varsha
-                "wednesday" or "wed" => "Wed", // varsha
-                "thursday" or "thu" => "Thu", // varsha
-                "friday" or "fri" => "Fri", // varsha
-                "saturday" or "sat" => "Sat", // varsha
-                "sunday" or "sun" => "Sun", // varsha
-                _ => day.Trim() // varsha
+                "monday" or "mon" => "Mon",
+                "tuesday" or "tue" => "Tue",
+                "wednesday" or "wed" => "Wed",
+                "thursday" or "thu" => "Thu",
+                "friday" or "fri" => "Fri",
+                "saturday" or "sat" => "Sat",
+                "sunday" or "sun" => "Sun",
+                _ => day.Trim()
             };
         }
 
@@ -2608,163 +2609,163 @@ namespace EmployeeManagementSystem.Services
             return dates;
         }
 
-        // varsha: Calculate complement WFH days (Mon-Fri) excluding WFO days
-        private static List<string> GetComplementDays(List<string> wfoDays) // varsha
+
+        private static List<string> GetComplementDays(List<string> wfoDays)
         {
-            var allDays = new List<string> // varsha
+            var allDays = new List<string>
             {
-                "Mon", // varsha
-                "Tue", // varsha
-                "Wed", // varsha
-                "Thu", // varsha
-                "Fri" // varsha
-            }; // varsha
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri"
+            };
 
-            var normalizedWfo = (wfoDays ?? new List<string>()) // varsha
-                .Select(d => GetShortDayName(d)) // varsha
-                .Where(d => !string.IsNullOrWhiteSpace(d)) // varsha
-                .ToList(); // varsha
+            var normalizedWfo = (wfoDays ?? new List<string>())
+                .Select(d => GetShortDayName(d))
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .ToList();
 
-            return allDays // varsha
-                .Except(normalizedWfo, StringComparer.OrdinalIgnoreCase) // varsha
-                .ToList(); // varsha
+            return allDays
+                .Except(normalizedWfo, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
-        // varsha: Helper method to resolve week-specific WFO reporting days for past, current, and future weeks
-        private static List<string> ResolveTeamReportingDaysForDate( // varsha
-            int teamId, // varsha
-            DateTime targetDate, // varsha
-            IEnumerable<TeamReportingDay> allTeamReportingDays) // varsha
-        { // varsha
-            if (allTeamReportingDays == null) // varsha
-                return new List<string>(); // varsha
 
-            var teamDaysList = allTeamReportingDays.Where(d => d.TeamId == teamId).ToList(); // varsha
-            if (!teamDaysList.Any()) // varsha
-                return new List<string>(); // varsha
+        private static List<string> ResolveTeamReportingDaysForDate(
+            int teamId,
+            DateTime targetDate,
+            IEnumerable<TeamReportingDay> allTeamReportingDays)
+        {
+            if (allTeamReportingDays == null)
+                return new List<string>();
 
-            // Calculate target week boundaries (Monday to Sunday) // varsha
-            int targetDiff = (7 + (targetDate.DayOfWeek - DayOfWeek.Monday)) % 7; // varsha
-            DateTime targetWeekStart = targetDate.AddDays(-1 * targetDiff).Date; // varsha
-            DateTime targetWeekEnd = targetWeekStart.AddDays(6).Date; // varsha
+            var teamDaysList = allTeamReportingDays.Where(d => d.TeamId == teamId).ToList();
+            if (!teamDaysList.Any())
+                return new List<string>();
 
-            // Calculate current week boundaries (Monday to Sunday) // varsha
-            DateTime today = DateTime.Today; // varsha
-            int currentDiff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7; // varsha
-            DateTime currentWeekStart = today.AddDays(-1 * currentDiff).Date; // varsha
-            DateTime currentWeekEnd = currentWeekStart.AddDays(6).Date; // varsha
+            // Calculate target week boundaries (Monday to Sunday)
+            int targetDiff = (7 + (targetDate.DayOfWeek - DayOfWeek.Monday)) % 7;
+            DateTime targetWeekStart = targetDate.AddDays(-1 * targetDiff).Date;
+            DateTime targetWeekEnd = targetWeekStart.AddDays(6).Date;
 
-            // 1. Check for explicit week-specific schedule configured for target week // varsha
-            var weekRecords = teamDaysList // varsha
-                .Where(d => d.EffectiveFrom.HasValue && d.EffectiveTo.HasValue && // varsha
-                            d.EffectiveFrom.Value.Date >= targetWeekStart && // varsha
-                            d.EffectiveFrom.Value.Date <= targetWeekEnd && // varsha
-                            (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays <= 7) // varsha
-                .ToList(); // varsha
+            // Calculate current week boundaries (Monday to Sunday)
+            DateTime today = DateTime.Today;
+            int currentDiff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+            DateTime currentWeekStart = today.AddDays(-1 * currentDiff).Date;
+            DateTime currentWeekEnd = currentWeekStart.AddDays(6).Date;
 
-            if (weekRecords.Any()) // varsha
-            { // varsha
-                var latestRecord = weekRecords.OrderByDescending(r => r.Id).First(); // varsha
-                var latestWeekGroup = weekRecords // varsha
-                    .Where(r => r.EffectiveFrom == latestRecord.EffectiveFrom && r.EffectiveTo == latestRecord.EffectiveTo) // varsha
-                    .ToList(); // varsha
+            // 1. Check for explicit week-specific schedule configured for target week
+            var weekRecords = teamDaysList
+                .Where(d => d.EffectiveFrom.HasValue && d.EffectiveTo.HasValue &&
+                            d.EffectiveFrom.Value.Date >= targetWeekStart &&
+                            d.EffectiveFrom.Value.Date <= targetWeekEnd &&
+                            (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays <= 7)
+                .ToList();
 
-                if (latestWeekGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))) // varsha
-                    return new List<string>(); // varsha
+            if (weekRecords.Any())
+            {
+                var latestRecord = weekRecords.OrderByDescending(r => r.Id).First();
+                var latestWeekGroup = weekRecords
+                    .Where(r => r.EffectiveFrom == latestRecord.EffectiveFrom && r.EffectiveTo == latestRecord.EffectiveTo)
+                    .ToList();
 
-                return latestWeekGroup // varsha
-                    .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)) // varsha
-                    .Select(r => GetShortDayName(r.DayName)) // varsha
-                    .Distinct(StringComparer.OrdinalIgnoreCase) // varsha
-                    .ToList(); // varsha
-            } // varsha
+                if (latestWeekGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)))
+                    return new List<string>();
 
-            // 2. Future week without an explicit schedule: // varsha
-            // Inherit the last applicable week's schedule (the most recently configured week prior to targetWeekStart) // varsha
-            if (targetWeekStart > currentWeekStart) // varsha
-            { // varsha
-                var priorWeekRecords = teamDaysList // varsha
-                    .Where(d => d.EffectiveFrom.HasValue && d.EffectiveTo.HasValue && // varsha
-                                d.EffectiveFrom.Value.Date < targetWeekStart && // varsha
-                                d.EffectiveFrom.Value.Date >= currentWeekStart && // varsha
-                                (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays <= 7) // varsha
-                    .ToList(); // varsha
+                return latestWeekGroup
+                    .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))
+                    .Select(r => GetShortDayName(r.DayName))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
 
-                if (priorWeekRecords.Any()) // varsha
-                { // varsha
-                    var latestPriorRecord = priorWeekRecords // varsha
-                        .OrderByDescending(r => r.EffectiveFrom!.Value.Date) // varsha
-                        .ThenByDescending(r => r.Id) // varsha
-                        .First(); // varsha
+            // 2. Future week without an explicit schedule:
+            // Inherit the last applicable week's schedule (the most recently configured week prior to targetWeekStart)
+            if (targetWeekStart > currentWeekStart)
+            {
+                var priorWeekRecords = teamDaysList
+                    .Where(d => d.EffectiveFrom.HasValue && d.EffectiveTo.HasValue &&
+                                d.EffectiveFrom.Value.Date < targetWeekStart &&
+                                d.EffectiveFrom.Value.Date >= currentWeekStart &&
+                                (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays <= 7)
+                    .ToList();
 
-                    var latestPriorGroup = priorWeekRecords // varsha
-                        .Where(r => r.EffectiveFrom == latestPriorRecord.EffectiveFrom && r.EffectiveTo == latestPriorRecord.EffectiveTo) // varsha
-                        .ToList(); // varsha
+                if (priorWeekRecords.Any())
+                {
+                    var latestPriorRecord = priorWeekRecords
+                        .OrderByDescending(r => r.EffectiveFrom!.Value.Date)
+                        .ThenByDescending(r => r.Id)
+                        .First();
 
-                    if (latestPriorGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))) // varsha
-                        return new List<string>(); // varsha
+                    var latestPriorGroup = priorWeekRecords
+                        .Where(r => r.EffectiveFrom == latestPriorRecord.EffectiveFrom && r.EffectiveTo == latestPriorRecord.EffectiveTo)
+                        .ToList();
 
-                    return latestPriorGroup // varsha
-                        .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)) // varsha
-                        .Select(r => GetShortDayName(r.DayName)) // varsha
-                        .Distinct(StringComparer.OrdinalIgnoreCase) // varsha
-                        .ToList(); // varsha
-                } // varsha
+                    if (latestPriorGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)))
+                        return new List<string>();
 
-                // If no intervening future week was explicitly configured, inherit current week's schedule // varsha
-                return ResolveTeamReportingDaysForDate(teamId, currentWeekStart, teamDaysList); // varsha
-            } // varsha
+                    return latestPriorGroup
+                        .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))
+                        .Select(r => GetShortDayName(r.DayName))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
 
-            // 3. Past or Current week without explicit week override: // varsha
-            // Find baseline in effect during target week [targetWeekStart, targetWeekEnd] // varsha
-            // Baseline records are open-ended (EffectiveTo == null) or long baselines (> 7 days duration), starting on or before targetWeekEnd // varsha
-            var activeBaselines = teamDaysList // varsha
-                .Where(d => d.EffectiveFrom.HasValue && // varsha
-                            d.EffectiveFrom.Value.Date <= targetWeekEnd && // varsha
-                            (d.EffectiveTo == null || d.EffectiveTo.Value.Date >= targetWeekStart) && // varsha
-                            (d.EffectiveTo == null || (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays > 7)) // varsha
-                .ToList(); // varsha
+                // If no intervening future week was explicitly configured, inherit current week's schedule
+                return ResolveTeamReportingDaysForDate(teamId, currentWeekStart, teamDaysList);
+            }
 
-            if (activeBaselines.Any()) // varsha
-            { // varsha
-                var latestEff = activeBaselines.Max(r => r.EffectiveFrom!.Value); // varsha
-                var latestGroup = activeBaselines.Where(r => r.EffectiveFrom == latestEff).ToList(); // varsha
+            // 3. Past or Current week without explicit week override:
+            // Find baseline in effect during target week [targetWeekStart, targetWeekEnd]
+            // Baseline records are open-ended (EffectiveTo == null) or long baselines (> 7 days duration), starting on or before targetWeekEnd
+            var activeBaselines = teamDaysList
+                .Where(d => d.EffectiveFrom.HasValue &&
+                            d.EffectiveFrom.Value.Date <= targetWeekEnd &&
+                            (d.EffectiveTo == null || d.EffectiveTo.Value.Date >= targetWeekStart) &&
+                            (d.EffectiveTo == null || (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays > 7))
+                .ToList();
 
-                if (latestGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))) // varsha
-                    return new List<string>(); // varsha
+            if (activeBaselines.Any())
+            {
+                var latestEff = activeBaselines.Max(r => r.EffectiveFrom!.Value);
+                var latestGroup = activeBaselines.Where(r => r.EffectiveFrom == latestEff).ToList();
 
-                return latestGroup // varsha
-                    .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)) // varsha
-                    .Select(r => GetShortDayName(r.DayName)) // varsha
-                    .Distinct(StringComparer.OrdinalIgnoreCase) // varsha
-                    .ToList(); // varsha
-            } // varsha
+                if (latestGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)))
+                    return new List<string>();
 
-            // 4. Fallback if past week was before earliest baseline in history: // varsha
-            // Use earliest baseline configured on or before current week (never future overrides!) // varsha
-            var allBaselines = teamDaysList // varsha
-                .Where(d => d.EffectiveFrom.HasValue && // varsha
-                            d.EffectiveFrom.Value.Date <= currentWeekEnd && // varsha
-                            (d.EffectiveTo == null || (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays > 7)) // varsha
-                .ToList(); // varsha
+                return latestGroup
+                    .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))
+                    .Select(r => GetShortDayName(r.DayName))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
 
-            if (allBaselines.Any()) // varsha
-            { // varsha
-                var earliestEff = allBaselines.Min(r => r.EffectiveFrom!.Value); // varsha
-                var earliestGroup = allBaselines.Where(r => r.EffectiveFrom == earliestEff).ToList(); // varsha
+            // 4. Fallback if past week was before earliest baseline in history:
+            // Use earliest baseline configured on or before current week (never future overrides!)
+            var allBaselines = teamDaysList
+                .Where(d => d.EffectiveFrom.HasValue &&
+                            d.EffectiveFrom.Value.Date <= currentWeekEnd &&
+                            (d.EffectiveTo == null || (d.EffectiveTo.Value.Date - d.EffectiveFrom.Value.Date).TotalDays > 7))
+                .ToList();
 
-                if (earliestGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))) // varsha
-                    return new List<string>(); // varsha
+            if (allBaselines.Any())
+            {
+                var earliestEff = allBaselines.Min(r => r.EffectiveFrom!.Value);
+                var earliestGroup = allBaselines.Where(r => r.EffectiveFrom == earliestEff).ToList();
 
-                return earliestGroup // varsha
-                    .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)) // varsha
-                    .Select(r => GetShortDayName(r.DayName)) // varsha
-                    .Distinct(StringComparer.OrdinalIgnoreCase) // varsha
-                    .ToList(); // varsha
-            } // varsha
+                if (earliestGroup.Any(r => string.Equals(r.DayName?.Trim(), "NONE", StringComparison.OrdinalIgnoreCase)))
+                    return new List<string>();
 
-            return new List<string>(); // varsha
-        } // varsha
+                return earliestGroup
+                    .Where(r => !string.IsNullOrWhiteSpace(r.DayName) && !string.Equals(r.DayName.Trim(), "NONE", StringComparison.OrdinalIgnoreCase))
+                    .Select(r => GetShortDayName(r.DayName))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            return new List<string>();
+        }
         public async Task<IActionResult> GetTeamDetails(int teamId, DateTime? date = null)
         {
             var team = await _context.Teams
@@ -2781,7 +2782,7 @@ namespace EmployeeManagementSystem.Services
                 return new NotFoundObjectResult("Team Not Found.");
 
             var memberIds = team.Members?.Select(m => m.Id).ToList() ?? new List<int>();
-            var memberEmployeeIds = team.Members?.Where(m => m.Employee != null).Select(m => m.Employee.Employee_Id).Distinct().ToList() ?? new List<string>();
+            var memberEmployeeIds = team.Members?.Where(m => m.Employee != null && m.Employee.Status == "Active").Select(m => m.Employee.Employee_Id).Distinct().ToList() ?? new List<string>(); // varsha: exclude inactive members
 
             var targetDate = date?.Date ?? DateTime.Today;
             var allShifts = await _context.ShiftMasters.AsNoTracking().ToListAsync();
@@ -2807,8 +2808,8 @@ namespace EmployeeManagementSystem.Services
             .Where(x => memberIds.Contains(x.TeamMemberId))
             .ToListAsync();
 
-            // varsha: Resolve week-specific reporting days for past, current, and future weeks
-            var activeTeamDays = ResolveTeamReportingDaysForDate(team.Id, targetDate, team.ReportingDays); // varsha
+
+            var activeTeamDays = ResolveTeamReportingDaysForDate(team.Id, targetDate, team.ReportingDays);
 
             var dto = new TeamDetailDto
             {
@@ -2825,7 +2826,9 @@ namespace EmployeeManagementSystem.Services
                 WeeklyOffDays = ParseWeeklyOffDays(team.WeeklyOffDays),
                 ReportingDays = activeTeamDays,
 
-                Members = (team.Members ?? new List<TeamMember>()).Select(x =>
+                Members = (team.Members ?? new List<TeamMember>())
+                    .Where(x => x.Employee == null || x.Employee.Status == "Active") // varsha: exclude inactive members from team details
+                    .Select(x =>
                 {
                     var empId = x.Employee?.Employee_Id ?? x.EmployeeId ?? "";
                     var roster = rostersToday.FirstOrDefault(r => r.Employee_Id == empId);
@@ -2874,12 +2877,12 @@ namespace EmployeeManagementSystem.Services
                         .Distinct()
                         .ToList();
 
-                    // varsha: If member has custom reporting days, use them; otherwise inherit the week's active team reporting days
-                    var shortDays = (memberOverride != null && memberOverride.CustomReportingDays && memberOverrideDays.Any()) // varsha
-                        ? memberOverrideDays // varsha
-                        : activeTeamDays; // varsha
 
-                    var wfhDays = GetComplementDays(shortDays); // varsha
+                    var shortDays = (memberOverride != null && memberOverride.CustomReportingDays && memberOverrideDays.Any())
+                        ? memberOverrideDays
+                        : activeTeamDays;
+
+                    var wfhDays = GetComplementDays(shortDays);
 
                     return new TeamMemberDto
                     {
@@ -2921,10 +2924,10 @@ namespace EmployeeManagementSystem.Services
 
             // Validate Reporting Manager
             var manager = await _context.Employees
-            .FirstOrDefaultAsync(x => x.Employee_Id == dto.ReportingManagerId);
+            .FirstOrDefaultAsync(x => x.Employee_Id == dto.ReportingManagerId && x.Status == "Active"); // varsha: validate reporting manager is active
 
             if (manager == null)
-                return new BadRequestObjectResult("Reporting Manager not found.");
+                return new BadRequestObjectResult("Reporting Manager not found or is inactive."); // varsha
 
             // Validate Project
             if (dto.ProjectId.HasValue && dto.ProjectId.Value > 0)
@@ -2946,7 +2949,7 @@ namespace EmployeeManagementSystem.Services
             team.ReportingManagerId = dto.ReportingManagerId;
             team.EngagementType = dto.EngagementType;
 
-            // //varsha: Update Team Number if provided and ensure uniqueness
+            //
             if (dto.TeamNumber != null)
             {
                 var trimmedTeamNumber = dto.TeamNumber.Trim();
@@ -2972,30 +2975,30 @@ namespace EmployeeManagementSystem.Services
             if (dto.WeeklyOffDays != null)
                 team.WeeklyOffDays = string.Join(",", NormalizeWeeklyOffDays(dto.WeeklyOffDays));
 
-            // varsha: Update reporting days without wiping historical and week-specific schedule records
-            if (dto.ReportingDays != null && dto.ReportingDays.Any()) // varsha
-            { // varsha
-                var activeBaselines = await _context.TeamReportingDays // varsha
-                    .Where(x => x.TeamId == dto.TeamId && x.EffectiveTo == null) // varsha
-                    .ToListAsync(); // varsha
 
-                var now = DateTime.Now; // varsha
-                foreach (var oldDay in activeBaselines) // varsha
-                { // varsha
-                    oldDay.EffectiveTo = now; // varsha
-                } // varsha
+            if (dto.ReportingDays != null && dto.ReportingDays.Any())
+            {
+                var activeBaselines = await _context.TeamReportingDays
+                    .Where(x => x.TeamId == dto.TeamId && x.EffectiveTo == null)
+                    .ToListAsync();
 
-                foreach (var day in dto.ReportingDays.Distinct()) // varsha
-                { // varsha
-                    _context.TeamReportingDays.Add(new TeamReportingDay // varsha
-                    { // varsha
-                        TeamId = dto.TeamId, // varsha
-                        DayName = GetShortDayName(day), // varsha
-                        EffectiveFrom = now, // varsha
-                        EffectiveTo = null // varsha
-                    }); // varsha
-                } // varsha
-            } // varsha
+                var now = DateTime.Now;
+                foreach (var oldDay in activeBaselines)
+                {
+                    oldDay.EffectiveTo = now;
+                }
+
+                foreach (var day in dto.ReportingDays.Distinct())
+                {
+                    _context.TeamReportingDays.Add(new TeamReportingDay
+                    {
+                        TeamId = dto.TeamId,
+                        DayName = GetShortDayName(day),
+                        EffectiveFrom = now,
+                        EffectiveTo = null
+                    });
+                }
+            }
 
             // Update Members
             var oldMembers = await _context.TeamMembers
@@ -3013,10 +3016,10 @@ namespace EmployeeManagementSystem.Services
             foreach (var emp in dto.EmployeeIds.Distinct())
             {
                 var employee = await _context.Employees
-                    .FirstOrDefaultAsync(x => x.Employee_Id == emp);
+                    .FirstOrDefaultAsync(x => x.Employee_Id == emp && x.Status == "Active"); // varsha: ensure employee is active
 
                 if (employee == null)
-                    return new BadRequestObjectResult($"Employee '{emp}' does not exist.");
+                    return new BadRequestObjectResult($"Employee '{emp}' does not exist or is inactive."); // varsha
 
                 var newTm = new TeamMember
                 {
@@ -3111,11 +3114,11 @@ namespace EmployeeManagementSystem.Services
                          .Distinct())
             {
                 var employee = await _context.Employees
-                    .FirstOrDefaultAsync(x => x.Employee_Id == emp);
+                    .FirstOrDefaultAsync(x => x.Employee_Id == emp && x.Status == "Active"); // varsha: ensure employee is active
 
                 if (employee == null)
                     return new BadRequestObjectResult(
-                        $"Employee '{emp}' does not exist.");
+                        $"Employee '{emp}' does not exist or is inactive."); // varsha
 
                 bool exists = await _context.TeamMembers
                     .AnyAsync(x =>
@@ -3226,7 +3229,7 @@ namespace EmployeeManagementSystem.Services
                 .ToListAsync();
 
             var employees = await _context.Employees
-                .Where(x => !assignedEmployees.Contains(x.Employee_Id))
+                .Where(x => !assignedEmployees.Contains(x.Employee_Id) && x.Status == "Active") // varsha: only active available employees
                 .Select(x => new
                 {
                     x.Employee_Id,
@@ -3250,7 +3253,7 @@ namespace EmployeeManagementSystem.Services
                     on e.Email equals u.Email
                 join r in _context.Roles
                     on u.RoleId equals r.RoleId
-                where r.Name == "Manager"
+                where r.Name == "Manager" && e.Status == "Active" // varsha: only active managers
                 orderby e.Name
                 select new
                 {
@@ -3317,117 +3320,117 @@ namespace EmployeeManagementSystem.Services
 
             if (isWeekScoped)
             {
-                var start = dto.WeekStartDate!.Value.Date; // varsha
-                var end = dto.WeekEndDate!.Value.Date; // varsha
+                var start = dto.WeekStartDate!.Value.Date;
+                var end = dto.WeekEndDate!.Value.Date;
 
-                // varsha: Align week boundaries to standard Monday-Sunday window
-                int startDiff = (7 + (start.DayOfWeek - DayOfWeek.Monday)) % 7; // varsha
-                var weekMonday = start.AddDays(-1 * startDiff).Date; // varsha
-                var weekSunday = weekMonday.AddDays(6).Date; // varsha
 
-                // varsha: Load existing records for this team to evaluate week-window in memory (avoiding EF Core LINQ translation limits)
-                var teamHistoricalDays = await _context.TeamReportingDays // varsha
-                    .Where(x => x.TeamId == dto.TeamId && x.EffectiveFrom.HasValue && x.EffectiveTo.HasValue) // varsha
-                    .ToListAsync(); // varsha
+                int startDiff = (7 + (start.DayOfWeek - DayOfWeek.Monday)) % 7;
+                var weekMonday = start.AddDays(-1 * startDiff).Date;
+                var weekSunday = weekMonday.AddDays(6).Date;
 
-                var existingWeekDays = teamHistoricalDays // varsha
-                    .Where(x => x.EffectiveFrom!.Value.Date >= weekMonday && // varsha
-                                x.EffectiveFrom!.Value.Date <= weekSunday && // varsha
-                                (x.EffectiveTo!.Value.Date - x.EffectiveFrom!.Value.Date).TotalDays <= 7) // varsha
-                    .ToList(); // varsha
 
-                if (existingWeekDays.Any()) // varsha
-                { // varsha
-                    _context.TeamReportingDays.RemoveRange(existingWeekDays); // varsha
-                } // varsha
+                var teamHistoricalDays = await _context.TeamReportingDays
+                    .Where(x => x.TeamId == dto.TeamId && x.EffectiveFrom.HasValue && x.EffectiveTo.HasValue)
+                    .ToListAsync();
 
-                // varsha: Save explicit NONE record if no WFO days (100% WFH), otherwise save selected days
-                if (!requestedDays.Any()) // varsha
-                { // varsha
-                    _context.TeamReportingDays.Add(new TeamReportingDay // varsha
-                    { // varsha
-                        TeamId = dto.TeamId, // varsha
-                        DayName = "NONE", // varsha
-                        EffectiveFrom = weekMonday, // varsha
-                        EffectiveTo = weekSunday // varsha
-                    }); // varsha
-                } // varsha
-                else // varsha
-                { // varsha
-                    foreach (var day in requestedDays) // varsha
-                    { // varsha
-                        _context.TeamReportingDays.Add(new TeamReportingDay // varsha
-                        { // varsha
-                            TeamId = dto.TeamId, // varsha
-                            DayName = GetShortDayName(day), // varsha
-                            EffectiveFrom = weekMonday, // varsha
-                            EffectiveTo = weekSunday // varsha
-                        }); // varsha
-                    } // varsha
-                } // varsha
+                var existingWeekDays = teamHistoricalDays
+                    .Where(x => x.EffectiveFrom!.Value.Date >= weekMonday &&
+                                x.EffectiveFrom!.Value.Date <= weekSunday &&
+                                (x.EffectiveTo!.Value.Date - x.EffectiveFrom!.Value.Date).TotalDays <= 7)
+                    .ToList();
 
-                // varsha: Preserve member-specific overrides and save changes
-                await _context.SaveChangesAsync(); // varsha
+                if (existingWeekDays.Any())
+                {
+                    _context.TeamReportingDays.RemoveRange(existingWeekDays);
+                }
+
+
+                if (!requestedDays.Any())
+                {
+                    _context.TeamReportingDays.Add(new TeamReportingDay
+                    {
+                        TeamId = dto.TeamId,
+                        DayName = "NONE",
+                        EffectiveFrom = weekMonday,
+                        EffectiveTo = weekSunday
+                    });
+                }
+                else
+                {
+                    foreach (var day in requestedDays)
+                    {
+                        _context.TeamReportingDays.Add(new TeamReportingDay
+                        {
+                            TeamId = dto.TeamId,
+                            DayName = GetShortDayName(day),
+                            EffectiveFrom = weekMonday,
+                            EffectiveTo = weekSunday
+                        });
+                    }
+                }
+
+
+                await _context.SaveChangesAsync();
             }
             else
             {
                 var now = DateTime.Now;
 
-                // varsha: Get currently active open-ended baseline
-                var currentDays = await _context.TeamReportingDays // varsha
-                    .Where(x => // varsha
-                        x.TeamId == dto.TeamId && // varsha
-                        x.EffectiveTo == null) // varsha
-                    .ToListAsync(); // varsha
 
-                // varsha: Normalize and compare existing and requested reporting days
-                var existingDays = currentDays // varsha
-                    .Select(x => GetShortDayName(x.DayName).ToLowerInvariant()) // varsha
-                    .ToHashSet(); // varsha
+                var currentDays = await _context.TeamReportingDays
+                    .Where(x =>
+                        x.TeamId == dto.TeamId &&
+                        x.EffectiveTo == null)
+                    .ToListAsync();
 
-                var newDays = requestedDays // varsha
-                    .Select(x => GetShortDayName(x).ToLowerInvariant()) // varsha
-                    .ToHashSet(); // varsha
 
-                if (existingDays.SetEquals(newDays)) // varsha
-                { // varsha
-                    return new OkObjectResult( // varsha
-                        "Reporting days are unchanged. No update or notification required."); // varsha
-                } // varsha
+                var existingDays = currentDays
+                    .Select(x => GetShortDayName(x.DayName).ToLowerInvariant())
+                    .ToHashSet();
 
-                // varsha: Close the old reporting days
-                foreach (var oldDay in currentDays) // varsha
-                { // varsha
-                    oldDay.EffectiveTo = now; // varsha
-                } // varsha
+                var newDays = requestedDays
+                    .Select(x => GetShortDayName(x).ToLowerInvariant())
+                    .ToHashSet();
 
-                // varsha: Add the new reporting days
-                if (!requestedDays.Any()) // varsha
-                { // varsha
-                    _context.TeamReportingDays.Add(new TeamReportingDay // varsha
-                    { // varsha
-                        TeamId = dto.TeamId, // varsha
-                        DayName = "NONE", // varsha
-                        EffectiveFrom = now, // varsha
-                        EffectiveTo = null // varsha
-                    }); // varsha
-                } // varsha
-                else // varsha
-                { // varsha
-                    foreach (var day in requestedDays) // varsha
-                    { // varsha
-                        _context.TeamReportingDays.Add(new TeamReportingDay // varsha
-                        { // varsha
-                            TeamId = dto.TeamId, // varsha
-                            DayName = GetShortDayName(day), // varsha
-                            EffectiveFrom = now, // varsha
-                            EffectiveTo = null // varsha
-                        }); // varsha
-                    } // varsha
-                } // varsha
+                if (existingDays.SetEquals(newDays))
+                {
+                    return new OkObjectResult(
+                        "Reporting days are unchanged. No update or notification required.");
+                }
 
-                // varsha: Preserve member-specific overrides and save changes
-                await _context.SaveChangesAsync(); // varsha
+
+                foreach (var oldDay in currentDays)
+                {
+                    oldDay.EffectiveTo = now;
+                }
+
+
+                if (!requestedDays.Any())
+                {
+                    _context.TeamReportingDays.Add(new TeamReportingDay
+                    {
+                        TeamId = dto.TeamId,
+                        DayName = "NONE",
+                        EffectiveFrom = now,
+                        EffectiveTo = null
+                    });
+                }
+                else
+                {
+                    foreach (var day in requestedDays)
+                    {
+                        _context.TeamReportingDays.Add(new TeamReportingDay
+                        {
+                            TeamId = dto.TeamId,
+                            DayName = GetShortDayName(day),
+                            EffectiveFrom = now,
+                            EffectiveTo = null
+                        });
+                    }
+                }
+
+
+                await _context.SaveChangesAsync();
             }
 
             try
@@ -3506,6 +3509,11 @@ namespace EmployeeManagementSystem.Services
             if (string.IsNullOrWhiteSpace(employeeId))
                 return new UnauthorizedObjectResult(new { message = "Employee ID not found in JWT." });
 
+            // varsha: Block inactive employees from accessing team view
+            var requestingEmp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+            if (requestingEmp == null || requestingEmp.Status != "Active") // varsha
+                return new UnauthorizedObjectResult(new { message = "Employee account is inactive or not found." }); // varsha
+
             var teamMember = await _context.TeamMembers
             .Include(tm => tm.TeamMemberOverride)
             .ThenInclude(tmo => tmo.OverrideShift)
@@ -3542,19 +3550,19 @@ namespace EmployeeManagementSystem.Services
             .AsNoTracking()
             .ToListAsync();
 
-            // varsha: Load complete team reporting day history
-            var allTeamReportingDays = await _context.TeamReportingDays // varsha
-                .AsNoTracking() // varsha
-                .Where(rd => rd.TeamId == team.Id) // varsha
-                .ToListAsync(); // varsha
 
-            // varsha: Resolve week-specific reporting days for target date (past, current, or future week)
-            var baseTeamReportingDays = ResolveTeamReportingDaysForDate(team.Id, targetDate, allTeamReportingDays); // varsha
+            var allTeamReportingDays = await _context.TeamReportingDays
+                .AsNoTracking()
+                .Where(rd => rd.TeamId == team.Id)
+                .ToListAsync();
+
+
+            var baseTeamReportingDays = ResolveTeamReportingDaysForDate(team.Id, targetDate, allTeamReportingDays);
 
             var members = await _context.TeamMembers
             .AsNoTracking()
             .Where(tm => tm.TeamId == team.Id)
-            .Join(_context.Employees, tm => tm.EmployeeId, e => e.Employee_Id, (tm, e) => new { tm, e })
+            .Join(_context.Employees.Where(e => e.Status == "Active"), tm => tm.EmployeeId, e => e.Employee_Id, (tm, e) => new { tm, e }) // varsha: only active team members
             .ToListAsync();
 
             var memberDtos = members.Select(m =>
@@ -3566,12 +3574,12 @@ namespace EmployeeManagementSystem.Services
                 .Distinct()
                 .ToList();
 
-                // varsha: Inherit week's team schedule unless member has explicit custom reporting days
-                var shortDays = (mo != null && mo.CustomReportingDays && memberOverrideDays.Any()) // varsha
-                    ? memberOverrideDays // varsha
-                    : baseTeamReportingDays; // varsha
 
-                var memberWfhDays = GetComplementDays(shortDays); // varsha
+                var shortDays = (mo != null && mo.CustomReportingDays && memberOverrideDays.Any())
+                    ? memberOverrideDays
+                    : baseTeamReportingDays;
+
+                var memberWfhDays = GetComplementDays(shortDays);
                 var memberRoster = rostersToday.FirstOrDefault(r => r.Employee_Id == m.e.Employee_Id);
 
                 // =========================================================================
@@ -3636,10 +3644,10 @@ namespace EmployeeManagementSystem.Services
             var myOverride = teamMember.TeamMemberOverride;
             var myOverrideDays = overrideDays.Where(r => r.TeamMemberId == teamMember.Id).Select(r => GetShortDayName(r.DayName)).Distinct().ToList();
 
-            // varsha: Effective reporting days for logged-in user
-            var effectiveReportingDays = (myOverride != null && myOverride.CustomReportingDays && myOverrideDays.Any()) // varsha
-            ? myOverrideDays // varsha
-            : baseTeamReportingDays; // varsha
+
+            var effectiveReportingDays = (myOverride != null && myOverride.CustomReportingDays && myOverrideDays.Any())
+            ? myOverrideDays
+            : baseTeamReportingDays;
 
             bool myExplicitCustomShift =
                 myOverride != null &&
@@ -3912,7 +3920,7 @@ namespace EmployeeManagementSystem.Services
                     // ==========================================
 
                     var employees = team.Members
-                        .Where(m => m.Employee != null)
+                        .Where(m => m.Employee != null && m.Employee.Status == "Active") // varsha: exclude inactive employees from export
                         .Select(m => new
                         {
                             EmployeeId = m.Employee!.Employee_Id,
@@ -4123,6 +4131,11 @@ namespace EmployeeManagementSystem.Services
                         employeeId = dto.EmployeeId
                     });
                 }
+
+                // varsha: Block override for inactive employees
+                var memberEmp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == member.EmployeeId);
+                if (memberEmp != null && memberEmp.Status != "Active") // varsha
+                    return new BadRequestObjectResult(new { message = "Cannot override settings for an inactive employee." }); // varsha
 
                 var overrideData = await _context.TeamMemberOverrides
                 .FirstOrDefaultAsync(x => x.TeamMemberId == member.Id);

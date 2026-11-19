@@ -660,6 +660,16 @@ employee.OrganizationId);
                 });
             }
 
+            // varsha: Prevent inactive employees from receiving password reset OTP emails
+            if (!string.Equals(employee.Status?.Trim(), "Active", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    Status = false,
+                    Message = "Your employee account is inactive. Please contact the administrator."
+                });
+            }
+
             var user = await _context.Users
                 .FirstOrDefaultAsync(x =>
                     x.Email.ToLower() ==

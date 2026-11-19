@@ -89,7 +89,7 @@ namespace EmployeeManagementSystem.Services
                 .ToList();
 
             var validEmployeeIds = await _context.Employees
-                .Where(x => distinctIds.Contains(x.Employee_Id))
+                .Where(x => distinctIds.Contains(x.Employee_Id) && x.Status == "Active") // varsha: validate employees are active
                 .Select(x => x.Employee_Id)
                 .ToListAsync();
 
@@ -144,7 +144,7 @@ namespace EmployeeManagementSystem.Services
 
             var employeeExists = await _context.Employees
 
-                .AnyAsync(x => x.Employee_Id == rotation.Employee_Id);
+                .AnyAsync(x => x.Employee_Id == rotation.Employee_Id && x.Status == "Active"); // varsha: validate employee is active
 
             if (!employeeExists)
 

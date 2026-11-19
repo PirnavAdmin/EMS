@@ -21,6 +21,7 @@ namespace EmployeeManagementSystem.Services
             // Employee & Department Counts
             var totalEmployees = await _context.Employees
                 .AsNoTracking()
+                .Where(e => e.Status == "Active") // varsha: count only active employees for operational reports
                 .CountAsync();
 
             var totalDepartments = await _context.Departments

@@ -5,7 +5,7 @@ const API_ORIGIN = (
   //  "https://marian-undeported-shanon.ngrok-free.dev"
       "https://peoplehrsync.com"
       // "https://litter-childhood-supremacy.ngrok-free.dev"
-    //"https://daydream-railway-earring.ngrok-free.dev"
+    // "https://daydream-railway-earring.ngrok-free.dev"
 ).replace(/\/+$/, "");
 
 export const SERVER_URL = API_ORIGIN;

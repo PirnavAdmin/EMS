@@ -33,6 +33,16 @@ namespace EmployeeManagementSystem.Services
                 EmployeeId = employeeId
             };
 
+            // varsha: Do not send push notifications to inactive employees
+            var isEmployeeActive = await _context.Employees // varsha
+                .AsNoTracking() // varsha
+                .AnyAsync(e => e.Employee_Id == employeeId && e.Status == "Active"); // varsha
+            if (!isEmployeeActive) // varsha
+            { // varsha
+                result.Status = "Employee is inactive or not found"; // varsha
+                return result; // varsha
+            } // varsha
+
             //if (_messaging == null)
             //{
             //    result.Status = "Firebase is not configured or disabled in local development";

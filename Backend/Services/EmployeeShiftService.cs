@@ -24,10 +24,10 @@ namespace EmployeeManagementSystem.Services
 
             // 1. Validate employee
             var employeeExists = await _context.Employees
-                .AnyAsync(x => x.Employee_Id == empId);
+                .AnyAsync(x => x.Employee_Id == empId && x.Status == "Active"); // varsha: validate employee is active
 
             if (!employeeExists)
-                return "Employee not found.";
+                return "Employee not found or is inactive."; // varsha
 
             // 2. Validate shift
             var shift = await _context.ShiftMasters
@@ -140,17 +140,8 @@ namespace EmployeeManagementSystem.Services
             // 1. Fetch all active employees
             var employees = await _context.Employees
                 .AsNoTracking()
-                .Where(e => e.Status == null ||
-                            e.Status == "" ||
-                            e.Status.ToLower() == "active" ||
-                            e.Status.ToLower() == "joined" ||
-                            e.Status.ToLower() != "inactive")
+                .Where(e => e.Status == "Active") // varsha: strictly active employees only
                 .ToListAsync();
-
-            if (!employees.Any())
-            {
-                employees = await _context.Employees.AsNoTracking().ToListAsync();
-            }
 
             if (!employees.Any())
                 return Enumerable.Empty<EmployeeShiftResponseDto>();
@@ -400,11 +391,11 @@ namespace EmployeeManagementSystem.Services
 
             var employeeExists = await _context.Employees
 
-                .AnyAsync(x => x.Employee_Id == empId);
+                .AnyAsync(x => x.Employee_Id == empId && x.Status == "Active"); // varsha: validate employee is active
 
             if (!employeeExists)
 
-                return "Employee not found.";
+                return "Employee not found or is inactive."; // varsha
 
             // 2. Find and deactivate all active assignments
 

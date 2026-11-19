@@ -293,7 +293,7 @@ namespace EmployeeManagementSystem.Services
                 throw new Exception("Role not found");
 
             var employees = await _context.Employees
-                .Where(e => e.RoleId == role.RoleId)
+                .Where(e => e.RoleId == role.RoleId && e.Status == "Active") // varsha
                 .Select(e => new
                 {
                     e.Employee_Id,

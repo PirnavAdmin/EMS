@@ -5402,7 +5402,7 @@ namespace EmployeeManagementSystem.Services
                 return null;
 
             return await _context.Employees
-                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId && e.Status == "Active"); // varsha: inactive employees cannot punch attendance
         }
 
         private async Task<HashSet<DayOfWeek>> GetWeeklyOffDaysAsync(string employeeId)
@@ -8133,7 +8133,7 @@ employeeInfo.Email ?? "",
 
                 var employeeIds = await _context.Employees
                     .AsNoTracking()
-                    .Where(x => x.Employee_Id != null)
+                    .Where(x => x.Employee_Id != null && x.Status == "Active") // varsha: exclude inactive employees from bulk attendance import
                     .Select(x => x.Employee_Id)
                     .ToListAsync();
 

@@ -56,7 +56,7 @@ namespace EmployeeManagementSystem.Services
 
             var employeeExists = await _context.Employees
 
-                .AnyAsync(x => x.Employee_Id == dto.Employee_Id);
+                .AnyAsync(x => x.Employee_Id == dto.Employee_Id && x.Status == "Active"); // varsha
 
             if (!employeeExists)
 

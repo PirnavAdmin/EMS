@@ -71,9 +71,9 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null)
+        if (employee == null || employee.Status != "Active") // varsha: block inactive employee from applying leave
 
-            return new BadRequestObjectResult(new { message = "Employee not found" });
+            return new BadRequestObjectResult(new { message = "Employee is inactive or not found" }); // varsha
 
         // ============================================================
         // Employee Details for Leave Email
@@ -325,6 +325,7 @@ Employee ID: {employee.Employee_Id}";
 
         var approvers = await _context.Employees
             .Where(x =>
+                x.Status == "Active" && // varsha: exclude inactive approvers
                 !string.IsNullOrWhiteSpace(x.RoleName) &&
                 approvalRoles.Contains(x.RoleName.ToLower()))
             .ToListAsync();
@@ -848,6 +849,9 @@ Pirnav Software Solutions Pvt. Ltd.
         var loggedInEmployee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
 
+        if (loggedInEmployee != null && loggedInEmployee.Status != "Active") // varsha: block inactive employee from approving leave
+            return new UnauthorizedObjectResult("Approver account is inactive."); // varsha
+
         if (loggedInEmployee != null)
         {
             approverName = loggedInEmployee.Name;
@@ -1040,6 +1044,7 @@ Pirnav Software Solutions Pvt. Ltd.
 
             var roleEmails = await _context.Employees
                 .Where(x =>
+                    x.Status == "Active" && // varsha: exclude inactive recipients
                     !string.IsNullOrWhiteSpace(x.Email) &&
                     !string.IsNullOrWhiteSpace(x.RoleName) &&
                     approvalRoles.Contains(x.RoleName.ToLower()))
@@ -1050,7 +1055,7 @@ Pirnav Software Solutions Pvt. Ltd.
             emailList.AddRange(roleEmails);
 
             // Add employee email
-            if (employee != null && !string.IsNullOrWhiteSpace(employee.Email))
+            if (employee != null && employee.Status == "Active" && !string.IsNullOrWhiteSpace(employee.Email)) // varsha: do not notify inactive applicant
             {
                 emailList.Add(employee.Email);
             }
@@ -1195,6 +1200,7 @@ Pirnav Software Solutions Pvt. Ltd.
 
             var roleEmails = await _context.Employees
                 .Where(x =>
+                    x.Status == "Active" && // varsha: exclude inactive recipients
                     !string.IsNullOrWhiteSpace(x.Email) &&
                     !string.IsNullOrWhiteSpace(x.RoleName) &&
                     approvalRoles.Contains(x.RoleName.ToLower()))
@@ -1204,7 +1210,7 @@ Pirnav Software Solutions Pvt. Ltd.
             emailList.AddRange(roleEmails);
 
             // Add employee email
-            if (employee != null &&
+            if (employee != null && employee.Status == "Active" && // varsha: do not notify inactive applicant
                 !string.IsNullOrWhiteSpace(employee.Email))
             {
                 emailList.Add(employee.Email);
@@ -1482,9 +1488,9 @@ Pirnav Software Solutions Pvt. Ltd.
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null)
+        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
         {
-            return new BadRequestObjectResult("Employee not found");
+            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
         }
 
         var today = DateTime.Today;
@@ -1797,8 +1803,8 @@ Pirnav Software Solutions Pvt. Ltd.
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null)
-            return new BadRequestObjectResult("Employee not found");
+        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
+            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
 
         var leave = await _context.EmployeeLeaves
             .FirstOrDefaultAsync(l => l.Id == id &&
@@ -2013,11 +2019,11 @@ Pirnav Software Solutions Pvt. Ltd.
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null)
+        if (employee == null || employee.Status != "Active") // varsha: block inactive employee from applying WFH
         {
             return new BadRequestObjectResult(new
             {
-                message = "Employee not found"
+                message = "Employee is inactive or not found" // varsha
             });
 
         }
@@ -2219,6 +2225,7 @@ Employee ID: {employee.Employee_Id}";
 
         var approvers = await _context.Employees
             .Where(x =>
+                x.Status == "Active" && // varsha: exclude inactive approvers
                 !string.IsNullOrWhiteSpace(x.RoleName) &&
                 approvalRoles.Contains(x.RoleName.ToLower()))
             .ToListAsync();
@@ -2674,8 +2681,8 @@ attachmentPhysicalPath ?? string.Empty
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null)
-            return new BadRequestObjectResult("Employee not found");
+        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
+            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
 
         var designation = await _context.EmployeePersonalInfos
             .AsNoTracking()
@@ -2773,6 +2780,9 @@ attachmentPhysicalPath ?? string.Empty
         var loggedInEmployee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
 
+        if (loggedInEmployee != null && loggedInEmployee.Status != "Active") // varsha: block inactive employee from approving leave
+            return new UnauthorizedObjectResult("Approver account is inactive."); // varsha
+
         if (loggedInEmployee != null)
         {
             approverName = loggedInEmployee.Name;
@@ -2818,6 +2828,7 @@ attachmentPhysicalPath ?? string.Empty
 
         var roleEmails = await _context.Employees
             .Where(x =>
+                x.Status == "Active" && // varsha: exclude inactive recipients
                 !string.IsNullOrWhiteSpace(x.Email) &&
                 !string.IsNullOrWhiteSpace(x.RoleName) &&
                 approvalRoles.Contains(x.RoleName.ToLower()))
@@ -2826,7 +2837,7 @@ attachmentPhysicalPath ?? string.Empty
 
         emailList.AddRange(roleEmails);
 
-        if (employee != null && !string.IsNullOrWhiteSpace(employee.Email))
+        if (employee != null && employee.Status == "Active" && !string.IsNullOrWhiteSpace(employee.Email)) // varsha: do not notify inactive applicant
         {
             emailList.Add(employee.Email);
         }
@@ -3174,9 +3185,9 @@ style='border-collapse:collapse;'>
 
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null)
+        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
 
-            return new BadRequestObjectResult("Employee not found");
+            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
 
         var request = await _context.WorkFromHomeRequests
 
@@ -3399,6 +3410,7 @@ style='border-collapse:collapse;'>
         // Get HR and Manager employees
         var hrManagerEmails = await _context.Employees
             .Where(x =>
+                x.Status == "Active" && // varsha: exclude inactive recipients
                 !string.IsNullOrWhiteSpace(x.Email) &&
                 !string.IsNullOrWhiteSpace(x.RoleName) &&
                 (
@@ -3409,7 +3421,7 @@ style='border-collapse:collapse;'>
             .ToListAsync();
 
         // Add employee email
-        if (employee != null &&
+        if (employee != null && employee.Status == "Active" && // varsha: do not notify inactive applicant
             !string.IsNullOrWhiteSpace(employee.Email))
         {
             hrManagerEmails.Add(employee.Email);
@@ -3762,6 +3774,7 @@ by the external approver.
         // Get HR and Manager emails
         var hrManagerEmails = await _context.Employees
             .Where(x =>
+                x.Status == "Active" && // varsha: exclude inactive recipients
                 !string.IsNullOrWhiteSpace(x.Email) &&
                 !string.IsNullOrWhiteSpace(x.RoleName) &&
                 (
@@ -3772,7 +3785,7 @@ by the external approver.
             .ToListAsync();
 
         // Add employee email
-        if (employee != null &&
+        if (employee != null && employee.Status == "Active" && // varsha: do not notify inactive applicant
             !string.IsNullOrWhiteSpace(employee.Email))
         {
             hrManagerEmails.Add(employee.Email);

@@ -80,7 +80,7 @@ namespace EmployeeManagementSystem.Services
 
                     .AsNoTracking()
 
-                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
+                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId && e.Status == "Active"); // varsha
 
                 if (loggedInEmployee?.AdminId == null)
 
@@ -88,7 +88,7 @@ namespace EmployeeManagementSystem.Services
 
                     throw new UnauthorizedAccessException(
 
-                        "Logged-in user is not assigned to an Admin/company.");
+                        "Logged-in user is not assigned to an Admin/company or is inactive."); // varsha
 
                 }
 
@@ -190,11 +190,11 @@ namespace EmployeeManagementSystem.Services
 
             var totalEmployees = await _context.Employees
 
-                .Where(e => isOrg
+                .Where(e => (isOrg
 
                     ? (e.OrganizationId == orgId || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
 
-                    : e.AdminId == adminId)
+                    : e.AdminId == adminId) && e.Status == "Active") // varsha: dashboard only counts active employees
 
                 .CountAsync();
 
@@ -235,6 +235,7 @@ namespace EmployeeManagementSystem.Services
                     _context.Employees.Any(e =>
 
                         e.Employee_Id == a.Employee_Id &&
+                        e.Status == "Active" && // varsha: active employees only
 
                         (isOrg
 

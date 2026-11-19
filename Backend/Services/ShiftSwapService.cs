@@ -248,13 +248,13 @@ namespace EmployeeManagementSystem.Services
             // 1. Check direct match on Employee_Id (e.g. "P464", "P497")
             var emp = await _context.Employees
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Employee_Id == trimmed);
+                .FirstOrDefaultAsync(x => x.Employee_Id == trimmed && x.Status == "Active"); // varsha: resolve active employees only
             if (emp != null) return emp.Employee_Id;
 
             // 2. Check case-insensitive match
             var empCi = await _context.Employees
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Employee_Id.ToLower() == trimmed.ToLower());
+                .FirstOrDefaultAsync(x => x.Employee_Id.ToLower() == trimmed.ToLower() && x.Status == "Active"); // varsha: resolve active employees only
             if (empCi != null) return empCi.Employee_Id;
 
             // 3. If numeric, check integer primary keys in Employees.Id or TeamMembers.Id
@@ -262,7 +262,7 @@ namespace EmployeeManagementSystem.Services
             {
                 var empById = await _context.Employees
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == numericId);
+                    .FirstOrDefaultAsync(x => x.Id == numericId && x.Status == "Active"); // varsha: resolve active employees only
                 if (empById != null) return empById.Employee_Id;
 
                 var teamMember = await _context.TeamMembers
@@ -274,7 +274,7 @@ namespace EmployeeManagementSystem.Services
             // 4. Check email match
             var empByEmail = await _context.Employees
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Email != null && x.Email.ToLower() == trimmed.ToLower());
+                .FirstOrDefaultAsync(x => x.Email != null && x.Email.ToLower() == trimmed.ToLower() && x.Status == "Active"); // varsha: resolve active employees only
             if (empByEmail != null) return empByEmail.Employee_Id;
 
             return null;
@@ -682,8 +682,9 @@ namespace EmployeeManagementSystem.Services
             if (exists)
                 return (false, $"An active shift swap request already exists between {fromId} and {toId} for {shiftDate:yyyy-MM-dd}.");
 
-            var emp1 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == fromId);
-            var emp2 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == toId);
+            var emp1 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == fromId && x.Status == "Active"); // varsha
+            var emp2 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == toId && x.Status == "Active"); // varsha
+            if (emp1 == null || emp2 == null) return (false, "One or both employees could not be found or are inactive."); // varsha
 
             string targetName = emp2?.Name ?? toId;
             string initialStatus = "PendingEmployeeApproval";

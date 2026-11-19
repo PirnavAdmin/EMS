@@ -94,7 +94,7 @@ public class ProjectsController : ControllerBase
         foreach (var p in projects)
         {
             var projectMembers = await _context.ProjectTeamMembers
-                .Where(pt => pt.ProjectId == p.Id)
+                .Where(pt => pt.ProjectId == p.Id && (pt.Employee == null || pt.Employee.Status == "Active")) // varsha: exclude inactive members
                 .Include(pt => pt.Employee)
                 .ToListAsync();
 
@@ -157,7 +157,7 @@ public class ProjectsController : ControllerBase
             return NotFound("Project not found");
 
         var projectMembers = await _context.ProjectTeamMembers
-            .Where(pt => pt.ProjectId == project.Id)
+            .Where(pt => pt.ProjectId == project.Id && (pt.Employee == null || pt.Employee.Status == "Active")) // varsha: exclude inactive members
             .Include(pt => pt.Employee)
             .Select(pt => new ProjectMemberDto
             {
@@ -218,6 +218,9 @@ public class ProjectsController : ControllerBase
         {
             foreach (var member in dto.TeamMemberTechnologies)
             {
+                var isEmpActive = await _context.Employees.AnyAsync(e => e.Employee_Id == member.EmployeeId && e.Status == "Active"); // varsha: only active members
+                if (!isEmpActive) continue; // varsha: skip inactive employee
+
                 await _context.ProjectTeamMembers.AddAsync(new ProjectTeamMember
                 {
                     ProjectId = project.Id,
@@ -271,6 +274,9 @@ public class ProjectsController : ControllerBase
         {
             foreach (var member in dto.TeamMemberTechnologies)
             {
+                var isEmpActive = await _context.Employees.AnyAsync(e => e.Employee_Id == member.EmployeeId && e.Status == "Active"); // varsha: only active members
+                if (!isEmpActive) continue; // varsha: skip inactive employee
+
                 _context.ProjectTeamMembers.Add(new ProjectTeamMember
                 {
                     ProjectId = project.Id,
@@ -321,7 +327,7 @@ public class ProjectsController : ControllerBase
     }
 
     // ========================= STATUSES =========================
-    // //varsha: Endpoint to get available project statuses including "After Live Support"
+    // Endpoint to get available project statuses including "After Live Support"
     [HttpGet("statuses")]
     public IActionResult GetStatuses()
     {

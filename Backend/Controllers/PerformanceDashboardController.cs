@@ -19,7 +19,7 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> Dashboard()
         {
             var totalEmployees =
-                await _context.Employees.CountAsync();
+                await _context.Employees.CountAsync(x => x.Status == "Active"); // varsha: performance dashboard only counts active employees
 
             var totalGoals =
                 await _context.EmployeeGoals.CountAsync();

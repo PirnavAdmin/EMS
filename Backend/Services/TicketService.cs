@@ -141,7 +141,7 @@ namespace EmployeeManagementSystem.Services
         private async Task SendTicketAssignedEmail(Ticket ticket)
         {
             var assignedEmployee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Employee_Id == ticket.AssignedTo);
+                .FirstOrDefaultAsync(e => e.Employee_Id == ticket.AssignedTo && e.Status == "Active"); // varsha: exclude inactive employees from receiving ticket emails
 
             if (assignedEmployee == null || string.IsNullOrWhiteSpace(assignedEmployee.Email))
                 return;
@@ -1262,10 +1262,11 @@ EMS Team
 
             var manager = await _context.Employees
                 .FirstOrDefaultAsync(x =>
-                    x.Email.ToLower() == email);
+                    x.Email.ToLower() == email &&
+                    x.Status == "Active"); // varsha: inactive manager cannot bulk upload tickets
 
             if (manager == null)
-                throw new Exception("Manager not found.");
+                throw new Exception("Manager not found or is inactive."); // varsha
 
             if (file == null || file.Length == 0)
                 throw new Exception("Please select an Excel file.");

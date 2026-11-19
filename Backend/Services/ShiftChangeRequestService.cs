@@ -85,9 +85,9 @@ namespace EmployeeManagementSystem.Services
             if (string.IsNullOrWhiteSpace(empId))
                 return (false, "Employee ID is required.");
 
-            var employeeExists = await _context.Employees.AnyAsync(x => x.Employee_Id == empId);
+            var employeeExists = await _context.Employees.AnyAsync(x => x.Employee_Id == empId && x.Status == "Active"); // varsha: validate employee is active
             if (!employeeExists)
-                return (false, $"Employee with ID '{empId}' does not exist.");
+                return (false, $"Employee with ID '{empId}' does not exist or is inactive."); // varsha
 
             // Resolve requested shift
             int requestedShiftId = dto.RequestedShiftId;

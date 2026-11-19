@@ -29,7 +29,7 @@ namespace EmployeeManagementSystem.Services
                 return null;
 
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Email == email);
+                .FirstOrDefaultAsync(e => e.Email == email && e.Status == "Active"); // varsha
 
             if (employee == null)
                 return null;

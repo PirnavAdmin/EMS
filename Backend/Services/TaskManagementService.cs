@@ -27,6 +27,16 @@ namespace EmployeeManagementSystem.Services
         // CREATE TASK
         public async Task<string> CreateTask(TaskManagementDto dto)
         {
+            // varsha: Validate that assigned employee is active
+            if (!string.IsNullOrWhiteSpace(dto.AssignedTo)) // varsha
+            { // varsha
+                var assignedEmp = await _context.Employees // varsha
+                    .AsNoTracking() // varsha
+                    .FirstOrDefaultAsync(e => e.Employee_Id == dto.AssignedTo && e.Status == "Active"); // varsha
+                if (assignedEmp == null) // varsha
+                    return "Cannot assign task: employee is inactive or not found"; // varsha
+            } // varsha
+
             var task = new TaskManagement
             {
                 TaskTitle = dto.TaskTitle,
@@ -79,6 +89,16 @@ namespace EmployeeManagementSystem.Services
 
             if (task == null)
                 return null;
+
+            // varsha: Validate that assigned employee is active
+            if (!string.IsNullOrWhiteSpace(dto.AssignedTo)) // varsha
+            { // varsha
+                var assignedEmp = await _context.Employees // varsha
+                    .AsNoTracking() // varsha
+                    .FirstOrDefaultAsync(e => e.Employee_Id == dto.AssignedTo && e.Status == "Active"); // varsha
+                if (assignedEmp == null) // varsha
+                    throw new Exception("Cannot assign task: employee is inactive or not found"); // varsha
+            } // varsha
 
             task.TaskTitle = dto.TaskTitle;
             task.Project = dto.Project;

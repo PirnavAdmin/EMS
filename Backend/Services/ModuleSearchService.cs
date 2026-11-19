@@ -32,6 +32,7 @@ namespace EmployeeManagementSystem.Services
                     .ToListAsync(),
 
                 ["employees"] = async () => await _context.Employees
+                    .Where(e => e.Status == "Active") // varsha: module search only returns active employees
                     .Take(10)
                     .ToListAsync(),
 

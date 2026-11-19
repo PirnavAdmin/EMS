@@ -24,10 +24,10 @@ namespace EmployeeManagementSystem.Services
             var employee = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == dto.EmployeeId);
+                    x.Employee_Id == dto.EmployeeId && x.Status == "Active"); // varsha
 
             if (employee == null)
-                throw new Exception("Employee not found.");
+                throw new Exception("Employee not found or is inactive."); // varsha
 
             if (!employee.AdminId.HasValue)
                 throw new Exception(
@@ -388,7 +388,7 @@ namespace EmployeeManagementSystem.Services
                 await _context.Employees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x =>
-                        x.Employee_Id == employeeId);
+                        x.Employee_Id == employeeId && x.Status == "Active"); // varsha: inactive employees have no allowed modules
 
             if (employee == null)
                 return new List<object>();

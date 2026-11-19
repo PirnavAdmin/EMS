@@ -65,6 +65,9 @@ namespace EmployeeManagementSystem.Controllers
 
             if (employee != null)
             {
+                if (employee.Status != "Active") // varsha: inactive employees cannot update personal info
+                    return Unauthorized("Your account is inactive."); // varsha
+
                 // Logged-in employee
                 employeeId = employee.Employee_Id;
 

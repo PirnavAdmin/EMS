@@ -137,7 +137,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("employees")]
         public async Task<IActionResult> GetEmployees()
         {
+            var activeEmployeeIds = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.Status == "Active")
+                .Select(e => e.Employee_Id)
+                .ToListAsync(); // varsha: exclude inactive employees from monitoring
+
             var employees = await _context.EmployeeScreenshots
+                .Where(x => activeEmployeeIds.Contains(x.EmployeeId)) // varsha: filter by active employees
                 .GroupBy(x => x.EmployeeId)
                 .Select(g => new
                 {

@@ -2,8 +2,8 @@
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics; //varsha
-using System.Runtime.InteropServices; //varsha
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace EmployeeManagementSystem.Controllers
 
@@ -353,106 +353,106 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
-        // Settings -> Templates -> Download as PDF //varsha
+        // Settings -> Templates -> Download as PDF
         [HttpGet("download/{id}")]
         public async Task<IActionResult> DownloadTemplate(int id)
         {
-            var template = await _context.TemplateMaster.FindAsync(id); //varsha
-            if (template == null) //varsha
-                return NotFound("Template not found."); //varsha
+            var template = await _context.TemplateMaster.FindAsync(id);
+            if (template == null)
+                return NotFound("Template not found.");
 
-            if (string.IsNullOrWhiteSpace(template.FilePath)) //varsha
-                return NotFound("Template file path is missing."); //varsha
+            if (string.IsNullOrWhiteSpace(template.FilePath))
+                return NotFound("Template file path is missing.");
 
-            var path = Path.Combine( //varsha
-                Directory.GetCurrentDirectory(), //varsha
-                "wwwroot", //varsha
-                template.FilePath.TrimStart('/', '\\')); //varsha
+            var path = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                template.FilePath.TrimStart('/', '\\'));
 
-            if (!System.IO.File.Exists(path)) //varsha
+            if (!System.IO.File.Exists(path))
             {
-                var directPath = Path.Combine(Directory.GetCurrentDirectory(), template.FilePath.TrimStart('/', '\\')); //varsha
-                if (System.IO.File.Exists(directPath)) //varsha
+                var directPath = Path.Combine(Directory.GetCurrentDirectory(), template.FilePath.TrimStart('/', '\\'));
+                if (System.IO.File.Exists(directPath))
                 {
-                    path = directPath; //varsha
+                    path = directPath;
                 }
-                else if (!string.IsNullOrWhiteSpace(template.FileName)) //varsha
+                else if (!string.IsNullOrWhiteSpace(template.FileName))
                 {
-                    var templatesPath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", template.FileName); //varsha
-                    if (System.IO.File.Exists(templatesPath)) //varsha
+                    var templatesPath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", template.FileName);
+                    if (System.IO.File.Exists(templatesPath))
                     {
-                        path = templatesPath; //varsha
+                        path = templatesPath;
                     }
                 }
             }
 
-            if (!System.IO.File.Exists(path)) //varsha
-                return NotFound("File not found."); //varsha
+            if (!System.IO.File.Exists(path))
+                return NotFound("File not found.");
 
-            var baseFileName = !string.IsNullOrWhiteSpace(template.FileName) //varsha
-                ? Path.GetFileNameWithoutExtension(template.FileName) //varsha
-                : (!string.IsNullOrWhiteSpace(template.TemplateName) ? template.TemplateName : "Template"); //varsha
-            var downloadPdfName = $"{baseFileName}.pdf"; //varsha
+            var baseFileName = !string.IsNullOrWhiteSpace(template.FileName)
+                ? Path.GetFileNameWithoutExtension(template.FileName)
+                : (!string.IsNullOrWhiteSpace(template.TemplateName) ? template.TemplateName : "Template");
+            var downloadPdfName = $"{baseFileName}.pdf";
 
-            var extension = Path.GetExtension(path).ToLowerInvariant(); //varsha
-            if (extension == ".pdf") //varsha
+            var extension = Path.GetExtension(path).ToLowerInvariant();
+            if (extension == ".pdf")
             {
-                var pdfBytes = await System.IO.File.ReadAllBytesAsync(path); //varsha
-                return File(pdfBytes, "application/pdf", downloadPdfName); //varsha
+                var pdfBytes = await System.IO.File.ReadAllBytesAsync(path);
+                return File(pdfBytes, "application/pdf", downloadPdfName);
             }
 
-            // Convert DOCX / DOC to PDF using LibreOffice //varsha
-            var runId = Guid.NewGuid().ToString("N"); //varsha
-            var tempFolder = Path.Combine(Directory.GetCurrentDirectory(), "Temp", "Templates", runId); //varsha
-            if (!Directory.Exists(tempFolder)) //varsha
-                Directory.CreateDirectory(tempFolder); //varsha
+            // Convert DOCX / DOC to PDF using LibreOffice
+            var runId = Guid.NewGuid().ToString("N");
+            var tempFolder = Path.Combine(Directory.GetCurrentDirectory(), "Temp", "Templates", runId);
+            if (!Directory.Exists(tempFolder))
+                Directory.CreateDirectory(tempFolder);
 
-            var tempDocxPath = Path.Combine(tempFolder, $"{baseFileName}{extension}"); //varsha
-            var tempPdfPath = Path.ChangeExtension(tempDocxPath, ".pdf"); //varsha
-            var profileFolder = Path.Combine(tempFolder, "LO_Profile"); //varsha
-            var profileUri = "file:///" + profileFolder.Replace('\\', '/'); //varsha
+            var tempDocxPath = Path.Combine(tempFolder, $"{baseFileName}{extension}");
+            var tempPdfPath = Path.ChangeExtension(tempDocxPath, ".pdf");
+            var profileFolder = Path.Combine(tempFolder, "LO_Profile");
+            var profileUri = "file:///" + profileFolder.Replace('\\', '/');
 
-            try //varsha
+            try
             {
-                System.IO.File.Copy(path, tempDocxPath, true); //varsha
+                System.IO.File.Copy(path, tempDocxPath, true);
 
-                var sofficePath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) //varsha
-                    ? @"C:\Program Files\LibreOffice\program\soffice.exe" //varsha
-                    : "/usr/bin/soffice"; //varsha
+                var sofficePath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                    ? @"C:\Program Files\LibreOffice\program\soffice.exe"
+                    : "/usr/bin/soffice";
 
-                using (var process = new Process()) //varsha
+                using (var process = new Process())
                 {
-                    process.StartInfo.FileName = sofficePath; //varsha
-                    process.StartInfo.Arguments = $"-env:UserInstallation=\"{profileUri}\" --headless --nologo --nofirststartwizard --convert-to pdf \"{tempDocxPath}\" --outdir \"{tempFolder}\""; //varsha
-                    process.StartInfo.RedirectStandardOutput = true; //varsha
-                    process.StartInfo.RedirectStandardError = true; //varsha
-                    process.StartInfo.UseShellExecute = false; //varsha
-                    process.StartInfo.CreateNoWindow = true; //varsha
+                    process.StartInfo.FileName = sofficePath;
+                    process.StartInfo.Arguments = $"-env:UserInstallation=\"{profileUri}\" --headless --nologo --nofirststartwizard --convert-to pdf \"{tempDocxPath}\" --outdir \"{tempFolder}\"";
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.CreateNoWindow = true;
 
-                    process.Start(); //varsha
-                    await process.WaitForExitAsync(); //varsha
+                    process.Start();
+                    await process.WaitForExitAsync();
                 }
 
-                if (!System.IO.File.Exists(tempPdfPath)) //varsha
+                if (!System.IO.File.Exists(tempPdfPath))
                 {
-                    return StatusCode(500, "PDF generation failed. LibreOffice conversion did not produce output."); //varsha
+                    return StatusCode(500, "PDF generation failed. LibreOffice conversion did not produce output.");
                 }
 
-                var convertedPdfBytes = await System.IO.File.ReadAllBytesAsync(tempPdfPath); //varsha
-                return File(convertedPdfBytes, "application/pdf", downloadPdfName); //varsha
+                var convertedPdfBytes = await System.IO.File.ReadAllBytesAsync(tempPdfPath);
+                return File(convertedPdfBytes, "application/pdf", downloadPdfName);
             }
-            catch (Exception ex) //varsha
+            catch (Exception ex)
             {
-                return StatusCode(500, $"PDF conversion error: {ex.Message}"); //varsha
+                return StatusCode(500, $"PDF conversion error: {ex.Message}");
             }
-            finally //varsha
+            finally
             {
-                try //varsha
+                try
                 {
-                    if (Directory.Exists(tempFolder)) //varsha
-                        Directory.Delete(tempFolder, true); //varsha
+                    if (Directory.Exists(tempFolder))
+                        Directory.Delete(tempFolder, true);
                 }
-                catch { } //varsha
+                catch { }
             }
         }
 

@@ -824,12 +824,12 @@ $"--outdir \"{appraisalDirectory}\" " +
             var employee = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == appraisal.Employee_Id);
+                    x.Employee_Id == appraisal.Employee_Id && x.Status == "Active"); // varsha
 
             if (employee == null)
             {
                 throw new InvalidOperationException(
-                    "Employee not found.");
+                    "Employee not found or is inactive."); // varsha
             }
 
             if (string.IsNullOrWhiteSpace(employee.Email))
