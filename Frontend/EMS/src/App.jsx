@@ -983,6 +983,7 @@ const SuperAdminSearch = lazyRoute("super-admin-search", () => import("./SuperAd
 const SuperAdminProfile = lazyRoute("super-admin-profile", () => import("./SuperAdmin/SuperAdminProfile"));
 // const Support = lazyRoute("support", () => import("./SuperAdmin/Support"));
 const SuperAdminPermissions = lazyRoute("super-admin-permissions", () => import("./SuperAdmin/SuperAdminPermissions"));
+const AuditLogs = lazyRoute("audit-logs", () => import("./AuditLogs/AuditLogs"));
 
 const EmployeeList = lazyRoute("employees", () => import("./Employees/EmployeeList"));
 const AddEmployee = lazyRoute("add-employee", () => import("./Employees/AddEmployee/AddEmployee"));
@@ -1693,6 +1694,17 @@ function App() {
                 <PermissionRoute module="Reports">
                   <Reports />
                 </PermissionRoute>
+              }
+            />
+
+            <Route
+              path="/audit-logs"
+              element={
+                <RoleRoute allowedRoles={[ROLES.ADMIN]}>
+                  <PermissionRoute module="Audit Logs">
+                    <AuditLogs />
+                  </PermissionRoute>
+                </RoleRoute>
               }
             />
 
