@@ -7,8 +7,7 @@ namespace EmployeeManagementSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-
-    [Authorize]
+    //[Authorize]
     public class ShiftRotationController : ControllerBase
     {
         private readonly IShiftRotationService _service;

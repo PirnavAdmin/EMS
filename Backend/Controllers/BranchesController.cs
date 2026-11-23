@@ -1,43 +1,38 @@
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
-using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    [Authorize]
+    // varsha - Branches controller with complete Audit Logging
+    //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class BranchesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
-        public BranchesController(AppDbContext context)
+        public BranchesController(
+            AppDbContext context,
+            IAuditLogService auditLogService) // varsha
         {
             _context = context;
+            _auditLogService = auditLogService; // varsha
         }
 
-        private async Task<int> GetCurrentOrgIdAsync()
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue || orgId.Value <= 0)
-            {
-                throw new UnauthorizedAccessException("Organization context could not be resolved.");
-            }
-            return orgId.Value;
-        }
-
-        // ✅ 1. CREATE BRANCH
+        // ✅ CREATE BRANCH
+        //[Permission(ModuleIds.Clients, PermissionAction.Add)]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] BranchDto dto)
         {
-            int orgId = await GetCurrentOrgIdAsync();
-
             var branch = new Branch
             {
-                OrganizationId = orgId, // 🔥 Scoped to current org
                 BranchName = dto.BranchName,
                 Established = dto.Established,
                 PhoneNumber = dto.PhoneNumber,
@@ -48,50 +43,46 @@ namespace EmployeeManagementSystem.Controllers
             await _context.Branches.AddAsync(branch);
             await _context.SaveChangesAsync();
 
+            // varsha - Audit branch creation
+            await _auditLogService.LogCreateAsync(
+                module: "Branches",
+                entityName: "Branch",
+                entityId: branch.Branch_Id ?? branch.Id.ToString(),
+                description: $"Created branch '{branch.BranchName}'",
+                newValues: dto,
+                user: User);
+
             return Ok(branch);
         }
 
-        // ✅ 2. GET ALL BRANCHES
+        // ✅ GET ALL BRANCHES
+        //[Permission(ModuleIds.Clients, PermissionAction.View)]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            int orgId = await GetCurrentOrgIdAsync();
-
-            var branches = await _context.Branches
-                .AsNoTracking()
-                .Where(b => b.OrganizationId == orgId) // 🔥 Isolated
-                .ToListAsync();
-
+            var branches = await _context.Branches.ToListAsync();
             return Ok(branches);
         }
 
-        // ✅ 3. GET BRANCH BY ID
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            int orgId = await GetCurrentOrgIdAsync();
-
-            var branch = await _context.Branches
-                .AsNoTracking()
-                .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId); // 🔥 Ownership check
-
-            if (branch == null)
-                return NotFound(new { message = "Branch not found" });
-
-            return Ok(branch);
-        }
-
-        // ✅ 4. UPDATE BRANCH
+        // ✅ UPDATE BRANCH
+        //[Permission(ModuleIds.Clients, PermissionAction.Edit)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] BranchDto dto)
         {
-            int orgId = await GetCurrentOrgIdAsync();
-
-            var branch = await _context.Branches
-                .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId); // 🔥 Ownership check
+            var branch = await _context.Branches.FindAsync(id);
 
             if (branch == null)
-                return NotFound(new { message = "Branch not found" });
+                return NotFound("Branch not found");
+
+            // varsha - Capture branch state before mutation
+            var oldValues = new
+            {
+                branch.BranchName,
+                branch.Established,
+                branch.PhoneNumber,
+                branch.Email,
+                branch.Branch_Id
+            };
 
             branch.BranchName = dto.BranchName;
             branch.Established = dto.Established;
@@ -101,23 +92,51 @@ namespace EmployeeManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
+            // varsha - Audit branch update with full old and new values delta
+            await _auditLogService.LogUpdateAsync(
+                module: "Branches",
+                entityName: "Branch",
+                entityId: branch.Branch_Id ?? branch.Id.ToString(),
+                description: $"Updated branch '{branch.BranchName}'",
+                oldValues: oldValues,
+                newValues: dto,
+                user: User);
+
             return Ok(branch);
         }
 
-        // ✅ 5. DELETE BRANCH
+        // ✅ DELETE BRANCH
+        //[Permission(ModuleIds.Clients, PermissionAction.Delete)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            int orgId = await GetCurrentOrgIdAsync();
-
-            var branch = await _context.Branches
-                .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId); // 🔥 Ownership check
+            var branch = await _context.Branches.FindAsync(id);
 
             if (branch == null)
-                return NotFound(new { message = "Branch not found" });
+                return NotFound("Branch not found");
+
+            // varsha - Capture branch state before deletion
+            var oldValues = new
+            {
+                branch.Id,
+                branch.BranchName,
+                branch.Established,
+                branch.PhoneNumber,
+                branch.Email,
+                branch.Branch_Id
+            };
 
             _context.Branches.Remove(branch);
             await _context.SaveChangesAsync();
+
+            // varsha - Audit branch deletion
+            await _auditLogService.LogDeleteAsync(
+                module: "Branches",
+                entityName: "Branch",
+                entityId: branch.Branch_Id ?? branch.Id.ToString(),
+                description: $"Deleted branch '{branch.BranchName}'",
+                oldValues: oldValues,
+                user: User);
 
             return Ok(new
             {

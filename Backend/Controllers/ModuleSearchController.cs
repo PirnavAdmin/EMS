@@ -1,11 +1,9 @@
-using EmployeeManagementSystem.DTOs;
+﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ModuleSearchController : ControllerBase

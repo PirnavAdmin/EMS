@@ -1,4 +1,4 @@
-using EmployeeManagementSystem.Authorization;
+﻿using EmployeeManagementSystem.Authorization;
 using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -25,7 +25,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("all")]
         public async Task<IActionResult> GetAllReports()
         {
-            var result = await _service.GetAllReports(User);
+            var result = await _service.GetAllReports();
             return Ok(result);
         }
     }

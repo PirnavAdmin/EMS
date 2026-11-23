@@ -687,23 +687,20 @@ namespace EmployeeManagementSystem.Data
 
             });
 
+            // varsha - AuditLog entity configuration with indexes for production query performance
             modelBuilder.Entity<AuditLog>(entity =>
-
             {
-
                 entity.ToTable("auditlogs");
-
                 entity.HasKey(e => e.Id);
-
-                entity.HasIndex(e => e.CreatedAt);
-
-                entity.HasIndex(e => e.Module);
-
-                entity.HasIndex(e => e.Action);
-
+                entity.HasIndex(e => e.OrganizationCode); //  - index for tenant filtering
+                entity.HasIndex(e => e.CreatedAt); // varsha - index for timestamp sorting/filtering
+                entity.HasIndex(e => e.UserId); // varsha - index for user filtering
+                entity.HasIndex(e => e.Module); // varsha - index for module filtering
+                entity.HasIndex(e => e.Action); // varsha - index for action filtering
+                entity.HasIndex(e => new { e.EntityName, e.EntityId }); // varsha - composite index for entity tracking
             });
 
-            modelBuilder.Entity<SystemSetting>(entity =>
+                modelBuilder.Entity<SystemSetting>(entity =>
 
             {
 
@@ -713,53 +710,53 @@ namespace EmployeeManagementSystem.Data
 
             });
 
-            modelBuilder.Entity<SuperAdminNotification>(entity =>
+                modelBuilder.Entity<SuperAdminNotification>(entity =>
 
-            {
+                {
 
-                entity.ToTable("superadminnotifications");
+                    entity.ToTable("superadminnotifications");
 
-                entity.HasKey(e => e.Id);
+                    entity.HasKey(e => e.Id);
 
-                entity.HasIndex(e => e.IsRead);
+                    entity.HasIndex(e => e.IsRead);
 
-                entity.HasIndex(e => e.CreatedAt);
+                    entity.HasIndex(e => e.CreatedAt);
 
-            });
+                });
 
-            modelBuilder.Entity<StatusChangeLog>(entity =>
+                modelBuilder.Entity<StatusChangeLog>(entity =>
 
-            {
+                {
 
-                entity.ToTable("statuschangelogs");
+                    entity.ToTable("statuschangelogs");
 
-                entity.HasKey(e => e.Id);
+                    entity.HasKey(e => e.Id);
 
-                entity.HasIndex(e => new { e.EntityType, e.EntityId });
+                    entity.HasIndex(e => new { e.EntityType, e.EntityId });
 
-            });
+                });
 
 
 
-            //    modelBuilder.Entity<ShiftRoster>()
+                //    modelBuilder.Entity<ShiftRoster>()
 
-            //.HasOne(x => x.Employee)
+                //.HasOne(x => x.Employee)
 
-            //.WithMany()
+                //.WithMany()
 
-            //.HasForeignKey(x => x.Employee_Id)
+                //.HasForeignKey(x => x.Employee_Id)
 
-            //.HasPrincipalKey(e => e.Employee_Id);
+                //.HasPrincipalKey(e => e.Employee_Id);
 
-            //    modelBuilder.Entity<ShiftRoster>()
+                //    modelBuilder.Entity<ShiftRoster>()
 
-            //        .HasOne(x => x.Shift)
+                //        .HasOne(x => x.Shift)
 
-            //        .WithMany()
+                //        .WithMany()
 
-            //        .HasForeignKey(x => x.ShiftId);
+                //        .HasForeignKey(x => x.ShiftId);
 
-        }
+            }
 
     }
 

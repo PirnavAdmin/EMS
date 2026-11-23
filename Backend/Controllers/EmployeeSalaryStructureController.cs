@@ -1,10 +1,6 @@
-using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
+﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
-using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -13,14 +9,14 @@ namespace EmployeeManagementSystem.Controllers
     public class EmployeeSalaryStructureController : ControllerBase
     {
         private readonly IEmployeeSalaryStructureService _salaryService;
-        private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
         public EmployeeSalaryStructureController(
             IEmployeeSalaryStructureService salaryService,
-            AppDbContext context)
+            IAuditLogService auditLogService) // varsha
         {
             _salaryService = salaryService;
-            _context = context;
+            _auditLogService = auditLogService; // varsha
         }
 
         // ==========================================
@@ -28,18 +24,25 @@ namespace EmployeeManagementSystem.Controllers
         // ==========================================
 
         [HttpPost]
-        public async Task<IActionResult> Create(EmployeeSalaryStructureDto dto)
+        public async Task<IActionResult> Create(
+            EmployeeSalaryStructureDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, dto.Employee_Id);
-            if (!inTenant)
-                return NotFound(new { message = "Employee not found in your organization." });
-
             try
             {
-                var result = await _salaryService.CreateAsync(dto);
+                var result =
+                    await _salaryService.CreateAsync(dto);
+
+                // varsha - Audit salary creation (non-sensitive fields only)
+                await _auditLogService.LogCreateAsync(
+                    module: "Payroll",
+                    entityName: "EmployeeSalaryStructure",
+                    entityId: dto.Employee_Id ?? "N/A",
+                    description: $"Created salary structure for employee {dto.Employee_Id}",
+                    newValues: new { dto.Employee_Id, dto.AnnualCTC, dto.BasicSalary, dto.EffectiveFrom },
+                    user: User);
 
                 return Ok(new
                 {
@@ -61,16 +64,12 @@ namespace EmployeeManagementSystem.Controllers
         // ==========================================
 
         [HttpGet("{employeeId}")]
-        public async Task<IActionResult> GetByEmployee(string employeeId)
+        public async Task<IActionResult> GetByEmployee(
+            string employeeId)
         {
-            employeeId = Uri.UnescapeDataString(employeeId).Trim();
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-            if (!inTenant)
-            {
-                return NotFound(new { message = "Salary structure not found in your organization." });
-            }
-
-            var data = await _salaryService.GetByEmployeeIdAsync(employeeId);
+            var data =
+                await _salaryService
+                    .GetByEmployeeIdAsync(employeeId);
 
             if (data == null)
             {
@@ -90,16 +89,8 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var tenantEmpIds = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
-                .Select(e => e.Employee_Id)
-                .ToListAsync();
-
-            var data = await _context.EmployeeSalaryStructures
-                .AsNoTracking()
-                .Where(x => tenantEmpIds.Contains(x.Employee_Id))
-                .OrderBy(x => x.Employee_Id)
-                .ToListAsync();
+            var data =
+                await _salaryService.GetAllAsync();
 
             return Ok(data);
         }
@@ -109,17 +100,27 @@ namespace EmployeeManagementSystem.Controllers
         // ==========================================
 
         [HttpPut("{employeeId}")]
-        public async Task<IActionResult> Update(string employeeId, EmployeeSalaryStructureDto dto)
+        public async Task<IActionResult> Update(
+            string employeeId,
+            EmployeeSalaryStructureDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            employeeId = Uri.UnescapeDataString(employeeId).Trim();
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-            if (!inTenant)
-                return NotFound(new { message = "Salary structure not found in your organization." });
+            // varsha - Fetch existing salary structure before update
+            var existing = await _salaryService.GetByEmployeeIdAsync(employeeId);
+            var oldValues = existing != null ? new
+            {
+                EmployeeId = employeeId,
+                existing.AnnualCTC,
+                existing.BasicSalary,
+                existing.EffectiveFrom
+            } : null;
 
-            var result = await _salaryService.UpdateAsync(employeeId, dto);
+            var result =
+                await _salaryService.UpdateAsync(
+                    employeeId,
+                    dto);
 
             if (result == null)
             {
@@ -128,6 +129,16 @@ namespace EmployeeManagementSystem.Controllers
                     message = "Salary structure not found."
                 });
             }
+
+            // varsha - Audit salary update with full old and new values delta
+            await _auditLogService.LogUpdateAsync(
+                module: "Payroll",
+                entityName: "EmployeeSalaryStructure",
+                entityId: employeeId,
+                description: $"Updated salary structure for employee {employeeId}",
+                oldValues: oldValues,
+                newValues: new { EmployeeId = employeeId, dto.AnnualCTC, dto.BasicSalary, dto.EffectiveFrom },
+                user: User);
 
             return Ok(new
             {
@@ -141,14 +152,21 @@ namespace EmployeeManagementSystem.Controllers
         // ==========================================
 
         [HttpDelete("{employeeId}")]
-        public async Task<IActionResult> Delete(string employeeId)
+        public async Task<IActionResult> Delete(
+            string employeeId)
         {
-            employeeId = Uri.UnescapeDataString(employeeId).Trim();
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-            if (!inTenant)
-                return NotFound(new { message = "Salary structure not found in your organization." });
+            // varsha - Capture existing salary structure before deletion
+            var existing = await _salaryService.GetByEmployeeIdAsync(employeeId);
+            var oldValues = existing != null ? new
+            {
+                EmployeeId = employeeId,
+                existing.AnnualCTC,
+                existing.BasicSalary,
+                existing.EffectiveFrom
+            } : null;
 
-            var deleted = await _salaryService.DeleteAsync(employeeId);
+            var deleted =
+                await _salaryService.DeleteAsync(employeeId);
 
             if (!deleted)
             {
@@ -157,6 +175,15 @@ namespace EmployeeManagementSystem.Controllers
                     message = "Salary structure not found."
                 });
             }
+
+            // varsha - Audit salary deletion with pre-delete state preserved
+            await _auditLogService.LogDeleteAsync(
+                module: "Payroll",
+                entityName: "EmployeeSalaryStructure",
+                entityId: employeeId,
+                description: $"Deleted salary structure for employee {employeeId}",
+                oldValues: oldValues,
+                user: User);
 
             return Ok(new
             {

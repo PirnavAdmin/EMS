@@ -1,10 +1,9 @@
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
 using System.Security.Claims;
-using EmployeeManagementSystem.Helpers;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -47,12 +46,6 @@ public class EmployeeBankDetailsController : ControllerBase
                 });
 
             employeeId = dto.Employee_Id;
-        }
-
-        bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-        if (!inTenant)
-        {
-            return NotFound(new { message = "Employee not found in your organization." });
         }
 
         var exists = await _context.EmployeeBankDetails
@@ -102,18 +95,6 @@ public class EmployeeBankDetailsController : ControllerBase
             });
         }
 
-        var currentUserId = CurrentUserHelper.GetEmployeeOrOnboardingId(User);
-        bool isSelf = !string.IsNullOrWhiteSpace(currentUserId) && string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase);
-
-        if (!isSelf)
-        {
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-            if (!inTenant)
-            {
-                return NotFound(new { message = "Bank details not found." });
-            }
-        }
-
         var bankDetail = await _context.EmployeeBankDetails
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
@@ -127,19 +108,13 @@ public class EmployeeBankDetailsController : ControllerBase
         }
 
         return Ok(bankDetail);
-    }
-
+    }   // ✅ GET ALL
+    [HttpGet]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-        var tenantEmpIds = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
-            .Select(e => e.Employee_Id)
-            .ToListAsync();
-
         var data = await _context.EmployeeBankDetails
             .AsNoTracking()
-            .Where(x => tenantEmpIds.Contains(x.Employee_Id))
             .OrderBy(x => x.Employee_Id)
             .ToListAsync();
 
@@ -163,18 +138,6 @@ public class EmployeeBankDetailsController : ControllerBase
             {
                 message = "Employee Id is required."
             });
-        }
-
-        var currentUserId = CurrentUserHelper.GetEmployeeOrOnboardingId(User);
-        bool isSelf = !string.IsNullOrWhiteSpace(currentUserId) && string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase);
-
-        if (!isSelf)
-        {
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-            if (!inTenant)
-            {
-                return NotFound(new { message = "Bank details not found for this employee." });
-            }
         }
 
         var bankDetail = await _context.EmployeeBankDetails
@@ -217,12 +180,6 @@ public class EmployeeBankDetailsController : ControllerBase
             {
                 message = "Employee Id is required."
             });
-        }
-
-        bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-        if (!inTenant)
-        {
-            return NotFound(new { message = "Bank details not found." });
         }
 
         var bankDetail = await _context.EmployeeBankDetails

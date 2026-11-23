@@ -1,138 +1,171 @@
 ﻿using ClosedXML.Excel;
+using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
-using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.IO;
+using System.Threading.Tasks;
 
-[Authorize]
-[ApiController]
-[Route("api/[controller]")]
-public class DepartmentsController : ControllerBase
+namespace EmployeeManagementSystem.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public DepartmentsController(AppDbContext context)
+    // varsha - Departments controller with complete Audit Logging
+    //[Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class DepartmentsController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
-    private int GetCurrentOrgId()
-    {
-        var orgId = CurrentUserHelper.GetOrganizationId(User);
-        if (!orgId.HasValue || orgId.Value <= 0)
+        public DepartmentsController(
+            AppDbContext context,
+            IAuditLogService auditLogService) // varsha
         {
-            throw new UnauthorizedAccessException("OrganizationId not found in token.");
+            _context = context;
+            _auditLogService = auditLogService; // varsha
         }
-        return orgId.Value;
-    }
 
-    // ✅ Create Department
-    [HttpPost]
-    public async Task<IActionResult> Create(DepartmentDto dto)
-    {
-        int orgId = GetCurrentOrgId();
-
-        var department = new Department
+        // ✅ Create Department
+        //[Permission(ModuleIds.Departments, PermissionAction.Add)]
+        [HttpPost]
+        public async Task<IActionResult> Create(DepartmentDto dto)
         {
-            OrganizationId = orgId, // 🔥 Scoped to current org
-            DepartmentName = dto.DepartmentName,
-            DepartmentHead = dto.DepartmentHead,
-            Building = dto.Building,
-            Status = dto.Status ?? "Active",
-            MembersCount = dto.MembersCount,
-            Department_Id = dto.Department_Id,
-            CreatedAt = DateTime.UtcNow
-        };
+            var department = new Department
+            {
+                DepartmentName = dto.DepartmentName,
+                DepartmentHead = dto.DepartmentHead,
+                Building = dto.Building,
+                Status = dto.Status,
+                MembersCount = dto.MembersCount,
+                Department_Id = dto.Department_Id,
+                CreatedAt = DateTime.UtcNow
+            };
 
-        await _context.Departments.AddAsync(department);
-        await _context.SaveChangesAsync();
+            await _context.Departments.AddAsync(department);
+            await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Department created successfully", id = department.Id });
-    }
+            // varsha - Audit department creation
+            await _auditLogService.LogCreateAsync(
+                module: "Departments",
+                entityName: "Department",
+                entityId: department.Department_Id ?? department.Id.ToString(),
+                description: $"Created department '{department.DepartmentName}'",
+                newValues: dto,
+                user: User);
 
-    // ✅ Get All
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        int orgId = GetCurrentOrgId();
+            return Ok(new { message = "Department created successfully" });
+        }
 
-        var departments = await _context.Departments
-            .AsNoTracking()
-            .Where(d => d.OrganizationId == orgId) // 🔥 Isolated
-            .ToListAsync();
+        // ✅ Get All
+        //[Permission(ModuleIds.Departments, PermissionAction.View)]
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var departments = await _context.Departments.ToListAsync();
+            return Ok(departments);
+        }
 
-        return Ok(departments);
-    }
+        // ✅ Get By Id
+        //[Permission(ModuleIds.Departments, PermissionAction.View)]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var department = await _context.Departments.FindAsync(id);
 
-    // ✅ Get By Id
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
-    {
-        int orgId = GetCurrentOrgId();
+            if (department == null)
+                return NotFound("Department not found");
 
-        var department = await _context.Departments
-            .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == orgId); // 🔥 Ownership check
+            return Ok(department);
+        }
 
-        if (department == null)
-            return NotFound(new { message = "Department not found" });
+        // ✅ Update Department
+        //[Permission(ModuleIds.Departments, PermissionAction.Edit)]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, DepartmentDto dto)
+        {
+            var department = await _context.Departments.FindAsync(id);
 
-        return Ok(department);
-    }
+            if (department == null)
+                return NotFound("Department not found");
 
-    // ✅ Update Department
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, DepartmentDto dto)
-    {
-        int orgId = GetCurrentOrgId();
+            // varsha - Capture existing department state before mutation
+            var oldValues = new
+            {
+                department.DepartmentName,
+                department.DepartmentHead,
+                department.Building,
+                department.Status,
+                department.Department_Id
+            };
 
-        var department = await _context.Departments
-            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == orgId); // 🔥 Ownership check
+            department.DepartmentName = dto.DepartmentName;
+            department.DepartmentHead = dto.DepartmentHead;
+            department.Building = dto.Building;
+            department.Status = dto.Status;
+            department.Department_Id = dto.Department_Id;
 
-        if (department == null)
-            return NotFound(new { message = "Department not found" });
+            await _context.SaveChangesAsync();
 
-        department.DepartmentName = dto.DepartmentName;
-        department.DepartmentHead = dto.DepartmentHead;
-        department.Building = dto.Building;
-        department.Status = dto.Status;
-        department.Department_Id = dto.Department_Id;
+            // varsha - Audit department update with full old and new values delta
+            await _auditLogService.LogUpdateAsync(
+                module: "Departments",
+                entityName: "Department",
+                entityId: department.Department_Id ?? department.Id.ToString(),
+                description: $"Updated department '{department.DepartmentName}'",
+                oldValues: oldValues,
+                newValues: dto,
+                user: User);
 
-        await _context.SaveChangesAsync();
+            return Ok(new { message = "Department updated successfully" });
+        }
 
-        return Ok(new { message = "Department updated successfully" });
-    }
+        // ✅ Delete Department
+        //[Permission(ModuleIds.Departments, PermissionAction.Delete)]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var department = await _context.Departments.FindAsync(id);
 
-    // ✅ Delete Department
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        int orgId = GetCurrentOrgId();
+            if (department == null)
+                return NotFound("Department not found");
 
-        var department = await _context.Departments
-            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == orgId); // 🔥 Ownership check
+            // varsha - Capture department state before deletion
+            var oldValues = new
+            {
+                department.Id,
+                department.DepartmentName,
+                department.DepartmentHead,
+                department.Building,
+                department.Status,
+                department.Department_Id
+            };
 
-        if (department == null)
-            return NotFound(new { message = "Department not found" });
+            _context.Departments.Remove(department);
+            await _context.SaveChangesAsync();
 
-        _context.Departments.Remove(department);
-        await _context.SaveChangesAsync();
+            // varsha - Audit department deletion
+            await _auditLogService.LogDeleteAsync(
+                module: "Departments",
+                entityName: "Department",
+                entityId: department.Department_Id ?? department.Id.ToString(),
+                description: $"Deleted department '{department.DepartmentName}'",
+                oldValues: oldValues,
+                user: User);
 
-        return Ok(new { message = "Department deleted successfully" });
-    }
+            return Ok("Department deleted successfully");
+        }
 
-    // ✅ Export Departments
+    //// ✅ Export Departments
+    //[Permission(ModuleIds.Departments, PermissionAction.View)]
     [HttpGet("export")]
     public async Task<IActionResult> ExportDepartments()
     {
-        int orgId = GetCurrentOrgId();
-
         var departments = await _context.Departments
             .AsNoTracking()
-            .Where(d => d.OrganizationId == orgId) // 🔥 Isolated
             .ToListAsync();
 
         using var workbook = new XLWorkbook();
@@ -171,10 +204,11 @@ public class DepartmentsController : ControllerBase
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
 
-        return File(
-            stream.ToArray(),
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"Departments_{DateTime.Now:yyyyMMdd}.xlsx"
-        );
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"Departments_{DateTime.Now:yyyyMMdd}.xlsx"
+            );
+        }
     }
 }

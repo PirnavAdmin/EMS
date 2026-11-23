@@ -29,6 +29,17 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// varsha - Automated verification runner for Audit Logging System
+if 
+(args.Contains("--test") || args.Contains("--verify-audit"))
+{
+    var runner = new EmployeeManagementSystem.Helpers.AuditLogVerificationRunner();
+    bool passed = await runner.RunAllTestsAsync();
+    Environment.Exit(passed ? 0 : 1);
+    return;
+}
+
+
 //// ================= FIREBASE CONFIGURATION =================
 
 //// Firebase configuration for Mobile Push Notifications
@@ -144,6 +155,7 @@ builder.Services.AddScoped<JwtHelper>();
 
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITenantProvider, TenantProvider>();
+builder.Services.AddScoped<ITenantService, TenantService>();
 
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 

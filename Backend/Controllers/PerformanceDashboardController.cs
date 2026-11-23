@@ -1,5 +1,4 @@
 using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,39 +18,26 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> Dashboard()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
-            var empQuery = _context.Employees.AsNoTracking();
-            var goalQuery = _context.EmployeeGoals.AsNoTracking();
-            var appraisalQuery = _context.Appraisals.AsNoTracking();
-
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                empQuery = empQuery.Where(x => x.OrganizationId == orgId.Value);
-                goalQuery = goalQuery.Where(x => x.OrganizationId == orgId.Value);
-                appraisalQuery = appraisalQuery.Where(x => x.OrganizationId == orgId.Value);
-            }
-
             var totalEmployees =
-                await empQuery.CountAsync();
+                await _context.Employees.CountAsync(x => x.Status == "Active");
 
             var totalGoals =
-                await goalQuery.CountAsync();
+                await _context.EmployeeGoals.CountAsync();
 
             var completedGoals =
-                await goalQuery
+                await _context.EmployeeGoals
                     .CountAsync(x => x.Status == "Completed");
 
             var pendingReviews =
-                await appraisalQuery
+                await _context.Appraisals
                     .CountAsync(x => x.Status != "Completed");
 
             var avgRating =
-                await appraisalQuery
+                await _context.Appraisals
                     .AverageAsync(x => (double?)x.FinalRating) ?? 0;
 
             var topPerformers =
-                await appraisalQuery
+                await _context.Appraisals
                     .OrderByDescending(x => x.FinalRating)
                     .Take(10)
                     .ToListAsync();

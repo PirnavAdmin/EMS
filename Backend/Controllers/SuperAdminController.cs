@@ -453,6 +453,58 @@ namespace EmployeeManagementSystem.Controllers
             }
         }
 
+        //  - PUT /api/SuperAdmin/admins/{id}/audit-logs-permission
+        // Super Admin grant or revoke Audit Logs permission for a specific Admin
+        // =========================================================================
+        [Authorize(Roles = "SuperAdmin")]
+        [HttpPut("admins/{id:int}/audit-logs-permission")]
+        public async Task<IActionResult> UpdateAdminAuditLogsPermission(
+            int id,
+            [FromBody] SetAuditLogsPermissionDto? dto = null,
+            [FromQuery] bool? canAccess = null,
+            [FromServices] IAdminPermissionService adminPermissionService = null!)
+        {
+            try
+            {
+                bool access = canAccess ?? dto?.CanAccess ?? true;
+                await adminPermissionService.SetAuditLogsPermissionAsync(id, access);
+                return Ok(new
+                {
+                    success = true,
+                    message = access
+                        ? $"Audit Logs permission granted successfully to Admin ID {id}."
+                        : $"Audit Logs permission revoked successfully from Admin ID {id}.",
+                    adminId = id,
+                    hasAuditLogsPermission = access
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        // =========================================================================
+        //  - GET /api/SuperAdmin/admins/{id}/audit-logs-permission
+        // Super Admin get current Audit Logs permission status for an Admin
+        // =========================================================================
+        [Authorize(Roles = "SuperAdmin")]
+        [HttpGet("admins/{id:int}/audit-logs-permission")]
+        public async Task<IActionResult> GetAdminAuditLogsPermission(
+            int id,
+            [FromServices] IAdminPermissionService adminPermissionService)
+        {
+            try
+            {
+                var result = await adminPermissionService.GetAuditLogsPermissionStatusAsync(id);
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
         [Authorize(Roles = "SuperAdmin")]
         [HttpGet("organizations/{organizationId:int}/assignable-admins")]
         public async Task<IActionResult> GetAssignableAdmins(int organizationId)

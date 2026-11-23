@@ -98,7 +98,7 @@ namespace EmployeeManagementSystem.DTOs
 
     public class RecentActivityItemDto
     {
-        public int Id { get; set; }
+        public long Id { get; set; }
         public string Action { get; set; } = string.Empty;
         public string Activity { get; set; } = string.Empty;
         public string? User { get; set; }
@@ -578,7 +578,7 @@ namespace EmployeeManagementSystem.DTOs
 
     public class AuditLogItemDto
     {
-        public int Id { get; set; }
+        public long Id { get; set; }
         public int? OrganizationId { get; set; }
         public string? UserId { get; set; }
         public string? UserName { get; set; }

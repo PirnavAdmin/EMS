@@ -1,79 +1,68 @@
-﻿using ClosedXML.Excel;
+// varsha - Client management audit logging
+using ClosedXML.Excel;
+using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
+using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.IO;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ClientsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
-    public ClientsController(AppDbContext context)
+    public ClientsController(
+        AppDbContext context,
+        IAuditLogService auditLogService) // varsha
     {
         _context = context;
+        _auditLogService = auditLogService; // varsha
     }
 
-    private int GetCurrentOrgId()
-    {
-        var orgId = CurrentUserHelper.GetOrganizationId(User);
-        if (!orgId.HasValue || orgId.Value <= 0)
-        {
-            throw new UnauthorizedAccessException("OrganizationId not found in token.");
-        }
-        return orgId.Value;
-    }
-
-    // ✅ 1. GET ALL CLIENTS
+    // ✅ GET ALL
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        int orgId = GetCurrentOrgId();
-
         var clients = await _context.Clients
-            .AsNoTracking()
-            .Where(c => c.OrganizationId == orgId) // 🔥 Isolated
             .Select(c => new ClientDto
             {
-                Id = c.Id,
+                Id= c.Id,   
                 Client_Name = c.Client_Name,
                 Description = c.Description,
                 Location = c.Location,
                 Phone = c.Phone,
                 Email = c.Email,
-                Active_Projects = c.Active_Projects,
-                OrganizationId = c.OrganizationId
+                Active_Projects = c.Active_Projects
             })
             .ToListAsync();
 
         return Ok(clients);
     }
 
-    // ✅ 2. GET BY NAME
+    // ✅ GET BY NAME
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet("by-name/{clientName}")]
     public async Task<IActionResult> GetByName(string clientName)
     {
-        int orgId = GetCurrentOrgId();
-
         var client = await _context.Clients
-            .AsNoTracking()
-            .Where(c => c.Client_Name == clientName && c.OrganizationId == orgId) // 🔥 Ownership check
+            .Where(c => c.Client_Name == clientName)
             .Select(c => new ClientDto
             {
-                Id = c.Id,
+                Id=c.Id,
                 Client_Name = c.Client_Name,
                 Description = c.Description,
+
                 Location = c.Location,
                 Phone = c.Phone,
                 Email = c.Email,
-                Active_Projects = c.Active_Projects,
-                OrganizationId = c.OrganizationId
+                Active_Projects = c.Active_Projects
             })
             .FirstOrDefaultAsync();
 
@@ -83,45 +72,49 @@ public class ClientsController : ControllerBase
         return Ok(client);
     }
 
-    // ✅ 3. CREATE CLIENT
+    // ✅ POST
+    //[Permission(ModuleIds.Clients, PermissionAction.Add)]
     [HttpPost]
     public async Task<IActionResult> Create(ClientDto dto)
     {
-        int orgId = GetCurrentOrgId();
-
         var client = new Client
         {
-            OrganizationId = orgId, // 🔥 Scoped to current org
             Client_Name = dto.Client_Name,
             Description = dto.Description,
             Location = dto.Location,
             Phone = dto.Phone,
             Email = dto.Email,
-            Active_Projects = dto.Active_Projects,
-            CreatedAt = DateTime.UtcNow
+            Active_Projects = dto.Active_Projects
         };
 
         await _context.Clients.AddAsync(client);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "The Client details are created", id = client.Id });
+        // varsha - Audit client creation
+        await _auditLogService.LogCreateAsync(
+            module: "Clients",
+            entityName: "Client",
+            entityId: client.Id.ToString(),
+            description: $"Created client '{client.Client_Name}'",
+            newValues: dto,
+            user: User);
+
+        return Ok("The Client details are created");
     }
 
-    // ✅ 4. GET PROJECTS BY CLIENT
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet("{clientId:int}/projects")]
     public async Task<IActionResult> GetProjectsByClient(int clientId)
     {
-        int orgId = GetCurrentOrgId();
-
-        // Ensure client belongs to caller's organization
+        // Check if client exists
         var clientExists = await _context.Clients
-            .AnyAsync(c => c.Id == clientId && c.OrganizationId == orgId); // 🔥 Ownership check
+            .AnyAsync(c => c.Id == clientId);
 
         if (!clientExists)
             return NotFound("Client not found");
 
+        // Fetch projects using ClientId
         var projects = await _context.Projects
-            .AsNoTracking()
             .Where(p => p.ClientId == clientId)
             .Select(p => new
             {
@@ -135,19 +128,31 @@ public class ClientsController : ControllerBase
 
         return Ok(projects);
     }
+    // ✅ PUT (Using Client_Name)
 
-    // ✅ 5. UPDATE CLIENT
+    //[Permission(ModuleIds.Clients, PermissionAction.Edit)]
     [HttpPut("{clientName}")]
     public async Task<IActionResult> Update(string clientName, ClientDto dto)
     {
-        int orgId = GetCurrentOrgId();
-
         var client = await _context.Clients
-            .FirstOrDefaultAsync(c => c.Client_Name == clientName && c.OrganizationId == orgId); // 🔥 Ownership check
+            .FirstOrDefaultAsync(c => c.Client_Name == clientName);
 
         if (client == null)
             return NotFound("Client not found");
 
+        // varsha - Capture old values for delta comparison
+        var oldValues = new
+        {
+            client.Id,
+            client.Client_Name,
+            client.Description,
+            client.Location,
+            client.Phone,
+            client.Email,
+            client.Active_Projects
+        };
+
+        client.Id = dto.Id;
         client.Description = dto.Description;
         client.Location = dto.Location;
         client.Phone = dto.Phone;
@@ -156,17 +161,27 @@ public class ClientsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "The Client details are updated" });
+        // varsha - Audit client update
+        await _auditLogService.LogUpdateAsync(
+            module: "Clients",
+            entityName: "Client",
+            entityId: client.Id.ToString(),
+            description: $"Updated client '{client.Client_Name}'",
+            oldValues: oldValues,
+            newValues: dto,
+            user: User);
+
+        return Ok("The Client details are updated");
     }
 
-    // ✅ 6. DELETE CLIENT
+    // ✅ DELETE
+
+    //[Permission(ModuleIds.Clients, PermissionAction.Delete)]
     [HttpDelete("{clientName}")]
     public async Task<IActionResult> Delete(string clientName)
     {
-        int orgId = GetCurrentOrgId();
-
         var client = await _context.Clients
-            .FirstOrDefaultAsync(c => c.Client_Name == clientName && c.OrganizationId == orgId); // 🔥 Ownership check
+            .FirstOrDefaultAsync(c => c.Client_Name == clientName);
 
         if (client == null)
             return NotFound("Client not found");
@@ -174,23 +189,26 @@ public class ClientsController : ControllerBase
         _context.Clients.Remove(client);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Client deleted successfully" });
-    }
+        // varsha - Audit client deletion
+        await _auditLogService.LogDeleteAsync(
+            module: "Clients",
+            entityName: "Client",
+            entityId: client.Id.ToString(),
+            description: $"Deleted client '{client.Client_Name}'",
+            user: User);
 
-    // ✅ 7. EXPORT CLIENTS
+        return Ok("Client deleted successfully");
+    }
+    //[Permission(ModuleIds.Clients, PermissionAction.View)]
     [HttpGet("export")]
     public async Task<IActionResult> ExportClients()
     {
-        int orgId = GetCurrentOrgId();
-
-        var clients = await _context.Clients
-            .AsNoTracking()
-            .Where(c => c.OrganizationId == orgId) // 🔥 Isolated
-            .ToListAsync();
+        var clients = await _context.Clients.ToListAsync();
 
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Clients");
 
+        // Headers
         worksheet.Cell(1, 1).Value = "Client Name";
         worksheet.Cell(1, 2).Value = "Description";
         worksheet.Cell(1, 3).Value = "Location";
@@ -198,10 +216,13 @@ public class ClientsController : ControllerBase
         worksheet.Cell(1, 5).Value = "Email";
         worksheet.Cell(1, 6).Value = "Active Projects";
 
+        // Header Style
         var headerRange = worksheet.Range(1, 1, 1, 6);
         headerRange.Style.Font.Bold = true;
 
+        // Data
         int row = 2;
+
         foreach (var client in clients)
         {
             worksheet.Cell(row, 1).Value = client.Client_Name;
@@ -210,6 +231,7 @@ public class ClientsController : ControllerBase
             worksheet.Cell(row, 4).Value = client.Phone;
             worksheet.Cell(row, 5).Value = client.Email;
             worksheet.Cell(row, 6).Value = client.Active_Projects;
+
             row++;
         }
 

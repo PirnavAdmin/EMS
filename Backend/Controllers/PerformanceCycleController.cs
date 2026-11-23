@@ -1,6 +1,5 @@
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,15 +20,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var query = _context.PerformanceCycles.AsNoTracking();
-
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
-            return Ok(await query
+            return Ok(await _context.PerformanceCycles
                 .OrderByDescending(x => x.PerformanceCycleId)
                 .ToListAsync());
         }
@@ -37,9 +28,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var data = await _context.PerformanceCycles
-                .FirstOrDefaultAsync(x => x.PerformanceCycleId == id && (!orgId.HasValue || x.OrganizationId == orgId.Value));
+            var data = await _context.PerformanceCycles.FindAsync(id);
 
             if (data == null)
                 return NotFound();
@@ -50,11 +39,8 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(CreatePerformanceCycleDto dto)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
             var cycle = new PerformanceCycle
             {
-                OrganizationId = orgId ?? dto.OrganizationId,
                 CycleName = dto.CycleName,
                 FinancialYear = dto.FinancialYear,
                 StartDate = dto.StartDate,
@@ -73,9 +59,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, PerformanceCycle model)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var data = await _context.PerformanceCycles
-                .FirstOrDefaultAsync(x => x.PerformanceCycleId == id && (!orgId.HasValue || x.OrganizationId == orgId.Value));
+            var data = await _context.PerformanceCycles.FindAsync(id);
 
             if (data == null)
                 return NotFound();
@@ -94,9 +78,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var data = await _context.PerformanceCycles
-                .FirstOrDefaultAsync(x => x.PerformanceCycleId == id && (!orgId.HasValue || x.OrganizationId == orgId.Value));
+            var data = await _context.PerformanceCycles.FindAsync(id);
 
             if (data == null)
                 return NotFound();

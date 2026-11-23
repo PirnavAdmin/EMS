@@ -1,8 +1,6 @@
-using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -18,18 +16,9 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetFooter()
+        public IActionResult GetFooter()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
-            var footer = await _context.FooterSettings
-                .FirstOrDefaultAsync(f => orgId.HasValue && f.Company_Id == orgId.Value);
-
-            if (footer == null)
-            {
-                // Fallback to default if not configured for this org
-                footer = await _context.FooterSettings.FirstOrDefaultAsync();
-            }
+            var footer = _context.FooterSettings.FirstOrDefault();
 
             if (footer == null)
                 return NotFound("Footer settings not found.");
@@ -38,20 +27,12 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateFooter([FromBody] FooterSettings model)
+        public IActionResult UpdateFooter([FromBody] FooterSettings model)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var targetOrgId = orgId ?? (model.Company_Id > 0 ? model.Company_Id : (int?)null);
-            if (!targetOrgId.HasValue || targetOrgId.Value <= 0)
-                return BadRequest("Organization context is required.");
-            var effectiveTargetOrgId = targetOrgId.Value;
-
-            var footer = await _context.FooterSettings
-                .FirstOrDefaultAsync(f => f.Company_Id == effectiveTargetOrgId);
+            var footer = _context.FooterSettings.FirstOrDefault();
 
             if (footer == null)
             {
-                model.Company_Id = effectiveTargetOrgId;
                 model.UpdatedDate = DateTime.Now;
                 _context.FooterSettings.Add(model);
             }
@@ -66,7 +47,7 @@ namespace EmployeeManagementSystem.Controllers
                 footer.UpdatedDate = DateTime.Now;
             }
 
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
 
             return Ok(new
             {

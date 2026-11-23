@@ -1,6 +1,5 @@
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +16,8 @@ namespace EmployeeManagementSystem.Controllers
         private readonly IOfferLetterService _experienceofferLetterService;
         private readonly AppDbContext _context;
 
+        private const string AdminEmail = "admin@ems.com"; // change to your admin email
+
         public ExperienceOfferLetterController(
             IOfferLetterService offerLetterService,
             AppDbContext context)
@@ -32,6 +33,11 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost("generate")]
         public async Task<IActionResult> Generate([FromBody] OfferLetterRequestDto dto)
         {
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (email != AdminEmail)
+                return Unauthorized("Only admin can generate offer letters.");
+
             var result = await _experienceofferLetterService.GenerateAsync(dto);
 
             if (!result.Success)
@@ -47,21 +53,16 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("all")]
         public async Task<IActionResult> GetAllOfferLetters()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
-            var query = _context.OfferLetters.AsNoTracking();
+            if (email != AdminEmail)
+                return Unauthorized("Only admin can view offer letters.");
 
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
-            var letters = await query
+            var letters = await _context.OfferLetters
                 .OrderByDescending(x => x.Id)
                 .Select(x => new
                 {
                     x.Id,
-                    x.OrganizationId,
                     x.Candidate_Name,
                     x.Email,
                     x.Position,
@@ -84,15 +85,15 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("download/{id}")]
         public async Task<IActionResult> Download(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (email != AdminEmail)
+                return Unauthorized("Only admin can download offer letters.");
 
             var record = await _context.OfferLetters
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (record == null)
-                return NotFound("Offer letter not found.");
-
-            if (orgId.HasValue && orgId.Value > 0 && record.OrganizationId != orgId.Value)
                 return NotFound("Offer letter not found.");
 
             if (!System.IO.File.Exists(record.File_Path))
@@ -103,81 +104,6 @@ namespace EmployeeManagementSystem.Controllers
             return File(bytes,
                 "application/pdf",
                 Path.GetFileName(record.File_Path));
-        }
-
-        [HttpGet("preview/{id}")]
-        public async Task<IActionResult> PreviewOfferLetter(int id)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                var letter = await _context.OfferLetters.FindAsync(id);
-                if (letter == null || letter.OrganizationId != orgId.Value)
-                    return NotFound("Offer letter not found.");
-            }
-
-            var pdf = await _experienceofferLetterService.PreviewOfferLetter(id);
-            return File(pdf, "application/pdf");
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteOfferLetter(int id)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                var letter = await _context.OfferLetters.FindAsync(id);
-                if (letter == null || letter.OrganizationId != orgId.Value)
-                    return NotFound(new { Success = false, Message = "Offer letter not found." });
-            }
-
-            await _experienceofferLetterService.DeleteOfferLetterAsync(id);
-
-            return Ok(new
-            {
-                Success = true,
-                Message = "Offer Letter deleted successfully."
-            });
-        }
-
-        [HttpPost("send")]
-        public async Task<IActionResult> SendOfferLetter(SendOfferLetterDto dto)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                var letter = await _context.OfferLetters.FindAsync(dto.OfferLetterId);
-                if (letter == null || letter.OrganizationId != orgId.Value)
-                    return NotFound(new { success = false, message = "Offer letter not found in your organization." });
-            }
-
-            try
-            {
-                await _experienceofferLetterService.SendOfferLetterAsync(dto);
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Offer Letter Sent Successfully."
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = ex.Message,
-                    innerException = ex.InnerException?.Message,
-                    stackTrace = ex.StackTrace
-                });
-            }
-        }
-
-        [HttpGet("{id}/send-status")]
-        public async Task<IActionResult> GetSendStatus(int id)
-        {
-            var result = await _experienceofferLetterService.GetSendStatusAsync(id);
-            return Ok(result);
         }
     }
 }

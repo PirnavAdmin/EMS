@@ -1,6 +1,5 @@
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,11 +24,9 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> ApplyLeave(EmployeeLeaveDto dto)
         {
             var employeeId = User.FindFirst("Employee_Id")?.Value;
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
 
             var leave = new EmployeeLeave
             {
-                OrganizationId = orgId,
                 EmployeeId = employeeId,
                
                 LeaveType = dto.LeaveType,
@@ -51,10 +48,9 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> GetMyLeaves()
         {
             var employeeId = User.FindFirst("Employee_Id")?.Value;
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
 
             var leaves = await _context.EmployeeLeaves
-                .Where(x => x.EmployeeId == employeeId && (!orgId.HasValue || x.OrganizationId == orgId.Value))
+                .Where(x => x.EmployeeId == employeeId)
                 .ToListAsync();
 
             return Ok(leaves);

@@ -1,119 +1,152 @@
-using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
+﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Threading.Tasks;
 
-[ApiController]
-[Route("api/[controller]")]
-public class JobOpeningsController : ControllerBase
+namespace EmployeeManagementSystem.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public JobOpeningsController(AppDbContext context)
+    // varsha - JobOpenings controller with complete Audit Logging
+    [ApiController]
+    [Route("api/[controller]")]
+    public class JobOpeningsController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
-    // ✅ GET All
-    [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int? organizationId = null)
-    {
-        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-        var targetOrgId = orgId ?? organizationId;
-
-        var query = _context.JobOpenings.AsNoTracking();
-        if (targetOrgId.HasValue && targetOrgId.Value > 0)
+        public JobOpeningsController(
+            AppDbContext context,
+            IAuditLogService auditLogService) // varsha
         {
-            query = query.Where(j => j.OrganizationId == targetOrgId.Value);
+            _context = context;
+            _auditLogService = auditLogService; // varsha
         }
 
-        var jobs = await query
-            .Select(j => new JobOpeningDto
+        // ✅ GET All
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var jobs = await _context.JobOpenings
+                .Select(j => new JobOpeningDto
+                {
+                    Job_Title = j.Job_Title,
+                    Department = j.Department,
+                    Experience = j.Experience,
+                    Positions = j.Positions,
+                    Skills = j.Skills,
+                    Status = j.Status
+                })
+                .ToListAsync();
+
+            return Ok(jobs);
+        }
+
+        // ✅ POST
+        [HttpPost]
+        public async Task<IActionResult> Create(JobOpeningDto dto)
+        {
+            var job = new JobOpening
             {
-                OrganizationId = j.OrganizationId,
-                Job_Title = j.Job_Title,
-                Department = j.Department,
-                Experience = j.Experience,
-                Positions = j.Positions,
-                Skills = j.Skills,
-                Status = j.Status
-            })
-            .ToListAsync();
+                Job_Title = dto.Job_Title,
+                Department = dto.Department,
+                Experience = dto.Experience,
+                Positions = dto.Positions,
+                Skills = dto.Skills,
+                Status = dto.Status
+            };
 
-        return Ok(jobs);
-    }
+            await _context.JobOpenings.AddAsync(job);
+            await _context.SaveChangesAsync();
 
-    // ✅ POST
-    [HttpPost]
-    public async Task<IActionResult> Create(JobOpeningDto dto)
-    {
-        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            // varsha - Audit job opening creation
+            await _auditLogService.LogCreateAsync(
+                module: "JobOpenings",
+                entityName: "JobOpening",
+                entityId: job.Job_Title,
+                description: $"Created job opening '{job.Job_Title}' in {job.Department}",
+                newValues: dto,
+                user: User);
 
-        var job = new JobOpening
-        {
-            OrganizationId = orgId ?? dto.OrganizationId,
-            Job_Title = dto.Job_Title,
-            Department = dto.Department,
-            Experience = dto.Experience,
-            Positions = dto.Positions,
-            Skills = dto.Skills,
-            Status = dto.Status
-        };
-
-        await _context.JobOpenings.AddAsync(job);
-        await _context.SaveChangesAsync();
-
-        return Ok("The new job post is added succesfully");
-    }
-
-    // ✅ PUT (Using Job Title for update)
-    [HttpPut("{jobTitle}")]
-    public async Task<IActionResult> Update(string jobTitle, JobOpeningDto dto)
-    {
-        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
-        var query = _context.JobOpenings.AsQueryable();
-        if (orgId.HasValue && orgId.Value > 0)
-        {
-            query = query.Where(j => j.OrganizationId == orgId.Value);
+            return Ok("The new job post is added succesfully");
         }
 
-        var job = await query.FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
-
-        if (job == null)
-            return NotFound("Job opening not found");
-
-        job.Department = dto.Department;
-        job.Experience = dto.Experience;
-        job.Positions = dto.Positions;
-        job.Skills = dto.Skills;
-        job.Status = dto.Status;
-
-        await _context.SaveChangesAsync();
-
-        return Ok("The Job Post is updated");
-    }
-
-    // ✅ DELETE (Using Job Title)
-    [HttpDelete("{jobTitle}")]
-    public async Task<IActionResult> Delete(string jobTitle)
-    {
-        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
-        var query = _context.JobOpenings.AsQueryable();
-        if (orgId.HasValue && orgId.Value > 0)
+        // ✅ PUT (Using Job Title for update)
+        [HttpPut("{jobTitle}")]
+        public async Task<IActionResult> Update(string jobTitle, JobOpeningDto dto)
         {
-            query = query.Where(j => j.OrganizationId == orgId.Value);
+            var job = await _context.JobOpenings
+                .FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
+
+            if (job == null)
+                return NotFound("Job opening not found");
+
+            // varsha - Capture existing job opening state before update
+            var oldValues = new
+            {
+                job.Job_Title,
+                job.Department,
+                job.Experience,
+                job.Positions,
+                job.Skills,
+                job.Status
+            };
+
+            job.Department = dto.Department;
+            job.Experience = dto.Experience;
+            job.Positions = dto.Positions;
+            job.Skills = dto.Skills;
+            job.Status = dto.Status;
+
+            await _context.SaveChangesAsync();
+
+            // varsha - Audit job opening update with delta
+            await _auditLogService.LogUpdateAsync(
+                module: "JobOpenings",
+                entityName: "JobOpening",
+                entityId: job.Job_Title,
+                description: $"Updated job opening '{job.Job_Title}'",
+                oldValues: oldValues,
+                newValues: dto,
+                user: User);
+
+            return Ok("The Job Post is updated");
         }
 
-        var job = await query.FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
+        // ✅ DELETE (Using Job Title)
+        [HttpDelete("{jobTitle}")]
+        public async Task<IActionResult> Delete(string jobTitle)
+        {
+            var job = await _context.JobOpenings
+                .FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
 
-        if (job == null)
-            return NotFound("Job opening not found");
+            if (job == null)
+                return NotFound("Job opening not found");
 
-        _context.JobOpenings.Remove(job);
-        await _context.SaveChangesAsync();
+            // varsha - Capture existing job opening state before deletion
+            var oldValues = new
+            {
+                job.Job_Title,
+                job.Department,
+                job.Experience,
+                job.Positions,
+                job.Skills,
+                job.Status
+            };
 
-        return Ok("Job opening deleted successfully");
+            _context.JobOpenings.Remove(job);
+            await _context.SaveChangesAsync();
+
+            // varsha - Audit job opening deletion
+            await _auditLogService.LogDeleteAsync(
+                module: "JobOpenings",
+                entityName: "JobOpening",
+                entityId: job.Job_Title,
+                description: $"Deleted job opening '{job.Job_Title}'",
+                oldValues: oldValues,
+                user: User);
+
+            return Ok("Job opening deleted successfully");
+        }
     }
 }

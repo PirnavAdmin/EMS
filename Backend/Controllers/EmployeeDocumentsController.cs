@@ -1,10 +1,10 @@
+// varsha - Employee documents audit logging
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -14,13 +14,16 @@ namespace EmployeeManagementSystem.Controllers
     {
         private readonly IEmployeeDocumentService _service;
         private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService;
 
         public EmployeeDocumentsController(
             IEmployeeDocumentService service,
-            AppDbContext context)
+            AppDbContext context,
+            IAuditLogService auditLogService)
         {
             _service = service;
             _context = context;
+            _auditLogService = auditLogService;
         }
 
         private async Task<bool> IsAdminUser()
@@ -53,10 +56,6 @@ namespace EmployeeManagementSystem.Controllers
                     return BadRequest("Employee Id is required.");
 
                 employeeId = dto.EmployeeId;
-
-                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-                if (!inTenant)
-                    return NotFound("Employee not found in your organization.");
             }
             else
             {
@@ -72,6 +71,16 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             var result = await _service.UploadDocument(dto);
+
+            await _auditLogService.LogActionAsync(
+                action: "UploadDocument",
+                module: "Documents",
+                entityName: "EmployeeDocument",
+                entityId: employeeId,
+                description: $"Uploaded document '{dto.DocumentType}' for employee {employeeId}",
+                newValues: new { dto.EmployeeId, dto.DocumentType },
+                statusCode: 200,
+                user: User);
 
             return Ok(new
             {
@@ -95,12 +104,6 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     return Forbid("You can view only your own documents.");
                 }
-            }
-            else
-            {
-                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-                if (!inTenant)
-                    return NotFound("Employee not found in your organization.");
             }
 
             var result = await _service.GetEmployeeDocuments(employeeId);
@@ -130,12 +133,6 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     return Forbid("You can download only your own documents.");
                 }
-            }
-            else
-            {
-                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, document.Employee_Id);
-                if (!inTenant)
-                    return NotFound("Document not found in your organization.");
             }
 
             var fileBytes = await _service.DownloadDocument(id);
@@ -171,12 +168,6 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     return Forbid("You can view only your own documents.");
                 }
-            }
-            else
-            {
-                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, document.Employee_Id);
-                if (!inTenant)
-                    return NotFound("Document not found in your organization.");
             }
 
             var filePath = Path.Combine(
@@ -227,14 +218,15 @@ namespace EmployeeManagementSystem.Controllers
                     return Forbid("You can delete only your own documents.");
                 }
             }
-            else
-            {
-                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, document.Employee_Id);
-                if (!inTenant)
-                    return NotFound(new { message = "Document not found in your organization." });
-            }
 
             var result = await _service.DeleteDocument(id);
+
+            await _auditLogService.LogDeleteAsync(
+                module: "Documents",
+                entityName: "EmployeeDocument",
+                entityId: id.ToString(),
+                description: $"Deleted document {id} ({document.Document_Type}) for employee {document.Employee_Id}",
+                user: User);
 
             return Ok(new
             {
@@ -244,17 +236,9 @@ namespace EmployeeManagementSystem.Controllers
 
         [HttpPut("verify/{id}")]
         public async Task<IActionResult> VerifyDocument(
-            int id,
-            [FromBody] DocumentVerificationDto dto)
+    int id,
+    [FromBody] DocumentVerificationDto dto)
         {
-            var doc = await _service.GetDocumentById(id);
-            if (doc == null)
-                return NotFound(new { message = "Document not found" });
-
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, doc.Employee_Id);
-            if (!inTenant)
-                return NotFound(new { message = "Document not found in your organization" });
-
             var result =
                 await _service.VerifyDocument(
                     id,
@@ -274,17 +258,9 @@ namespace EmployeeManagementSystem.Controllers
 
         [HttpPut("reject/{id}")]
         public async Task<IActionResult> RejectDocument(
-            int id,
-            [FromBody] DocumentVerificationDto dto)
+    int id,
+    [FromBody] DocumentVerificationDto dto)
         {
-            var doc = await _service.GetDocumentById(id);
-            if (doc == null)
-                return NotFound(new { message = "Document not found" });
-
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, doc.Employee_Id);
-            if (!inTenant)
-                return NotFound(new { message = "Document not found in your organization" });
-
             var result =
                 await _service.RejectDocument(
                     id,
@@ -305,13 +281,8 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("pending-count")]
         public async Task<IActionResult> GetPendingCount()
         {
-            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var tenantEmpIds = CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
-                .Select(e => e.Employee_Id);
-
-            var count = await _context.EmployeeDocuments
-                .Where(x => tenantEmpIds.Contains(x.Employee_Id) && x.Verification_Status == "Pending")
-                .CountAsync();
+            var count =
+                await _service.GetPendingDocumentsCount();
 
             return Ok(new
             {
@@ -320,13 +291,9 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpGet("checklist/{employeeId}")]
-        public async Task<IActionResult> GetChecklist(string employeeId)
+        public async Task<IActionResult> GetChecklist(
+    string employeeId)
         {
-            employeeId = Uri.UnescapeDataString(employeeId).Trim();
-            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-            if (!inTenant)
-                return NotFound(new { message = "Employee not found in your organization" });
-
             var data =
                 await _service.GetChecklist(employeeId);
 

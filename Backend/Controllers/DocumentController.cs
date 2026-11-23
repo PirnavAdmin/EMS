@@ -1,5 +1,4 @@
-using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,15 +19,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDocuments()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
-            var query = _context.DocumentMaster.AsQueryable();
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value || x.Company_Id == orgId.Value);
-            }
-
-            return Ok(await query
+            return Ok(await _context.DocumentMaster
                 .OrderByDescending(x => x.DocumentId)
                 .ToListAsync());
         }
@@ -40,16 +31,10 @@ namespace EmployeeManagementSystem.Controllers
             string category,
             string version,
             bool isEmployeeVisible,
-            int? companyId = null)
+            int companyId)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("Please select a document.");
-
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var targetOrgIdNullable = orgId ?? (companyId.HasValue && companyId.Value > 0 ? companyId.Value : (int?)null);
-            if (!targetOrgIdNullable.HasValue || targetOrgIdNullable.Value <= 0)
-                return BadRequest("Organization context is required.");
-            int targetOrgId = targetOrgIdNullable.Value;
 
             var uploadFolder = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -70,8 +55,7 @@ namespace EmployeeManagementSystem.Controllers
 
             var document = new DocumentMaster
             {
-                OrganizationId = targetOrgId,
-                Company_Id = targetOrgId,
+                Company_Id = companyId,
                 DocumentName = documentName,
                 Category = category,
                 FileName = file.FileName,
@@ -95,10 +79,9 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
             var document = await _context.DocumentMaster.FindAsync(id);
 
-            if (document == null || (orgId.HasValue && orgId.Value > 0 && document.OrganizationId.HasValue && document.OrganizationId.Value != orgId.Value))
+            if (document == null)
                 return NotFound();
 
             _context.DocumentMaster.Remove(document);
@@ -110,14 +93,10 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("download/{id}")]
         public async Task<IActionResult> DownloadDocument(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
             var document = await _context.DocumentMaster.FindAsync(id);
 
-            if (document == null || (orgId.HasValue && orgId.Value > 0 && document.OrganizationId.HasValue && document.OrganizationId.Value != orgId.Value))
+            if (document == null)
                 return NotFound();
-
-            if (string.IsNullOrWhiteSpace(document.FilePath))
-                return NotFound("File path is not specified.");
 
             var path = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -130,7 +109,7 @@ namespace EmployeeManagementSystem.Controllers
             return PhysicalFile(
                 path,
                 "application/octet-stream",
-                document.FileName ?? "document");
+                document.FileName);
         }
     }
 }

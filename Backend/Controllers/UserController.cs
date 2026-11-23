@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml.Spreadsheet;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
@@ -18,6 +19,7 @@ namespace EmployeeManagementSystem.Controllers
         private readonly IEmailService _emailService;
         private readonly JwtHelper _jwtHelper;
         private readonly IAdminNotificationService _notificationService;
+        private readonly IAuditLogService _auditLogService;
         private readonly ITenantProvider _tenantProvider;
 
         public UserController(
@@ -26,6 +28,7 @@ namespace EmployeeManagementSystem.Controllers
             IEmailService emailService,
             JwtHelper jwtHelper,
             IAdminNotificationService notificationService,
+            IAuditLogService auditLogService,
             ITenantProvider tenantProvider)
         {
             _context = context;
@@ -33,6 +36,7 @@ namespace EmployeeManagementSystem.Controllers
             _emailService = emailService;
             _jwtHelper = jwtHelper;
             _notificationService = notificationService;
+            _auditLogService = auditLogService;
             _tenantProvider = tenantProvider;
         }
 
@@ -271,9 +275,16 @@ namespace EmployeeManagementSystem.Controllers
             // ========================================================
 
             await _notificationService.CreateNotification(
-                "New User Registered",
-                $"{dto.FirstName} {dto.LastName} has registered successfully."
-            );
+      "New User Registered",
+      $"{dto.FirstName} {dto.LastName} has registered successfully.");
+
+        //   Audit new user registration
+        await _auditLogService.LogCreateAsync(
+        module: "UserManagement",
+        entityName: "User",
+        entityId: user.Id.ToString(),
+        description: $"User {user.Email} registered successfully with role {defaultRole.Name}.",
+        newValues: new { user.Id, user.FirstName, user.LastName, user.Email, user.RoleId });
 
             return Ok(new
             {
@@ -282,6 +293,7 @@ namespace EmployeeManagementSystem.Controllers
                 RoleAssigned = defaultRole.Name
             });
         }
+
 
         // ============================================================
         // LOGIN
@@ -383,12 +395,22 @@ namespace EmployeeManagementSystem.Controllers
 
                     if (candidate == null)
                     {
+                    //  - Audit failed login: user not found
+                    await _auditLogService.LogActionAsync(
+                    action: "FailedLogin",
+        module: "Authentication",
+        entityName: "User",
+        entityId: email,
+        description: $"Failed login attempt for non-existent user: {email}",
+        statusCode: 401);
+
                         return Unauthorized(new
                         {
                             Status = false,
                             Message = "Invalid credentials."
                         });
                     }
+
 
                     // ------------------------------------------------
                     // ONBOARDING PASSWORD
@@ -529,12 +551,22 @@ namespace EmployeeManagementSystem.Controllers
 
                 if (!passwordValid)
                 {
+                //  - Audit failed login: invalid password
+                await _auditLogService.LogActionAsync(
+                action: "FailedLogin",
+        module: "Authentication",
+        entityName: "User",
+        entityId: email,
+        description: $"Failed login attempt with incorrect password for: {email}",
+        statusCode: 401);
+
                     return Unauthorized(new
                     {
                         Status = false,
                         Message = "Invalid credentials."
                     });
                 }
+
 
                 // ====================================================
                 // ROLE CHECK
@@ -725,6 +757,16 @@ namespace EmployeeManagementSystem.Controllers
                         employee.OrganizationId,
                         orgCode
                     );
+
+            //  - Audit successful user login
+            await _auditLogService.LogActionAsync(
+            action: "Login",
+    module: "Authentication",
+    entityName: "Employee",
+    entityId: employee.Employee_Id,
+    description: $"Employee {employee.Email} logged in successfully.",
+    statusCode: 200);
+
 
                 // ====================================================
                 // LOGIN SUCCESS
@@ -936,7 +978,6 @@ namespace EmployeeManagementSystem.Controllers
                 return BadRequest(ModelState);
 
             // Find user who has verified OTP
-
             var user = await _context.Users
 
                 .FirstOrDefaultAsync(x => x.IsOtpVerified == true);
@@ -946,12 +987,9 @@ namespace EmployeeManagementSystem.Controllers
                 return BadRequest("OTP not verified or session expired");
 
             // Update password
-
             user.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
-            // Clear OTP fields
-
-            user.OtpCode = null;
+            // Clear OTP fieldsuser.OtpCode = null;
 
             user.OtpExpiry = null;
 
@@ -959,8 +997,34 @@ namespace EmployeeManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
+        //  - Audit successful password reset
+        await _auditLogService.LogActionAsync(
+        action: "PasswordReset",
+                module: "Authentication",
+                entityName: "User",
+                entityId: user.Id.ToString(),
+                description: $"Password reset completed successfully for user {user.Email}.",
+                statusCode: 200);
+
             return Ok("Password reset successful");
 
+        }
+
+        // ============================================================// varsha - LOGOUT// ============================================================        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+        //  - Audit user logout
+        await _auditLogService.LogActionAsync(
+        action: "Logout",
+                module: "Authentication",
+                description: "User logged out successfully.",
+                statusCode: 200);
+
+            return Ok(new
+            {
+                Status = true,
+                Message = "Logged out successfully."
+            });
         }
     }
 }

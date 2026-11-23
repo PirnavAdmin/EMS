@@ -1,8 +1,10 @@
-﻿using EmployeeManagementSystem.DTOs;
+// varsha - Admin permission management for Audit Logs
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
-using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -20,8 +22,29 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost("save")]
         public async Task<IActionResult> SavePermissions(SaveAdminPermissionDto dto)
         {
-            var result = await _service.SavePermissions(dto);
-            return Ok(result);
+            if (dto == null)
+            {
+                return BadRequest(new { success = false, message = "Request body cannot be null. Please provide a valid JSON body with 'adminId' and 'modules' array." });
+            }
+
+            if (dto.Modules == null || dto.Modules.Count == 0)
+            {
+                return BadRequest(new { success = false, message = "Modules list cannot be null or empty." });
+            }
+
+            try
+            {
+                var result = await _service.SavePermissions(dto);
+                return Ok(new { success = true, message = result });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = ex.Message });
+            }
         }
 
         [Authorize]
@@ -49,9 +72,7 @@ namespace EmployeeManagementSystem.Controllers
                     });
                 }
 
-                var result = await _service
-                    .GetAllowedModules(adminId);
-
+                var result = await _service.GetAllowedModules(adminId);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -62,11 +83,60 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
         }
+
         [HttpGet("{adminId}")]
         public async Task<IActionResult> GetPermissions(int adminId)
         {
             var result = await _service.GetPermissions(adminId);
             return Ok(result);
+        }
+
+        // =========================================================================
+        // varsha - Super Admin grant or revoke Audit Logs permission for a specific Admin
+        // =========================================================================
+        [Authorize(Roles = "SuperAdmin")]
+        [HttpPut("{adminId}/audit-logs")]
+        public async Task<IActionResult> SetAuditLogsPermission(
+            int adminId, 
+            [FromBody] SetAuditLogsPermissionDto? dto = null,
+            [FromQuery] bool? canAccess = null)
+        {
+            try
+            {
+                bool access = canAccess ?? dto?.CanAccess ?? true;
+                await _service.SetAuditLogsPermissionAsync(adminId, access);
+                return Ok(new
+                {
+                    success = true,
+                    message = access 
+                        ? $"Audit Logs permission granted successfully to Admin ID {adminId}." 
+                        : $"Audit Logs permission revoked successfully from Admin ID {adminId}.",
+                    adminId = adminId,
+                    hasAuditLogsPermission = access
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        // =========================================================================
+        // varsha - Get current Audit Logs permission status for a specific Admin
+        // =========================================================================
+        [Authorize]
+        [HttpGet("{adminId}/audit-logs-status")]
+        public async Task<IActionResult> GetAuditLogsPermissionStatus(int adminId)
+        {
+            try
+            {
+                var result = await _service.GetAuditLogsPermissionStatusAsync(adminId);
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
     }
 }

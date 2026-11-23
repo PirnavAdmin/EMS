@@ -1,7 +1,8 @@
+﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
-using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,111 +10,144 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-[Authorize]
-[ApiController]
-[Route("api/[controller]")]
-public class HolidaysController : ControllerBase
+namespace EmployeeManagementSystem.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public HolidaysController(AppDbContext context)
+    // varsha - Holidays controller with complete Audit Logging
+    //[Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class HolidaysController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
-    private async Task<int> GetCurrentOrgIdAsync()
-    {
-        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-        if (!orgId.HasValue || orgId.Value <= 0)
+        public HolidaysController(
+            AppDbContext context,
+            IAuditLogService auditLogService) // varsha
         {
-            throw new UnauthorizedAccessException("OrganizationId not found in token.");
+            _context = context;
+            _auditLogService = auditLogService; // varsha
         }
-        return orgId.Value;
-    }
 
-    // ✅ 1. GET ALL HOLIDAYS
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        int orgId = await GetCurrentOrgIdAsync();
-
-        var holidays = await _context.Holidays
-            .AsNoTracking()
-            .Where(h => h.OrganizationId == orgId) // 🔥 Isolated
-            .OrderBy(h => h.Holiday_Date)
-            .Select(h => new HolidayDto
-            {
-                Id = h.Id,
-                Holiday_Name = h.Holiday_Name,
-                Holiday_Date = h.Holiday_Date,
-                Day = h.Day,
-                Type = h.Type,
-                OrganizationId = h.OrganizationId
-            })
-            .ToListAsync();
-
-        return Ok(holidays);
-    }
-
-    // ✅ 2. CREATE HOLIDAY
-    [HttpPost]
-    public async Task<IActionResult> Create(HolidayDto dto)
-    {
-        int orgId = await GetCurrentOrgIdAsync();
-
-        var holiday = new Holiday
+        // GET
+        //[Permission(ModuleIds.Holidays, PermissionAction.View)]
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
         {
-            OrganizationId = orgId, // 🔥 Scoped to current org
-            Holiday_Name = dto.Holiday_Name,
-            Holiday_Date = dto.Holiday_Date,
-            Day = dto.Day,
-            Type = dto.Type,
-            CreatedAt = DateTime.UtcNow
-        };
+            var holidays = await _context.Holidays
+                .Select(h => new HolidayDto
+                {
+                    Id = h.Id,
+                    Holiday_Name = h.Holiday_Name,
+                    Holiday_Date = h.Holiday_Date,
+                    Day = h.Day,
+                    Type = h.Type
+                })
+                .ToListAsync();
 
-        await _context.Holidays.AddAsync(holiday);
-        await _context.SaveChangesAsync();
+            return Ok(holidays);
+        }
 
-        return Ok(new { message = "Holiday created successfully", id = holiday.Id });
-    }
+        // POST
+        //[Permission(ModuleIds.Holidays, PermissionAction.Add)]
+        [HttpPost]
+        public async Task<IActionResult> Create(HolidayDto dto)
+        {
+            var holiday = new Holiday
+            {
+                Holiday_Name = dto.Holiday_Name,
+                Holiday_Date = dto.Holiday_Date,
+                Day = dto.Day,
+                Type = dto.Type
+            };
 
-    // ✅ 3. UPDATE HOLIDAY
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, HolidayDto dto)
-    {
-        int orgId = await GetCurrentOrgIdAsync();
+            await _context.Holidays.AddAsync(holiday);
+            await _context.SaveChangesAsync();
 
-        var holiday = await _context.Holidays
-            .FirstOrDefaultAsync(h => h.Id == id && h.OrganizationId == orgId); // 🔥 Ownership check
+            // varsha - Audit holiday creation
+            await _auditLogService.LogCreateAsync(
+                module: "Holidays",
+                entityName: "Holiday",
+                entityId: holiday.Id.ToString(),
+                description: $"Created holiday '{holiday.Holiday_Name}' on {holiday.Holiday_Date:yyyy-MM-dd}",
+                newValues: dto,
+                user: User);
 
-        if (holiday == null)
-            return NotFound(new { message = "Holiday not found" });
+            return Ok(dto);
+        }
 
-        holiday.Holiday_Name = dto.Holiday_Name;
-        holiday.Holiday_Date = dto.Holiday_Date;
-        holiday.Day = dto.Day;
-        holiday.Type = dto.Type;
+        // PUT
+        //[Permission(ModuleIds.Holidays, PermissionAction.Edit)]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, HolidayDto dto)
+        {
+            var holiday = await _context.Holidays.FindAsync(id);
 
-        await _context.SaveChangesAsync();
+            if (holiday == null)
+                return NotFound();
 
-        return Ok(new { message = "Updated Successfully" });
-    }
+            // varsha - Capture existing holiday state before update
+            var oldValues = new
+            {
+                holiday.Holiday_Name,
+                Date = holiday.Holiday_Date.ToString("yyyy-MM-dd"),
+                holiday.Day,
+                holiday.Type
+            };
 
-    // ✅ 4. DELETE HOLIDAY
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        int orgId = await GetCurrentOrgIdAsync();
+            holiday.Holiday_Name = dto.Holiday_Name;
+            holiday.Holiday_Date = dto.Holiday_Date;
+            holiday.Day = dto.Day;
+            holiday.Type = dto.Type;
 
-        var holiday = await _context.Holidays
-            .FirstOrDefaultAsync(h => h.Id == id && h.OrganizationId == orgId); // 🔥 Ownership check
+            await _context.SaveChangesAsync();
 
-        if (holiday == null)
-            return NotFound(new { message = "Holiday not found" });
+            // varsha - Audit holiday update with delta
+            await _auditLogService.LogUpdateAsync(
+                module: "Holidays",
+                entityName: "Holiday",
+                entityId: id.ToString(),
+                description: $"Updated holiday '{dto.Holiday_Name}'",
+                oldValues: oldValues,
+                newValues: dto,
+                user: User);
 
-        _context.Holidays.Remove(holiday);
-        await _context.SaveChangesAsync();
+            return Ok("Updated Successfully");
+        }
 
-        return Ok(new { message = "Deleted Successfully" });
+        // DELETE
+        //[Permission(ModuleIds.Holidays, PermissionAction.Delete)]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var holiday = await _context.Holidays.FindAsync(id);
+
+            if (holiday == null)
+                return NotFound();
+
+            // varsha - Capture existing holiday state before deletion
+            var oldValues = new
+            {
+                holiday.Id,
+                holiday.Holiday_Name,
+                Date = holiday.Holiday_Date.ToString("yyyy-MM-dd"),
+                holiday.Day,
+                holiday.Type
+            };
+
+            _context.Holidays.Remove(holiday);
+            await _context.SaveChangesAsync();
+
+            // varsha - Audit holiday deletion
+            await _auditLogService.LogDeleteAsync(
+                module: "Holidays",
+                entityName: "Holiday",
+                entityId: id.ToString(),
+                description: $"Deleted holiday '{holiday.Holiday_Name}'",
+                oldValues: oldValues,
+                user: User);
+
+            return Ok("Deleted Successfully");
+        }
     }
 }

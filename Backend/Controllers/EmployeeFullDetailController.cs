@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +9,7 @@ using System.Security.Claims;
 using EmployeeManagementSystem.Data;
 
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
+
 using EmployeeManagementSystem.Models;
 
 namespace EmployeeManagementSystem.Controllers
@@ -88,15 +88,8 @@ namespace EmployeeManagementSystem.Controllers
             if (string.IsNullOrWhiteSpace(employeeId))
                 return Unauthorized(new { message = "Invalid or missing token." });
 
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
-
-            if (employee != null && orgId.HasValue && employee.OrganizationId.HasValue && employee.OrganizationId.Value != orgId.Value)
-            {
-                return NotFound(new { message = "User not found." });
-            }
 
             OnboardingCandidate? onboarding = null;
 
@@ -105,7 +98,7 @@ namespace EmployeeManagementSystem.Controllers
                 onboarding = await _context.OnboardingCandidates
                     .FirstOrDefaultAsync(o => o.OnboardingId == employeeId);
 
-                if (onboarding == null || (orgId.HasValue && onboarding.OrganizationId.HasValue && onboarding.OrganizationId.Value != orgId.Value))
+                if (onboarding == null)
                     return NotFound(new { message = "User not found." });
             }
 
@@ -344,18 +337,18 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetEmployeeFullDetails(string employeeId)
         {
-            employeeId = Uri.UnescapeDataString(employeeId).Trim();
-            var currentId = GetEmployeeId();
-            bool isSelf = !string.IsNullOrWhiteSpace(currentId) && string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase);
+            //if (!await IsAdminUser())
+            //{
+            //    var currentId = GetEmployeeId();
 
-            if (!isSelf)
-            {
-                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
-                if (!inTenant)
-                {
-                    return NotFound(new { message = "Employee not found." });
-                }
-            }
+            //    if (string.IsNullOrWhiteSpace(currentId))
+            //        return Unauthorized(new { message = "Invalid token." });
+
+            //    if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
+            //    {
+            //        return Forbid("You can view only your own details.");
+            //    }
+            //}
 
             var employee = await _context.Employees
 

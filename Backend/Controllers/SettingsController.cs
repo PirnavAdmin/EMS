@@ -1,4 +1,4 @@
-//using EmployeeManagementSystem.Data;
+﻿//using EmployeeManagementSystem.Data;
 
 //using EmployeeManagementSystem.Models;
 
@@ -8,7 +8,6 @@
 //using EmployeeManagementSystem.DTOs;
 
 //using Microsoft.EntityFrameworkCore;
-using EmployeeManagementSystem.Helpers;
 
 //namespace EmployeeManagementSystem.Controllers
 
@@ -907,7 +906,7 @@ using EmployeeManagementSystem.Helpers;
 
 //                {
 
-//                    Company_Id = targetCompanyId,
+//                    Company_Id = 1,
 
 //                    CompanyLogo = logoUrl,
 
@@ -974,42 +973,35 @@ using EmployeeManagementSystem.Helpers;
 //}
 
 using EmployeeManagementSystem.Data;
-
 using EmployeeManagementSystem.Models;
-
+using EmployeeManagementSystem.Interfaces; // varsha
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using EmployeeManagementSystem.DTOs;
-
 using Microsoft.EntityFrameworkCore;
-using EmployeeManagementSystem.Helpers;
 
 namespace EmployeeManagementSystem.Controllers
-
 {
-
     [Route("api/[controller]")]
-
     [ApiController]
-
     public class SettingsController : ControllerBase
-
     {
-
         private readonly AppDbContext _context;
-
         private readonly IWebHostEnvironment _environment; //vishnu
         private readonly IDataProtector _emailPasswordProtector;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
         public SettingsController(
             AppDbContext context,
             IWebHostEnvironment environment,
-            IDataProtectionProvider dataProtectionProvider)
+            IDataProtectionProvider dataProtectionProvider,
+            IAuditLogService auditLogService) // varsha
         {
             _context = context;
             _environment = environment;  //vishnu
             _emailPasswordProtector = dataProtectionProvider.CreateProtector(EmailSenderPasswordProtection.Purpose);
+            _auditLogService = auditLogService; // varsha
         }
 
         // Landing-page contact email is stored as a key/value entry in the existing systemsettings table.
@@ -1100,69 +1092,74 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpGet("email")]
-        public async Task<IActionResult> GetEmailSettings()
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.EmailSettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult GetEmailSettings()
+
+        {
+
+            var settings = _context.EmailSettings.AsNoTracking().FirstOrDefault();
 
             if (settings == null)
-            {
-                return Ok(new EmailSettings
-                {
-                    OrganizationId = orgId.Value,
-                    SenderEmail = "",
-                    SenderPassword = "",
-                    SmtpHost = "",
-                    SmtpPort = 587,
-                    EnableSSL = true,
-                    DisplayName = ""
-                });
-            }
+
+                return NotFound("Email settings not found.");
 
             // Preserve the existing response shape without exposing the SMTP password.
             settings.SenderPassword = string.Empty;
             return Ok(settings);
+
         }
 
         [HttpPut("email")]
-        public async Task<IActionResult> UpdateEmailSettings([FromBody] EmailSettings model)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.EmailSettings
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult UpdateEmailSettings([FromBody] EmailSettings model)
+
+        {
+
+            var settings = _context.EmailSettings.FirstOrDefault();
 
             if (settings == null)
+
             {
                 if (string.IsNullOrWhiteSpace(model.SenderPassword))
                     return BadRequest("SenderPassword is required when creating email settings.");
 
-                model.OrganizationId = orgId.Value;
-                model.UpdatedAt = DateTime.UtcNow;
+                model.UpdatedAt = DateTime.Now;
+
                 _context.EmailSettings.Add(model);
-            }
-            else
-            {
-                settings.SenderEmail = model.SenderEmail;
-                if (!string.IsNullOrWhiteSpace(model.SenderPassword))
-                    settings.SenderPassword = model.SenderPassword;
-                settings.SmtpHost = model.SmtpHost;
-                settings.SmtpPort = model.SmtpPort;
-                settings.EnableSSL = model.EnableSSL;
-                settings.DisplayName = model.DisplayName;
-                settings.UpdatedAt = DateTime.UtcNow;
+
             }
 
-            await _context.SaveChangesAsync();
-            return Ok(new
+            else
+
             {
+
+                settings.SenderEmail = model.SenderEmail;
+
+                if (!string.IsNullOrWhiteSpace(model.SenderPassword))
+                    settings.SenderPassword = model.SenderPassword;
+
+                settings.SmtpHost = model.SmtpHost;
+
+                settings.SmtpPort = model.SmtpPort;
+
+                settings.EnableSSL = model.EnableSSL;
+
+                settings.DisplayName = model.DisplayName;
+
+                settings.UpdatedAt = DateTime.Now;
+
+            }
+
+            _context.SaveChanges();
+
+            return Ok(new
+
+            {
+
                 message = "Email Settings Updated Successfully"
+
             });
+
         }
 
         // Additional sender accounts and purpose routing. Existing email settings routes remain available.
@@ -1271,450 +1268,583 @@ namespace EmployeeManagementSystem.Controllers
         //vishnu change
 
         [HttpGet("attendance")]
-        public async Task<IActionResult> GetAttendanceSettings()
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.AttendanceSettings
-                .AsNoTracking()
+        public IActionResult GetAttendanceSettings()
+
+        {
+
+            var settings = _context.AttendanceSettings
+
                 .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+
+                .FirstOrDefault();
 
             if (settings == null)
-            {
-                return Ok(new AttendanceSettings
-                {
-                    OrganizationId = orgId.Value,
-                    OfficeStartTime = TimeSpan.Zero,
-                    OfficeEndTime = TimeSpan.Zero,
-                    CheckInStartTime = TimeSpan.Zero,
-                    LateAfterTime = TimeSpan.Zero,
-                    CheckoutTime = TimeSpan.Zero,
-                    HalfDayHours = 0
-                });
-            }
+
+                return NotFound("Attendance settings not found.");
 
             return Ok(settings);
+
         }
 
+        //
+
         [HttpPut("attendance")]
-        public async Task<IActionResult> UpdateAttendanceSettings([FromBody] AttendanceSettings model)
+
+        public IActionResult UpdateAttendanceSettings([FromBody] AttendanceSettings model)
+
         {
+
             if (!ModelState.IsValid)
+
             {
+
                 var errors = ModelState
+
                     .Where(x => x.Value.Errors.Count > 0)
+
                     .Select(x => new
+
                     {
+
                         Field = x.Key,
+
                         Errors = x.Value.Errors.Select(e => e.ErrorMessage).ToList()
+
                     });
 
                 return BadRequest(errors);
+
             }
 
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
+            //vishnu
 
-            var settings = await _context.AttendanceSettings
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+            var settings = _context.AttendanceSettings
+
+     .OrderByDescending(x => x.Id)
+
+     .FirstOrDefault();
+
+            // varsha - Capture existing attendance settings before mutation
+            var oldValues = settings != null ? new
+            {
+                settings.OfficeStartTime,
+                settings.OfficeEndTime,
+                settings.CheckInStartTime,
+                settings.LateAfterTime,
+                settings.CheckoutTime,
+                settings.HalfDayHours
+            } : null;
+
+            //
 
             if (settings == null)
+
             {
-                model.OrganizationId = orgId.Value;
-                model.UpdatedAt = DateTime.UtcNow;
+
+                model.UpdatedAt = DateTime.Now;
+
                 _context.AttendanceSettings.Add(model);
-            }
-            else
-            {
-                settings.OfficeStartTime = model.OfficeStartTime;
-                settings.OfficeEndTime = model.OfficeEndTime;
-                settings.CheckInStartTime = model.CheckInStartTime;
-                settings.LateAfterTime = model.LateAfterTime;
-                settings.CheckoutTime = model.CheckoutTime;
-                settings.HalfDayHours = model.HalfDayHours;
-                settings.UpdatedAt = DateTime.UtcNow;
+
             }
 
-            await _context.SaveChangesAsync();
-            return Ok(new
+            else
+
             {
+
+                settings.OfficeStartTime = model.OfficeStartTime;
+
+                settings.OfficeEndTime = model.OfficeEndTime;
+
+                settings.CheckInStartTime = model.CheckInStartTime;
+
+                settings.LateAfterTime = model.LateAfterTime;
+
+                settings.CheckoutTime = model.CheckoutTime;
+
+                settings.HalfDayHours = model.HalfDayHours;
+
+                settings.UpdatedAt = DateTime.Now;
+
+            }
+
+            _context.SaveChanges();
+
+            // varsha - Audit attendance organization settings update with delta
+            _auditLogService.LogUpdateAsync(
+                module: "OrganizationSettings",
+                entityName: "AttendanceSettings",
+                entityId: "Attendance",
+                description: "Attendance organization settings updated successfully",
+                oldValues: oldValues,
+                newValues: model,
+                user: User).GetAwaiter().GetResult();
+
+            return Ok(new
+
+            {
+
                 message = "Attendance Settings Updated Successfully"
+
             });
+
         }
 
 
         [HttpGet("leave")]
-        public async Task<IActionResult> GetLeaveSettings()
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.LeaveSettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult GetLeaveSettings()
+
+        {
+
+            var settings = _context.LeaveSettings.FirstOrDefault();
 
             if (settings == null)
-            {
-                return Ok(new LeaveSettings
-                {
-                    OrganizationId = orgId.Value,
-                    ApprovalRoles = "",
-                    ExternalEmails = "",
-                    CcEmails = "",
-                    AllowHalfDay = false,
-                    MaxLeaveDays = 0,
-                    AdvanceNoticeDays = 0,
-                    AttachmentRequired = false
-                });
-            }
+
+                return NotFound("Leave settings not found.");
 
             return Ok(settings);
+
         }
 
         [HttpPut("leave")]
-        public async Task<IActionResult> UpdateLeaveSettings([FromBody] LeaveSettings model)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.LeaveSettings
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult UpdateLeaveSettings([FromBody] LeaveSettings model)
+
+        {
+
+            var settings = _context.LeaveSettings.FirstOrDefault();
+
+            // varsha - Capture existing leave settings before mutation
+            var oldValues = settings != null ? new
+            {
+                settings.ApprovalRoles,
+                settings.ExternalEmails,
+                settings.CcEmails,
+                settings.AllowHalfDay,
+                settings.MaxLeaveDays,
+                settings.AdvanceNoticeDays,
+                settings.AttachmentRequired
+            } : null;
 
             if (settings == null)
+
             {
-                model.OrganizationId = orgId.Value;
-                model.UpdatedAt = DateTime.UtcNow;
+
+                model.UpdatedAt = DateTime.Now;
+
                 _context.LeaveSettings.Add(model);
-            }
-            else
-            {
-                settings.ApprovalRoles = model.ApprovalRoles;
-                settings.ExternalEmails = model.ExternalEmails;
-                settings.CcEmails = model.CcEmails;
-                settings.AllowHalfDay = model.AllowHalfDay;
-                settings.MaxLeaveDays = model.MaxLeaveDays;
-                settings.AdvanceNoticeDays = model.AdvanceNoticeDays;
-                settings.AttachmentRequired = model.AttachmentRequired;
-                settings.UpdatedAt = DateTime.UtcNow;
+
             }
 
-            await _context.SaveChangesAsync();
-            return Ok(new
+            else
+
             {
+
+                settings.ApprovalRoles = model.ApprovalRoles;
+
+                settings.ExternalEmails = model.ExternalEmails;
+
+                settings.CcEmails = model.CcEmails;
+
+                settings.AllowHalfDay = model.AllowHalfDay;
+
+                settings.MaxLeaveDays = model.MaxLeaveDays;
+
+                settings.AdvanceNoticeDays = model.AdvanceNoticeDays;
+
+                settings.AttachmentRequired = model.AttachmentRequired;
+
+                settings.UpdatedAt = DateTime.Now;
+
+            }
+
+            _context.SaveChanges();
+
+            // varsha - Audit leave organization settings update with delta
+            _auditLogService.LogUpdateAsync(
+                module: "OrganizationSettings",
+                entityName: "LeaveSettings",
+                entityId: "Leave",
+                description: "Leave organization settings updated successfully",
+                oldValues: oldValues,
+                newValues: model,
+                user: User).GetAwaiter().GetResult();
+
+            return Ok(new
+
+            {
+
                 message = "Leave Settings Updated Successfully"
+
             });
+
         }
 
 
         [HttpGet("company")]
-        public async Task<IActionResult> GetCompanySettings()
+
+        public IActionResult GetCompanySettings()
+
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.CompanySettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
-
-            var company = await _context.Company
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.OrganizationId == orgId.Value);
-
-            var branding = await _context.BrandingSettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(b => b.Company_Id == orgId.Value || (company != null && b.Company_Id == company.Id));
-
-            string resolvedLogo = settings?.LogoUrl ?? branding?.CompanyLogo ?? "";
+            var settings = _context.CompanySettings.FirstOrDefault();
 
             if (settings == null)
-            {
-                var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orgId.Value);
-                return Ok(new CompanySettings
-                {
-                    OrganizationId = orgId.Value,
-                    CompanyName = company?.CompanyName ?? org?.OrganizationName ?? "",
-                    CompanyShortName = org?.OrganizationCode ?? "",
-                    CompanyEmail = company?.EmailAddress ?? org?.Email ?? "",
-                    CompanyPhone = company?.PhoneNumber ?? org?.PhoneNumber ?? "",
-                    CompanyWebsite = "",
-                    CompanyAddress = org?.Address ?? "",
-                    LogoUrl = resolvedLogo,
-                    GSTNumber = company?.GSTNumber ?? "",
-                    CINNumber = ""
-                });
-            }
 
-            if (string.IsNullOrWhiteSpace(settings.LogoUrl) && !string.IsNullOrWhiteSpace(branding?.CompanyLogo))
-            {
-                settings.LogoUrl = branding.CompanyLogo;
-            }
+                return NotFound("Company settings not found.");
 
             return Ok(settings);
+
         }
 
         [HttpPut("company")]
-        public async Task<IActionResult> UpdateCompanySettings([FromBody] CompanySettings model)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.CompanySettings
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult UpdateCompanySettings([FromBody] CompanySettings model)
+
+        {
+
+            var settings = _context.CompanySettings.FirstOrDefault();
+
+            // varsha - Capture existing company settings before mutation
+            var oldValues = settings != null ? new
+            {
+                settings.CompanyName,
+                settings.CompanyShortName,
+                settings.CompanyEmail,
+                settings.CompanyPhone,
+                settings.CompanyWebsite,
+                settings.CompanyAddress,
+                settings.GSTNumber,
+                settings.CINNumber
+            } : null;
 
             if (settings == null)
+
             {
-                model.OrganizationId = orgId.Value;
-                model.UpdatedAt = DateTime.UtcNow;
+
+                model.UpdatedAt = DateTime.Now;
+
                 _context.CompanySettings.Add(model);
+
             }
+
             else
+
             {
+
                 settings.CompanyName = model.CompanyName;
+
                 settings.CompanyShortName = model.CompanyShortName;
+
                 settings.CompanyEmail = model.CompanyEmail;
+
                 settings.CompanyPhone = model.CompanyPhone;
+
                 settings.CompanyWebsite = model.CompanyWebsite;
+
                 settings.CompanyAddress = model.CompanyAddress;
+
                 settings.LogoUrl = model.LogoUrl;
+
                 settings.GSTNumber = model.GSTNumber;
+
                 settings.CINNumber = model.CINNumber;
-                settings.UpdatedAt = DateTime.UtcNow;
+
+                settings.UpdatedAt = DateTime.Now;
+
             }
 
 
             // ===========================
+
             // Update Company Master
+
             // ===========================
-            var company = await _context.Company.FirstOrDefaultAsync(c => c.OrganizationId == orgId.Value);
-            if (company == null)
+
+            var company = _context.Company.FirstOrDefault();
+
+            if (company != null)
+
             {
-                company = new Company
-                {
-                    OrganizationId = orgId.Value,
-                    CompanyName = model.CompanyName ?? "",
-                    PhoneNumber = model.CompanyPhone ?? "",
-                    EmailAddress = model.CompanyEmail ?? "",
-                    GSTNumber = model.GSTNumber ?? "",
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _context.Company.Add(company);
-            }
-            else
-            {
-                company.CompanyName = model.CompanyName ?? company.CompanyName;
-                company.PhoneNumber = model.CompanyPhone ?? company.PhoneNumber;
-                company.EmailAddress = model.CompanyEmail ?? company.EmailAddress;
-                company.GSTNumber = model.GSTNumber ?? company.GSTNumber;
-                company.UpdatedAt = DateTime.UtcNow;
+
+                company.CompanyName = model.CompanyName;
+
+                company.PhoneNumber = model.CompanyPhone;
+
+                company.EmailAddress = model.CompanyEmail;
+
+                company.GSTNumber = model.GSTNumber;
+
+                company.UpdatedAt = DateTime.Now;
+
             }
 
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
+
+            // varsha - Audit company organization settings update with delta
+            _auditLogService.LogUpdateAsync(
+                module: "OrganizationSettings",
+                entityName: "CompanySettings",
+                entityId: "Company",
+                description: "Company organization settings updated successfully",
+                oldValues: oldValues,
+                newValues: model,
+                user: User).GetAwaiter().GetResult();
+
             return Ok(new
             {
                 message = "Company Settings Updated Successfully"
             });
+
         }
 
 
         [HttpGet("notification")]
-        public async Task<IActionResult> GetNotificationSettings()
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.NotificationSettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult GetNotificationSettings()
+
+        {
+
+            var settings = _context.NotificationSettings.FirstOrDefault();
 
             if (settings == null)
-            {
-                return Ok(new NotificationSettings
-                {
-                    OrganizationId = orgId.Value,
-                    EnableEmailNotifications = false,
-                    EnableAttendanceEmails = false,
-                    EnableLeaveEmails = false,
-                    EnableWFHEmails = false,
-                    EnableTicketEmails = false,
-                    EnableAssetEmails = false,
-                    EnableOfferLetterEmails = false,
-                    EnablePayslipEmails = false,
-                    EnableLocationMismatchEmails = false
-                });
-            }
+
+                return NotFound("Notification settings not found.");
 
             return Ok(settings);
+
         }
 
 
         [HttpPut("notification")]
-        public async Task<IActionResult> UpdateNotificationSettings([FromBody] NotificationSettings model)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.NotificationSettings
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult UpdateNotificationSettings([FromBody] NotificationSettings model)
+
+        {
+
+            var settings = _context.NotificationSettings.FirstOrDefault();
+
+            // varsha - Capture existing notification settings before mutation
+            var oldValues = settings != null ? new
+            {
+                settings.EnableEmailNotifications,
+                settings.EnableAttendanceEmails,
+                settings.EnableLeaveEmails,
+                settings.EnableWFHEmails,
+                settings.EnableTicketEmails,
+                settings.EnableAssetEmails,
+                settings.EnableOfferLetterEmails,
+                settings.EnablePayslipEmails,
+                settings.EnableLocationMismatchEmails
+            } : null;
 
             if (settings == null)
+
             {
-                model.OrganizationId = orgId.Value;
-                model.UpdatedAt = DateTime.UtcNow;
+
+                model.UpdatedAt = DateTime.Now;
+
                 _context.NotificationSettings.Add(model);
-            }
-            else
-            {
-                settings.EnableEmailNotifications = model.EnableEmailNotifications;
-                settings.EnableAttendanceEmails = model.EnableAttendanceEmails;
-                settings.EnableLeaveEmails = model.EnableLeaveEmails;
-                settings.EnableWFHEmails = model.EnableWFHEmails;
-                settings.EnableTicketEmails = model.EnableTicketEmails;
-                settings.EnableAssetEmails = model.EnableAssetEmails;
-                settings.EnableOfferLetterEmails = model.EnableOfferLetterEmails;
-                settings.EnablePayslipEmails = model.EnablePayslipEmails;
-                settings.EnableLocationMismatchEmails = model.EnableLocationMismatchEmails;
-                settings.UpdatedAt = DateTime.UtcNow;
+
             }
 
-            await _context.SaveChangesAsync();
-            return Ok(new
+            else
+
             {
+
+                settings.EnableEmailNotifications = model.EnableEmailNotifications;
+
+                settings.EnableAttendanceEmails = model.EnableAttendanceEmails;
+
+                settings.EnableLeaveEmails = model.EnableLeaveEmails;
+
+                settings.EnableWFHEmails = model.EnableWFHEmails;
+
+                settings.EnableTicketEmails = model.EnableTicketEmails;
+
+                settings.EnableAssetEmails = model.EnableAssetEmails;
+
+                settings.EnableOfferLetterEmails = model.EnableOfferLetterEmails;
+
+                settings.EnablePayslipEmails = model.EnablePayslipEmails;
+
+                settings.EnableLocationMismatchEmails = model.EnableLocationMismatchEmails;
+
+                settings.UpdatedAt = DateTime.Now;
+
+            }
+
+            _context.SaveChanges();
+
+            // varsha - Audit notification settings update with delta
+            _auditLogService.LogUpdateAsync(
+                module: "OrganizationSettings",
+                entityName: "NotificationSettings",
+                entityId: "Notification",
+                description: "Notification organization settings updated successfully",
+                oldValues: oldValues,
+                newValues: model,
+                user: User).GetAwaiter().GetResult();
+
+            return Ok(new
+
+            {
+
                 message = "Notification Settings Updated Successfully"
+
             });
+
         }
 
         [HttpGet("general")]
-        public async Task<IActionResult> GetGeneralSettings()
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.GeneralSettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult GetGeneralSettings()
+
+        {
+
+            var settings = _context.GeneralSettings.FirstOrDefault();
 
             if (settings == null)
-            {
-                return Ok(new GeneralSettings
-                {
-                    OrganizationId = orgId.Value,
-                    CompanyTimeZone = "",
-                    DateFormat = "DD-MM-YYYY",
-                    TimeFormat = "12 Hour",
-                    CurrencySymbol = "₹",
-                    SessionTimeout = 60,
-                    FinancialYearStartMonth = "April"
-                });
-            }
+
+                return NotFound("General settings not found.");
 
             return Ok(settings);
+
         }
 
         [HttpPut("general")]
-        public async Task<IActionResult> UpdateGeneralSettings([FromBody] GeneralSettings model)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var settings = await _context.GeneralSettings
-                .FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
+        public IActionResult UpdateGeneralSettings([FromBody] GeneralSettings model)
+
+        {
+
+            var settings = _context.GeneralSettings.FirstOrDefault();
+
+            // varsha - Capture existing general settings before mutation
+            var oldValues = settings != null ? new
+            {
+                settings.CompanyTimeZone,
+                settings.DateFormat,
+                settings.TimeFormat,
+                settings.CurrencySymbol,
+                settings.SessionTimeout,
+                settings.FinancialYearStartMonth
+            } : null;
 
             if (settings == null)
+
             {
-                model.OrganizationId = orgId.Value;
-                model.UpdatedAt = DateTime.UtcNow;
+
+                model.UpdatedAt = DateTime.Now;
+
                 _context.GeneralSettings.Add(model);
-            }
-            else
-            {
-                settings.CompanyTimeZone = model.CompanyTimeZone;
-                settings.DateFormat = model.DateFormat;
-                settings.TimeFormat = model.TimeFormat;
-                settings.CurrencySymbol = model.CurrencySymbol;
-                settings.SessionTimeout = model.SessionTimeout;
-                settings.FinancialYearStartMonth = model.FinancialYearStartMonth;
-                settings.UpdatedAt = DateTime.UtcNow;
+
             }
 
-            await _context.SaveChangesAsync();
+            else
+
+            {
+
+                settings.CompanyTimeZone = model.CompanyTimeZone;
+
+                settings.DateFormat = model.DateFormat;
+
+                settings.TimeFormat = model.TimeFormat;
+
+                settings.CurrencySymbol = model.CurrencySymbol;
+
+                settings.SessionTimeout = model.SessionTimeout;
+
+                settings.FinancialYearStartMonth = model.FinancialYearStartMonth;
+
+                settings.UpdatedAt = DateTime.Now;
+
+            }
+
+            _context.SaveChanges();
+
+            // varsha - Audit general organization configuration update with delta
+            _auditLogService.LogUpdateAsync(
+                module: "OrganizationSettings",
+                entityName: "GeneralSettings",
+                entityId: "General",
+                description: "General organization configuration updated successfully",
+                oldValues: oldValues,
+                newValues: model,
+                user: User).GetAwaiter().GetResult();
+
             return Ok(new
             {
                 message = "General Settings Updated Successfully"
             });
+
         }
 
         [HttpGet("policies")]
-        public async Task<IActionResult> GetPolicies()
+
+        public IActionResult GetPolicies()
+
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var policies = await _context.PolicySettings
-                .AsNoTracking()
-                .Where(p => p.OrganizationId == orgId.Value)
-                .ToListAsync();
+            return Ok(_context.PolicySettings.ToList());
 
-            return Ok(policies);
         }
 
         [HttpGet("policy/{type}")]
-        public async Task<IActionResult> GetPolicy(string type)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var policy = await _context.PolicySettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.OrganizationId == orgId.Value && x.PolicyType == type);
+        public IActionResult GetPolicy(string type)
+
+        {
+
+            var policy = _context.PolicySettings
+
+                .FirstOrDefault(x => x.PolicyType == type);
 
             if (policy == null)
+
                 return NotFound();
 
             return Ok(policy);
+
         }
 
         [HttpPut("policy")]
-        public async Task<IActionResult> UpdatePolicy([FromBody] PolicySettings model)
-        {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue) return BadRequest("Organization context is required.");
 
-            var policy = await _context.PolicySettings
-                .FirstOrDefaultAsync(x => x.Id == model.Id && x.OrganizationId == orgId.Value);
+        public IActionResult UpdatePolicy([FromBody] PolicySettings model)
+
+        {
+
+            var policy = _context.PolicySettings
+
+                .FirstOrDefault(x => x.Id == model.Id);
 
             if (policy == null)
-            {
-                policy = await _context.PolicySettings
-                    .FirstOrDefaultAsync(x => x.OrganizationId == orgId.Value && x.PolicyType == model.PolicyType);
 
-                if (policy == null)
-                {
-                    model.OrganizationId = orgId.Value;
-                    model.UpdatedAt = DateTime.UtcNow;
-                    _context.PolicySettings.Add(model);
-                    await _context.SaveChangesAsync();
-                    return Ok(new
-                    {
-                        message = "Policy Created Successfully"
-                    });
-                }
-            }
+                return NotFound();
 
             policy.PolicyTitle = model.PolicyTitle;
-            policy.PolicyContent = model.PolicyContent;
-            policy.Version = model.Version;
-            policy.EffectiveFrom = model.EffectiveFrom;
-            policy.IsActive = model.IsActive;
-            policy.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            policy.PolicyContent = model.PolicyContent;
+
+            policy.Version = model.Version;
+
+            policy.EffectiveFrom = model.EffectiveFrom;
+
+            policy.IsActive = model.IsActive;
+
+            policy.UpdatedAt = DateTime.Now;
+
+            _context.SaveChanges();
+
             return Ok(new
+
             {
+
                 message = "Policy Updated Successfully"
+
             });
+
         }
 
 
@@ -1789,135 +1919,84 @@ namespace EmployeeManagementSystem.Controllers
 
             var logoUrl = "/uploads/branding/" + fileName;
 
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue || orgId.Value <= 0)
-                return BadRequest("Company or Organization context is required.");
-
-            // 1. Ensure Company entity exists
-            var company = await _context.Company.FirstOrDefaultAsync(c => c.OrganizationId == orgId.Value);
-            if (company == null)
-            {
-                var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == orgId.Value);
-                company = new Company
-                {
-                    OrganizationId = orgId.Value,
-                    CompanyName = org?.OrganizationName ?? "Company",
-                    PhoneNumber = org?.PhoneNumber ?? "",
-                    EmailAddress = org?.Email ?? "",
-                    GSTNumber = "",
-                    TINNumber = "",
-                    PANNumber = "",
-                    TotalBranches = 1,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _context.Company.Add(company);
-                await _context.SaveChangesAsync();
-            }
-
-            int targetCompanyId = company.Id;
-
-            // 2. Ensure BrandingSettings entity exists and is updated
             var branding = await _context.BrandingSettings
-                .FirstOrDefaultAsync(b => b.Company_Id == targetCompanyId || b.Company_Id == orgId.Value);
+
+                .FirstOrDefaultAsync();
 
             if (branding == null)
+
             {
+
                 branding = new BrandingSettings
+
                 {
-                    Company_Id = targetCompanyId,
+
+                    Company_Id = 1,
+
                     CompanyLogo = logoUrl,
+
                     LoginLogo = logoUrl,
+
                     SidebarLogo = logoUrl,
-                    CreatedDate = DateTime.UtcNow
+
+                    CreatedDate = DateTime.Now
+
                 };
+
                 _context.BrandingSettings.Add(branding);
-            }
-            else
-            {
-                branding.Company_Id = targetCompanyId;
-                branding.CompanyLogo = logoUrl;
-                branding.LoginLogo = logoUrl;
-                branding.SidebarLogo = logoUrl;
-                branding.UpdatedDate = DateTime.UtcNow;
+
             }
 
-            // 3. Ensure CompanySettings entity exists and has LogoUrl in sync
-            var companySettings = await _context.CompanySettings.FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
-            if (companySettings == null)
-            {
-                var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Id == orgId.Value);
-                companySettings = new CompanySettings
-                {
-                    OrganizationId = orgId.Value,
-                    CompanyName = company.CompanyName ?? org?.OrganizationName ?? "",
-                    CompanyShortName = org?.OrganizationCode ?? "",
-                    CompanyEmail = company.EmailAddress ?? org?.Email ?? "",
-                    CompanyPhone = company.PhoneNumber ?? org?.PhoneNumber ?? "",
-                    CompanyWebsite = "",
-                    CompanyAddress = org?.Address ?? "",
-                    LogoUrl = logoUrl,
-                    GSTNumber = company.GSTNumber ?? "",
-                    CINNumber = "",
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _context.CompanySettings.Add(companySettings);
-            }
             else
+
             {
-                companySettings.LogoUrl = logoUrl;
-                companySettings.UpdatedAt = DateTime.UtcNow;
+
+                branding.CompanyLogo = logoUrl;
+
+                branding.LoginLogo = logoUrl;
+
+                branding.SidebarLogo = logoUrl;
+
             }
 
             await _context.SaveChangesAsync();
+
+            // varsha - Audit theme branding logo upload
+            await _auditLogService.LogActionAsync(
+                action: "ThemeChange",
+                module: "OrganizationSettings",
+                entityName: "BrandingSettings",
+                entityId: "BrandingLogo",
+                description: $"Branding logo uploaded successfully: {fileName}",
+                newValues: new { LogoUrl = logoUrl, FileName = fileName },
+                statusCode: 200,
+                user: User);
 
             return Ok(new
             {
                 success = true,
                 message = "Branding logo uploaded successfully.",
-                logoUrl = logoUrl,
-                companyLogo = logoUrl
+                logoUrl = logoUrl
             });
+
         }
 
         [HttpGet("branding")]
+
         public async Task<IActionResult> GetBranding()
+
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue || orgId.Value <= 0)
-                return BadRequest("Organization context is required.");
-
-            var company = await _context.Company.FirstOrDefaultAsync(c => c.OrganizationId == orgId.Value);
-            var companySettings = await _context.CompanySettings.FirstOrDefaultAsync(s => s.OrganizationId == orgId.Value);
-
-            int targetCompanyId = company?.Id ?? orgId.Value;
 
             var branding = await _context.BrandingSettings
-                .FirstOrDefaultAsync(b => b.Company_Id == targetCompanyId || (company != null && b.Company_Id == company.Id) || b.Company_Id == orgId.Value);
 
-            string logo = branding?.CompanyLogo ?? companySettings?.LogoUrl ?? "";
+                .FirstOrDefaultAsync();
 
             if (branding == null)
-            {
-                return Ok(new
-                {
-                    brandingId = 0,
-                    company_Id = targetCompanyId,
-                    companyLogo = logo,
-                    logoUrl = logo,
-                    sidebarLogo = logo,
-                    loginLogo = logo
-                });
-            }
 
-            return Ok(new
-            {
-                brandingId = branding.BrandingId,
-                company_Id = branding.Company_Id,
-                companyLogo = !string.IsNullOrWhiteSpace(branding.CompanyLogo) ? branding.CompanyLogo : logo,
-                logoUrl = !string.IsNullOrWhiteSpace(branding.CompanyLogo) ? branding.CompanyLogo : logo,
-                sidebarLogo = !string.IsNullOrWhiteSpace(branding.SidebarLogo) ? branding.SidebarLogo : logo,
-                loginLogo = !string.IsNullOrWhiteSpace(branding.LoginLogo) ? branding.LoginLogo : logo
-            });
+                return NotFound("Branding settings not found.");
+
+            return Ok(branding);
+
         }
 
     }

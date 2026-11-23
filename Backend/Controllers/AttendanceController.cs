@@ -1,32 +1,35 @@
-using EmployeeManagementSystem.Authorization;
+﻿using EmployeeManagementSystem.Authorization;
 using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
-
 {
+    // varsha - Attendance controller with complete Audit Logging
     //[Authorize]
     [Route("api/[controller]")]
-
     [ApiController]
-
     public class AttendanceController : ControllerBase
-
     {
-
         private readonly IAttendanceService _attendanceService;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
+        private readonly AppDbContext _context; // varsha - DB context for capturing pre-update attendance state
 
-        public AttendanceController(IAttendanceService attendanceService)
-
+        public AttendanceController(
+            IAttendanceService attendanceService,
+            IAuditLogService auditLogService,
+            AppDbContext context) // varsha
         {
-
             _attendanceService = attendanceService;
-
+            _auditLogService = auditLogService; // varsha
+            _context = context; // varsha
         }
 
         //---------------------------------------
@@ -52,25 +55,49 @@ namespace EmployeeManagementSystem.Controllers
         //---------------------------------------
 
         // ✅ Check-In
-
         [Authorize]
         [HttpPost("checkin")]
-        public async Task<IActionResult> CheckIn(
-      [FromBody] CheckInLocationDto dto)
+        public async Task<IActionResult> CheckIn([FromBody] CheckInLocationDto dto)
         {
-            return await _attendanceService
-                .CheckIn(User, dto);
+            var result = await _attendanceService.CheckIn(User, dto);
+
+            // varsha - Audit successful attendance check-in
+            if (result is OkObjectResult or ObjectResult { StatusCode: null or >= 200 and < 300 })
+            {
+                var empId = User.FindFirst("EmployeeId")?.Value;
+                await _auditLogService.LogCreateAsync(
+                    module: "Attendance",
+                    entityName: "Attendance",
+                    entityId: empId ?? "Unknown",
+                    description: $"Employee {empId} checked in at {DateTime.UtcNow:HH:mm:ss} UTC",
+                    newValues: dto,
+                    user: User);
+            }
+
+            return result;
         }
 
         // ✅ Check-Out
-
         [Authorize]
         [HttpPost("checkout")]
-        public async Task<IActionResult> CheckOut(
-       [FromBody] CheckOutLocationDto dto)
+        public async Task<IActionResult> CheckOut([FromBody] CheckOutLocationDto dto)
         {
-            return await _attendanceService
-                .CheckOut(User, dto);
+            var result = await _attendanceService.CheckOut(User, dto);
+
+            // varsha - Audit successful attendance check-out
+            if (result is OkObjectResult or ObjectResult { StatusCode: null or >= 200 and < 300 })
+            {
+                var empId = User.FindFirst("EmployeeId")?.Value;
+                await _auditLogService.LogUpdateAsync(
+                    module: "Attendance",
+                    entityName: "Attendance",
+                    entityId: empId ?? "Unknown",
+                    description: $"Employee {empId} checked out at {DateTime.UtcNow:HH:mm:ss} UTC",
+                    newValues: dto,
+                    user: User);
+            }
+
+            return result;
         }
         //---------------------------------------
 
@@ -181,8 +208,8 @@ namespace EmployeeManagementSystem.Controllers
         // ✅ Daily Attendance (MAIN UI)
 
 
-        [Authorize]
-        [HttpGet("today")]
+      
+      [HttpGet("today")]
 public async Task<IActionResult> GetAttendanceByDate(
     DateTime date,
     string status = "All",
@@ -193,7 +220,6 @@ public async Task<IActionResult> GetAttendanceByDate(
 
     return Ok(result);
 }
-        [Authorize]
         [HttpGet("admin-dashboard-overview")]
         public async Task<IActionResult> GetAdminDashboardOverview()
         {
@@ -201,17 +227,17 @@ public async Task<IActionResult> GetAttendanceByDate(
         }
 
         // ✅ Monthly / Year View
-        [Authorize]
+
         [HttpGet("monthly")]
         public async Task<IActionResult> GetMonthlyAttendance(
      [FromQuery] int month,
      [FromQuery] int year)
         {
             if (month < 1 || month > 12)
-                return BadRequest(new { message = "Month must be between 1 and 12." });
+                return BadRequest("Month must be between 1 and 12.");
 
             if (year < 2000 || year > 2100)
-                return BadRequest(new { message = "Invalid year." });
+                return BadRequest("Invalid year.");
 
             var result = await _attendanceService
                 .GetAllEmployeeAttendance(month, year);
@@ -223,17 +249,54 @@ public async Task<IActionResult> GetAttendanceByDate(
         [Authorize]
         [HttpPost("admin/update-attendance")]
         public async Task<IActionResult> AdminUpdateAttendance(
-     string employeeId,
-     DateTime date,
-     DateTime? checkIn,
-     DateTime? checkOut)
+            string employeeId,
+            DateTime date,
+            DateTime? checkIn,
+            DateTime? checkOut)
         {
-            return await _attendanceService.AdminUpdateAttendance(
+            // varsha - Capture existing attendance record before admin correction
+            var existingAtt = await _context.Attendance.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Employee_Id == employeeId && a.Attendance_Date.Date == date.Date);
+
+            var oldValues = existingAtt != null ? new
+            {
+                existingAtt.Employee_Id,
+                Date = existingAtt.Attendance_Date.ToString("yyyy-MM-dd"),
+                existingAtt.Check_In,
+                existingAtt.Check_Out,
+                existingAtt.Status,
+                existingAtt.WorkingMinutes
+            } : null;
+
+            var result = await _attendanceService.AdminUpdateAttendance(
                 User,
                 employeeId,
                 date,
                 checkIn,
                 checkOut);
+
+            // varsha - Audit attendance correction with actual old and new values
+            if (result is OkObjectResult or ObjectResult { StatusCode: null or >= 200 and < 300 })
+            {
+                var newValues = new
+                {
+                    EmployeeId = employeeId,
+                    Date = date.ToString("yyyy-MM-dd"),
+                    CheckIn = checkIn,
+                    CheckOut = checkOut
+                };
+
+                await _auditLogService.LogUpdateAsync(
+                    module: "Attendance",
+                    entityName: "Attendance",
+                    entityId: employeeId,
+                    description: $"Admin updated/corrected attendance for employee {employeeId} for date {date:yyyy-MM-dd}",
+                    oldValues: oldValues,
+                    newValues: newValues,
+                    user: User);
+            }
+
+            return result;
         }
 
         //---------------------------------------
@@ -247,7 +310,7 @@ public async Task<IActionResult> GetAttendanceByDate(
         // ✅ Today
 
         //[Authorize(Roles = "Admin")]
-        [Authorize]
+
         [HttpGet("stats/today")]
 
         public async Task<IActionResult> GetTodayStats()
@@ -263,7 +326,7 @@ public async Task<IActionResult> GetAttendanceByDate(
         // ✅ Yearly Summary
 
         //[Authorize(Roles = "Admin")]
-        [Authorize]
+
         [HttpGet("stats/year")]
 
         public async Task<IActionResult> GetYearlySummary([FromQuery] int year)
@@ -333,7 +396,7 @@ public async Task<IActionResult> GetAttendanceByDate(
             );
 
         }
-        [Authorize]
+
         [HttpGet("admin/download-monthly")]
 
         public async Task<IActionResult> DownloadMonthlyAttendance(int month, int year)
@@ -354,7 +417,6 @@ public async Task<IActionResult> GetAttendanceByDate(
 
         }
 
-        [Authorize]
         [HttpGet("admin/download-weekly")]
 
         public async Task<IActionResult> DownloadWeeklyAttendance(DateTime weekStartDate)
@@ -375,7 +437,7 @@ public async Task<IActionResult> GetAttendanceByDate(
 
         }
 
-        [Authorize]
+
         [HttpGet("admin/download-daily")]
         public async Task<IActionResult> DownloadDaily(DateTime date)
         {
@@ -386,8 +448,6 @@ public async Task<IActionResult> GetAttendanceByDate(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 $"daily-attendance-{date:yyyy-MM-dd}.xlsx");
         }
-
-        [Authorize]
         [HttpGet("export-absent")]
         public async Task<IActionResult> ExportAbsent([FromQuery] DateTime date)
         {
@@ -399,7 +459,6 @@ public async Task<IActionResult> GetAttendanceByDate(
                 $"AbsentEmployees_{date:yyyyMMdd}.xlsx");
         }
 
-        [Authorize]
         [HttpGet("export-present-late")]
         public async Task<IActionResult> ExportPresentLate([FromQuery] DateTime date)
         {

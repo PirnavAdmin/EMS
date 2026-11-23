@@ -1,42 +1,29 @@
+// varsha - Employee management audit logging
 using EmployeeManagementSystem.DTOs;
-
 using EmployeeManagementSystem.Services;
-
 using Microsoft.AspNetCore.Mvc;
-
 using EmployeeManagementSystem.Data;
-
+using EmployeeManagementSystem.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
-
 {
-
     [ApiController]
-
     [Route("api/[controller]")]
-
     public class EmployeesController : ControllerBase
-
     {
-
         private readonly IEmployeeService _employeeService;
-
         private readonly AppDbContext _context;
-
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
         public EmployeesController(
-
-     IEmployeeService employeeService,
-
-     AppDbContext context)
-
+            IEmployeeService employeeService,
+            AppDbContext context,
+            IAuditLogService auditLogService) // varsha
         {
-
             _employeeService = employeeService;
-
             _context = context;
-
+            _auditLogService = auditLogService; // varsha
         }
 
         // ADD EMPLOYEE
@@ -44,29 +31,21 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost]
 
         public async Task<IActionResult> AddEmployee(EmployeeDto dto)
+
         {
-            try
+
+            var result = await _employeeService.AddEmployee(User, dto);
+
+            return Ok(new
+
             {
-                var result = await _employeeService.AddEmployee(User, dto);
-                return Ok(new
-                {
-                    status = true,
-                    message = "Employee added successfully",
-                    data = result
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { status = false, message = ex.Message });
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(new { status = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { status = false, message = ex.Message });
-            }
+
+                message = "Employee added successfully",
+
+                data = result
+
+            });
+
         }
 
         // GET ALL EMPLOYEES
@@ -167,6 +146,15 @@ namespace EmployeeManagementSystem.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // varsha - Audit employee password change
+                await _auditLogService.LogActionAsync(
+                    action: "PasswordChange",
+                    module: "Authentication",
+                    entityName: "Employee",
+                    entityId: user.Email,
+                    description: $"Employee {user.Email} changed password successfully.",
+                    statusCode: 200);
+
                 return Ok("Password changed successfully");
 
             }
@@ -216,7 +204,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("onboarding-candidates")]
         public async Task<IActionResult> GetOnboardingCandidates()
         {
-            var result = await _employeeService.GetOnboardingCandidatesAsync(User);
+            var result = await _employeeService.GetOnboardingCandidatesAsync();
 
             return Ok(result);
         }
@@ -225,7 +213,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("onboarding-details/{onboardingId}")]
         public async Task<IActionResult> GetOnboardingDetails(string onboardingId)
         {
-            var result = await _employeeService.GetOnboardingDetailsAsync(onboardingId, User);
+            var result = await _employeeService.GetOnboardingDetailsAsync(onboardingId);
 
             if (result == null)
                 return NotFound();

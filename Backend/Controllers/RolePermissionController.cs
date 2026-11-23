@@ -1,4 +1,5 @@
-﻿using EmployeeManagementSystem.Authorization;
+// varsha - Role permission matrix audit logging
+using EmployeeManagementSystem.Authorization;
 using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
@@ -15,10 +16,14 @@ namespace EmployeeManagementSystem.Controllers
     public class RolePermissionController : ControllerBase
     {
         private readonly IRolePermissionService _service;
+        private readonly IAuditLogService _auditLogService;
 
-        public RolePermissionController(IRolePermissionService service)
+        public RolePermissionController(
+            IRolePermissionService service,
+            IAuditLogService auditLogService)
         {
             _service = service;
+            _auditLogService = auditLogService;
         }
 
         // 🔹 GET ALL PERMISSIONS (for UI screen)
@@ -53,6 +58,15 @@ namespace EmployeeManagementSystem.Controllers
             int adminId = int.Parse(adminIdClaim);
 
             await _service.SavePermissions(adminId, dto);
+
+            await _auditLogService.LogActionAsync(
+                action: "PermissionChange",
+                module: "UserManagement",
+                entityName: "RolePermission",
+                description: $"Updated permissions for role in admin scope {adminId}",
+                newValues: dto,
+                statusCode: 200,
+                user: User);
 
             return Ok("Permissions saved successfully.");
         }

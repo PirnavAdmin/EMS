@@ -21,6 +21,8 @@
         public const int Payroll = 64;
         public const int OfferLetters = 66;
         public const int Reports = 67;
+        public const int AuditLogs = 74;
+
 
         // User Modules
         public const int UserAttendance = 59;

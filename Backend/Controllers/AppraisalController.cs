@@ -1,6 +1,5 @@
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,52 +22,26 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var query = _context.Appraisals
+            return Ok(await _context.Appraisals
                 .Include(x => x.PerformanceCycle)
-                .AsNoTracking();
-
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
-            return Ok(await query.ToListAsync());
+                .ToListAsync());
         }
 
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetEmployee(string employeeId)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var query = _context.Appraisals
+            return Ok(await _context.Appraisals
                 .Where(x => x.Employee_Id == employeeId)
                 .Include(x => x.PerformanceCycle)
-                .AsNoTracking();
-
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
-            return Ok(await query.ToListAsync());
+                .ToListAsync());
         }
 
         [HttpPost]
-        [Authorize(Roles = "Employee,Manager,HR,HR Admin,Hr,Admin")]
+        [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Create(CreateAppraisalDto dto)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            int? targetOrgId = orgId ?? dto.OrganizationId;
-
-            if (!targetOrgId.HasValue && !string.IsNullOrWhiteSpace(dto.Employee_Id))
-            {
-                var emp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == dto.Employee_Id);
-                targetOrgId = emp?.OrganizationId;
-            }
-
             var appraisal = new Appraisal
             {
-                OrganizationId = targetOrgId,
                 Employee_Id = dto.Employee_Id,
                 PerformanceCycleId = dto.PerformanceCycleId,
                 SelfRating = dto.SelfRating,
@@ -77,21 +50,20 @@ namespace EmployeeManagementSystem.Controllers
             };
 
             _context.Appraisals.Add(appraisal);
+
             await _context.SaveChangesAsync();
 
             return Ok(appraisal);
         }
 
         [HttpPost("manager-review/{id}")]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> ManagerReview(
             int id,
             int managerRating,
             string remarks)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var appraisal = await _context.Appraisals
-                .FirstOrDefaultAsync(x => x.AppraisalId == id && (!orgId.HasValue || x.OrganizationId == orgId.Value));
+            var appraisal = await _context.Appraisals.FindAsync(id);
 
             if (appraisal == null)
                 return NotFound();
@@ -106,17 +78,15 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPost("hr-review/{id}")]
-        [Authorize(Roles = "HR,HR Admin,Hr,Admin")]
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> HrReview(
-            int id,
-            int finalRating,
-            decimal hike,
-            bool promotion,
-            string remarks)
+       int id,
+       int finalRating,
+       decimal hike,
+       bool promotion,
+       string remarks)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var appraisal = await _context.Appraisals
-                .FirstOrDefaultAsync(x => x.AppraisalId == id && (!orgId.HasValue || x.OrganizationId == orgId.Value));
+            var appraisal = await _context.Appraisals.FindAsync(id);
 
             if (appraisal == null)
                 return NotFound();
@@ -136,14 +106,13 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var appraisal = await _context.Appraisals
-                .FirstOrDefaultAsync(x => x.AppraisalId == id && (!orgId.HasValue || x.OrganizationId == orgId.Value));
+            var appraisal = await _context.Appraisals.FindAsync(id);
 
             if (appraisal == null)
                 return NotFound();
 
             _context.Appraisals.Remove(appraisal);
+
             await _context.SaveChangesAsync();
 
             return Ok("Deleted Successfully");

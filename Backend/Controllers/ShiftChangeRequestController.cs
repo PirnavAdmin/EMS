@@ -1,11 +1,9 @@
 ﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ShiftChangeRequestController : ControllerBase

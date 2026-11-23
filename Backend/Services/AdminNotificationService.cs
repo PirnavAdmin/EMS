@@ -32,6 +32,23 @@ namespace EmployeeManagementSystem.Services
         //-------------------------------------------------
         // ADMIN VALIDATION
         //-------------------------------------------------
+        private static DateTime GetIndianTime()
+
+        {
+
+            TimeZoneInfo indiaTimeZone = TimeZoneInfo.FindSystemTimeZoneById(
+
+                OperatingSystem.IsWindows()
+
+                    ? "India Standard Time"
+
+                    : "Asia/Kolkata"
+
+            );
+
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, indiaTimeZone);
+
+        }
 
         private async Task<bool> IsAdmin(ClaimsPrincipal user)
         {
@@ -63,19 +80,61 @@ namespace EmployeeManagementSystem.Services
             {
                 query = query.Where(x => x.OrganizationId == orgId.Value);
             }
+            var indiaTimeZone = TimeZoneInfo.FindSystemTimeZoneById(
+
+     OperatingSystem.IsWindows()
+
+         ? "India Standard Time"
+
+         : "Asia/Kolkata"
+
+);
 
             var notifications = await query
+                .AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt)
-                .Take(10)
-                .Select(n => new AdminNotificationDto
-                {
-                    Id = n.Id,
-                    Title = n.Title,
-                    Message = n.Message,
-                    IsRead = n.IsRead,
-                    CreatedAt = n.CreatedAt
-                })
                 .ToListAsync();
+
+            var result = notifications.Select(n =>
+
+            {
+
+                // Database DATETIME values are treated as UTC
+
+                var utcDate = DateTime.SpecifyKind(
+
+                    n.CreatedAt,
+
+                    DateTimeKind.Utc
+
+                );
+
+                var istDate = TimeZoneInfo.ConvertTime(
+
+                    utcDate,
+
+                    indiaTimeZone
+
+                );
+
+                return new AdminNotificationDto
+
+                {
+
+                    Id = n.Id,
+
+                    Title = n.Title,
+
+                    Message = n.Message,
+
+                    IsRead = n.IsRead,
+
+                    CreatedAt = istDate
+
+                };
+
+            }).ToList();
+
 
             return new OkObjectResult(notifications);
         }
@@ -99,7 +158,12 @@ namespace EmployeeManagementSystem.Services
                 query = query.Where(x => x.OrganizationId == orgId.Value);
             }
 
-            var count = await query.CountAsync();
+            var count = await _context.AdminNotifications
+
+     .AsNoTracking()
+
+     .CountAsync(x => !x.IsRead);
+
 
             return new OkObjectResult(count);
         }

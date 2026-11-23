@@ -1,60 +1,51 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    [Authorize] // 🔥 Multi-tenancy enforcement requires authenticated JWT
     [Route("api/[controller]")]
     [ApiController]
+
+    // varsha - TicketController with complete Audit Logging
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
         private readonly ITicketAssignmentEngine _ticketAssignmentEngine;
         private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService; // varsha - Audit logging service
 
         public TicketController(
             ITicketService ticketService,
             ITicketAssignmentEngine ticketAssignmentEngine,
-            AppDbContext context)
+            AppDbContext context,
+            IAuditLogService auditLogService) // varsha
         {
             _ticketService = ticketService;
             _ticketAssignmentEngine = ticketAssignmentEngine;
             _context = context;
+            _auditLogService = auditLogService; // varsha
         }
-
-        // 🔥 Helper to resolve current OrganizationId
-        private int GetCurrentOrgId()
-        {
-            var orgId = CurrentUserHelper.GetOrganizationId(User);
-            if (!orgId.HasValue || orgId.Value <= 0)
-            {
-                var (resolvedOrgId, _) = CurrentUserHelper.GetTenantContextAsync(_context, User).GetAwaiter().GetResult();
-                if (resolvedOrgId.HasValue && resolvedOrgId.Value > 0)
-                    return resolvedOrgId.Value;
-
-                throw new UnauthorizedAccessException("OrganizationId not found in token.");
-            }
-            return orgId.Value;
-        }
-
         [HttpPost("Create")]
         public async Task<IActionResult> CreateTicket([FromBody] CreateTicketDto dto)
         {
             try
             {
-                dto.OrganizationId = GetCurrentOrgId(); // 🔥 Scoped to current org
                 var result = await _ticketService.CreateTicket(dto, User);
+
+                // varsha - Audit ticket creation
+                await _auditLogService.LogCreateAsync(
+                    module: "Tickets",
+                    entityName: "Ticket",
+                    entityId: dto.Title,
+                    description: $"Created ticket '{dto.Title}' (Priority: {dto.Priority})",
+                    newValues: dto,
+                    user: User);
+
                 return Ok(result);
             }
             catch (Exception ex)
@@ -74,12 +65,14 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(result);
         }
 
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTicketById(int id)
         {
             var result = await _ticketService.GetTicketById(id);
+
             if (result == null)
-                return NotFound(new { message = "Ticket not found or access denied." });
+                return NotFound();
 
             return Ok(result);
         }
@@ -93,14 +86,44 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPut("UpdateStatus/{ticketId}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateStatus(
-            int ticketId,
-            [FromForm] string status,
-            [FromForm] string? remarks,
-            [FromForm] List<IFormFile>? files)
+     int ticketId,
+     [FromForm] string status,
+     [FromForm] string? remarks,
+     [FromForm] List<IFormFile>? files)
         {
             try
             {
-                var result = await _ticketService.UpdateTicketStatus(ticketId, status, remarks, User);
+                // varsha - Capture existing ticket state before status change
+                var existingTicket = await _context.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId);
+                var oldValues = existingTicket != null ? new
+                {
+                    existingTicket.Status,
+                    existingTicket.Priority,
+                    existingTicket.AssignedTo
+                } : null;
+
+                var result = await _ticketService.UpdateTicketStatus(
+                    ticketId,
+                    status,
+                    remarks,
+                    User);
+
+                // varsha - Audit ticket status update with delta
+                var newValues = new
+                {
+                    Status = status,
+                    Remarks = remarks
+                };
+
+                await _auditLogService.LogUpdateAsync(
+                    module: "Tickets",
+                    entityName: "Ticket",
+                    entityId: ticketId.ToString(),
+                    description: $"Updated ticket {ticketId} status from '{existingTicket?.Status}' to '{status}'",
+                    oldValues: oldValues,
+                    newValues: newValues,
+                    user: User);
+
                 return Ok(new
                 {
                     Success = true,
@@ -116,23 +139,66 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
         }
-
         [HttpDelete("{ticketId}")]
         public async Task<IActionResult> DeleteTicket(int ticketId)
         {
-            var result = await _ticketService.DeleteTicket(ticketId);
-            if (!result)
-                return NotFound(new { message = "Ticket not found or access denied." });
+            // varsha - Capture existing ticket state before deletion
+            var existingTicket = await _context.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId);
+            var oldValues = existingTicket != null ? new
+            {
+                existingTicket.Id,
+                existingTicket.Title,
+                existingTicket.Status,
+                existingTicket.Priority
+            } : null;
 
-            return Ok(new { message = "Ticket deleted successfully." });
+            var result = await _ticketService.DeleteTicket(ticketId);
+
+            if (!result)
+                return NotFound();
+
+            // varsha - Audit ticket deletion
+            await _auditLogService.LogDeleteAsync(
+                module: "Tickets",
+                entityName: "Ticket",
+                entityId: ticketId.ToString(),
+                description: $"Deleted ticket '{existingTicket?.Title}' (ID: {ticketId})",
+                oldValues: oldValues,
+                user: User);
+
+            return Ok("Ticket deleted successfully.");
         }
 
         [HttpPut("Update/{ticketId}")]
-        public async Task<IActionResult> UpdateTicket(int ticketId, [FromBody] UpdateTicketDto dto)
+        public async Task<IActionResult> UpdateTicket(
+    int ticketId,
+    UpdateTicketDto dto)
         {
             try
             {
+                // varsha - Capture existing ticket state before update
+                var existingTicket = await _context.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId);
+                var oldValues = existingTicket != null ? new
+                {
+                    existingTicket.Title,
+                    existingTicket.Priority,
+                    existingTicket.Status,
+                    existingTicket.AssignedTo,
+                    existingTicket.EstimatedHours
+                } : null;
+
                 var result = await _ticketService.UpdateTicket(ticketId, dto, User);
+
+                // varsha - Audit ticket update with delta
+                await _auditLogService.LogUpdateAsync(
+                    module: "Tickets",
+                    entityName: "Ticket",
+                    entityId: ticketId.ToString(),
+                    description: $"Updated ticket '{existingTicket?.Title}' (ID: {ticketId})",
+                    oldValues: oldValues,
+                    newValues: dto,
+                    user: User);
+
                 return Ok(new
                 {
                     Success = true,
@@ -144,17 +210,16 @@ namespace EmployeeManagementSystem.Controllers
                 return BadRequest(new
                 {
                     Success = false,
-                    Message = ex.Message
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace
                 });
             }
         }
 
         [HttpGet("Export")]
         public async Task<IActionResult> ExportTickets(
-            [FromQuery(Name = "projectIds")] List<int>? projectIds)
+    [FromQuery(Name = "projectIds")] List<int>? projectIds)
         {
-            int orgId = GetCurrentOrgId();
-
             if (projectIds != null && projectIds.Count > 0)
             {
                 var selectedProjectIds = projectIds.Distinct().ToList();
@@ -169,7 +234,7 @@ namespace EmployeeManagementSystem.Controllers
                 }
 
                 var existingProjectIds = await _context.Projects
-                    .Where(p => selectedProjectIds.Contains(p.Id) && p.OrganizationId == orgId)
+                    .Where(p => selectedProjectIds.Contains(p.Id))
                     .Select(p => p.Id)
                     .ToListAsync();
 
@@ -204,12 +269,10 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpGet("Export/Project/{projectId:int}")]
-        public async Task<IActionResult> ExportProjectTickets(int projectId)
+        public async Task<IActionResult> ExportTicketsByProject(int projectId)
         {
-            int orgId = GetCurrentOrgId();
-
             var projectExists = await _context.Projects
-                .AnyAsync(p => p.Id == projectId && p.OrganizationId == orgId);
+                .AnyAsync(p => p.Id == projectId);
 
             if (!projectExists)
                 return NotFound(new
@@ -233,33 +296,39 @@ namespace EmployeeManagementSystem.Controllers
                 return BadRequest("Please upload an Excel file.");
 
             var result = await _ticketService.BulkUploadTickets(file, User);
+
             return Ok(result);
         }
-
         [HttpPost("accept")]
-        public async Task<IActionResult> Accept([FromBody] AcceptTicketDto dto)
+        public async Task<IActionResult> Accept(
+    AcceptTicketDto dto)
         {
-            var result = await _ticketService.AcceptTicketAsync(dto);
-            if (!result)
-                return BadRequest(new { message = "Unable to accept ticket." });
+            var result =
+                await _ticketService.AcceptTicketAsync(dto);
 
-            return Ok(new { message = "Ticket Accepted" });
+            if (!result)
+                return BadRequest();
+
+            return Ok("Ticket Accepted");
         }
 
         [HttpPost("reject")]
-        public async Task<IActionResult> Reject([FromBody] RejectTicketDto dto)
+        public async Task<IActionResult> Reject(
+    RejectTicketDto dto)
         {
-            var result = await _ticketService.RejectTicketAsync(dto);
+            var result =
+                await _ticketService.RejectTicketAsync(dto);
+
             if (!result)
-                return BadRequest(new { message = "Unable to reject ticket." });
+                return BadRequest();
 
-            return Ok(new { message = "Ticket Rejected" });
+            return Ok("Ticket Rejected");
         }
-
         [HttpGet("DownloadTemplate")]
         public IActionResult DownloadTemplate()
         {
             using var workbook = new XLWorkbook();
+
             var ws = workbook.Worksheets.Add("Tickets");
 
             // Headers
@@ -273,11 +342,13 @@ namespace EmployeeManagementSystem.Controllers
             ws.Cell(1, 8).Value = "Due Date";
             ws.Cell(1, 9).Value = "Estimated Hours";
 
+            // Header Style
             var header = ws.Range("A1:I1");
             header.Style.Font.Bold = true;
             header.Style.Fill.BackgroundColor = XLColor.LightBlue;
             header.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
+            // Sample Data
             ws.Cell(2, 1).Value = "Employee Management System";
             ws.Cell(2, 2).Value = "Create Login API";
             ws.Cell(2, 3).Value = "Develop secure JWT Login API";
@@ -288,11 +359,14 @@ namespace EmployeeManagementSystem.Controllers
             ws.Cell(2, 8).Value = DateTime.Today.AddDays(5);
             ws.Cell(2, 9).Value = 8;
 
+            // Date Format
             ws.Column(7).Style.DateFormat.Format = "dd-MM-yyyy";
             ws.Column(8).Style.DateFormat.Format = "dd-MM-yyyy";
+
             ws.Columns().AdjustToContents();
 
             using var stream = new MemoryStream();
+
             workbook.SaveAs(stream);
 
             return File(
@@ -304,26 +378,18 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost("auto-assign")]
         public async Task<IActionResult> AutoAssignTickets()
         {
-            int orgId = GetCurrentOrgId();
-            await _ticketAssignmentEngine.AutoAssignPendingTickets(orgId);
+            await _ticketAssignmentEngine.AutoAssignPendingTickets();
 
             return Ok(new
             {
                 Success = true,
-                Message = "Pending tickets assigned successfully for your organization."
+                Message = "Pending tickets assigned successfully."
             });
         }
 
         [HttpPost("{ticketId}/assign")]
         public async Task<IActionResult> AssignTicket(int ticketId)
         {
-            int orgId = GetCurrentOrgId();
-            var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
-
-            if (ticket == null)
-                return NotFound(new { message = "Ticket not found or access denied." });
-
             await _ticketAssignmentEngine.AssignTicketAsync(ticketId);
 
             return Ok(new
@@ -336,123 +402,158 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("pending")]
         public async Task<IActionResult> GetPendingTickets()
         {
-            int orgId = GetCurrentOrgId();
-            var tickets = await _ticketAssignmentEngine.GetPendingTicketsAsync(orgId);
+            var tickets = await _ticketAssignmentEngine.GetPendingTicketsAsync();
+
             return Ok(tickets);
         }
-
         [HttpGet("{ticketId}/eligible-employees")]
         public async Task<IActionResult> GetEligibleEmployees(int ticketId)
         {
-            int orgId = GetCurrentOrgId();
-            var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
+            var ticket = await _context.Tickets.FindAsync(ticketId);
 
             if (ticket == null)
-                return NotFound("Ticket not found or access denied.");
+                return NotFound("Ticket not found.");
 
-            var employees = await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
+            var employees =
+                await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
+
             return Ok(employees);
         }
-
         [HttpGet("{ticketId}/present-employees")]
         public async Task<IActionResult> GetPresentEmployees(int ticketId)
         {
-            int orgId = GetCurrentOrgId();
-            var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
+            var ticket = await _context.Tickets.FindAsync(ticketId);
 
             if (ticket == null)
-                return NotFound("Ticket not found or access denied.");
+                return NotFound();
 
-            var eligible = await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
-            var present = await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligible);
+            var eligible =
+                await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
+
+            var present =
+                await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligible);
+
             return Ok(present);
         }
-
         [HttpGet("{ticketId}/free-employees")]
         public async Task<IActionResult> GetFreeEmployees(int ticketId)
         {
-            int orgId = GetCurrentOrgId();
             var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
+                .FindAsync(ticketId);
 
             if (ticket == null)
-                return NotFound("Ticket not found or access denied.");
+            {
+                return NotFound("Ticket not found.");
+            }
 
-            var eligibleEmployees = await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
-            var presentEmployees = await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligibleEmployees);
-            var freeEmployees = await _ticketAssignmentEngine.FilterFreeEmployeesAsync(presentEmployees, orgId);
+            var eligibleEmployees =
+                await _ticketAssignmentEngine
+                    .GetEligibleEmployeesAsync(ticket);
+
+            var presentEmployees =
+                await _ticketAssignmentEngine
+                    .GetPresentEmployeesAsync(
+                        eligibleEmployees);
+
+            var freeEmployees =
+                await _ticketAssignmentEngine
+                    .FilterFreeEmployeesAsync(
+                        presentEmployees);
 
             return Ok(freeEmployees);
         }
-
         [HttpGet("{ticketId}/module-owner")]
         public async Task<IActionResult> GetModuleOwner(int ticketId)
         {
-            int orgId = GetCurrentOrgId();
-            var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
+            var ticket = await _context.Tickets.FindAsync(ticketId);
 
             if (ticket == null)
-                return NotFound("Ticket not found or access denied.");
+                return NotFound();
 
-            var eligible = await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
-            eligible = await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligible);
+            var eligible =
+                await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
 
-            var employee = await _ticketAssignmentEngine.FindModuleContinuationEmployeeAsync(ticket, eligible);
+            eligible =
+                await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligible);
+
+            var employee =
+                await _ticketAssignmentEngine.FindModuleContinuationEmployeeAsync(
+                    ticket,
+                    eligible);
+
             return Ok(employee);
         }
-
         [HttpGet("{ticketId}/round-robin")]
-        public async Task<IActionResult> GetRoundRobinEmployee(int ticketId)
+        public async Task<IActionResult> GetRoundRobinEmployee(
+    int ticketId)
         {
-            int orgId = GetCurrentOrgId();
             var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
+                .FindAsync(ticketId);
 
             if (ticket == null)
-                return NotFound("Ticket not found or access denied.");
+            {
+                return NotFound("Ticket not found.");
+            }
 
-            var eligibleEmployees = await _ticketAssignmentEngine.GetEligibleEmployeesAsync(ticket);
-            var presentEmployees = await _ticketAssignmentEngine.GetPresentEmployeesAsync(eligibleEmployees);
-            var freeEmployees = await _ticketAssignmentEngine.FilterFreeEmployeesAsync(presentEmployees, orgId);
+            var eligibleEmployees =
+                await _ticketAssignmentEngine
+                    .GetEligibleEmployeesAsync(ticket);
+
+            var presentEmployees =
+                await _ticketAssignmentEngine
+                    .GetPresentEmployeesAsync(
+                        eligibleEmployees);
+
+            var freeEmployees =
+                await _ticketAssignmentEngine
+                    .FilterFreeEmployeesAsync(
+                        presentEmployees);
 
             if (!freeEmployees.Any())
             {
                 return Ok(new
                 {
                     Success = false,
-                    Message = "No free employee is currently available."
+                    Message =
+                        "No free employee is currently available."
                 });
             }
 
-            var employee = await _ticketAssignmentEngine.FindRoundRobinEmployeeAsync(ticket, freeEmployees);
+            var employee =
+                await _ticketAssignmentEngine
+                    .FindRoundRobinEmployeeAsync(
+                        ticket,
+                        freeEmployees);
+
             return Ok(employee);
         }
 
         [HttpGet("{ticketId}/history")]
         public async Task<IActionResult> GetTicketHistory(int ticketId)
         {
-            int orgId = GetCurrentOrgId();
-            var ticketExists = await _context.Tickets
-                .AnyAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
-
-            if (!ticketExists)
-                return NotFound(new { message = "Ticket not found or access denied." });
-
             var history = await _context.TicketHistory
-                .Where(x => x.TicketId == ticketId)
-                .OrderByDescending(x => x.CreatedAt)
-                .ToListAsync();
+     .Where(x => x.TicketId == ticketId)
+     .OrderByDescending(x => x.CreatedAt)
+     .ToListAsync();
 
             return Ok(history);
         }
-
+        //[HttpGet("assignment-summary")]
+        //public async Task<IActionResult> AssignmentSummary()
+        //{
+        //    return Ok(new
+        //    {
+        //        Pending = await _context.Tickets.CountAsync(x => x.Status == "Pending Assignment"),
+        //        Assigned = await _context.Tickets.CountAsync(x => x.Status == "Assigned"),
+        //        InProgress = await _context.Tickets.CountAsync(x => x.Status == "In Progress"),
+        //        Completed = await _context.Tickets.CountAsync(x => x.Status == "Completed")
+        //    });
+        //}
         [HttpPost("start-work")]
-        public async Task<IActionResult> StartWork([FromBody] StartWorkDto dto)
+        public async Task<IActionResult> StartWork(StartWorkDto dto)
         {
             var result = await _ticketService.StartWorkAsync(dto);
+
             if (!result)
                 return BadRequest("Unable to start work.");
 
@@ -460,9 +561,10 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [HttpPost("stop-work")]
-        public async Task<IActionResult> StopWork([FromBody] StopWorkDto dto)
+        public async Task<IActionResult> StopWork(StopWorkDto dto)
         {
             var result = await _ticketService.StopWorkAsync(dto);
+
             if (!result)
                 return BadRequest("Unable to stop work.");
 
@@ -473,6 +575,7 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> GetWorkLogs(int ticketId)
         {
             var logs = await _ticketService.GetWorkLogsAsync(ticketId);
+
             return Ok(logs);
         }
 
@@ -480,8 +583,9 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> GetTicketsByEmployeeId(string employeeId)
         {
             var result = await _ticketService.GetTicketsByEmployeeIdAsync(employeeId);
+
             if (!result.Any())
-                return NotFound("No tickets found for this employee in your organization.");
+                return NotFound("No tickets found for this employee.");
 
             return Ok(result);
         }

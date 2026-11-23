@@ -1,6 +1,5 @@
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
 
 using Microsoft.AspNetCore.Authorization;
@@ -28,30 +27,15 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("settings")]
         public async Task<IActionResult> GetSettings()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue || orgId.Value <= 0)
-                return BadRequest("Organization context is required.");
-            var targetOrgId = orgId.Value;
-
             var settings = await _context.MonitoringSettings
-                .FirstOrDefaultAsync(s => s.OrganizationId == targetOrgId);
+                .FirstOrDefaultAsync();
 
             if (settings == null)
             {
-                settings = new MonitoringSettings
+                return NotFound(new
                 {
-                    OrganizationId = targetOrgId,
-                    ScreenshotInterval = 5,
-                    EnableScreenshotMonitoring = true,
-                    EnableActiveWindowTracking = true,
-                    EnableIdleDetection = true,
-                    EnableAutoUpload = true,
-                    EnableBackgroundMonitoring = true,
-                    UpdatedAt = DateTime.Now
-                };
-
-                _context.MonitoringSettings.Add(settings);
-                await _context.SaveChangesAsync();
+                    message = "Monitoring settings not found"
+                });
             }
 
             return Ok(settings);
@@ -65,20 +49,12 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> SaveSettings(
             [FromBody] MonitoringSettingsDto dto)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            if (!orgId.HasValue || orgId.Value <= 0)
-                return BadRequest("Organization context is required.");
-            var targetOrgId = orgId.Value;
-
             var settings = await _context.MonitoringSettings
-                .FirstOrDefaultAsync(s => s.OrganizationId == targetOrgId);
+                .FirstOrDefaultAsync();
 
             if (settings == null)
             {
-                settings = new MonitoringSettings
-                {
-                    OrganizationId = targetOrgId
-                };
+                settings = new MonitoringSettings();
 
                 _context.MonitoringSettings.Add(settings);
             }
@@ -118,28 +94,21 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("dashboard")]
         public async Task<IActionResult> GetDashboard()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
             var today = DateTime.Today;
 
-            var query = _context.EmployeeScreenshots.AsQueryable();
-            if (orgId.HasValue)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
             var totalEmployees =
-                await query
+                await _context.EmployeeScreenshots
                     .Select(x => x.EmployeeId)
                     .Distinct()
                     .CountAsync();
 
             var screenshotsToday =
-                await query
+                await _context.EmployeeScreenshots
                     .Where(x => x.CreatedAt.Date == today)
                     .CountAsync();
 
             var activeEmployees =
-                await query
+                await _context.EmployeeScreenshots
                     .Where(x =>
                         x.CreatedAt >= DateTime.Now.AddMinutes(-30))
                     .Select(x => x.EmployeeId)
@@ -168,14 +137,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("employees")]
         public async Task<IActionResult> GetEmployees()
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var query = _context.EmployeeScreenshots.AsQueryable();
-            if (orgId.HasValue)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
+            var activeEmployeeIds = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.Status == "Active")
+                .Select(e => e.Employee_Id)
+                .ToListAsync();
 
-            var employees = await query
+            var employees = await _context.EmployeeScreenshots
+                .Where(x => activeEmployeeIds.Contains(x.EmployeeId))
                 .GroupBy(x => x.EmployeeId)
                 .Select(g => new
                 {

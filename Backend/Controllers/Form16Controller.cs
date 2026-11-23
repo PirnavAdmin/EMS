@@ -1,14 +1,11 @@
-using EmployeeManagementSystem.Data;
-using EmployeeManagementSystem.Helpers;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class Form16Controller : ControllerBase
@@ -34,15 +31,8 @@ namespace EmployeeManagementSystem.Controllers
         {
             try
             {
-                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-
-                var empQuery = _context.Employees.Where(x => x.Employee_Id == employeeId);
-                if (orgId.HasValue && orgId.Value > 0)
-                {
-                    empQuery = empQuery.Where(x => x.OrganizationId == orgId.Value);
-                }
-
-                var employee = await empQuery.FirstOrDefaultAsync();
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
                 if (employee == null)
                     return NotFound("Employee not found.");
@@ -50,8 +40,7 @@ namespace EmployeeManagementSystem.Controllers
                 var tds = await _context.EmployeeTDS
                     .FirstOrDefaultAsync(x =>
                         x.Employee_Id == employeeId &&
-                        x.FinancialYear == financialYear &&
-                        (!orgId.HasValue || x.OrganizationId == orgId.Value));
+                        x.FinancialYear == financialYear);
 
                 if (tds == null)
                     return BadRequest("TDS not generated.");
@@ -64,12 +53,10 @@ namespace EmployeeManagementSystem.Controllers
                 var existing = await _context.Form16
                     .FirstOrDefaultAsync(x =>
                         x.Employee_Id == employeeId &&
-                        x.FinancialYear == financialYear &&
-                        (!orgId.HasValue || x.OrganizationId == orgId.Value));
+                        x.FinancialYear == financialYear);
 
                 if (existing != null)
                 {
-                    existing.OrganizationId = orgId ?? employee.OrganizationId;
                     existing.PdfPath = pdfPath;
                     existing.GeneratedOn = DateTime.Now;
                     existing.GeneratedBy = "Admin";
@@ -85,7 +72,6 @@ namespace EmployeeManagementSystem.Controllers
 
                 var form16 = new Form16
                 {
-                    OrganizationId = orgId ?? employee.OrganizationId,
                     Employee_Id = employeeId,
                     FinancialYear = financialYear,
                     PdfPath = pdfPath,
@@ -112,15 +98,8 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetForm16(string employeeId)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var query = _context.Form16.Where(x => x.Employee_Id == employeeId);
-
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
-            var data = await query
+            var data = await _context.Form16
+                .Where(x => x.Employee_Id == employeeId)
                 .OrderByDescending(x => x.GeneratedOn)
                 .ToListAsync();
 
@@ -130,14 +109,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("download/{id}")]
         public async Task<IActionResult> Download(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var query = _context.Form16.AsQueryable();
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
-            var form16 = await query.FirstOrDefaultAsync(x => x.Form16Id == id);
+            var form16 = await _context.Form16.FindAsync(id);
 
             if (form16 == null)
                 return NotFound("Form16 not found.");
@@ -159,14 +131,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
-            var query = _context.Form16.AsQueryable();
-            if (orgId.HasValue && orgId.Value > 0)
-            {
-                query = query.Where(x => x.OrganizationId == orgId.Value);
-            }
-
-            var form16 = await query.FirstOrDefaultAsync(x => x.Form16Id == id);
+            var form16 = await _context.Form16.FindAsync(id);
 
             if (form16 == null)
                 return NotFound();

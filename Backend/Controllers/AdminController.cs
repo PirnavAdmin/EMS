@@ -1,7 +1,8 @@
-using DocumentFormat.OpenXml.Spreadsheet;
+﻿using DocumentFormat.OpenXml.Spreadsheet;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
+using EmployeeManagementSystem.Interfaces; // varsha
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,17 +25,24 @@ namespace EmployeeManagementSystem.Controllers
     {
 
         private readonly IConfiguration _configuration;
+
         private readonly AppDbContext _context;
-        private readonly MasterDbContext _masterDb;
+
+        private readonly IAuditLogService _auditLogService; // varsha
 
         public AdminController(
             IConfiguration configuration,
             AppDbContext context,
-            MasterDbContext masterDb)
+            IAuditLogService auditLogService) // varsha
+
         {
+
             _configuration = configuration;
+
             _context = context;
-            _masterDb = masterDb;
+
+            _auditLogService = auditLogService; // varsha
+
         }
         //[HttpPost("login")]
         //public IActionResult Login(LoginDto dto)
@@ -103,28 +111,34 @@ namespace EmployeeManagementSystem.Controllers
 
         string email = dto.Email.Trim().ToLower();
 
-            // 2. Find Admin (Case-insensitive) - Check tenant context first, then fallback to Master DB
+            // 2. Find Admin (Case-insensitive)
+
             var admin = await _context.Admins
+
                 .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
 
-            bool isFromMaster = false;
             if (admin == null)
-            {
-                admin = await _masterDb.Admins
-                    .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
-                if (admin != null)
-                {
-                    isFromMaster = true;
-                }
-            }
 
-            if (admin == null)
             {
+                // varsha - Audit failed login attempt
+                await _auditLogService.LogActionAsync(
+                    action: "FailedLogin",
+                    module: "Authentication",
+                    entityName: "Admin",
+                    entityId: email,
+                    description: $"Failed login attempt for admin: {email}",
+                    statusCode: 401);
+
                 return Unauthorized(new
+
                 {
+
                     Status = false,
+
                     Message = "Invalid credentials"
+
                 });
+
             }
 
             // 3. Block Inactive Admin Account
@@ -132,6 +146,14 @@ namespace EmployeeManagementSystem.Controllers
             if (!admin.IsActive)
 
             {
+                // varsha - Audit blocked inactive admin login
+                await _auditLogService.LogActionAsync(
+                    action: "FailedLogin",
+                    module: "Authentication",
+                    entityName: "Admin",
+                    entityId: admin.Id.ToString(),
+                    description: $"Blocked login attempt for inactive admin: {admin.Email}",
+                    statusCode: 401);
 
                 return Unauthorized(new
 
@@ -145,20 +167,30 @@ namespace EmployeeManagementSystem.Controllers
 
             }
 
-            // 4. Validate Organization Subscription
+            // 4. Validate Subscription FIRST (Admin + Organization)
+
             var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
+
                 _context,
+
                 admin.Id,
-                admin.OrganizationId,
-                _masterDb);
+
+                admin.OrganizationId);
 
             if (!effectiveSub.IsActive)
+
             {
+
                 return Unauthorized(new
+
                 {
+
                     Status = false,
-                    Message = "Subscription expired or inactive."
+
+                    Message = "Your subscription is inactive"
+
                 });
+
             }
 
             // 5. Verify Password (Supports BCrypt and Plain-Text fallback)
@@ -204,6 +236,14 @@ namespace EmployeeManagementSystem.Controllers
             if (!isPasswordValid)
 
             {
+                // varsha - Audit failed login password verification
+                await _auditLogService.LogActionAsync(
+                    action: "FailedLogin",
+                    module: "Authentication",
+                    entityName: "Admin",
+                    entityId: admin.Id.ToString(),
+                    description: $"Failed login attempt with invalid password for admin: {admin.Email}",
+                    statusCode: 401);
 
                 return Unauthorized(new
 
@@ -218,78 +258,76 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             // 6. Update Last Login
+
             admin.LastLogin = DateTime.UtcNow;
-            if (isFromMaster)
-            {
-                try { await _masterDb.SaveChangesAsync(); } catch { }
-            }
-            else
-            {
-                try { await _context.SaveChangesAsync(); } catch { }
-            }
 
-            // 6b. Resolve OrganizationCode for Multi-Tenant routing
-            string orgCode = string.Empty;
-            if (admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0)
-            {
-                var org = await _masterDb.Organizations.FirstOrDefaultAsync(o => o.Id == admin.OrganizationId.Value);
-                if (org != null && !string.IsNullOrWhiteSpace(org.OrganizationCode))
-                {
-                    orgCode = org.OrganizationCode.Trim().ToLower();
-                }
-            }
-            
-            if (string.IsNullOrEmpty(orgCode))
-            {
-                var mu = await _masterDb.MasterUsers.FirstOrDefaultAsync(u => u.Email.ToLower() == admin.Email.ToLower());
-                if (mu != null && !string.IsNullOrWhiteSpace(mu.OrganizationCode))
-                {
-                    orgCode = mu.OrganizationCode.Trim().ToLower();
-                }
-            }
-
-            if (string.IsNullOrEmpty(orgCode))
-            {
-                return Unauthorized(new
-                {
-                    Status = false,
-                    Message = "No organization is associated with this admin account. Please contact Super Admin."
-                });
-            }
+            await _context.SaveChangesAsync();
 
             // 7. Generate JWT Token
-            var token = GenerateJwtToken(admin, orgCode);
+
+            var token = GenerateJwtToken(admin);
+
+            // varsha - Audit successful admin login
+            await _auditLogService.LogActionAsync(
+                action: "Login",
+                module: "Authentication",
+                entityName: "Admin",
+                entityId: admin.Id.ToString(),
+                description: $"Admin {admin.Email} logged in successfully.",
+                statusCode: 200);
 
             // 8. Return Successful Response
+
             return Ok(new
+
             {
+
                 Status = true,
+
                 Message = "Login successful",
+
                 token,
-                organizationCode = orgCode,
-                tenantId = orgCode,
-                redirectUrl = $"/{orgCode}/dashboard",
+
                 admin = new
+
                 {
+
                     admin.Id,
+
                     admin.Email,
+
                     admin.FullName,
+
                     admin.Role,
+
                     admin.IsActive,
+
                     admin.OrganizationId,
+
                     admin.OrganizationName,
-                    organizationCode = orgCode,
+
                     subscription = new
+
                     {
+
                         effectiveSub.MaxUsers,
+
                         effectiveSub.CurrentUsers,
+
                         effectiveSub.RemainingUsers,
+
                         effectiveSub.StartDate,
+
                         effectiveSub.EndDate,
+
                         effectiveSub.Source,
+
                         effectiveSub.PlanName
+
                     }
+
                 }
+
             });
 
         }
@@ -297,17 +335,26 @@ namespace EmployeeManagementSystem.Controllers
 
 
         [HttpPost("change-password")]
-        public IActionResult ChangePassword(ChangePasswordDto dto)
+        public async Task<IActionResult> ChangePassword(ChangePasswordDto dto) // varsha - async for audit log
         {
             try
             {
                 // Find admin
-                var admin = _context.Admins.FirstOrDefault(a =>
+                var admin = await _context.Admins.FirstOrDefaultAsync(a =>
                     a.Email == dto.Email &&
                     a.Password == dto.OldPassword);
 
                 if (admin == null)
                 {
+                    // varsha - Audit failed password change
+                    await _auditLogService.LogActionAsync(
+                        action: "FailedPasswordChange",
+                        module: "Authentication",
+                        entityName: "Admin",
+                        entityId: dto.Email,
+                        description: $"Failed password change attempt for admin: {dto.Email}",
+                        statusCode: 400);
+
                     return BadRequest("Old password is incorrect");
                 }
 
@@ -320,7 +367,16 @@ namespace EmployeeManagementSystem.Controllers
                 // Update password
                 admin.Password = dto.NewPassword;
 
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
+
+                // varsha - Audit successful password change
+                await _auditLogService.LogActionAsync(
+                    action: "PasswordChange",
+                    module: "Authentication",
+                    entityName: "Admin",
+                    entityId: admin.Id.ToString(),
+                    description: $"Admin {admin.Email} changed password successfully.",
+                    statusCode: 200);
 
                 return Ok("Password changed successfully");
             }
@@ -424,9 +480,22 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
+            // varsha - Capture existing admin status before update
+            var oldStatus = admin.IsActive;
+
             admin.IsActive = dto.IsActive;
 
             await _context.SaveChangesAsync();
+
+            // varsha - Audit admin status change with delta
+            await _auditLogService.LogUpdateAsync(
+                module: "EmployeeManagement",
+                entityName: "Admin",
+                entityId: admin.Id.ToString(),
+                description: $"Admin {admin.Email} was {(dto.IsActive ? "activated" : "deactivated")}.",
+                oldValues: new { IsActive = oldStatus },
+                newValues: new { IsActive = dto.IsActive },
+                user: User);
 
             return Ok(new
             {
@@ -440,20 +509,24 @@ namespace EmployeeManagementSystem.Controllers
                 Role = admin.Role
             });
         }
-        private string GenerateJwtToken(Admin admin, string? organizationCode = null)
+        private string GenerateJwtToken(Admin admin)
         {
-            var claims = new List<Claim>
+            // varsha - Resolve organization code to include in JWT claims
+            string orgCode = "";
+            if (admin.OrganizationId.HasValue)
+            {
+                var org = _context.Organizations.AsNoTracking().FirstOrDefault(o => o.Id == admin.OrganizationId.Value);
+                orgCode = org?.OrganizationCode ?? "";
+            }
+
+            var claims = new[]
             {
                 new Claim("AdminId", admin.Id.ToString()),
-                new Claim("OrganizationId", (admin.OrganizationId ?? 0).ToString()),
                 new Claim(ClaimTypes.Email, admin.Email),
-                new Claim(ClaimTypes.Role, admin.Role)
+                new Claim(ClaimTypes.Role, admin.Role),
+                new Claim("OrganizationCode", orgCode), // varsha - embedded organization identity
+                new Claim("OrganizationId", admin.OrganizationId?.ToString() ?? "") // varsha
             };
-
-            if (!string.IsNullOrEmpty(organizationCode))
-            {
-                claims.Add(new Claim("OrganizationCode", organizationCode));
-            }
 
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));

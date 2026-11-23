@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
@@ -69,11 +69,11 @@ namespace EmployeeManagementSystem.Controllers
 <p><b>Company:</b> {WebUtility.HtmlEncode(request.Company ?? "Not provided")}</p>
 <p><b>Message:</b><br>{WebUtility.HtmlEncode(request.Message).Replace("\n", "<br>")}</p>";
                     await _emailService.SendEmailAsync(
-     adminEmail,
-     subject,
-     body,
-     replyToEmail: request.Email,
-     senderDisplayName: $"{request.Name} <{request.Email}>");
+                        adminEmail,
+                        subject,
+                        body,
+                        replyToEmail: request.Email,
+                        senderDisplayName: $"{request.Name} <{request.Email}>");
 
                 }
                 catch (Exception ex)
@@ -90,8 +90,8 @@ namespace EmployeeManagementSystem.Controllers
                     $"Demo request {request.Id} saved, but landing-page contact email is not configured.");
 
             }
-          
-        try
+
+            try
             {
 
                 var customerSubject = "We Have Received Your Demo Request - PeopleHRSync";
@@ -118,15 +118,13 @@ namespace EmployeeManagementSystem.Controllers
 <p>We appreciate your interest in PeopleHRSync and look forward to connecting with you.</p>
  
 <p>Best Regards,<br>
-
+ 
 Team PeopleHRSync</p>";
 
-                await _emailService.SendEmailAsync(
-
+                await _emailService.SendEmailForPurposeAsync(
+                    EmailPurposes.DemoRequestReply,
                     request.Email,
-
                     customerSubject,
-
                     customerBody);
 
                 Console.WriteLine($"Confirmation email sent successfully to {request.Email}");
@@ -169,9 +167,32 @@ Team PeopleHRSync</p>";
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var request = await _context.DemoRequests.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id);
-            if (request == null) return NotFound(new { success = false, message = "Demo request not found." });
-            return Ok(new { success = true, data = request });
+            // Load the request as a tracked entity so its status can be updated.
+            var request = await _context.DemoRequests
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Demo request not found."
+                });
+            }
+
+            // Mark the request as Seen only when it is still New.
+            // Do not overwrite Seen or Replied when the request is opened again.
+            if (string.Equals(request.Status, "New", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Status = "Seen";
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new
+            {
+                success = true,
+                data = request
+            });
         }
 
         // Super Admin only: save the reply and email it to the client.
@@ -220,3 +241,4 @@ Team PeopleHRSync</p>";
         }
     }
 }
+
