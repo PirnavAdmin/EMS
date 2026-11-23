@@ -1,25 +1,29 @@
-
 using EmployeeManagementSystem.DTOs;
- using Microsoft.AspNetCore.Mvc;
- 
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+
 namespace EmployeeManagementSystem.Interfaces
 {
     public interface ITeamService
     {
-        Task<IActionResult> CreateTeam(CreateTeamDto dto);
-        Task<IActionResult> GetTeams();
-        Task<IActionResult> GetTeamDetails(int teamId, DateTime? date = null);
-        Task<IActionResult> UpdateTeam(UpdateTeamDto dto);
-        Task<IActionResult> DeleteTeam(int teamId);
-        Task<IActionResult> UpdateReportingDays(UpdateReportingDaysDto dto);
-        Task<IActionResult> UpdateTeamWeeklyOff(UpdateTeamWeeklyOffDto dto);
-        Task<IActionResult> MemberOverride(MemberOverrideDto dto);
-        Task<IActionResult> AddMembers(AddTeamMembersDto dto);
-        Task<IActionResult> RemoveMember(int teamId, string employeeId);
-        Task<IActionResult> GetAvailableEmployees();
-        Task<IActionResult> GetManagers();
-        Task<IActionResult> GetProjectTeams();
-        Task<IActionResult> GetMyTeam(DateTime? date = null);
-        Task<IActionResult> ExportTeams();
+        Task<IActionResult> CreateTeam(CreateTeamDto dto, ClaimsPrincipal? user = null);
+
+        Task<IActionResult> GetTeams(ClaimsPrincipal? user = null);
+
+        Task<IActionResult> GetTeamDetails(int teamId, ClaimsPrincipal? user = null, DateTime? date = null);
+        Task<IActionResult> UpdateTeam(UpdateTeamDto dto, ClaimsPrincipal? user = null);
+        Task<IActionResult> DeleteTeam(int teamId, ClaimsPrincipal? user = null);
+        Task<IActionResult> UpdateTeamWeeklyOff(UpdateTeamWeeklyOffDto dto, ClaimsPrincipal? user = null);
+        Task<IActionResult> UpdateReportingDays(UpdateReportingDaysDto dto, ClaimsPrincipal? user = null);
+        Task<IActionResult> MemberOverride(MemberOverrideDto dto, ClaimsPrincipal? user = null);
+        Task<IActionResult> AddMembers(AddTeamMembersDto dto, ClaimsPrincipal? user = null);
+        Task<IActionResult> RemoveMember(int teamId, string employeeId, ClaimsPrincipal? user = null);
+        Task<IActionResult> GetAvailableEmployees(ClaimsPrincipal? user = null);
+
+        Task<IActionResult> GetManagers(ClaimsPrincipal? user = null);
+        Task<IActionResult> GetProjectTeams(ClaimsPrincipal? user = null);
+
+        Task<IActionResult> GetMyTeam(ClaimsPrincipal? user = null, DateTime? date = null);
+        Task<IActionResult> ExportTeams(ClaimsPrincipal? user = null);
     }
 }

@@ -1,4 +1,6 @@
-﻿using EmployeeManagementSystem.Interfaces;
+﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.BackgroundServices
 {
@@ -24,16 +26,40 @@ namespace EmployeeManagementSystem.BackgroundServices
                 try
                 {
                     using var scope = _scopeFactory.CreateScope();
+                    var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
 
-                    var overdueService =
-                        scope.ServiceProvider
-                             .GetRequiredService<ITicketOverdueService>();
+                    var orgs = await masterDb.Organizations
+                        .Where(o => !o.IsDeleted)
+                        .Select(o => o.OrganizationCode)
+                        .ToListAsync(stoppingToken);
 
-                    await overdueService.CheckOverdueTicketsAsync();
+                    foreach (var orgCode in orgs)
+                    {
+                        if (string.IsNullOrWhiteSpace(orgCode) || string.Equals(orgCode, "master", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        try
+                        {
+                            using var tenantScope = _scopeFactory.CreateScope();
+                            var tenantProvider = tenantScope.ServiceProvider.GetRequiredService<ITenantProvider>();
+                            tenantProvider.SetCurrentTenant(orgCode);
+
+                            var overdueService = tenantScope.ServiceProvider.GetRequiredService<ITicketOverdueService>();
+                            await overdueService.CheckOverdueTicketsAsync();
+                        }
+                        catch (Exception orgEx)
+                        {
+                            _logger.LogWarning("Failed checking overdue tickets for {OrgCode}: {Error}", orgCode, orgEx.Message);
+                        }
+                    }
 
                     _logger.LogInformation(
-                        "Ticket overdue check completed at {Time}",
+                        "Ticket overdue check completed across all organizations at {Time}",
                         DateTime.UtcNow);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -41,11 +67,15 @@ namespace EmployeeManagementSystem.BackgroundServices
                         "Error while checking overdue tickets.");
                 }
 
-                // 1 minute for testing
-                await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
-
-                // Change to 15 minutes in production:
-                // await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
+                try
+                {
+                    // 15 minutes between checks
+                    await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }
     }

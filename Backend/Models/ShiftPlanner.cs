@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
@@ -8,6 +8,8 @@ namespace EmployeeManagementSystem.Models
     {
         [Key]
         public int PlannerId { get; set; }
+
+        public int? OrganizationId { get; set; }
 
         [Required]
         public int ShiftId { get; set; }

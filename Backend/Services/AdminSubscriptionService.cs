@@ -196,7 +196,7 @@ namespace EmployeeManagementSystem.Services
                     "End date must be greater than start date.");
 
             var currentUsers = await _context.Employees
-                .CountAsync(x => x.AdminId == adminId && x.Status == "Active"); // varsha: only count active users towards subscription license limit
+                .CountAsync(x => x.AdminId == adminId);
 
             // Prevent reducing plan below current usage
             if (dto.MaxUsers < currentUsers)

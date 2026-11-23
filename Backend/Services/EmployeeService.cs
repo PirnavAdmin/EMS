@@ -4,6 +4,7 @@ using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Models.Master;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -19,6 +20,7 @@ namespace EmployeeManagementSystem.Services
     public class EmployeeService : IEmployeeService
     {
         private readonly AppDbContext _context;
+        private readonly MasterDbContext _masterDb;
         private readonly IEmailService _emailService;
         private readonly IAdminNotificationService _adminNotificationService;
         private readonly IUserNotificationService _notificationService;
@@ -26,12 +28,14 @@ namespace EmployeeManagementSystem.Services
 
         public EmployeeService(
      AppDbContext context,
+     MasterDbContext masterDb,
      IUserNotificationService notificationService,
      IAdminNotificationService adminNotificationService,
      IEmailService emailService,
      IAdminAuthorizationService adminAuthorization)
         {
             _context = context;
+            _masterDb = masterDb;
             _notificationService = notificationService;
             _adminNotificationService = adminNotificationService;
             _emailService = emailService;
@@ -134,40 +138,26 @@ namespace EmployeeManagementSystem.Services
                 //}
 
 
-                var admin = await _context.Admins
-
-.FirstOrDefaultAsync(a => a.Id == adminId);
+                var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Id == adminId)
+                            ?? await _masterDb.Admins.FirstOrDefaultAsync(a => a.Id == adminId);
 
                 if (admin == null)
-
                     throw new UnauthorizedAccessException("Admin not found.");
 
                 var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
-
                     _context,
-
                     adminId,
-
-                    admin.OrganizationId);
+                    admin.OrganizationId,
+                    _masterDb);
 
                 if (!effectiveSub.IsActive)
-
                 {
-
-                    throw new InvalidOperationException(
-
-                        "No active subscription found or subscription has expired for this Admin/Organization.");
-
+                    throw new InvalidOperationException("Subscription expired or inactive.");
                 }
 
                 if (effectiveSub.CurrentUsers >= effectiveSub.MaxUsers)
-
                 {
-
-                    throw new InvalidOperationException(
-
-                        $"Subscription limit reached. Your effective plan allows only {effectiveSub.MaxUsers} users (Current users: {effectiveSub.CurrentUsers}).");
-
+                    throw new InvalidOperationException($"User limit of {effectiveSub.MaxUsers} reached.");
                 }
 
 
@@ -192,6 +182,9 @@ namespace EmployeeManagementSystem.Services
 
                     if (candidate == null)
                         throw new Exception($"Onboarding candidate '{dto.OnboardingId}' not found.");
+
+                    if (admin.OrganizationId.HasValue && candidate.OrganizationId.HasValue && candidate.OrganizationId.Value != admin.OrganizationId.Value)
+                        throw new Exception("You cannot onboard a candidate belonging to another organization.");
 
                     onboardingId = candidate.OnboardingId;
                 }
@@ -411,6 +404,7 @@ namespace EmployeeManagementSystem.Services
                 // 6. Activity log
                 _context.ActivityLogs.Add(new ActivityLog
                 {
+                    OrganizationId = employee.OrganizationId,
                     Activity = $"Employee {dto.Name} added",
                     CreatedAt = DateTime.UtcNow
                 });
@@ -418,22 +412,44 @@ namespace EmployeeManagementSystem.Services
                 // ✅ SAVE AGAIN (for leave + dept + logs)
                 await _context.SaveChangesAsync();
 
-                // 7. Sync Role → User table
+                // 7. Sync Role → User table & MasterUsers for multi-tenancy
                 if (!string.IsNullOrEmpty(employee.Email))
                 {
                     var existingUser = await _context.Users
-        .FirstOrDefaultAsync(u => u.Email == employee.Email);
+                        .FirstOrDefaultAsync(u => u.Email == employee.Email);
 
                     if (existingUser != null)
                     {
                         existingUser.RoleId = role.RoleId;
+                        await _context.SaveChangesAsync();
+                    }
+
+                    if (admin.OrganizationId.HasValue)
+                    {
+                        var org = await _masterDb.Organizations.FirstOrDefaultAsync(o => o.Id == admin.OrganizationId.Value);
+                        if (org != null && !string.IsNullOrWhiteSpace(org.OrganizationCode))
+                        {
+                            var existingMu = await _masterDb.MasterUsers.FirstOrDefaultAsync(m => m.Email.ToLower() == employee.Email.ToLower());
+                            if (existingMu == null)
+                            {
+                                _masterDb.MasterUsers.Add(new MasterUser
+                                {
+                                    Email = employee.Email.ToLower(),
+                                    OrganizationCode = org.OrganizationCode,
+                                    Role = role.Name ?? "Employee",
+                                    IsActive = true
+                                });
+                                await _masterDb.SaveChangesAsync();
+                            }
+                        }
                     }
                 }
 
                 // 8. Notifications
                 await _adminNotificationService.CreateNotification(
                     "New Employee Added",
-                    $"{employee.Name} has joined the company"
+                    $"{employee.Name} has joined the company",
+                    employee.OrganizationId
                 );
 
                 await _notificationService.CreateNotification(new UserNotificationDto
@@ -459,67 +475,17 @@ namespace EmployeeManagementSystem.Services
         }
         // ✅ GET ALL
         public async Task<List<Employee>> GetAllEmployees(ClaimsPrincipal user)
-
         {
-
-            var adminIdClaim = user.FindFirst("AdminId")?.Value;
-
-            if (string.IsNullOrWhiteSpace(adminIdClaim) ||
-
-                !int.TryParse(adminIdClaim, out int adminId))
-
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+            if (!orgId.HasValue && (adminIds == null || !adminIds.Any()))
             {
-
-                throw new UnauthorizedAccessException(
-
-                    "AdminId missing or invalid in token.");
-
+                throw new UnauthorizedAccessException("Unable to determine organization/admin context from token.");
             }
 
-            // Check if the admin belongs to an Organization
-
-            var admin = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
-
-            if (admin != null && admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0)
-
-            {
-
-                var orgId = admin.OrganizationId.Value;
-
-                var orgAdminIds = await _context.Admins
-
-                    .AsNoTracking()
-
-                    .Where(a => a.OrganizationId == orgId)
-
-                    .Select(a => a.Id)
-
-                    .ToListAsync();
-
-                return await _context.Employees
-
-                    .AsNoTracking()
-
-                    .Where(e => e.OrganizationId == orgId || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
-
-                    .OrderByDescending(e => e.Id)
-
-                    .ToListAsync();
-
-            }
-
-            // Standalone Admin fallback
-
-            return await _context.Employees
-
+            return await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
                 .AsNoTracking()
-
-                .Where(e => e.AdminId == adminId)
-
                 .OrderByDescending(e => e.Id)
-
                 .ToListAsync();
-
         }
 
 
@@ -536,6 +502,10 @@ namespace EmployeeManagementSystem.Services
             //        "Only admins can update employees.");
             //}
             employeeId = Uri.UnescapeDataString(employeeId).Trim();
+
+            var isInTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, user, employeeId);
+            if (!isInTenant)
+                return null;
 
             // Find employee
             var employee = await _context.Employees
@@ -615,6 +585,7 @@ namespace EmployeeManagementSystem.Services
             // 🔥 Activity log
             _context.ActivityLogs.Add(new ActivityLog
             {
+                OrganizationId = employee.OrganizationId,
                 Activity = $"Employee {dto.Name} updated",
                 CreatedAt = DateTime.UtcNow
             });
@@ -633,6 +604,12 @@ namespace EmployeeManagementSystem.Services
             {
                 return "Only admins can delete employees.";
             }
+
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
+            var isInTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, user, employeeId);
+            if (!isInTenant)
+                return "Employee not found";
+
             var emp = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 
@@ -650,6 +627,7 @@ namespace EmployeeManagementSystem.Services
 
             _context.ActivityLogs.Add(new ActivityLog
             {
+                OrganizationId = emp.OrganizationId,
                 Activity = $"Employee {emp.Name} deleted",
                 CreatedAt = DateTime.UtcNow
             });
@@ -658,14 +636,17 @@ namespace EmployeeManagementSystem.Services
 
             return "Employee deleted successfully";
         }
-        public async Task<List<UpcomingBirthdayDto>> GetUpcomingBirthdays()
+        public async Task<List<UpcomingBirthdayDto>> GetUpcomingBirthdays(ClaimsPrincipal user)
         {
             var today = DateTime.Today;
+
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+            var tenantEmployees = CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds);
 
             var birthdays =
                 await
                 (
-                    from emp in _context.Employees.AsNoTracking()
+                    from emp in tenantEmployees.AsNoTracking()
                     join personal in _context.EmployeePersonalInfos.AsNoTracking()
                         on emp.Employee_Id equals personal.Employee_Id
 
@@ -1225,7 +1206,7 @@ namespace EmployeeManagementSystem.Services
         <div style='text-align: center;
                     margin: 25px 0;'>
 
-            <a href='https://peoplehrsync.com'
+            <a href='https://hrms.pirnav.com'
                style='display: inline-block;
                       padding: 12px 24px;
                       background-color: #1f2937;
@@ -1242,8 +1223,8 @@ namespace EmployeeManagementSystem.Services
 
         <p>
             Portal:
-            <a href='https://peoplehrsync.com'>
-                https://peoplehrsync.com
+            <a href='https://hrms.pirnav.com'>
+                https://hrms.pirnav.com
             </a>
         </p>
 
@@ -1344,8 +1325,22 @@ namespace EmployeeManagementSystem.Services
 
 
         }
-        public async Task<OnboardingDetailsDto?> GetOnboardingDetailsAsync(string onboardingId)
+        public async Task<OnboardingDetailsDto?> GetOnboardingDetailsAsync(string onboardingId, ClaimsPrincipal? user = null)
         {
+            var query = _context.OnboardingCandidates.AsNoTracking();
+            if (user != null)
+            {
+                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value);
+                }
+            }
+
+            var candidate = await query.FirstOrDefaultAsync(x => x.OnboardingId == onboardingId);
+            if (candidate == null)
+                return null;
+
             var personal = await _context.OnboardingPersonalInfos
                 .FirstOrDefaultAsync(x => x.OnboardingId == onboardingId);
 
@@ -1373,12 +1368,25 @@ namespace EmployeeManagementSystem.Services
             };
         }
 
-        public async Task<List<OnboardingCandidateDropdownDto>> GetOnboardingCandidatesAsync()
+        public async Task<List<OnboardingCandidateDropdownDto>> GetOnboardingCandidatesAsync(ClaimsPrincipal? user = null)
         {
-            return await _context.OnboardingCandidates
-                .Where(x => x.Status != "Approved")
+            var query = _context.OnboardingCandidates
+                .AsNoTracking()
+                .Where(x => x.Status != "Approved");
+
+            if (user != null)
+            {
+                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value);
+                }
+            }
+
+            return await query
                 .Select(x => new OnboardingCandidateDropdownDto
                 {
+                    OrganizationId = x.OrganizationId,
                     OnboardingId = x.OnboardingId,
                     CandidateName = x.FullName
                 })
@@ -1422,9 +1430,13 @@ namespace EmployeeManagementSystem.Services
         }
 
 
-        public async Task<Employee?> GetEmployeeByEmployeeId(string employeeId)
+        public async Task<Employee?> GetEmployeeByEmployeeId(ClaimsPrincipal user, string employeeId)
         {
             employeeId = Uri.UnescapeDataString(employeeId).Trim();
+
+            var isInTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, user, employeeId);
+            if (!isInTenant)
+                return null;
 
             return await _context.Employees
                 .FirstOrDefaultAsync(e =>
@@ -1435,39 +1447,50 @@ namespace EmployeeManagementSystem.Services
         {
             await _context.SaveChangesAsync();
         }
-        public async Task<byte[]> ExportFullEmployeeMaster()
+        public async Task<byte[]> ExportFullEmployeeMaster(ClaimsPrincipal user)
         {
-            var employees = await _context.Employees
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+            var tenantEmployees = CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds);
+
+            var employees = await tenantEmployees
             .AsNoTracking()
             .OrderBy(e => e.Employee_Id)
             .ToListAsync();
 
+            var tenantEmpIds = employees.Select(e => e.Employee_Id).ToHashSet();
+
             var personalInfos = await _context.EmployeePersonalInfos
                 .AsNoTracking()
+                .Where(x => tenantEmpIds.Contains(x.Employee_Id))
                 .OrderBy(x => x.Employee_Id)
                 .ToListAsync();
 
             var bankDetails = await _context.EmployeeBankDetails
     .AsNoTracking()
+    .Where(x => tenantEmpIds.Contains(x.Employee_Id))
     .OrderBy(x => x.Employee_Id)
     .ToListAsync();
 
             var educations = await _context.EmployeeEducations
     .AsNoTracking()
+    .Where(x => tenantEmpIds.Contains(x.Employee_Id))
     .OrderBy(x => x.Employee_Id)
     .ToListAsync();
 
             var experiences = await _context.EmployeeExperiences
      .AsNoTracking()
+     .Where(x => tenantEmpIds.Contains(x.Employee_Id))
      .OrderBy(x => x.Employee_Id)
      .ToListAsync();
 
             var employeeDocuments = await _context.EmployeeDocuments
     .AsNoTracking()
+    .Where(x => tenantEmpIds.Contains(x.Employee_Id))
     .ToListAsync();
 
             var salaryStructures = await _context.EmployeeSalaryStructures
     .AsNoTracking()
+    .Where(x => tenantEmpIds.Contains(x.Employee_Id))
     .ToListAsync();
 
 
@@ -2399,8 +2422,13 @@ namespace EmployeeManagementSystem.Services
             return stream.ToArray();
         }
 
-        public async Task<byte[]> ExportEmployeeProfilePdf(string employeeId)
+        public async Task<byte[]> ExportEmployeeProfilePdf(ClaimsPrincipal user, string employeeId)
         {
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
+            var isInTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, user, employeeId);
+            if (!isInTenant)
+                throw new Exception("Employee not found");
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 

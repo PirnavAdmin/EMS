@@ -1,5 +1,6 @@
 ﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,11 +10,72 @@ namespace EmployeeManagementSystem.Services
     public class ShiftChangeRequestService : IShiftChangeRequestService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ShiftChangeRequestService(AppDbContext context)
+        public ShiftChangeRequestService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
+
+        private async Task<(int? OrgId, List<string> EmployeeIds)> GetCurrentOrgEmployeeContextAsync()
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                var allActive = await _context.Employees.AsNoTracking().Where(e => e.Status == "Active").Select(e => e.Employee_Id).ToListAsync();
+                return (null, allActive);
+            }
+
+            var orgId = CurrentUserHelper.GetOrganizationId(user);
+            int? adminId = null;
+
+            var adminIdClaim = user.FindFirst("AdminId")?.Value;
+            if (!string.IsNullOrWhiteSpace(adminIdClaim) && int.TryParse(adminIdClaim, out int aid) && aid > 0)
+                adminId = aid;
+
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                if (adminId.HasValue)
+                {
+                    var admin = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId.Value);
+                    if (admin?.OrganizationId != null && admin.OrganizationId > 0)
+                        orgId = admin.OrganizationId.Value;
+                }
+            }
+
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                var empId = CurrentUserHelper.GetEmployeeId(user);
+                if (!string.IsNullOrWhiteSpace(empId))
+                {
+                    var emp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == empId);
+                    if (emp?.OrganizationId != null && emp.OrganizationId > 0)
+                        orgId = emp.OrganizationId.Value;
+                }
+            }
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                var orgAdminIds = await _context.Admins
+                    .AsNoTracking()
+                    .Where(a => a.OrganizationId == orgId.Value)
+                    .Select(a => a.Id)
+                    .ToListAsync();
+
+                var empIds = await _context.Employees
+                    .AsNoTracking()
+                    .Where(e => e.OrganizationId == orgId.Value || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
+                    .Select(e => e.Employee_Id)
+                    .ToListAsync();
+
+                return (orgId.Value, empIds);
+            }
+
+            var fallbackEmpIds = await _context.Employees.AsNoTracking().Where(e => e.Status == "Active").Select(e => e.Employee_Id).ToListAsync();
+            return (null, fallbackEmpIds);
+        }
+
 
         public async Task<IEnumerable<ShiftChangeRequest>> GetAllAsync(string? employeeId = null, string? status = null)
         {
@@ -30,12 +92,18 @@ namespace EmployeeManagementSystem.Services
                 }
                 await _context.SaveChangesAsync();
             }
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var query = _context.ShiftChangeRequests.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(employeeId))
             {
                 query = query.Where(x => x.Employee_Id == employeeId);
             }
+            else if (tenantEmployeeIds != null && tenantEmployeeIds.Any())
+            {
+                query = query.Where(x => tenantEmployeeIds.Contains(x.Employee_Id));
+            }
+
 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -65,7 +133,12 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<ShiftChangeRequest?> GetByIdAsync(int id)
         {
-            return await _context.ShiftChangeRequests.FindAsync(id);
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
+            var req = await _context.ShiftChangeRequests.FindAsync(id);
+            if (req == null) return null;
+            if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(req.Employee_Id))
+                return null;
+            return req;
         }
 
         public async Task<bool> CreateAsync(CreateShiftChangeRequestDto dto)
@@ -85,18 +158,19 @@ namespace EmployeeManagementSystem.Services
             if (string.IsNullOrWhiteSpace(empId))
                 return (false, "Employee ID is required.");
 
-            var employeeExists = await _context.Employees.AnyAsync(x => x.Employee_Id == empId && x.Status == "Active"); // varsha: validate employee is active
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
+            if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(empId))
+                return (false, $"Employee with ID '{empId}' was not found in your organization.");
+            var employeeExists = await _context.Employees.AnyAsync(x => x.Employee_Id == empId);
             if (!employeeExists)
-                return (false, $"Employee with ID '{empId}' does not exist or is inactive."); // varsha
-
+                return (false, $"Employee with ID '{empId}' does not exist.");
             // Resolve requested shift
             int requestedShiftId = dto.RequestedShiftId;
             if (requestedShiftId <= 0)
                 return (false, "Please select a valid target shift.");
-
-            var requestedShiftExists = await _context.ShiftMasters.AnyAsync(x => x.ShiftId == requestedShiftId && x.IsActive);
+            var requestedShiftExists = await _context.ShiftMasters.AnyAsync(x => x.ShiftId == requestedShiftId && x.IsActive && (!orgId.HasValue || x.OrganizationId == orgId.Value));
             if (!requestedShiftExists)
-                return (false, $"Active shift with ID {requestedShiftId} was not found.");
+                return (false, $"Active shift with ID {requestedShiftId} was not found in your organization.");
 
             // Resolve Effective Dates
             var effectiveFrom = dto.EffectiveFrom != default ? dto.EffectiveFrom.Date : DateTime.Today;
@@ -208,9 +282,11 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<bool> ApproveAsync(int id, string? approvedBy = null)
         {
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var request = await _context.ShiftChangeRequests.FindAsync(id);
-            if (request == null || request.Status.StartsWith("Approved") || request.Status.StartsWith("Accepted") || request.Status.StartsWith("Rejected") || request.Status == "Expired")
+            if (request == null || (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(request.Employee_Id)) || request.Status.StartsWith("Approved") || request.Status.StartsWith("Accepted") || request.Status.StartsWith("Rejected") || request.Status == "Expired")
                 return false;
+
             // Check if the requested date has already passed (for non-permanent requests)
             if (!request.IsPermanent && (request.EffectiveTo ?? request.EffectiveFrom) < DateTime.Today)
             {
@@ -329,8 +405,9 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<bool> RejectAsync(int id, string? remarks = null, string? rejectedBy = null)
         {
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var request = await _context.ShiftChangeRequests.FindAsync(id);
-            if (request == null || request.Status.StartsWith("Approved") || request.Status.StartsWith("Accepted"))
+            if (request == null || (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(request.Employee_Id)) || request.Status.StartsWith("Approved") || request.Status.StartsWith("Accepted"))
                 return false;
 
             string rejecterRole = "Admin";
@@ -371,10 +448,10 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<bool> DeleteAsync(int id)
         {
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var request = await _context.ShiftChangeRequests.FindAsync(id);
-            if (request == null || request.Status.StartsWith("Approved") || request.Status.StartsWith("Accepted"))
+            if (request == null || (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(request.Employee_Id)) || request.Status.StartsWith("Approved") || request.Status.StartsWith("Accepted"))
                 return false;
-
             _context.ShiftChangeRequests.Remove(request);
             await _context.SaveChangesAsync();
             return true;

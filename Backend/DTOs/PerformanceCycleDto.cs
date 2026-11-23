@@ -1,7 +1,8 @@
-﻿namespace EmployeeManagementSystem.DTOs
+namespace EmployeeManagementSystem.DTOs
 {
     public class CreatePerformanceCycleDto
     {
+        public int? OrganizationId { get; set; }
         public string CycleName { get; set; } = string.Empty;
         public string FinancialYear { get; set; } = string.Empty;
         public DateTime StartDate { get; set; }

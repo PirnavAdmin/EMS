@@ -1,8 +1,14 @@
 ﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -11,15 +17,27 @@ namespace EmployeeManagementSystem.Services
         private readonly AppDbContext _context;
         private readonly IUserNotificationService _notificationService;
         private readonly IEmailService _emailService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public TicketAssignmentEngine(
             AppDbContext context,
             IUserNotificationService notificationService,
-            IEmailService emailService)
+            IEmailService emailService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _notificationService = notificationService;
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        // =========================================================
+        // 🔥 Helper: Resolve current OrganizationId from JWT
+        // =========================================================
+        private int? GetCurrentOrgId()
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            return user != null ? CurrentUserHelper.GetOrganizationId(user) : null;
         }
 
         // =========================================================
@@ -28,15 +46,25 @@ namespace EmployeeManagementSystem.Services
         // Pending
         // Pending Assignment
         // =========================================================
-        public async Task<List<Ticket>> GetPendingTicketsAsync()
+        public async Task<List<Ticket>> GetPendingTicketsAsync(int? organizationId = null)
         {
-            var tickets = await _context.Tickets
+            int? orgId = organizationId ?? GetCurrentOrgId();
+
+            var query = _context.Tickets
                 .Where(t =>
                     t.IsActive &&
                     (
                         t.Status == "Pending" ||
                         t.Status == "Pending Assignment"
-                    ))
+                    ));
+
+            // Scoped to Organization
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(t => t.OrganizationId == orgId.Value);
+            }
+
+            var tickets = await query
                 .OrderBy(t => t.CreatedAt)
                 .ThenBy(t => t.Id)
                 .ToListAsync();
@@ -81,12 +109,13 @@ namespace EmployeeManagementSystem.Services
 
             return pendingTickets;
         }
+
         // =========================================================
         // GET ELIGIBLE EMPLOYEES
-        // Project + Technology
+        // Project + Technology (Scoped to Organization)
         // =========================================================
         public async Task<List<Employee>> GetEligibleEmployeesAsync(
-      Ticket ticket)
+            Ticket ticket)
         {
             if (ticket == null ||
                 string.IsNullOrWhiteSpace(ticket.Technology))
@@ -115,19 +144,22 @@ namespace EmployeeManagementSystem.Services
                 return new List<Employee>();
 
             // =============================================
-            // ACTIVE USERS
+            // ACTIVE USERS - Scoped to Ticket's Organization
             // =============================================
 
             return await _context.Employees
                 .Where(x =>
+                    x.OrganizationId == ticket.OrganizationId &&
                     employeeIds.Contains(x.Employee_Id) &&
                     x.Status == "Active")
                 .ToListAsync();
-        }  // =========================================================
-           // GET PRESENT EMPLOYEES
-           // =========================================================
+        }
+
+        // =========================================================
+        // GET PRESENT EMPLOYEES
+        // =========================================================
         public async Task<List<Employee>> GetPresentEmployeesAsync(
-     List<Employee> employees)
+            List<Employee> employees)
         {
             if (employees == null || !employees.Any())
             {
@@ -171,7 +203,8 @@ namespace EmployeeManagementSystem.Services
         // In Progress
         // =========================================================
         public async Task<List<Employee>> FilterFreeEmployeesAsync(
-       List<Employee> employees)
+            List<Employee> employees,
+            int? organizationId = null)
         {
             if (employees == null || !employees.Any())
             {
@@ -228,16 +261,16 @@ namespace EmployeeManagementSystem.Services
                 .Where(e => !busyEmployees.Contains(e.Employee_Id))
                 .ToList();
         }
+
         private async Task AssignTrainingTicketAsync(
-      Ticket ticket,
-      List<Employee> employees)
+            Ticket ticket,
+            List<Employee> employees)
         {
             if (employees == null || !employees.Any())
                 return;
 
             var assignedEmployees =
                 new List<Employee>();
-
 
             // =============================================
             // ASSIGN ALL ELIGIBLE FREE EMPLOYEES
@@ -253,7 +286,6 @@ namespace EmployeeManagementSystem.Services
 
                 if (alreadyAssigned)
                     continue;
-
 
                 // =========================================
                 // TRAINING ASSIGNMENT
@@ -277,13 +309,11 @@ namespace EmployeeManagementSystem.Services
                             false
                     };
 
-
                 _context.TicketAssignments.Add(
                     assignment);
 
                 assignedEmployees.Add(employee);
             }
-
 
             // =============================================
             // NOBODY ASSIGNED
@@ -291,7 +321,6 @@ namespace EmployeeManagementSystem.Services
 
             if (!assignedEmployees.Any())
                 return;
-
 
             // =============================================
             // UPDATE MAIN TRAINING TICKET
@@ -309,7 +338,6 @@ namespace EmployeeManagementSystem.Services
             ticket.UpdatedAt =
                 DateTime.UtcNow;
 
-
             // =============================================
             // SAVE
             //
@@ -320,7 +348,6 @@ namespace EmployeeManagementSystem.Services
             // =============================================
 
             await _context.SaveChangesAsync();
-
 
             // =============================================
             // NOTIFICATION + EMAIL
@@ -341,13 +368,11 @@ namespace EmployeeManagementSystem.Services
                             $"Training Ticket '{ticket.Title}' has been assigned to you."
                     });
 
-
                 if (!string.IsNullOrWhiteSpace(
                     employee.Email))
                 {
                     string subject =
                         $"Training Ticket Assigned - {ticket.TicketNumber}";
-
 
                     string body = $@"
 <html>
@@ -427,16 +452,14 @@ EMS Team
 </body>
 </html>";
 
-
                     await _emailService.SendEmailAsync(
                         employee.Email,
                         subject,
                         body);
                 }
             }
-        }  // =========================================================
-        // ASSIGN SINGLE TICKET
-        // =========================================================
+        }
+
         // =========================================================
         // ASSIGN SINGLE TICKET
         // =========================================================
@@ -449,7 +472,6 @@ EMS Team
 
             if (ticket == null)
                 return;
-
 
             // =============================================
             // PENDING CHECK
@@ -469,7 +491,6 @@ EMS Team
             if (!isPending)
                 return;
 
-
             // =============================================
             // TRAINING OR NORMAL
             // =============================================
@@ -479,7 +500,6 @@ EMS Team
                     ticket.Technology?.Trim(),
                     "Training",
                     StringComparison.OrdinalIgnoreCase);
-
 
             // =============================================
             // NORMAL TICKET ALREADY ASSIGNED
@@ -491,9 +511,8 @@ EMS Team
                 return;
             }
 
-
             // =============================================
-            // PROJECT + TECHNOLOGY + ACTIVE
+            // PROJECT + TECHNOLOGY + ACTIVE (Scoped to Organization)
             // =============================================
 
             var employees =
@@ -501,7 +520,6 @@ EMS Team
 
             if (!employees.Any())
                 return;
-
 
             // =============================================
             // PRESENT TODAY
@@ -513,17 +531,15 @@ EMS Team
             if (!employees.Any())
                 return;
 
-
             // =============================================
             // FREE USERS
             // =============================================
 
             employees =
-                await FilterFreeEmployeesAsync(employees);
+                await FilterFreeEmployeesAsync(employees, ticket.OrganizationId);
 
             if (!employees.Any())
                 return;
-
 
             // =============================================
             // TRAINING
@@ -539,7 +555,6 @@ EMS Team
                 return;
             }
 
-
             // =============================================
             // NORMAL
             // Assign ONE employee
@@ -547,7 +562,6 @@ EMS Team
 
             Employee? selectedEmployee = null;
             string assignmentType = string.Empty;
-
 
             // =============================================
             // PRIORITY 1 - MODULE CONTINUITY
@@ -581,10 +595,8 @@ EMS Team
                 }
             }
 
-
             if (selectedEmployee == null)
                 return;
-
 
             // =============================================
             // NORMAL TICKET SAVE
@@ -595,12 +607,13 @@ EMS Team
                 selectedEmployee,
                 assignmentType);
         }
+
         // =========================================================
-        // AUTO ASSIGN ALL PENDING TICKETS
+        // AUTO ASSIGN ALL PENDING TICKETS (Scoped to Organization)
         // =========================================================
-        public async Task AutoAssignPendingTickets()
+        public async Task AutoAssignPendingTickets(int? organizationId = null)
         {
-            var tickets = await GetPendingTicketsAsync();
+            var tickets = await GetPendingTicketsAsync(organizationId);
 
             foreach (var ticket in tickets)
             {
@@ -609,7 +622,7 @@ EMS Team
         }
 
         // =========================================================
-        // MODULE CONTINUITY
+        // MODULE CONTINUITY (Scoped to Organization)
         //
         // Only searches inside FREE employees.
         // Therefore previous employee is selected only when free.
@@ -635,6 +648,7 @@ EMS Team
 
             var previousTicket = await _context.Tickets
                 .Where(t =>
+                    t.OrganizationId == ticket.OrganizationId &&
                     t.ProjectId == ticket.ProjectId &&
                     t.Module == ticket.Module &&
                     t.Status == "Completed" &&
@@ -654,7 +668,7 @@ EMS Team
         }
 
         // =========================================================
-        // ROUND ROBIN
+        // ROUND ROBIN (Scoped to Organization)
         // =========================================================
         public async Task<Employee?>
             FindRoundRobinEmployeeAsync(
@@ -677,6 +691,7 @@ EMS Team
             var lastAssignedEmployeeId =
                 await _context.Tickets
                     .Where(t =>
+                        t.OrganizationId == ticket.OrganizationId &&
                         t.ProjectId == ticket.ProjectId &&
                         t.Technology == ticket.Technology &&
                         t.AssignedTo != null &&
@@ -711,16 +726,17 @@ EMS Team
         }
 
         // =========================================================
-        // SAVE ASSIGNMENT
+        // SAVE ASSIGNMENT (Scoped to Organization)
         // =========================================================
         public async Task SaveAssignmentAsync(
-     Ticket ticket,
-     Employee employee,
-     string assignmentType)
+            Ticket ticket,
+            Employee employee,
+            string assignmentType)
         {
             var latestTicket = await _context.Tickets
                 .FirstOrDefaultAsync(t =>
                     t.Id == ticket.Id &&
+                    t.OrganizationId == ticket.OrganizationId &&
                     t.IsActive);
 
             if (latestTicket == null)
@@ -751,11 +767,12 @@ EMS Team
 
             // =========================================================
             // ONE EMPLOYEE = ONE ACTIVE TICKET
-            // Check Normal Tickets
+            // Check Normal Tickets (Scoped to Organization)
             // =========================================================
             var hasNormalTicket = await _context.Tickets
                 .AnyAsync(t =>
                     t.IsActive &&
+                    t.OrganizationId == ticket.OrganizationId &&
                     t.Id != latestTicket.Id &&
                     t.AssignedTo == employee.Employee_Id &&
                     (
@@ -898,12 +915,7 @@ EMS Team
             }
         }
 
-            // =========================================================
-            // SEND EMAIL
-            // =========================================================
-
-           
-          // =========================================================
+        // =========================================================
         // HISTORY
         // =========================================================
         public async Task SaveHistoryAsync(
@@ -932,7 +944,7 @@ EMS Team
         }
 
         // =========================================================
-        // ASSIGN NEXT TICKET AFTER COMPLETION
+        // ASSIGN NEXT TICKET AFTER COMPLETION (Scoped to Organization)
         // =========================================================
         public async Task AssignNextTicketForEmployeeAsync(string employeeId)
         {
@@ -941,8 +953,10 @@ EMS Team
                     e.Employee_Id == employeeId &&
                     e.Status == "Active");
 
-            if (employee == null)
+            if (employee == null || !employee.OrganizationId.HasValue)
                 return;
+
+            int orgId = employee.OrganizationId.Value;
 
             // -------------------------------------------------
             // Employee must not have any active Normal Ticket
@@ -950,6 +964,7 @@ EMS Team
             var hasNormalTicket = await _context.Tickets
                 .AnyAsync(t =>
                     t.IsActive &&
+                    t.OrganizationId == orgId &&
                     t.AssignedTo == employeeId &&
                     (
                         t.Status == "Assigned" ||
@@ -1014,6 +1029,7 @@ EMS Team
 
             var previousCompletedTicket = await _context.Tickets
                 .Where(t =>
+                    t.OrganizationId == orgId &&
                     t.AssignedTo == employeeId &&
                     t.Status == "Completed" &&
                     t.Module != null)
@@ -1026,6 +1042,7 @@ EMS Team
                 selectedTicket = await _context.Tickets
                     .Where(t =>
                         t.IsActive &&
+                        t.OrganizationId == orgId &&
                         t.AssignedTo == null &&
                         (
                             t.Status == "Pending" ||
@@ -1041,7 +1058,7 @@ EMS Team
             }
 
             // =====================================================
-            // PRIORITY 2 : NEXT ELIGIBLE TICKET
+            // PRIORITY 2 : NEXT ELIGIBLE TICKET (Scoped to Organization)
             // =====================================================
 
             if (selectedTicket == null)
@@ -1049,6 +1066,7 @@ EMS Team
                 var pendingTickets = await _context.Tickets
                     .Where(t =>
                         t.IsActive &&
+                        t.OrganizationId == orgId &&
                         (
                             t.Status == "Pending" ||
                             t.Status == "Pending Assignment"
@@ -1102,10 +1120,10 @@ EMS Team
             // =====================================================
 
             bool isTraining =
-      string.Equals(
-          selectedTicket.Technology?.Trim(),
-          "Training",
-          StringComparison.OrdinalIgnoreCase);
+                string.Equals(
+                    selectedTicket.Technology?.Trim(),
+                    "Training",
+                    StringComparison.OrdinalIgnoreCase);
 
             if (isTraining)
             {

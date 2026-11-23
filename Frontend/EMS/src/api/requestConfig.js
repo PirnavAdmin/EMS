@@ -15,9 +15,20 @@ const toPlainHeaders = (headers) => {
 export const withAuthHeaders = (config = {}) => {
   const token = getStoredToken();
   const headers = toPlainHeaders(config.headers);
+  const hasHeader = (name) =>
+    Object.keys(headers).some((key) => key.toLowerCase() === name.toLowerCase());
 
-  if (token && !headers.Authorization && !headers.authorization) {
+  if (token && !hasHeader("Authorization")) {
     headers.Authorization = `Bearer ${token}`;
+  }
+
+  const organizationCode =
+    typeof window !== "undefined"
+      ? String(window.localStorage?.getItem("organizationCode") || "").trim()
+      : "";
+
+  if (organizationCode && !hasHeader("X-Organization-Code")) {
+    headers["X-Organization-Code"] = organizationCode;
   }
 
   return {

@@ -42,6 +42,10 @@ const ROWS_PER_PAGE = 10;
 const initialForm = {
   organizationName: "",
   organizationCode: "",
+  databaseName: "",
+  dbHost: "localhost",
+  dbPort: "3306",
+  dbUser: "root",
   contactPerson: "",
   email: "",
   phoneNumber: "",
@@ -157,7 +161,10 @@ function Organizations() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => ({
+      ...current,
+      [name]: name === "dbPort" && value !== "" ? Number(value) : value,
+    }));
   };
 
   const getAdminId = (admin) => String(admin?.adminId ?? admin?.id ?? admin?.Id ?? "");
@@ -430,12 +437,22 @@ function Organizations() {
       return;
     }
 
+    const dbPort = Number(form.dbPort);
+    if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) {
+      toastError("Enter a valid database port between 1 and 65535.");
+      return;
+    }
+
     setSaving(true);
 
     try {
       const organizationPayload = {
         OrganizationName: form.organizationName.trim(),
         OrganizationCode: form.organizationCode.trim(),
+        DatabaseName: form.databaseName.trim(),
+        DbHost: form.dbHost.trim(),
+        DbPort: dbPort,
+        DbUser: form.dbUser.trim(),
         ContactPerson: form.contactPerson.trim(),
         Email: form.email.trim(),
         PhoneNumber: form.phoneNumber.trim(),
@@ -576,6 +593,10 @@ function Organizations() {
         ...initialForm,
         organizationName: organizationData.organizationName || "",
         organizationCode: organizationData.organizationCode || "",
+        databaseName: organizationData.databaseName || "",
+        dbHost: organizationData.dbHost || "localhost",
+        dbPort: organizationData.dbPort || 3306,
+        dbUser: organizationData.dbUser || "root",
         contactPerson: organizationData.contactPerson || "",
         email: organizationData.email || "",
         phoneNumber: organizationData.phoneNumber || "",
@@ -599,6 +620,10 @@ function Organizations() {
         ...initialForm,
         organizationName: organization.organizationName || "",
         organizationCode: organization.organizationCode || "",
+        databaseName: organization.databaseName || "",
+        dbHost: organization.dbHost || "localhost",
+        dbPort: organization.dbPort || 3306,
+        dbUser: organization.dbUser || "root",
         contactPerson: organization.contactPerson || "",
         email: organization.email || "",
         phoneNumber: organization.phoneNumber || "",
@@ -1050,6 +1075,10 @@ function Organizations() {
                 {[
                   ["Organization Name", selectedOrganization.organizationName],
                   ["Organization Code", selectedOrganization.organizationCode],
+                  ["Database Name", selectedOrganization.databaseName],
+                  ["DB Host", selectedOrganization.dbHost],
+                  ["DB Port", selectedOrganization.dbPort],
+                  ["DB User", selectedOrganization.dbUser],
                   ["Contact Person", selectedOrganization.contactPerson],
                   ["Email", selectedOrganization.email],
                   ["Phone", selectedOrganization.phoneNumber],
@@ -1232,6 +1261,68 @@ function Organizations() {
                       <option>Active</option>
                       <option>Inactive</option>
                     </select>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Tenant Database Details */}
+            <div className="org-section">
+              <div className="org-section-header">
+                <FaBuilding />
+                <strong>Tenant Database Details</strong>
+              </div>
+              <div className="super-admin-form-grid">
+                <label>
+                  Database Name
+                  <div className="org-input-wrap">
+                    <FaBuilding className="org-field-icon" />
+                    <input
+                      name="databaseName"
+                      placeholder="Enter database name"
+                      value={form.databaseName}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </label>
+                <label>
+                  DB Host
+                  <div className="org-input-wrap">
+                    <FaGlobe className="org-field-icon" />
+                    <input
+                      name="dbHost"
+                      placeholder="localhost"
+                      value={form.dbHost}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </label>
+                <label>
+                  DB Port
+                  <div className="org-input-wrap">
+                    <FaGlobe className="org-field-icon" />
+                    <input
+                      name="dbPort"
+                      type="number"
+                      min="1"
+                      max="65535"
+                      step="1"
+                      value={form.dbPort}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </label>
+                <label>
+                  DB User
+                  <div className="org-input-wrap">
+                    <FaUser className="org-field-icon" />
+                    <input
+                      name="dbUser"
+                      placeholder="root"
+                      value={form.dbUser}
+                      onChange={handleChange}
+                    />
                   </div>
                 </label>
               </div>

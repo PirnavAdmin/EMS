@@ -2,6 +2,7 @@
 {
     public class TaskManagementDto
     {
+        public int? OrganizationId { get; set; }
         public string? TaskTitle { get; set; }
         public string? Project { get; set; }
         public string? Priority { get; set; }

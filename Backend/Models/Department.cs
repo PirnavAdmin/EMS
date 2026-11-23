@@ -7,6 +7,10 @@ public class Department
 {
     [Key]
     public int Id { get; set; }
+    [Required]
+    [Column("OrganizationId")]
+    public int OrganizationId { get; set; }
+
 
     [Column("Department_Name")]
     public string? DepartmentName { get; set; }

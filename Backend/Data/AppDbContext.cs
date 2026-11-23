@@ -400,7 +400,7 @@ namespace EmployeeManagementSystem.Data
             modelBuilder.Entity<EmployeeGoal>()
     .ToTable("employeegoal");
             modelBuilder.Entity<Appraisal>()
-    .ToTable("Appraisal");
+    .ToTable("appraisal");
 
             modelBuilder.Entity<GoalReview>()
                 .ToTable("goalreview");

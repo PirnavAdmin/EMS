@@ -1,14 +1,15 @@
-﻿using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -18,17 +19,20 @@ namespace EmployeeManagementSystem.Services
         private readonly IWebHostEnvironment _environment;
         private readonly IEmailService _emailService;
         private readonly ITemplateService _templateService;
+        private readonly IHttpContextAccessor? _httpContextAccessor;
 
         public RelievingLetterService(
- AppDbContext context,
- IWebHostEnvironment environment,
- IEmailService emailService,
- ITemplateService templateService)
+            AppDbContext context,
+            IWebHostEnvironment environment,
+            IEmailService emailService,
+            ITemplateService templateService,
+            IHttpContextAccessor? httpContextAccessor = null)
         {
             _context = context;
             _environment = environment;
             _emailService = emailService;
             _templateService = templateService;
+            _httpContextAccessor = httpContextAccessor;
         }
         private static string GetOrdinalDate(DateTime date)
         {
@@ -181,121 +185,6 @@ namespace EmployeeManagementSystem.Services
                 restRun,
                 suffixRun);
         }
-        private static void ReplacePronouns(
-    WordprocessingDocument doc,
-    string? title)
-        {
-            var normalizedTitle = title?
-                .Trim()
-                .TrimEnd('.')
-                .ToLowerInvariant();
-
-            bool isFemale = normalizedTitle switch
-            {
-                "miss" or "ms" or "mrs" => true,
-                "mr" => false,
-                _ => throw new ArgumentException(
-                    "Unsupported title. Please select Mr., Miss, Ms., or Mrs.")
-            };
-
-            var body = doc.MainDocumentPart?.Document.Body;
-
-            if (body == null)
-            {
-                throw new InvalidOperationException(
-                    "Word document body was not found.");
-            }
-
-            var paragraphs = body
-                .Descendants<Paragraph>()
-                .ToList();
-
-            foreach (var paragraph in paragraphs)
-            {
-                var runs = paragraph.Elements<Run>().ToList();
-
-                if (runs.Count == 0)
-                    continue;
-
-                // Combine text across runs because Word may split
-                // his/her, him/her, or He/She into separate runs.
-                var originalText = string.Concat(
-                    runs.SelectMany(run => run.Descendants<Text>())
-                        .Select(text => text.Text));
-
-                if (!Regex.IsMatch(
-                        originalText,
-                        @"(?:his/her|him/her|he/she)",
-                        RegexOptions.IgnoreCase))
-                {
-                    continue;
-                }
-
-                // Replace the alternatives according to the title.
-                var updatedText = Regex.Replace(
-                    originalText,
-                    @"his/her|him/her|he/she",
-                    match =>
-                    {
-                        var pronoun = match.Value.ToLowerInvariant();
-
-                        string replacement = pronoun switch
-                        {
-                            "his/her" => isFemale ? "her" : "his",
-                            "him/her" => isFemale ? "her" : "him",
-                            "he/she" => isFemale ? "she" : "he",
-                            _ => match.Value
-                        };
-
-                        // Preserve the initial capitalization.
-                        if (char.IsUpper(match.Value[0]))
-                        {
-                            replacement =
-                                char.ToUpperInvariant(replacement[0]) +
-                                replacement.Substring(1);
-                        }
-
-                        return replacement;
-                    },
-                    RegexOptions.IgnoreCase);
-
-                if (updatedText == originalText)
-                    continue;
-
-                // Preserve the first run's formatting.
-                var firstRun = runs.FirstOrDefault(
-                    run => run.Descendants<Text>().Any());
-
-                if (firstRun == null)
-                    continue;
-
-                var runProperties = firstRun.RunProperties?
-                    .CloneNode(true) as RunProperties;
-
-                var newRun = new Run();
-
-                if (runProperties != null)
-                {
-                    newRun.Append(runProperties);
-                }
-
-                newRun.Append(new Text(updatedText)
-                {
-                    Space = SpaceProcessingModeValues.Preserve
-                });
-
-                // Insert the new run before the existing runs.
-                firstRun.InsertBeforeSelf(newRun);
-
-                // Remove the old text runs.
-                foreach (var run in runs)
-                {
-                    run.Remove();
-                }
-            }
-
-            doc.MainDocumentPart.Document.Save();
-        }
         public async Task<object> GenerateRelievingLetterAsync(
       RelievingLetterRequestDto dto)
         {
@@ -316,7 +205,17 @@ namespace EmployeeManagementSystem.Services
             // CHECK WHETHER EMPLOYEE EXISTS
             // =====================================================
 
-            var employee = await _context.Employees
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (callerOrgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+            var empQuery = _context.Employees.AsQueryable();
+            if (callerOrgId.HasValue && callerOrgId.Value > 0)
+            {
+                empQuery = empQuery.Where(x => x.OrganizationId == callerOrgId.Value);
+            }
+
+            var employee = await empQuery
                 .FirstOrDefaultAsync(x =>
                     x.Employee_Id == dto.EmployeeId);
 
@@ -386,65 +285,27 @@ namespace EmployeeManagementSystem.Services
             // TEMPLATE
             // =====================================================
 
-
             var template = await _templateService
                 .GetActiveTemplateAsync("RELIEVING");
 
             if (template == null)
-                throw new Exception("Active Relieving Letter template not found.");
+                throw new Exception(
+                    "Active Relieving Letter template not found.");
 
             if (string.IsNullOrWhiteSpace(template.FilePath))
-                throw new Exception("Relieving Letter template file path is missing.");
+                throw new Exception(
+                    "Relieving Letter template file path is missing.");
 
-            var storedPath = template.FilePath?.Trim();
+            var relativeTemplatePath =
+                template.FilePath.TrimStart('/', '\\');
 
-            if (string.IsNullOrWhiteSpace(storedPath))
-
-            {
-
-                throw new Exception("Relieving Letter template file path is missing.");
-
-            }
-
-            string templatePath;
-
-            // DB stores web-relative paths such as:
-
-            // /uploads/templates/RELIEVING_V1_xxx.docx
-
-            //
-
-            // Always resolve these against wwwroot.
-
-            // Do NOT use Path.IsPathRooted() because "/uploads/..." is
-
-            // considered an absolute filesystem path on Linux.
-
-            var relativePath = storedPath
-
-                .TrimStart('/', '\\')
-
-                .Replace('/', Path.DirectorySeparatorChar)
-
-                .Replace('\\', Path.DirectorySeparatorChar);
-
-            templatePath = Path.Combine(
-
+            var templatePath = Path.Combine(
                 _environment.WebRootPath,
+                relativeTemplatePath);
 
-                relativePath);
-
-            if (!System.IO.File.Exists(templatePath))
-
-            {
-
-                throw new FileNotFoundException(
-
+            if (!File.Exists(templatePath))
+                throw new Exception(
                     $"Relieving Letter template file not found: {templatePath}");
-
-            }
-
-
 
             // =====================================================
             // OUTPUT FOLDER
@@ -490,8 +351,6 @@ namespace EmployeeManagementSystem.Services
                     wordDoc,
                     "Title",
                     dto.Title);
-
-                ReplacePronouns(wordDoc, dto.Title);
 
                 ReplaceBookmark(
                     wordDoc,
@@ -597,6 +456,8 @@ namespace EmployeeManagementSystem.Services
 
             var relievingLetter = new RelievingLetter
             {
+                OrganizationId = employee?.OrganizationId ?? callerOrgId ?? (employee?.AdminId.HasValue == true ? (_context.Admins.Where(a => a.Id == employee.AdminId.Value).Select(a => a.OrganizationId).FirstOrDefault() ?? throw new InvalidOperationException("Organization context is required to issue a relieving letter.")) : throw new InvalidOperationException("Organization context is required to issue a relieving letter.")),
+
                 EmployeeId = employeeId,
 
                 EmployeeName = employeeName,
@@ -736,9 +597,25 @@ namespace EmployeeManagementSystem.Services
                 bookmark);
         }
 
+        private async Task<IQueryable<RelievingLetter>> GetScopedRelievingLettersAsync()
+        {
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
+            var query = _context.RelievingLetters.AsQueryable();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+            return query;
+        }
+
         public async Task<RelievingLetterDownloadDto?> DownloadRelievingLetterAsync(int id)
         {
-            var letter = await _context.RelievingLetters
+            var scoped = await GetScopedRelievingLettersAsync();
+            var letter = await scoped
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (letter == null)
@@ -763,7 +640,8 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<object> GetAllRelievingLettersAsync()
         {
-            var letters = await _context.RelievingLetters
+            var scoped = await GetScopedRelievingLettersAsync();
+            var letters = await scoped
                 .OrderByDescending(x => x.GeneratedDate)
                 .Select(x => new
                 {
@@ -798,7 +676,8 @@ namespace EmployeeManagementSystem.Services
         public async Task SendRelievingLetterAsync(
       SendRelievingLetterDto dto)
         {
-            var letter = await _context.RelievingLetters
+            var scoped = await GetScopedRelievingLettersAsync();
+            var letter = await scoped
                 .FirstOrDefaultAsync(
                     x => x.Id == dto.RelievingLetterId);
 
@@ -841,7 +720,8 @@ namespace EmployeeManagementSystem.Services
         public async Task<RelievingLetterSendStatusDto>
          GetSendStatusAsync(int id)
         {
-            var letter = await _context.RelievingLetters
+            var scoped = await GetScopedRelievingLettersAsync();
+            var letter = await scoped
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (letter == null)
@@ -869,7 +749,8 @@ namespace EmployeeManagementSystem.Services
         }
         public async Task DeleteRelievingLetterAsync(int id)
         {
-            var letter = await _context.RelievingLetters
+            var scoped = await GetScopedRelievingLettersAsync();
+            var letter = await scoped
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (letter == null)
@@ -892,7 +773,8 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<byte[]> PreviewRelievingLetterAsync(int id)
         {
-            var letter = await _context.RelievingLetters
+            var scoped = await GetScopedRelievingLettersAsync();
+            var letter = await scoped
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (letter == null)

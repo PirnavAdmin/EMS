@@ -1,7 +1,9 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -11,13 +13,16 @@ namespace EmployeeManagementSystem.Services
     {
         private readonly AppDbContext _context;
         private readonly IEmailService _emailService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public EmployeeResignationService(
             AppDbContext context,
-            IEmailService emailService)
+            IEmailService emailService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // ============================================================
@@ -57,6 +62,8 @@ namespace EmployeeManagementSystem.Services
 
                 var resignation = new EmployeeResignation
                 {
+                    OrganizationId = employee.OrganizationId,
+
                     Employee_Id = employeeId,
 
                     ResignationDate =
@@ -109,6 +116,7 @@ namespace EmployeeManagementSystem.Services
                 _context.ActivityLogs.Add(
                     new ActivityLog
                     {
+                        OrganizationId = employee.OrganizationId,
                         Activity =
                             $"Employee {employee.Employee_Id} " +
                             $"submitted resignation request.",
@@ -146,6 +154,11 @@ namespace EmployeeManagementSystem.Services
                             dto.ResignationId);
 
                 if (resignation == null)
+                    return false;
+
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+                if (orgId.HasValue && resignation.OrganizationId.HasValue && resignation.OrganizationId.Value != orgId.Value)
                     return false;
 
                 // Only Pending requests can be edited
@@ -202,6 +215,11 @@ namespace EmployeeManagementSystem.Services
                 if (resignation == null)
                     return false;
 
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+                if (orgId.HasValue && resignation.OrganizationId.HasValue && resignation.OrganizationId.Value != orgId.Value)
+                    return false;
+
                 // Do not modify processed resignation
                 if (!string.Equals(
                         resignation.OverallStatus,
@@ -235,13 +253,24 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<List<ResignationResponseDto>> GetAll()
         {
-            return await _context.EmployeeResignations
-                .AsNoTracking()
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeResignations.AsNoTracking();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            return await query
                 .OrderByDescending(x => x.CreatedDate)
                 .Select(x => new ResignationResponseDto
                 {
                     ResignationId =
                         x.ResignationId,
+
+                    OrganizationId =
+                        x.OrganizationId,
 
                     Employee_Id =
                         x.Employee_Id,
@@ -298,8 +327,16 @@ namespace EmployeeManagementSystem.Services
         public async Task<ResignationResponseDto?> GetById(
             int resignationId)
         {
-            return await _context.EmployeeResignations
-                .AsNoTracking()
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeResignations.AsNoTracking();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            return await query
                 .Where(x =>
                     x.ResignationId ==
                     resignationId)
@@ -307,6 +344,9 @@ namespace EmployeeManagementSystem.Services
                 {
                     ResignationId =
                         x.ResignationId,
+
+                    OrganizationId =
+                        x.OrganizationId,
 
                     Employee_Id =
                         x.Employee_Id,
@@ -363,8 +403,16 @@ namespace EmployeeManagementSystem.Services
         public async Task<List<ResignationResponseDto>>
             GetByEmployee(string employeeId)
         {
-            return await _context.EmployeeResignations
-                .AsNoTracking()
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeResignations.AsNoTracking();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            return await query
                 .Where(x =>
                     x.Employee_Id ==
                     employeeId)
@@ -374,6 +422,9 @@ namespace EmployeeManagementSystem.Services
                 {
                     ResignationId =
                         x.ResignationId,
+
+                    OrganizationId =
+                        x.OrganizationId,
 
                     Employee_Id =
                         x.Employee_Id,
@@ -430,16 +481,29 @@ namespace EmployeeManagementSystem.Services
         public async Task<List<ResignationResponseDto>>
             GetPendingApprovals()
         {
-            return await _context.EmployeeResignations
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeResignations
                 .AsNoTracking()
                 .Where(x =>
-                    x.OverallStatus == "Pending")
+                    x.OverallStatus == "Pending");
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            return await query
                 .OrderByDescending(x =>
                     x.CreatedDate)
                 .Select(x => new ResignationResponseDto
                 {
                     ResignationId =
                         x.ResignationId,
+
+                    OrganizationId =
+                        x.OrganizationId,
 
                     Employee_Id =
                         x.Employee_Id,
@@ -554,6 +618,13 @@ namespace EmployeeManagementSystem.Services
                                 .FirstOrDefaultAsync();
 
                         if (resignation == null)
+                        {
+                            await transaction.RollbackAsync();
+                            return;
+                        }
+
+                        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+                        if (orgId.HasValue && resignation.OrganizationId.HasValue && resignation.OrganizationId.Value != orgId.Value)
                         {
                             await transaction.RollbackAsync();
                             return;
@@ -789,6 +860,7 @@ namespace EmployeeManagementSystem.Services
                             _context.ActivityLogs.Add(
                                 new ActivityLog
                                 {
+                                    OrganizationId = employee.OrganizationId,
                                     Activity =
                                         $"Exit request " +
                                         $"#{resignation.ResignationId} " +
@@ -869,6 +941,7 @@ namespace EmployeeManagementSystem.Services
                         _context.ActivityLogs.Add(
                             new ActivityLog
                             {
+                                OrganizationId = employee.OrganizationId,
                                 Activity =
                                     $"Exit request " +
                                     $"#{resignation.ResignationId} " +

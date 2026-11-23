@@ -1,11 +1,14 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class OnboardingEducationController : ControllerBase
@@ -26,6 +29,9 @@ namespace EmployeeManagementSystem.Controllers
 
             if (string.IsNullOrWhiteSpace(dto.OnboardingId))
                 return BadRequest("Onboarding Id is required.");
+
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, dto.OnboardingId))
+                return NotFound("Invalid Onboarding Id or unauthorized.");
 
             var candidate = await _context.OnboardingCandidates
                 .FirstOrDefaultAsync(x => x.OnboardingId == dto.OnboardingId);
@@ -59,6 +65,9 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("{onboardingId}")]
         public async Task<IActionResult> GetByOnboardingId(string onboardingId)
         {
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, onboardingId))
+                return NotFound("Record not found.");
+
             var data = await _context.OnboardingEducations
                 .Where(x => x.OnboardingId == onboardingId)
                 .ToListAsync();
@@ -70,7 +79,11 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var allowedIds = CurrentUserHelper.GetAllowedOnboardingIds(_context, User, orgId);
+
             var data = await _context.OnboardingEducations
+                .Where(x => allowedIds.Contains(x.OnboardingId))
                 .OrderBy(x => x.OnboardingId)
                 .ToListAsync();
 
@@ -83,6 +96,9 @@ namespace EmployeeManagementSystem.Controllers
         {
             if (dtos == null || dtos.Count == 0)
                 return BadRequest("No education data provided.");
+
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, onboardingId))
+                return NotFound("Invalid Onboarding Id or unauthorized.");
 
             var candidate = await _context.OnboardingCandidates
                 .FirstOrDefaultAsync(x => x.OnboardingId == onboardingId);
@@ -122,6 +138,9 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{onboardingId}")]
         public async Task<IActionResult> Delete(string onboardingId)
         {
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, onboardingId))
+                return NotFound("Record not found.");
+
             var records = await _context.OnboardingEducations
                 .Where(x => x.OnboardingId == onboardingId)
                 .ToListAsync();

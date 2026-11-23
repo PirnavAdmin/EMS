@@ -13,6 +13,9 @@ namespace EmployeeManagementSystem.Models
 
         public int Id { get; set; }
 
+        public int? OrganizationId { get; set; }
+
+
         public TimeSpan OfficeStartTime { get; set; }
 
         public TimeSpan OfficeEndTime { get; set; }

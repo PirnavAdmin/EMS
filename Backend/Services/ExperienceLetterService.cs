@@ -1,10 +1,12 @@
-﻿using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -16,15 +18,18 @@ namespace EmployeeManagementSystem.Services
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly IEmailService _emailService;
+        private readonly IHttpContextAccessor? _httpContextAccessor;
 
         public ExperienceLetterService(
             AppDbContext context,
             IWebHostEnvironment environment,
-            IEmailService emailService)
+            IEmailService emailService,
+            IHttpContextAccessor? httpContextAccessor = null)
         {
             _context = context;
             _environment = environment;
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
 
@@ -61,17 +66,17 @@ namespace EmployeeManagementSystem.Services
                     "End Date is required.");
             }
 
+         
+        
 
 
+        // =====================================
+        // EMPLOYEE
+        // =====================================
 
-
-            // =====================================
-            // EMPLOYEE
-            // =====================================
-
-            var employee = await _context.Employees
-                    .FirstOrDefaultAsync(
-                        x => x.Employee_Id == dto.EmployeeId);
+        var employee = await _context.Employees
+                .FirstOrDefaultAsync(
+                    x => x.Employee_Id == dto.EmployeeId);
 
             if (employee == null)
             {
@@ -512,9 +517,16 @@ namespace EmployeeManagementSystem.Services
             // SAVE EXPERIENCE LETTER TO DATABASE
             // =====================================
 
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+            int effectiveOrgId = employee.OrganizationId ?? ((orgId.HasValue && orgId.Value > 0) ? orgId.Value : 1);
+
             var experienceLetter =
                 new ExperienceLetter
                 {
+                    OrganizationId = effectiveOrgId,
                     EmployeeId =
                         dto.EmployeeId,
 
@@ -972,8 +984,20 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<object> GetAllExperienceLettersAsync()
         {
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
+            var query = _context.ExperienceLetters.AsNoTracking();
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(el => el.OrganizationId == orgId.Value);
+            }
+
             var letters =
-                await _context.ExperienceLetters
+                await query
                     .Join(
                         _context.Employees,
 

@@ -1,8 +1,10 @@
-﻿namespace EmployeeManagementSystem.Models
+namespace EmployeeManagementSystem.Models
 {
     public class OnboardingCandidate
     {
         public int Id { get; set; }
+
+        public int? OrganizationId { get; set; }
 
         public string OnboardingId { get; set; }
 

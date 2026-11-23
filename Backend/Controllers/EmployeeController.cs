@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.DTOs;
 
 using EmployeeManagementSystem.Services;
 
@@ -44,21 +44,29 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost]
 
         public async Task<IActionResult> AddEmployee(EmployeeDto dto)
-
         {
-
-            var result = await _employeeService.AddEmployee(User, dto);
-
-            return Ok(new
-
+            try
             {
-
-                message = "Employee added successfully",
-
-                data = result
-
-            });
-
+                var result = await _employeeService.AddEmployee(User, dto);
+                return Ok(new
+                {
+                    status = true,
+                    message = "Employee added successfully",
+                    data = result
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { status = false, message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { status = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { status = false, message = ex.Message });
+            }
         }
 
         // GET ALL EMPLOYEES
@@ -181,7 +189,7 @@ namespace EmployeeManagementSystem.Controllers
 
             var fileBytes =
 
-                await _employeeService.ExportFullEmployeeMaster();
+                await _employeeService.ExportFullEmployeeMaster(User);
 
             return File(
 
@@ -208,7 +216,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("onboarding-candidates")]
         public async Task<IActionResult> GetOnboardingCandidates()
         {
-            var result = await _employeeService.GetOnboardingCandidatesAsync();
+            var result = await _employeeService.GetOnboardingCandidatesAsync(User);
 
             return Ok(result);
         }
@@ -217,7 +225,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("onboarding-details/{onboardingId}")]
         public async Task<IActionResult> GetOnboardingDetails(string onboardingId)
         {
-            var result = await _employeeService.GetOnboardingDetailsAsync(onboardingId);
+            var result = await _employeeService.GetOnboardingDetailsAsync(onboardingId, User);
 
             if (result == null)
                 return NotFound();
@@ -228,7 +236,7 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> ExportEmployeeProfilePdf(string employeeId)
         {
             var pdf = await _employeeService
-                .ExportEmployeeProfilePdf(employeeId);
+                .ExportEmployeeProfilePdf(User, employeeId);
 
             return File(
                 pdf,
@@ -260,7 +268,7 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("upcoming-birthdays")]
         public async Task<IActionResult> GetUpcomingBirthdays()
         {
-            var result = await _employeeService.GetUpcomingBirthdays();
+            var result = await _employeeService.GetUpcomingBirthdays(User);
             return Ok(result);
         }
 

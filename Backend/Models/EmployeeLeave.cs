@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -7,6 +7,8 @@ public class EmployeeLeave
 {
     [Key]
     public int Id { get; set; }
+
+    public int? OrganizationId { get; set; }
 
     [Column("Employee_Id")]
     public string? EmployeeId { get; set; }

@@ -40,28 +40,27 @@ namespace EmployeeManagementSystem.Services
 
         }
 
-        // varsha: Global safeguard to prevent sending emails to inactive employees
-        private async Task<bool> IsInactiveEmployeeEmailAsync(string? toEmail) // varsha
-        { // varsha
-            if (string.IsNullOrWhiteSpace(toEmail)) // varsha
-                return false; // varsha
- // varsha
-            var normalized = toEmail.Trim().ToLower(); // varsha
-            return await _context.Employees // varsha
-                .AsNoTracking() // varsha
-                .AnyAsync(e => e.Email != null && e.Email.ToLower() == normalized && e.Status != "Active"); // varsha
-        } // varsha
+        // Global safeguard to prevent sending emails to inactive employees
+        private async Task<bool> IsInactiveEmployeeEmailAsync(string? toEmail)
+        {
+            if (string.IsNullOrWhiteSpace(toEmail))
+                return false;
+
+            var normalized = toEmail.Trim().ToLower();
+            return await _context.Employees
+                .AsNoTracking()
+                .AnyAsync(e => e.Email != null && e.Email.ToLower() == normalized && e.Status != "Active");
+        }
 
         // ✅ Existing OTP Method (Keep Working)
 
         public async Task SendOtpAsync(string toEmail, string otp)
         {
-            // varsha: Do not send OTP emails to inactive employees
-            if (await IsInactiveEmployeeEmailAsync(toEmail)) // varsha
-            { // varsha
-                Console.WriteLine($"[EmailService] Suppressed OTP email to inactive employee: {toEmail}"); // varsha
-                return; // varsha
-            } // varsha
+            if (await IsInactiveEmployeeEmailAsync(toEmail))
+            {
+                Console.WriteLine($"[EmailService] Suppressed OTP email to inactive employee: {toEmail}");
+                return;
+            }
 
             var settings = GetEmailSettings();
 
@@ -124,12 +123,11 @@ Pirnav EMS Team";
        string body,
        string attachmentPath)
         {
-            // varsha: Do not send emails to inactive employees
-            if (await IsInactiveEmployeeEmailAsync(toEmail)) // varsha
-            { // varsha
-                Console.WriteLine($"[EmailService] Suppressed email with attachment to inactive employee: {toEmail}"); // varsha
-                return; // varsha
-            } // varsha
+            if (await IsInactiveEmployeeEmailAsync(toEmail))
+            {
+                Console.WriteLine($"[EmailService] Suppressed email with attachment to inactive employee: {toEmail}");
+                return;
+            }
 
             var settings = GetEmailSettings();
 
@@ -178,12 +176,11 @@ Pirnav EMS Team";
      string toEmail,
      string employeeName)
         {
-            // varsha: Do not send credentials email to inactive employees
-            if (await IsInactiveEmployeeEmailAsync(toEmail)) // varsha
-            { // varsha
-                Console.WriteLine($"[EmailService] Suppressed credentials email to inactive employee: {toEmail}"); // varsha
-                return; // varsha
-            } // varsha
+            if (await IsInactiveEmployeeEmailAsync(toEmail))
+            {
+                Console.WriteLine($"[EmailService] Suppressed credentials email to inactive employee: {toEmail}");
+                return;
+            }
 
             var settings = GetEmailSettings();
 
@@ -416,12 +413,11 @@ Pirnav EMS Team";
     string? senderDisplayName = null)
 
         {
-            // varsha: Do not send emails to inactive employees
-            if (await IsInactiveEmployeeEmailAsync(toEmail)) // varsha
-            { // varsha
-                Console.WriteLine($"[EmailService] Suppressed email to inactive employee: {toEmail}"); // varsha
-                return; // varsha
-            } // varsha
+            if (await IsInactiveEmployeeEmailAsync(toEmail))
+            {
+                Console.WriteLine($"[EmailService] Suppressed email to inactive employee: {toEmail}");
+                return;
+            }
 
             var settings = GetEmailSettings();
 
@@ -476,33 +472,19 @@ Pirnav EMS Team";
         }
 
 
-        public async Task SendEmailForPurposeAsync(
-            string purpose, 
-            string toEmail, 
-            string subject, 
-            string body, 
-            string? replyToEmail = null, 
-            string? senderDisplayName = null)
+        public async Task SendEmailForPurposeAsync(string purpose, string toEmail, string subject, string body)
         {
-            // varsha: Do not send purpose emails to inactive employees
-            if (await IsInactiveEmployeeEmailAsync(toEmail)) // varsha
-            { // varsha
-                Console.WriteLine($"[EmailService] Suppressed purpose email to inactive employee: {toEmail}"); // varsha
-                return; // varsha
-            } // varsha
+            if (await IsInactiveEmployeeEmailAsync(toEmail))
+            {
+                Console.WriteLine($"[EmailService] Suppressed purpose email to inactive employee: {toEmail}");
+                return;
+            }
 
             if (string.IsNullOrWhiteSpace(purpose))
                 throw new ArgumentException("Email purpose is required.", nameof(purpose));
 
             var mapping = await _context.EmailPurposeMappings.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Purpose == purpose);
-
-            // Fallback: If DemoRequestNotification mapping does not exist, use DemoRequestReply
-            if (mapping == null && purpose == EmailPurposes.DemoRequestNotification)
-            {
-                mapping = await _context.EmailPurposeMappings.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Purpose == EmailPurposes.DemoRequestReply);
-            }
 
             if (mapping == null)
                 throw new InvalidOperationException($"No sender account is mapped for email purpose '{purpose}'. Configure it in Settings > Email Settings.");
@@ -532,23 +514,13 @@ Pirnav EMS Team";
                 Timeout = 60000
             };
 
-            string displayName = !string.IsNullOrWhiteSpace(senderDisplayName)
-                ? senderDisplayName
-                : account.DisplayName;
-
             using var message = new MailMessage
             {
-                From = new MailAddress(account.SenderEmail, displayName),
+                From = new MailAddress(account.SenderEmail, account.DisplayName),
                 Subject = subject,
                 Body = body,
                 IsBodyHtml = true
             };
-
-            if (!string.IsNullOrWhiteSpace(replyToEmail))
-            {
-                message.ReplyToList.Add(new MailAddress(replyToEmail));
-            }
-
             message.To.Add(toEmail);
             await smtp.SendMailAsync(message);
         }
@@ -560,12 +532,11 @@ Pirnav EMS Team";
     int year,
     string attachmentPath)
         {
-            // varsha: Do not send payslip emails to inactive employees
-            if (await IsInactiveEmployeeEmailAsync(toEmail)) // varsha
-            { // varsha
-                Console.WriteLine($"[EmailService] Suppressed payslip email to inactive employee: {toEmail}"); // varsha
-                return; // varsha
-            } // varsha
+            if (await IsInactiveEmployeeEmailAsync(toEmail))
+            {
+                Console.WriteLine($"[EmailService] Suppressed payslip email to inactive employee: {toEmail}");
+                return;
+            }
 
             var settings = GetEmailSettings();
 
@@ -655,12 +626,11 @@ This is a system generated email. Please do not reply.
     string reason)
 
         {
-            // varsha: Do not send location mismatch emails for inactive employees
-            if (await IsInactiveEmployeeEmailAsync(employeeEmail)) // varsha
-            { // varsha
-                Console.WriteLine($"[EmailService] Suppressed location mismatch email for inactive employee: {employeeEmail}"); // varsha
-                return; // varsha
-            } // varsha
+            if (await IsInactiveEmployeeEmailAsync(employeeEmail))
+            {
+                Console.WriteLine($"[EmailService] Suppressed location mismatch email for inactive employee: {employeeEmail}");
+                return;
+            }
 
             var settings = GetEmailSettings();
 
@@ -751,6 +721,8 @@ Generated By EMS Attendance System";
             }
 
         }
+
+
 
     }
 

@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -14,6 +14,6 @@ namespace EmployeeManagementSystem.Interfaces
 
         Task<IActionResult> MarkAllAsRead(ClaimsPrincipal user);
 
-        Task CreateNotification(string title, string message);
+        Task CreateNotification(string title, string message, int? organizationId = null);
     }
 }

@@ -9,6 +9,8 @@ namespace EmployeeManagementSystem.Models
         [Key]
         public int RotationId { get; set; }
 
+        public int OrganizationId { get; set; } = 1;
+
         [Required]
         public string Employee_Id { get; set; } = "";
 

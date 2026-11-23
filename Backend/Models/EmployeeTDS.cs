@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace EmployeeManagementSystem.Models
 {
@@ -6,6 +6,8 @@ namespace EmployeeManagementSystem.Models
     {
         [Key]
         public int TDSId { get; set; }
+
+        public int? OrganizationId { get; set; }
 
         public string Employee_Id { get; set; }
 

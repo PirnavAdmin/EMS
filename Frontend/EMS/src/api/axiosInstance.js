@@ -355,6 +355,36 @@ api.interceptors.request.use(
       }
     }
 
+    const requestUrl = String(config.url || "");
+    const isApiRequest = !/^https?:\/\//i.test(requestUrl) || (() => {
+      try {
+        return new URL(requestUrl).origin === new URL(BASE_URL).origin;
+      } catch {
+        return false;
+      }
+    })();
+    const organizationCode =
+      typeof window !== "undefined"
+        ? String(window.localStorage.getItem("organizationCode") || "").trim()
+        : "";
+
+    if (organizationCode && isApiRequest) {
+      const hasOrganizationHeader =
+        typeof config.headers.has === "function"
+          ? config.headers.has("X-Organization-Code")
+          : Object.keys(config.headers).some(
+              (key) => key.toLowerCase() === "x-organization-code"
+            );
+
+      if (!hasOrganizationHeader) {
+        if (typeof config.headers.set === "function") {
+          config.headers.set("X-Organization-Code", organizationCode);
+        } else {
+          config.headers["X-Organization-Code"] = organizationCode;
+        }
+      }
+    }
+
     config.metadata = {
       ...(config.metadata || {}),
 

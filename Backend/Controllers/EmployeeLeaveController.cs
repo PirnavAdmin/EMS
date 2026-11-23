@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml.Spreadsheet;
 using EmployeeManagementSystem.Authorization;
 using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.DTOs;
@@ -65,7 +65,7 @@ public class EmployeeLeaveController : ControllerBase
 
         
 
-        return await _service.GetAllLeaves();
+        return await _service.GetAllLeaves(User);
 
 
     }
@@ -127,7 +127,7 @@ public class EmployeeLeaveController : ControllerBase
 
     {
 
-        return await _service.Delete(id);
+        return await _service.Delete(id, User);
 
     }
 
@@ -146,7 +146,7 @@ public class EmployeeLeaveController : ControllerBase
     [HttpGet("employee-leave-details/{employeeId}")]
     public async Task<IActionResult> GetEmployeeLeaveDetails(string employeeId)
     {
-        return await _service.GetEmployeeLeaveDetails(employeeId);
+        return await _service.GetEmployeeLeaveDetails(employeeId, User);
     }
 
     //[Authorize]
@@ -154,7 +154,7 @@ public class EmployeeLeaveController : ControllerBase
     [HttpGet("export")]
     public async Task<IActionResult> ExportLeaves()
     {
-        var fileBytes = await _service.ExportLeavesExcel();
+        var fileBytes = await _service.ExportLeavesExcel(User);
 
         return File(
             fileBytes,
@@ -185,7 +185,7 @@ public class EmployeeLeaveController : ControllerBase
 
     {
 
-        return await _service.GetAllWFH();
+        return await _service.GetAllWFH(User);
 
     }
 

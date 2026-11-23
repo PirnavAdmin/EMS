@@ -1,7 +1,7 @@
-﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.DTOs;
+using Microsoft.AspNetCore.Http;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmployeeManagementSystem.Controllers
@@ -504,25 +504,6 @@ namespace EmployeeManagementSystem.Controllers
 
         [Authorize(Roles = "SuperAdmin")]
         [HttpPost("admins/{id:int}/reset-password")]
-        //public async Task<IActionResult> ResetAdminPassword(int id, [FromBody] ResetAdminPasswordDto dto)
-        //{
-        //    try
-        //    {
-        //        if (!ModelState.IsValid)
-        //            return BadRequest(ModelState);
-
-        //        bool success = await _superAdminService.ResetAdminPassword(id, dto, User, GetClientIp());
-        //        if (!success)
-        //            return NotFound(new { Message = "Admin not found." });
-
-        //        return Ok(new { Message = "Admin password reset successfully." });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { Message = ex.Message });
-        //    }
-        //}
-
         public async Task<IActionResult> ResetAdminPassword(
             int id,
             [FromBody] ResetAdminPasswordDto dto)
@@ -896,19 +877,6 @@ namespace EmployeeManagementSystem.Controllers
         }
 
         [Authorize(Roles = "SuperAdmin")]
-        [HttpPut("notifications/read-all")]
-        public async Task<IActionResult> MarkAllNotificationsAsRead()
-        {
-            try
-            {
-                await _superAdminService.MarkAllNotificationsAsRead();
-                return Ok(new { Message = "All notifications marked as read." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
-        }
 
         // ============================================
         // 17. LANDING PAGE LOGO APIS
@@ -916,6 +884,10 @@ namespace EmployeeManagementSystem.Controllers
 
         [Authorize(Roles = "SuperAdmin")]
         [HttpPost("landing/logo")]
+        [HttpPost("/api/landing/logo")]
+        [HttpPost("/api/Settings/logo")]
+        [HttpPost("/api/logo")]
+        [HttpPost("logo")]
         public async Task<IActionResult> UploadLandingLogo(IFormFile file)
         {
             try
@@ -938,6 +910,8 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("landing/logo")]
         [HttpGet("/api/landing/logo")]
         [HttpGet("/api/Settings/logo")]
+        [HttpGet("/api/logo")]
+        [HttpGet("logo")]
         public async Task<IActionResult> GetLandingLogo()
         {
             try
@@ -959,6 +933,8 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("landing/pricing")]
         [HttpGet("/api/landing/pricing")]
         [HttpGet("/api/Settings/pricing")]
+        [HttpGet("/api/pricing")]
+        [HttpGet("pricing")]
         public async Task<IActionResult> GetLandingPricing()
         {
             try
@@ -974,6 +950,15 @@ namespace EmployeeManagementSystem.Controllers
 
         [Authorize(Roles = "SuperAdmin")]
         [HttpPut("landing/pricing")]
+        [HttpPut("/api/landing/pricing")]
+        [HttpPut("/api/Settings/pricing")]
+        [HttpPut("/api/pricing")]
+        [HttpPut("pricing")]
+        [HttpPost("landing/pricing")]
+        [HttpPost("/api/landing/pricing")]
+        [HttpPost("/api/Settings/pricing")]
+        [HttpPost("/api/pricing")]
+        [HttpPost("pricing")]
         public async Task<IActionResult> UpdateLandingPricing([FromBody] List<UpdateLandingPricingPlanDto> plans)
         {
             try
@@ -989,6 +974,45 @@ namespace EmployeeManagementSystem.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { Message = ex.Message });
+            }
+        }
+
+        [Authorize(Roles = "SuperAdmin")]
+        [HttpDelete("landing/pricing/{planKey}")]
+        [HttpDelete("/api/landing/pricing/{planKey}")]
+        [HttpDelete("/api/Settings/pricing/{planKey}")]
+        [HttpDelete("/api/pricing/{planKey}")]
+        [HttpDelete("pricing/{planKey}")]
+        public async Task<IActionResult> DeleteLandingPricing([FromRoute] string planKey)
+        {
+            try
+            {
+                var result = await _superAdminService.DeleteLandingPricingPlan(planKey);
+                dynamic response = result;
+                if (response.Success == false)
+                {
+                    return BadRequest(result);
+                }
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = ex.Message });
+            }
+        }
+
+        [Authorize(Roles = "SuperAdmin")]
+        [HttpPut("notifications/read-all")]
+        public async Task<IActionResult> MarkAllNotificationsAsRead()
+        {
+            try
+            {
+                await _superAdminService.MarkAllNotificationsAsRead();
+                return Ok(new { Message = "All notifications marked as read." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
             }
         }
     }

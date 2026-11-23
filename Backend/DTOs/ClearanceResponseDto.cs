@@ -1,4 +1,4 @@
-﻿namespace EmployeeManagementSystem.DTOs
+namespace EmployeeManagementSystem.DTOs
 
 {
 
@@ -7,6 +7,8 @@
     {
 
         public int ClearanceId { get; set; }
+
+        public int? OrganizationId { get; set; }
 
         public int ResignationId { get; set; }
 

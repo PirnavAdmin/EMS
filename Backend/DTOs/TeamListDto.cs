@@ -1,4 +1,4 @@
-﻿namespace EmployeeManagementSystem.DTOs
+namespace EmployeeManagementSystem.DTOs
 {
     public class TeamMemberSummaryDto
     {
@@ -27,8 +27,7 @@
 
         public string? ShiftName { get; set; }
 
-        public List<ReportingDayDto> ReportingDays { get; set; }
-      = new List<ReportingDayDto>();
+        public List<ReportingDayDto> ReportingDays { get; set; } = new List<ReportingDayDto>();
 
         public List<string> EmployeeNames { get; set; } = new();
 

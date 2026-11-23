@@ -1,120 +1,121 @@
-﻿using EmployeeManagementSystem.Data;
-
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
-
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
-
 using EmployeeManagementSystem.Models;
-
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
-
 {
-
     public class ShiftPlannerService : IShiftPlannerService
-
     {
-
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ShiftPlannerService(AppDbContext context)
-
+        public ShiftPlannerService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
-
             _context = context;
-
+            _httpContextAccessor = httpContextAccessor;
         }
+
+        private int? GetCurrentOrgId()
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return null;
+
+            var orgId = CurrentUserHelper.GetOrganizationId(user);
+            if (orgId.HasValue && orgId.Value > 0) return orgId.Value;
+
+            var adminIdClaim = user.FindFirst("AdminId")?.Value;
+            if (!string.IsNullOrWhiteSpace(adminIdClaim) && int.TryParse(adminIdClaim, out int aid) && aid > 0)
+            {
+                var admin = _context.Admins.AsNoTracking().FirstOrDefault(a => a.Id == aid);
+                if (admin?.OrganizationId != null && admin.OrganizationId > 0) return admin.OrganizationId.Value;
+            }
+
+            var empId = CurrentUserHelper.GetEmployeeId(user);
+            if (!string.IsNullOrWhiteSpace(empId))
+            {
+                var emp = _context.Employees.AsNoTracking().FirstOrDefault(e => e.Employee_Id == empId);
+                if (emp?.OrganizationId != null && emp.OrganizationId > 0) return emp.OrganizationId.Value;
+            }
+
+            return null;
+        }
+
 
         public async Task<IEnumerable<ShiftPlannerDto>> GetAllAsync()
-
         {
+            var orgId = GetCurrentOrgId();
 
-            return await _context.ShiftPlanners
-
+            var query = _context.ShiftPlanners
                 .Include(x => x.Shift)
+                .AsQueryable();
 
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value || (x.Shift != null && x.Shift.OrganizationId == orgId.Value));
+            }
+
+            return await query
                 .Select(x => new ShiftPlannerDto
-
                 {
-
                     PlannerId = x.PlannerId,
-
                     ShiftId = x.ShiftId,
-
                     ShiftName = x.Shift != null ? x.Shift.ShiftName : "",
-
                     FromDate = x.FromDate,
-
                     ToDate = x.ToDate,
-
                     Department_Id = x.Department_Id,
-
                     Remarks = x.Remarks,
-
                     IsPublished = x.IsPublished,
-
                     CreatedBy = x.CreatedBy,
-
                     CreatedDate = x.CreatedDate
-
                 })
-
                 .OrderByDescending(x => x.FromDate)
-
                 .ToListAsync();
-
         }
 
+
         public async Task<ShiftPlannerDto?> GetByIdAsync(int plannerId)
-
         {
+            var orgId = GetCurrentOrgId();
 
-            return await _context.ShiftPlanners
-
+            var query = _context.ShiftPlanners
                 .Include(x => x.Shift)
+                .Where(x => x.PlannerId == plannerId);
 
-                .Where(x => x.PlannerId == plannerId)
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value || (x.Shift != null && x.Shift.OrganizationId == orgId.Value));
+            }
 
+            return await query
                 .Select(x => new ShiftPlannerDto
-
                 {
-
                     PlannerId = x.PlannerId,
-
                     ShiftId = x.ShiftId,
-
                     ShiftName = x.Shift != null ? x.Shift.ShiftName : "",
-
                     FromDate = x.FromDate,
-
                     ToDate = x.ToDate,
-
                     Department_Id = x.Department_Id,
-
                     Remarks = x.Remarks,
-
                     IsPublished = x.IsPublished,
-
                     CreatedBy = x.CreatedBy,
-
                     CreatedDate = x.CreatedDate
-
                 })
-
                 .FirstOrDefaultAsync();
-
         }
 
         public async Task<bool> CreateAsync(CreateShiftPlannerDto dto)
 
         {
+            var orgId = GetCurrentOrgId();
 
-            // Validate shift
-
+            // Validate shift belongs to caller's organization
             var shiftExists = await _context.ShiftMasters
-
-                .AnyAsync(x => x.ShiftId == dto.ShiftId && x.IsActive);
+                .AnyAsync(x => x.ShiftId == dto.ShiftId && x.IsActive && (!orgId.HasValue || x.OrganizationId == orgId.Value));
 
             if (!shiftExists)
 
@@ -137,21 +138,33 @@ namespace EmployeeManagementSystem.Services
             // Prevent overlapping planner for same department
 
             bool exists = await _context.ShiftPlanners.AnyAsync(x =>
-
-                x.Department_Id == dto.Department_Id &&
-
-                dto.FromDate.Date <= x.ToDate.Date &&
-
-                dto.ToDate.Date >= x.FromDate.Date);
+                  (!orgId.HasValue || x.OrganizationId == orgId.Value) &&
+                  x.Department_Id == dto.Department_Id &&
+                  dto.FromDate.Date <= x.ToDate.Date &&
+                  dto.ToDate.Date >= x.FromDate.Date);
 
             if (exists)
 
                 return false;
 
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                var shift = await _context.ShiftMasters.AsNoTracking().FirstOrDefaultAsync(x => x.ShiftId == dto.ShiftId);
+                if (shift != null && shift.OrganizationId > 0)
+                {
+                    orgId = shift.OrganizationId;
+                }
+            }
+
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                throw new InvalidOperationException("Cannot create a shift plan without a valid Organization context.");
+            }
+
             var planner = new ShiftPlanner
 
             {
-
+                OrganizationId = orgId.Value,
                 ShiftId = dto.ShiftId,
 
                 FromDate = dto.FromDate,
@@ -185,20 +198,19 @@ namespace EmployeeManagementSystem.Services
             UpdateShiftPlannerDto dto)
 
         {
+            var orgId = GetCurrentOrgId();
 
             var planner = await _context.ShiftPlanners
-
-                .FindAsync(plannerId);
+                .Include(x => x.Shift)
+                .FirstOrDefaultAsync(x => x.PlannerId == plannerId && (!orgId.HasValue || x.OrganizationId == orgId.Value || (x.Shift != null && x.Shift.OrganizationId == orgId.Value)));
 
             if (planner == null)
 
                 return false;
 
             // Validate shift
-
             var shiftExists = await _context.ShiftMasters
-
-                .AnyAsync(x => x.ShiftId == dto.ShiftId && x.IsActive);
+                           .AnyAsync(x => x.ShiftId == dto.ShiftId && x.IsActive && (!orgId.HasValue || x.OrganizationId == orgId.Value));
 
             if (!shiftExists)
 
@@ -221,14 +233,11 @@ namespace EmployeeManagementSystem.Services
             // Prevent overlap with another planner
 
             bool exists = await _context.ShiftPlanners.AnyAsync(x =>
-
-                x.PlannerId != plannerId &&
-
-                x.Department_Id == dto.Department_Id &&
-
-                dto.FromDate.Date <= x.ToDate.Date &&
-
-                dto.ToDate.Date >= x.FromDate.Date);
+                 x.PlannerId != plannerId &&
+                 (!orgId.HasValue || x.OrganizationId == orgId.Value) &&
+                 x.Department_Id == dto.Department_Id &&
+                 dto.FromDate.Date <= x.ToDate.Date &&
+                 dto.ToDate.Date >= x.FromDate.Date);
 
             if (exists)
 
@@ -258,9 +267,12 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            var planner = await _context.ShiftPlanners
+            var orgId = GetCurrentOrgId();
 
-                .FindAsync(plannerId);
+            var planner = await _context.ShiftPlanners
+                .Include(x => x.Shift)
+                .FirstOrDefaultAsync(x => x.PlannerId == plannerId && (!orgId.HasValue || x.OrganizationId == orgId.Value || (x.Shift != null && x.Shift.OrganizationId == orgId.Value)));
+
 
             if (planner == null)
 
@@ -278,9 +290,10 @@ namespace EmployeeManagementSystem.Services
 
         {
 
+            var orgId = GetCurrentOrgId();
             var planner = await _context.ShiftPlanners
-
-                .FindAsync(plannerId);
+                .Include(x => x.Shift)
+                .FirstOrDefaultAsync(x => x.PlannerId == plannerId && (!orgId.HasValue || x.OrganizationId == orgId.Value || (x.Shift != null && x.Shift.OrganizationId == orgId.Value)));
 
             if (planner == null)
 
@@ -304,14 +317,14 @@ namespace EmployeeManagementSystem.Services
 
         {
 
+            var orgId = GetCurrentOrgId();
+
             var planners = await _context.ShiftPlanners
-
+                .Include(x => x.Shift)
                 .Where(x =>
-
                     x.FromDate >= fromWeekStart &&
-
-                    x.ToDate <= fromWeekStart.AddDays(6))
-
+                    x.ToDate <= fromWeekStart.AddDays(6) &&
+                    (!orgId.HasValue || x.OrganizationId == orgId.Value || (x.Shift != null && x.Shift.OrganizationId == orgId.Value)))
                 .ToListAsync();
 
             if (!planners.Any())
@@ -326,14 +339,11 @@ namespace EmployeeManagementSystem.Services
                 var newFrom = item.FromDate.AddDays(daysOffset);
                 var newTo = item.ToDate.AddDays(daysOffset);
 
-
                 bool exists = await _context.ShiftPlanners.AnyAsync(x =>
-
-                    x.Department_Id == item.Department_Id &&
-
-                    newFrom.Date <= x.ToDate.Date &&
-
-                    newTo.Date >= x.FromDate.Date);
+                                   (!orgId.HasValue || x.OrganizationId == orgId.Value) &&
+                                   x.Department_Id == item.Department_Id &&
+                                   newFrom.Date <= x.ToDate.Date &&
+                                   newTo.Date >= x.FromDate.Date);
 
                 if (exists)
 
@@ -342,7 +352,7 @@ namespace EmployeeManagementSystem.Services
                 _context.ShiftPlanners.Add(new ShiftPlanner
 
                 {
-
+                    OrganizationId = orgId ?? (item.OrganizationId > 0 ? item.OrganizationId : (item.Shift != null && item.Shift.OrganizationId > 0 ? item.Shift.OrganizationId : throw new InvalidOperationException("OrganizationId could not be determined."))),
                     ShiftId = item.ShiftId,
 
                     FromDate = newFrom,
@@ -381,14 +391,14 @@ namespace EmployeeManagementSystem.Services
 
         {
 
+
+            var orgId = GetCurrentOrgId();
             var planners = await _context.ShiftPlanners
-
+                .Include(x => x.Shift)
                 .Where(x =>
-
                     x.FromDate.Month == sourceMonth &&
-
-                    x.FromDate.Year == sourceYear)
-
+                    x.FromDate.Year == sourceYear &&
+                    (!orgId.HasValue || x.OrganizationId == orgId.Value || (x.Shift != null && x.Shift.OrganizationId == orgId.Value)))
                 .ToListAsync();
 
             if (!planners.Any())
@@ -428,12 +438,10 @@ namespace EmployeeManagementSystem.Services
                     toDay);
 
                 bool exists = await _context.ShiftPlanners.AnyAsync(x =>
-
-                    x.Department_Id == item.Department_Id &&
-
-                    from.Date <= x.ToDate.Date &&
-
-                    to.Date >= x.FromDate.Date);
+                   (!orgId.HasValue || x.OrganizationId == orgId.Value) &&
+                   x.Department_Id == item.Department_Id &&
+                   from.Date <= x.ToDate.Date &&
+                   to.Date >= x.FromDate.Date);
 
                 if (exists)
 
@@ -442,7 +450,7 @@ namespace EmployeeManagementSystem.Services
                 _context.ShiftPlanners.Add(new ShiftPlanner
 
                 {
-
+                    OrganizationId = orgId ?? (item.OrganizationId > 0 ? item.OrganizationId : (item.Shift != null && item.Shift.OrganizationId > 0 ? item.Shift.OrganizationId : throw new InvalidOperationException("OrganizationId could not be determined."))),
                     ShiftId = item.ShiftId,
 
                     FromDate = from,

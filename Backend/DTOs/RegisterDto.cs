@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace EmployeeManagementSystem.DTOs
 
@@ -7,6 +7,8 @@ namespace EmployeeManagementSystem.DTOs
     public class RegisterDto
 
     {
+
+        public int? OrganizationId { get; set; }
 
         [Required]
 

@@ -1,4 +1,5 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,15 @@ public class LeaveBalanceController : ControllerBase
     public async Task<IActionResult> GetLeaveBalanceByEmployeeId(
       string employeeId)
     {
+        var isInTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+        if (!isInTenant)
+        {
+            return NotFound(new
+            {
+                message = "Employee not found"
+            });
+        }
+
         var result = await _leaveBalanceService
             .GetLeaveBalanceByEmployeeId(employeeId);
 

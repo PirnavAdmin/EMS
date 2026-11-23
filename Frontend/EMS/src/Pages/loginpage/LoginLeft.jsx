@@ -251,6 +251,13 @@ export default function LoginLeft() {
     const storage = getAuthStorage(rememberMe);
 
     try {
+      // Login requests must not be scoped to the previously signed-in tenant.
+      [localStorage, sessionStorage].forEach((store) => {
+        ["organizationCode", "OrganizationCode", "tenantCode", "TenantCode"].forEach(
+          (key) => store.removeItem(key)
+        );
+      });
+
       const loginResult = await submitLoginRequest();
       const response = loginResult?.response;
       const loginEndpoint = loginResult?.endpoint || "";
@@ -261,6 +268,12 @@ export default function LoginLeft() {
 
       const token = response.data.token;
       const decoded = parseJwt(token);
+      const resolvedOrgCode = resolveIdentityValue(
+        response.data.organizationCode,
+        response.data.organization_Code,
+        response.data.tenantId,
+        decoded?.organizationCode
+      );
       const decodedRoleName =
         decoded?.roleName ||
         decoded?.[ROLE_NAME_CLAIM] ||
@@ -478,6 +491,10 @@ export default function LoginLeft() {
       if (branchId) storage.setItem("branchId", branchId);
       if (companyId) storage.setItem("companyId", companyId);
       if (tenantId) storage.setItem("tenantId", tenantId);
+      if (resolvedOrgCode) {
+        storage.setItem("organizationCode", resolvedOrgCode);
+        localStorage.setItem("organizationCode", resolvedOrgCode);
+      }
 
       if (rememberMe) {
         localStorage.setItem("rememberEmail", form.email);
@@ -495,9 +512,16 @@ export default function LoginLeft() {
 
       startSessionTimer();
 
-      navigate(isOnboardingLogin ? "/onboarding" : "/dashboard", {
-        replace: true
-      });
+      navigate(
+        isOnboardingLogin
+          ? "/onboarding"
+          : isSuperAdminLogin
+            ? "/super-admin/dashboard"
+            : "/dashboard",
+        {
+          replace: true
+        }
+      );
     } catch (requestError) {
       // ---------------------------------------------------------
       // Subscription Expiration Handling

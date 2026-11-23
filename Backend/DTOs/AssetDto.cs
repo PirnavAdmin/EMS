@@ -27,6 +27,8 @@ namespace EmployeeManagementSystem.DTOs
 
         public string? ExistingImages { get; set; }
 
+        public int? OrganizationId { get; set; }
+
     }
 
 }

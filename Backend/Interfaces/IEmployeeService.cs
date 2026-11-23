@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
 using System.Security.Claims;
 
@@ -26,17 +26,18 @@ namespace EmployeeManagementSystem.Services
         Task<object> BulkUploadEmployees(
             ClaimsPrincipal user,
             IFormFile file);
-        Task<byte[]> ExportFullEmployeeMaster();
+        Task<byte[]> ExportFullEmployeeMaster(ClaimsPrincipal user);
         Task<byte[]> DownloadEmployeeUploadTemplate();
-        Task<Employee?> GetEmployeeByEmployeeId(string employeeId);
+        Task<Employee?> GetEmployeeByEmployeeId(ClaimsPrincipal user, string employeeId);
         Task SaveChanges();
-        Task<byte[]> ExportEmployeeProfilePdf(string employeeId);
-      
-        Task<List<UpcomingBirthdayDto>> GetUpcomingBirthdays();
+        Task<byte[]> ExportEmployeeProfilePdf(ClaimsPrincipal user, string employeeId);
 
-        Task<List<OnboardingCandidateDropdownDto>> GetOnboardingCandidatesAsync();
+        Task<List<UpcomingBirthdayDto>> GetUpcomingBirthdays(ClaimsPrincipal user);
 
-        Task<OnboardingDetailsDto?> GetOnboardingDetailsAsync(string onboardingId);
+
+        Task<List<OnboardingCandidateDropdownDto>> GetOnboardingCandidatesAsync(ClaimsPrincipal? user = null);
+
+        Task<OnboardingDetailsDto?> GetOnboardingDetailsAsync(string onboardingId, ClaimsPrincipal? user = null);
 
 
     }

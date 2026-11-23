@@ -1,8 +1,9 @@
-﻿namespace EmployeeManagementSystem.Models
+namespace EmployeeManagementSystem.Models
 {
     public class ExperienceLetter
     {
         public int Id { get; set; }
+        public int OrganizationId { get; set; }
 
         // Employee
         public string EmployeeId { get; set; } = string.Empty;

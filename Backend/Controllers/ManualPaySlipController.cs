@@ -1,6 +1,8 @@
-﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Authorization;
 using EmployeeManagementSystem.Constants;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -15,10 +17,12 @@ namespace EmployeeManagementSystem.Controllers
     public class ManualPaySlipController : ControllerBase
     {
         private readonly IManualPayslipService _service;
+        private readonly AppDbContext _context;
 
-        public ManualPaySlipController(IManualPayslipService service)
+        public ManualPaySlipController(IManualPayslipService service, AppDbContext context)
         {
             _service = service;
+            _context = context;
         }
 
         //--------------------------------
@@ -28,6 +32,21 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost("generate")]
         public async Task<IActionResult> GenerateManualPaySlip([FromBody] ManualPaySlipDto dto)
         {
+            if (dto == null)
+            {
+                return BadRequest("Request body is required.");
+            }
+
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            if (orgId.HasValue || (adminIds != null && adminIds.Any()))
+            {
+                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, dto.EmployeeId);
+                if (!inTenant)
+                {
+                    return NotFound(new { message = "Employee not found in your organization." });
+                }
+            }
+
             try
             {
                 var filePath = await _service.GenerateManualPaySlip(dto);

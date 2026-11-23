@@ -1,7 +1,8 @@
-﻿namespace EmployeeManagementSystem.DTOs
+namespace EmployeeManagementSystem.DTOs
 {
     public class CreateGoalReviewDto
     {
+        public int? OrganizationId { get; set; }
         public int GoalId { get; set; }
 
         public string Reviewer { get; set; } = string.Empty;

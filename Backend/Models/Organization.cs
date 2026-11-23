@@ -40,6 +40,16 @@ namespace EmployeeManagementSystem.Models
 
         public string Status { get; set; } = "Active"; // "Active", "Inactive", "Suspended"
 
+        public string DatabaseName { get; set; } = string.Empty;
+
+        public string DbHost { get; set; } = string.Empty;
+
+        public int DbPort { get; set; } = 3306;
+
+        public string DbUser { get; set; } = string.Empty;
+
+        public string DbPassword { get; set; } = string.Empty;
+
         public bool IsDeleted { get; set; } = false;
 
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;

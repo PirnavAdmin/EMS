@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("EmployeeMonthlyLeaveBalance")]
@@ -8,6 +8,8 @@ public class EmployeeMonthlyLeaveBalance
     public int Id { get; set; }
 
     public string Employee_Id { get; set; }
+
+    public int? OrganizationId { get; set; }
 
     public int LeaveYear { get; set; }
 

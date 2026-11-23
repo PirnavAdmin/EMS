@@ -12,6 +12,7 @@ namespace EmployeeManagementSystem.Models
         [Key]
 
         public int Id { get; set; }
+        public int? OrganizationId { get; set; }
 
         public string ApprovalRoles { get; set; }
 

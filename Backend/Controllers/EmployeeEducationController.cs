@@ -1,8 +1,9 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using EmployeeManagementSystem.Helpers;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -35,6 +36,12 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             string employeeId = dto.Employee_Id.Trim();
+
+            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+            if (!inTenant)
+            {
+                return NotFound(new { message = "Employee not found in your organization." });
+            }
 
             var education = new EmployeeEducation
             {
@@ -75,6 +82,18 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
+            var currentUserId = CurrentUserHelper.GetEmployeeOrOnboardingId(User);
+            bool isSelf = !string.IsNullOrWhiteSpace(currentUserId) && string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase);
+
+            if (!isSelf)
+            {
+                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+                if (!inTenant)
+                {
+                    return NotFound(new { message = "Employee not found in your organization." });
+                }
+            }
+
             var data = await _context.EmployeeEducations
                 .AsNoTracking()
                 .Where(x => x.Employee_Id == employeeId)
@@ -90,8 +109,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var tenantEmpIds = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
+                .Select(e => e.Employee_Id)
+                .ToListAsync();
+
             var data = await _context.EmployeeEducations
                 .AsNoTracking()
+                .Where(x => tenantEmpIds.Contains(x.Employee_Id))
                 .OrderBy(x => x.Employee_Id)
                 .ToListAsync();
 
@@ -115,6 +140,12 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     message = "Employee Id is required."
                 });
+            }
+
+            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+            if (!inTenant)
+            {
+                return NotFound(new { message = "Employee not found in your organization." });
             }
 
             if (dtos == null || dtos.Count == 0)
@@ -173,6 +204,12 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     message = "Employee Id is required."
                 });
+            }
+
+            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+            if (!inTenant)
+            {
+                return NotFound(new { message = "Employee not found in your organization." });
             }
 
             var records = await _context.EmployeeEducations

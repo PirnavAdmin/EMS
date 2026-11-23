@@ -4,7 +4,6 @@
     {
         public int TeamId { get; set; }
 
-        // //varsha: Allow editing Team Number
         public string? TeamNumber { get; set; }
 
         public string TeamName { get; set; } = string.Empty;

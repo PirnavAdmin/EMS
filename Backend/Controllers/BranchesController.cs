@@ -1,13 +1,13 @@
-﻿using EmployeeManagementSystem.Authorization;
-using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Helpers;
+using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
-    //[Authorize]
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class BranchesController : ControllerBase
@@ -19,13 +19,25 @@ namespace EmployeeManagementSystem.Controllers
             _context = context;
         }
 
-        // ✅ CREATE BRANCH
-        //[Permission(ModuleIds.Clients, PermissionAction.Add)]
+        private async Task<int> GetCurrentOrgIdAsync()
+        {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                throw new UnauthorizedAccessException("Organization context could not be resolved.");
+            }
+            return orgId.Value;
+        }
+
+        // ✅ 1. CREATE BRANCH
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] BranchDto dto)
         {
+            int orgId = await GetCurrentOrgIdAsync();
+
             var branch = new Branch
             {
+                OrganizationId = orgId, // 🔥 Scoped to current org
                 BranchName = dto.BranchName,
                 Established = dto.Established,
                 PhoneNumber = dto.PhoneNumber,
@@ -39,24 +51,47 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(branch);
         }
 
-        // ✅ GET ALL BRANCHES
-        //[Permission(ModuleIds.Clients, PermissionAction.View)]
+        // ✅ 2. GET ALL BRANCHES
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var branches = await _context.Branches.ToListAsync();
+            int orgId = await GetCurrentOrgIdAsync();
+
+            var branches = await _context.Branches
+                .AsNoTracking()
+                .Where(b => b.OrganizationId == orgId) // 🔥 Isolated
+                .ToListAsync();
+
             return Ok(branches);
         }
 
-        // ✅ UPDATE BRANCH
-        //[Permission(ModuleIds.Clients, PermissionAction.Edit)]
+        // ✅ 3. GET BRANCH BY ID
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            int orgId = await GetCurrentOrgIdAsync();
+
+            var branch = await _context.Branches
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId); // 🔥 Ownership check
+
+            if (branch == null)
+                return NotFound(new { message = "Branch not found" });
+
+            return Ok(branch);
+        }
+
+        // ✅ 4. UPDATE BRANCH
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] BranchDto dto)
         {
-            var branch = await _context.Branches.FindAsync(id);
+            int orgId = await GetCurrentOrgIdAsync();
+
+            var branch = await _context.Branches
+                .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId); // 🔥 Ownership check
 
             if (branch == null)
-                return NotFound("Branch not found");
+                return NotFound(new { message = "Branch not found" });
 
             branch.BranchName = dto.BranchName;
             branch.Established = dto.Established;
@@ -69,15 +104,17 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(branch);
         }
 
-        // ✅ DELETE BRANCH
-        //[Permission(ModuleIds.Clients, PermissionAction.Delete)]
+        // ✅ 5. DELETE BRANCH
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var branch = await _context.Branches.FindAsync(id);
+            int orgId = await GetCurrentOrgIdAsync();
+
+            var branch = await _context.Branches
+                .FirstOrDefaultAsync(b => b.Id == id && b.OrganizationId == orgId); // 🔥 Ownership check
 
             if (branch == null)
-                return NotFound("Branch not found");
+                return NotFound(new { message = "Branch not found" });
 
             _context.Branches.Remove(branch);
             await _context.SaveChangesAsync();

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
 {
@@ -8,6 +8,8 @@ namespace EmployeeManagementSystem.Models
         public int Id { get; set; }
 
         public int RoleId { get; set; }
+
+        public int? OrganizationId { get; set; }
 
         public int ModuleId { get; set; }
 

@@ -1,7 +1,9 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -11,10 +13,20 @@ namespace EmployeeManagementSystem.Services
     public class AdminNotificationService : IAdminNotificationService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AdminNotificationService(AppDbContext context)
+        public AdminNotificationService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private async Task<int?> GetTenantOrgIdAsync(ClaimsPrincipal? user = null)
+        {
+            var principal = user ?? _httpContextAccessor.HttpContext?.User;
+            if (principal == null) return null;
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, principal);
+            return orgId;
         }
 
         //-------------------------------------------------
@@ -42,9 +54,17 @@ namespace EmployeeManagementSystem.Services
             if (!await IsAdmin(user))
                 return new UnauthorizedObjectResult("Only Admins can access notifications.");
 
-            var notifications = await _context.AdminNotifications
+            var orgId = await GetTenantOrgIdAsync(user);
+            var query = _context.AdminNotifications
                 .AsNoTracking()
-                .Where(x => !x.IsRead)
+                .Where(x => !x.IsRead);
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var notifications = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(10)
                 .Select(n => new AdminNotificationDto
@@ -69,9 +89,17 @@ namespace EmployeeManagementSystem.Services
             if (!await IsAdmin(user))
                 return new UnauthorizedObjectResult("Only Admins can access notifications.");
 
-            var count = await _context.AdminNotifications
+            var orgId = await GetTenantOrgIdAsync(user);
+            var query = _context.AdminNotifications
                 .AsNoTracking()
-                .CountAsync(x => !x.IsRead);
+                .Where(x => !x.IsRead);
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var count = await query.CountAsync();
 
             return new OkObjectResult(count);
         }
@@ -85,8 +113,15 @@ namespace EmployeeManagementSystem.Services
             if (!await IsAdmin(user))
                 return new UnauthorizedObjectResult("Only Admins can access notifications.");
 
-            var notification = await _context.AdminNotifications
-                .FirstOrDefaultAsync(x => x.Id == id);
+            var orgId = await GetTenantOrgIdAsync(user);
+            var query = _context.AdminNotifications.AsQueryable();
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var notification = await query.FirstOrDefaultAsync(x => x.Id == id);
 
             if (notification == null)
                 return new NotFoundObjectResult("Notification not found.");
@@ -110,9 +145,15 @@ namespace EmployeeManagementSystem.Services
             if (!await IsAdmin(user))
                 return new UnauthorizedObjectResult("Only Admins can access notifications.");
 
-            var notifications = await _context.AdminNotifications
-                .Where(x => !x.IsRead)
-                .ToListAsync();
+            var orgId = await GetTenantOrgIdAsync(user);
+            var query = _context.AdminNotifications.Where(x => !x.IsRead);
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var notifications = await query.ToListAsync();
 
             foreach (var item in notifications)
             {
@@ -128,12 +169,15 @@ namespace EmployeeManagementSystem.Services
         // CREATE NOTIFICATION
         //-------------------------------------------------
 
-        public async Task CreateNotification(string title, string message)
+        public async Task CreateNotification(string title, string message, int? organizationId = null)
         {
+            var orgId = organizationId ?? await GetTenantOrgIdAsync();
+
             var notification = new AdminNotification
             {
                 Title = title,
                 Message = message,
+                OrganizationId = orgId,
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             };

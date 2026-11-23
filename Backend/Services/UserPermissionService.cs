@@ -1,22 +1,36 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
+using EmployeeManagementSystem.Helpers;
+using Microsoft.AspNetCore.Http;
 
 namespace EmployeeManagementSystem.Services
 {
     public class UserPermissionService : IUserPermissionService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public UserPermissionService(AppDbContext context)
+        public UserPermissionService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private async Task<int?> GetTenantOrgIdAsync()
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return null;
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+            return orgId;
         }
         public async Task SavePermissions(SaveUserPermissionDto dto)
         {
+            var orgId = await GetTenantOrgIdAsync();
+
             // =====================================================
             // 1. GET EMPLOYEE
             // =====================================================
@@ -24,10 +38,13 @@ namespace EmployeeManagementSystem.Services
             var employee = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == dto.EmployeeId && x.Status == "Active"); // varsha
+                    x.Employee_Id == dto.EmployeeId);
 
             if (employee == null)
-                throw new Exception("Employee not found or is inactive."); // varsha
+                throw new Exception("Employee not found.");
+
+            if (orgId.HasValue && orgId.Value > 0 && employee.OrganizationId != orgId.Value)
+                throw new UnauthorizedAccessException("Cannot manage permissions for an employee outside your organization.");
 
             if (!employee.AdminId.HasValue)
                 throw new Exception(
@@ -167,6 +184,8 @@ namespace EmployeeManagementSystem.Services
             var list = dto.Modules
                 .Select(x => new UserPermission
                 {
+                    OrganizationId = orgId ?? employee.OrganizationId,
+
                     EmployeeId = dto.EmployeeId,
 
                     ModuleId = x.ModuleId,
@@ -201,6 +220,8 @@ namespace EmployeeManagementSystem.Services
         public async Task<List<RolePermissionResponseDto>>
        GetPermissions(string employeeId)
         {
+            var orgId = await GetTenantOrgIdAsync();
+
             // =====================================================
             // 1. EMPLOYEE
             // =====================================================
@@ -218,8 +239,8 @@ namespace EmployeeManagementSystem.Services
                 throw new Exception(
                     $"Employee not found for EmployeeId: {normalizedEmployeeId}");
 
-            if (employee == null)
-                throw new Exception("Employee not found.");
+            if (orgId.HasValue && orgId.Value > 0 && employee.OrganizationId != orgId.Value)
+                throw new UnauthorizedAccessException("Cannot access permissions for an employee outside your organization.");
 
             if (!employee.AdminId.HasValue)
                 throw new Exception(
@@ -380,6 +401,8 @@ namespace EmployeeManagementSystem.Services
         public async Task<List<object>>
      GetAllowedModules(string employeeId)
         {
+            var orgId = await GetTenantOrgIdAsync();
+
             // =====================================================
             // 1. GET EMPLOYEE
             // =====================================================
@@ -388,9 +411,12 @@ namespace EmployeeManagementSystem.Services
                 await _context.Employees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x =>
-                        x.Employee_Id == employeeId && x.Status == "Active"); // varsha: inactive employees have no allowed modules
+                        x.Employee_Id == employeeId);
 
             if (employee == null)
+                return new List<object>();
+
+            if (orgId.HasValue && orgId.Value > 0 && employee.OrganizationId != orgId.Value)
                 return new List<object>();
 
             if (!employee.AdminId.HasValue ||

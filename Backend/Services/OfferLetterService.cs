@@ -1,9 +1,11 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -21,29 +23,32 @@ namespace EmployeeManagementSystem.Services
 
         private readonly ITemplateService _templateService;
         private readonly IWebHostEnvironment _environment;//vishnu change
+        private readonly IHttpContextAccessor? _httpContextAccessor;
 
         public OfferLetterService(
      AppDbContext context,
      IEmailService emailService,
      ITemplateService templateService,
-     IWebHostEnvironment environment)
+     IWebHostEnvironment environment,
+     IHttpContextAccessor? httpContextAccessor = null)
         {
             _context = context;
             _emailService = emailService;
             _templateService = templateService;
             _environment = environment;
+            _httpContextAccessor = httpContextAccessor;
         }
 
 
         public async Task<OfferLetterResponseDto> GenerateAsync(
          OfferLetterRequestDto dto)
         {
-            // Selected offer letter date (defaults to today in IST)
             DateTime generatedDate = dto.GeneratedDate.HasValue
                 ? dto.GeneratedDate.Value.Date
                 : DateTime.UtcNow.AddHours(5.5).Date;
-            var template = await _templateService.GetActiveTemplateAsync(
 
+            var template = await _templateService.GetActiveTemplateAsync(
+               
                 "OFFER");
 
             if (template == null)
@@ -240,11 +245,8 @@ namespace EmployeeManagementSystem.Services
             decimal annualCTC = dto.CTC_Annual;
 
             decimal monthlyCTC =
-       Math.Round(
-           annualCTC / 12,
-           0,
-           MidpointRounding.AwayFromZero
-       );
+                Math.Round(annualCTC / 12, 0, MidpointRounding.AwayFromZero);
+
             // ================================
             // EARNINGS - FROM FRONTEND OR DEFAULT
             // ================================
@@ -510,11 +512,15 @@ namespace EmployeeManagementSystem.Services
             //    pdfPath);
 
             // =============================
-            // Save Record
-            // =============================
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+            int effectiveOrgId = (orgId.HasValue && orgId.Value > 0) ? orgId.Value : 1;
 
             var offerLetter = new OfferLetter
             {
+                OrganizationId = effectiveOrgId,
                 Candidate_Title = dto.Candidate_Title,
                 Candidate_Name = dto.Candidate_Name,
                 Email = dto.Email,
@@ -522,7 +528,7 @@ namespace EmployeeManagementSystem.Services
                 Position = dto.Position,
                 Joining_Date = dto.Joining_Date,
                 CTC_Annual = dto.CTC_Annual,
-                Generated_On = DateTime.UtcNow,
+                Generated_On = generatedDate,
                 File_Path = pdfPath,
                 PreviewPath = pdfPath,
                 Status = "Draft",
@@ -540,10 +546,10 @@ namespace EmployeeManagementSystem.Services
                 Message = "Offer Letter Generated Successfully",
                 OfferLetterId = offerLetter.Id,
                 PreviewUrl = $"/GeneratedLetters/{Path.GetFileName(pdfPath)}",
-                GeneratedDate = generatedDate,
+                GeneratedDate = generatedDate
             };
-
-
+        
+          
         }
 
 
@@ -634,11 +640,19 @@ namespace EmployeeManagementSystem.Services
         }
         public async Task<byte[]> PreviewOfferLetter(int id)
         {
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
             var letter = await _context.OfferLetters
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (letter == null)
                 throw new Exception("Offer Letter not found.");
+
+            if (orgId.HasValue && orgId.Value > 0 && letter.OrganizationId != orgId.Value)
+                throw new UnauthorizedAccessException("Unauthorized to access offer letter from another organization.");
 
             if (!System.IO.File.Exists(letter.File_Path))
                 throw new Exception("PDF not found.");
@@ -738,11 +752,19 @@ namespace EmployeeManagementSystem.Services
         }
         public async Task DeleteOfferLetterAsync(int id)
         {
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
             var offerLetter = await _context.OfferLetters
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (offerLetter == null)
                 throw new Exception("Offer Letter not found.");
+
+            if (orgId.HasValue && orgId.Value > 0 && offerLetter.OrganizationId != orgId.Value)
+                throw new UnauthorizedAccessException("Unauthorized to delete offer letter from another organization.");
 
             // Delete PDF if exists
             if (!string.IsNullOrWhiteSpace(offerLetter.File_Path) &&
@@ -863,7 +885,7 @@ namespace EmployeeManagementSystem.Services
             var run = bookmark.NextSibling<Run>();
             if (run == null) return;
 
-            // ?? ADDRESS MULTI-LINE FIX
+            // 🔥 ADDRESS MULTI-LINE FIX
             if (bookmarkName == "Address")
             {
                 var rawLines = text
@@ -892,7 +914,7 @@ namespace EmployeeManagementSystem.Services
             }
             else
             {
-                // ? FIXED
+                // ✅ FIXED
                 run.RemoveAllChildren<Text>();
                 run.Append(new Text(text));
             }

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -132,6 +132,10 @@ namespace EmployeeManagementSystem.DTOs
         public string? Country { get; set; }
         public string Status { get; set; } = "Active";
         public bool IsActive => string.Equals(Status, "Active", StringComparison.OrdinalIgnoreCase);
+        public string? DatabaseName { get; set; }
+        public string? DbHost { get; set; }
+        public int? DbPort { get; set; }
+        public string? DbUser { get; set; }
         public int AdminCount { get; set; }
         public int EmployeeCount { get; set; }
         public DateTime CreatedDate { get; set; }
@@ -153,6 +157,12 @@ namespace EmployeeManagementSystem.DTOs
         public string? State { get; set; }
         public string? Country { get; set; }
         public string Status { get; set; } = "Active";
+
+        public string? DatabaseName { get; set; }
+        public string? DbHost { get; set; }
+        public int? DbPort { get; set; }
+        public string? DbUser { get; set; }
+        public string? DbPassword { get; set; }
     }
 
     public class UpdateOrganizationDto
@@ -169,6 +179,12 @@ namespace EmployeeManagementSystem.DTOs
         public string? State { get; set; }
         public string? Country { get; set; }
         public string Status { get; set; } = "Active";
+
+        public string? DatabaseName { get; set; }
+        public string? DbHost { get; set; }
+        public int? DbPort { get; set; }
+        public string? DbUser { get; set; }
+        public string? DbPassword { get; set; }
 
         public List<UpdateOrganizationAdminDto>? Admins { get; set; }
         public List<int>? AdminIds { get; set; }
@@ -548,6 +564,7 @@ namespace EmployeeManagementSystem.DTOs
     // ==========================================
     public class AuditLogFilterDto
     {
+        public int? OrganizationId { get; set; }
         public string? Search { get; set; }
         public string? Module { get; set; }
         public string? Action { get; set; }
@@ -562,6 +579,7 @@ namespace EmployeeManagementSystem.DTOs
     public class AuditLogItemDto
     {
         public int Id { get; set; }
+        public int? OrganizationId { get; set; }
         public string? UserId { get; set; }
         public string? UserName { get; set; }
         public string? UserRole { get; set; }

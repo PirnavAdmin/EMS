@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
 {
@@ -6,6 +6,7 @@ namespace EmployeeManagementSystem.Models
     public class OfferLetter
     {
         public int Id { get; set; }
+        public int OrganizationId { get; set; }
         public string Candidate_Name { get; set; }
         public string Email { get; set; }   // NEW
         public string Address { get; set; }
@@ -14,8 +15,8 @@ namespace EmployeeManagementSystem.Models
         public DateTime Joining_Date { get; set; }
         public decimal CTC_Annual { get; set; }
         public DateTime Generated_On { get; set; }
-        [NotMapped] 
-        public DateTime GeneratedDate { get => Generated_On; set => Generated_On = value; } //varsha
+        [NotMapped]
+        public DateTime GeneratedDate { get => Generated_On; set => Generated_On = value; }
         public string Candidate_Title { get; set; }
         public string? File_Path { get; set; }
         public string? PreviewPath { get; set; }

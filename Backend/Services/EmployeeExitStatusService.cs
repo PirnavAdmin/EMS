@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -95,6 +95,7 @@ namespace EmployeeManagementSystem.Services
                         new EmployeeManagementSystem.Models.ActivityLog
 
                         {
+                            OrganizationId = employee.OrganizationId,
 
                             Activity =
 

@@ -142,11 +142,38 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddScoped<JwtHelper>();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ITenantProvider, TenantProvider>();
+
+var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+
+builder.Services.AddDbContext<MasterDbContext>(options =>
 {
+    var masterConn = builder.Configuration.GetConnectionString("MasterConnection")
+        ?? throw new InvalidOperationException("MasterConnection string is not configured in appsettings.json.");
     options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection")),
+        masterConn,
+        serverVersion,
+        mysqlOptions =>
+        {
+            mysqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+        });
+});
+
+builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
+{
+    var tenantProvider = serviceProvider.GetRequiredService<ITenantProvider>();
+    var connStr = tenantProvider.GetTenantConnectionString();
+    if (string.IsNullOrWhiteSpace(connStr))
+    {
+        connStr = builder.Configuration.GetConnectionString("MasterConnection")!;
+    }
+    options.UseMySql(
+        connStr,
+        serverVersion,
         mysqlOptions =>
         {
             mysqlOptions.EnableRetryOnFailure(
@@ -157,10 +184,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 builder.Services.AddHangfire(config =>
 {
+    var masterConn = builder.Configuration.GetConnectionString("MasterConnection")
+        ?? throw new InvalidOperationException("MasterConnection string is not configured in appsettings.json.");
     config.UseStorage(
         new MySqlStorage(
-            builder.Configuration.GetConnectionString("DefaultConnection"),
-            new MySqlStorageOptions()
+            masterConn,
+            new MySqlStorageOptions
+            {
+                PrepareSchemaIfNecessary = true,
+                QueuePollInterval = TimeSpan.FromSeconds(15)
+            }
         ));
 });
 
@@ -427,29 +460,28 @@ builder.Services.AddSwaggerGen(options =>
 // ================= BUILD =================
 QuestPDF.Settings.License = LicenseType.Community;
 
-Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
 
     try
     {
-        Console.WriteLine("Testing database connection...");
+        Console.WriteLine("Testing Master Database connection...");
 
-        if (db.Database.CanConnect())
+        if (masterDb.Database.CanConnect())
         {
-            Console.WriteLine("Database Connected Successfully.");
+            Console.WriteLine("Master Database Connected Successfully.");
         }
         else
         {
-            Console.WriteLine("Database Connection Failed.");
+            Console.WriteLine("Master Database Connection Failed.");
         }
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.ToString());
+        Console.WriteLine($"Master Database connection check error: {ex.Message}");
     }
 }
 app.UseForwardedHeaders(new ForwardedHeadersOptions
@@ -459,7 +491,10 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
         ForwardedHeaders.XForwardedProto
 });
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseStaticFiles();
 

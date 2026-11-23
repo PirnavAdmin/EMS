@@ -1,4 +1,5 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,11 +16,21 @@ public class JobOpeningsController : ControllerBase
 
     // ✅ GET All
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] int? organizationId = null)
     {
-        var jobs = await _context.JobOpenings
+        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+        var targetOrgId = orgId ?? organizationId;
+
+        var query = _context.JobOpenings.AsNoTracking();
+        if (targetOrgId.HasValue && targetOrgId.Value > 0)
+        {
+            query = query.Where(j => j.OrganizationId == targetOrgId.Value);
+        }
+
+        var jobs = await query
             .Select(j => new JobOpeningDto
             {
+                OrganizationId = j.OrganizationId,
                 Job_Title = j.Job_Title,
                 Department = j.Department,
                 Experience = j.Experience,
@@ -36,8 +47,11 @@ public class JobOpeningsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(JobOpeningDto dto)
     {
+        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+
         var job = new JobOpening
         {
+            OrganizationId = orgId ?? dto.OrganizationId,
             Job_Title = dto.Job_Title,
             Department = dto.Department,
             Experience = dto.Experience,
@@ -56,8 +70,15 @@ public class JobOpeningsController : ControllerBase
     [HttpPut("{jobTitle}")]
     public async Task<IActionResult> Update(string jobTitle, JobOpeningDto dto)
     {
-        var job = await _context.JobOpenings
-            .FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
+        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+
+        var query = _context.JobOpenings.AsQueryable();
+        if (orgId.HasValue && orgId.Value > 0)
+        {
+            query = query.Where(j => j.OrganizationId == orgId.Value);
+        }
+
+        var job = await query.FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
 
         if (job == null)
             return NotFound("Job opening not found");
@@ -77,8 +98,15 @@ public class JobOpeningsController : ControllerBase
     [HttpDelete("{jobTitle}")]
     public async Task<IActionResult> Delete(string jobTitle)
     {
-        var job = await _context.JobOpenings
-            .FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
+        var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+
+        var query = _context.JobOpenings.AsQueryable();
+        if (orgId.HasValue && orgId.Value > 0)
+        {
+            query = query.Where(j => j.OrganizationId == orgId.Value);
+        }
+
+        var job = await query.FirstOrDefaultAsync(j => j.Job_Title == jobTitle);
 
         if (job == null)
             return NotFound("Job opening not found");

@@ -1,7 +1,9 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Services
@@ -9,10 +11,12 @@ namespace EmployeeManagementSystem.Services
     public class RolePermissionService : IRolePermissionService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public RolePermissionService(AppDbContext context)
+        public RolePermissionService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // Save Permissions (RoleName based)
@@ -21,14 +25,16 @@ namespace EmployeeManagementSystem.Services
      SaveRolePermissionDto dto)
         {
             // =====================================================
-            // 1. VALIDATE ADMIN
+            // 1. VALIDATE ADMIN & ORG
             // =====================================================
 
-            var adminExists = await _context.Admins
-                .AnyAsync(a => a.Id == adminId);
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(a => a.Id == adminId);
 
-            if (!adminExists)
+            if (admin == null)
                 throw new Exception("Admin not found.");
+
+            var orgId = admin.OrganizationId;
 
 
             // =====================================================
@@ -125,6 +131,7 @@ namespace EmployeeManagementSystem.Services
             var existingPermissions = await _context.RolePermissions
                 .Where(rp =>
                     rp.RoleId == role.RoleId &&
+                    (!orgId.HasValue || rp.OrganizationId == orgId.Value) &&
                     allowedModuleIds.Contains(rp.ModuleId))
                 .ToListAsync();
 
@@ -143,6 +150,7 @@ namespace EmployeeManagementSystem.Services
                 .Select(m => new RolePermission
                 {
                     RoleId = role.RoleId,
+                    OrganizationId = orgId,
                     ModuleId = m.ModuleId,
 
                     // Automatically allow module if ANY permission is given
@@ -175,12 +183,14 @@ namespace EmployeeManagementSystem.Services
             // 1. VALIDATE ADMIN
             // =====================================================
 
-            var adminExists = await _context.Admins
+            var admin = await _context.Admins
                 .AsNoTracking()
-                .AnyAsync(a => a.Id == adminId);
+                .FirstOrDefaultAsync(a => a.Id == adminId);
 
-            if (!adminExists)
+            if (admin == null)
                 throw new Exception("Admin not found.");
+
+            var orgId = admin.OrganizationId;
 
 
             // =====================================================
@@ -226,15 +236,36 @@ namespace EmployeeManagementSystem.Services
 
 
             // =====================================================
-            // 5. GET ROLE PERMISSIONS
+            // 5. GET ROLE PERMISSIONS (TENANT SPECIFIC WITH DEFAULT FALLBACK)
             // =====================================================
 
-            var rolePermissions = await _context.RolePermissions
+            var rolePermissionsQuery = _context.RolePermissions
                 .AsNoTracking()
                 .Where(rp =>
                     rp.RoleId == role.RoleId &&
-                    allowedModuleIds.Contains(rp.ModuleId))
-                .ToListAsync();
+                    allowedModuleIds.Contains(rp.ModuleId));
+
+            List<RolePermission> rolePermissions;
+            if (orgId.HasValue)
+            {
+                var tenantPermissions = await rolePermissionsQuery
+                    .Where(rp => rp.OrganizationId == orgId.Value)
+                    .ToListAsync();
+
+                if (!tenantPermissions.Any())
+                {
+                    tenantPermissions = await rolePermissionsQuery
+                        .Where(rp => rp.OrganizationId == null)
+                        .ToListAsync();
+                }
+                rolePermissions = tenantPermissions;
+            }
+            else
+            {
+                rolePermissions = await rolePermissionsQuery
+                    .Where(rp => rp.OrganizationId == null)
+                    .ToListAsync();
+            }
 
 
             // =====================================================
@@ -286,18 +317,23 @@ namespace EmployeeManagementSystem.Services
         }
         public async Task<List<object>> GetEmployeesByRole(string roleName)
         {
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
             var role = await _context.Roles
                 .FirstOrDefaultAsync(r => r.Name == roleName);
 
             if (role == null)
                 throw new Exception("Role not found");
 
-            var employees = await _context.Employees
-                .Where(e => e.RoleId == role.RoleId && e.Status == "Active") // varsha
+            var tenantEmployees = CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds);
+
+            var employees = await tenantEmployees
+                .Where(e => e.RoleId == role.RoleId)
                 .Select(e => new
                 {
                     e.Employee_Id,
-                    EmployeeName = e.Name, // or e.EmployeeName
+                    EmployeeName = e.Name,
                     Role = role.Name,
                     e.Status
                 })
@@ -315,6 +351,12 @@ namespace EmployeeManagementSystem.Services
             // 1. GET MODULES ALLOWED TO ADMIN
             // ============================================
 
+            var admin = await _context.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == adminId);
+
+            var orgId = admin?.OrganizationId;
+
             var adminAllowedModuleIds =
                 await _context.AdminPermissions
                     .AsNoTracking()
@@ -331,33 +373,52 @@ namespace EmployeeManagementSystem.Services
 
 
             // ============================================
-            // 2. GET ROLE PERMISSIONS
+            // 2. GET ROLE PERMISSIONS (TENANT SPECIFIC WITH DEFAULT FALLBACK)
             // ============================================
 
-            var data =
-                await _context.RolePermissions
-                    .AsNoTracking()
-                    .Include(rp => rp.Module)
-                    .Where(rp =>
-                        rp.RoleId == roleId &&
+            var rolePermissionsQuery = _context.RolePermissions
+                .AsNoTracking()
+                .Include(rp => rp.Module)
+                .Where(rp =>
+                    rp.RoleId == roleId &&
+                    adminAllowedModuleIds.Contains(rp.ModuleId) &&
+                    rp.CanAccess);
 
-                        adminAllowedModuleIds.Contains(
-                            rp.ModuleId) &&
-
-                        rp.CanAccess)
-                    .Select(rp => new
-                    {
-                        ModuleId = rp.Module.ModuleId,
-                        ModuleName = rp.Module.ModuleName,
-
-                        CanAccess = rp.CanAccess,
-                        CanView = rp.CanView,
-                        CanAdd = rp.CanAdd,
-                        CanEdit = rp.CanEdit,
-                        CanDelete = rp.CanDelete
-                    })
-                    .OrderBy(x => x.ModuleId)
+            List<RolePermission> dataList;
+            if (orgId.HasValue)
+            {
+                var tenantPermissions = await rolePermissionsQuery
+                    .Where(rp => rp.OrganizationId == orgId.Value)
                     .ToListAsync();
+
+                if (!tenantPermissions.Any())
+                {
+                    tenantPermissions = await rolePermissionsQuery
+                        .Where(rp => rp.OrganizationId == null)
+                        .ToListAsync();
+                }
+                dataList = tenantPermissions;
+            }
+            else
+            {
+                dataList = await rolePermissionsQuery
+                    .Where(rp => rp.OrganizationId == null)
+                    .ToListAsync();
+            }
+
+            var data = dataList
+                .Select(rp => new
+                {
+                    ModuleId = rp.Module.ModuleId,
+                    ModuleName = rp.Module.ModuleName,
+                    CanAccess = rp.CanAccess,
+                    CanView = rp.CanView,
+                    CanAdd = rp.CanAdd,
+                    CanEdit = rp.CanEdit,
+                    CanDelete = rp.CanDelete
+                })
+                .OrderBy(x => x.ModuleId)
+                .ToList();
 
             return data.Cast<object>().ToList();
         }

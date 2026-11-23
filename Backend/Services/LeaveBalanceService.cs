@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -21,20 +21,7 @@ namespace EmployeeManagementSystem.Services
        int month)
         {
             // =====================================================
-            // 1. CHECK WHETHER REQUESTED MONTH ALREADY EXISTS
-            // =====================================================
-            var existingBalance = await _context.EmployeeMonthlyLeaveBalances
-                .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == employeeId &&
-                    x.LeaveYear == year &&
-                    x.LeaveMonth == month);
-
-            if (existingBalance != null)
-                return existingBalance;
-
-
-            // =====================================================
-            // 2. GET EMPLOYEE
+            // 1. GET EMPLOYEE
             // =====================================================
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(x =>
@@ -42,6 +29,19 @@ namespace EmployeeManagementSystem.Services
 
             if (employee == null)
                 throw new Exception("Employee not found.");
+
+            // =====================================================
+            // 2. CHECK WHETHER REQUESTED MONTH ALREADY EXISTS
+            // =====================================================
+            var existingBalance = await _context.EmployeeMonthlyLeaveBalances
+                .FirstOrDefaultAsync(x =>
+                    x.Employee_Id == employeeId &&
+                    (!employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+                    x.LeaveYear == year &&
+                    x.LeaveMonth == month);
+
+            if (existingBalance != null)
+                return existingBalance;
 
 
             // =====================================================
@@ -67,6 +67,7 @@ namespace EmployeeManagementSystem.Services
                 var zeroBalance = new EmployeeMonthlyLeaveBalance
                 {
                     Employee_Id = employeeId,
+                    OrganizationId = employee.OrganizationId,
 
                     LeaveYear = year,
                     LeaveMonth = month,
@@ -160,6 +161,7 @@ namespace EmployeeManagementSystem.Services
                 var monthBalance = await _context.EmployeeMonthlyLeaveBalances
                     .FirstOrDefaultAsync(x =>
                         x.Employee_Id == employeeId &&
+                        (!employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
                         x.LeaveYear == currentMonth.Year &&
                         x.LeaveMonth == currentMonth.Month);
 
@@ -187,6 +189,7 @@ namespace EmployeeManagementSystem.Services
                 monthBalance = new EmployeeMonthlyLeaveBalance
                 {
                     Employee_Id = employeeId,
+                    OrganizationId = employee.OrganizationId,
 
                     LeaveYear = currentMonth.Year,
                     LeaveMonth = currentMonth.Month,
@@ -240,6 +243,7 @@ namespace EmployeeManagementSystem.Services
                     await _context.EmployeeMonthlyLeaveBalances
                         .FirstAsync(x =>
                             x.Employee_Id == employeeId &&
+                            (!employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
                             x.LeaveYear == year &&
                             x.LeaveMonth == month);
             }
@@ -497,12 +501,16 @@ x.Status.StartsWith("Approved") &&
 
             int currentYear = DateTime.Today.Year;
 
-            // 2. Get Leave Settings
+            // 2. Get Leave Settings (Scoped to Employee's Organization)
             var leaveSettings = await _context.LeaveSettings
                 .AsNoTracking()
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(s => s.OrganizationId == employee.OrganizationId);
 
-            // Same as Admin Monthly Attendance
+            if (leaveSettings == null)
+            {
+                leaveSettings = await _context.LeaveSettings.AsNoTracking().FirstOrDefaultAsync();
+            }
+
             int totalLeaves = leaveSettings?.MaxLeaveDays ?? 12;
 
             // 3. Get employee monthly balances for current year
@@ -567,12 +575,18 @@ x.Status.StartsWith("Approved") &&
 
             int currentYear = DateTime.Today.Year;
 
-            // 3. Get total allowed leaves
+            // 3. Get total allowed leaves (Scoped to Employee's Organization)
             var leaveSettings = await _context.LeaveSettings
                 .AsNoTracking()
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(s => s.OrganizationId == employee.OrganizationId);
+
+            if (leaveSettings == null)
+            {
+                leaveSettings = await _context.LeaveSettings.AsNoTracking().FirstOrDefaultAsync();
+            }
 
             int totalLeaves = leaveSettings?.MaxLeaveDays ?? 12;
+
 
             // 4. Get paid leaves used for current year
             var employeeBalances = await _context.EmployeeMonthlyLeaveBalances

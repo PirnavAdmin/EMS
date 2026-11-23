@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 
 using System.ComponentModel.DataAnnotations;
 
@@ -7,11 +7,10 @@ namespace EmployeeManagementSystem.DTOs
 {
 
     public class UploadAgreementDto
-
     {
+        public int? OrganizationId { get; set; }
 
         [Required]
-        // need to chnage
         public string AgreementCode { get; set; }
 
         [Required]

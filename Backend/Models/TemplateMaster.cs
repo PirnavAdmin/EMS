@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace EmployeeManagementSystem.Models;
 
@@ -9,6 +9,8 @@ public class TemplateMaster
     [Key]
 
     public int TemplateId { get; set; }
+
+    public int OrganizationId { get; set; }
 
     public int Company_Id { get; set; }
 

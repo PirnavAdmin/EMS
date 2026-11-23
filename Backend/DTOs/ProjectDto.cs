@@ -29,4 +29,6 @@ public class ProjectDto
 
     public string Status { get; set; }
         = string.Empty;
+
+    public int? OrganizationId { get; set; }
 }

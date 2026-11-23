@@ -1,11 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace EmployeeManagementSystem.DTOs
 {
     public class CreateTicketDto
     {
-        [Required]
-        public int ProjectId { get; set; }
+        public int? OrganizationId { get; set; }
+
+        public int? ProjectId { get; set; }
 
         [Required]
         public string Title { get; set; } = string.Empty;

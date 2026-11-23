@@ -1,10 +1,13 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class TDSController : ControllerBase
@@ -23,12 +26,25 @@ namespace EmployeeManagementSystem.Controllers
         {
             try
             {
+                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+
                 // ---------------------------------------------------------
                 // 1. Validate Employee ID
                 // ---------------------------------------------------------
                 if (string.IsNullOrWhiteSpace(employeeId))
                 {
                     return BadRequest("Employee ID is required.");
+                }
+
+                var empQuery = _context.Employees.AsNoTracking().Where(e => e.Employee_Id == employeeId);
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    empQuery = empQuery.Where(e => e.OrganizationId == orgId.Value);
+                }
+                var employee = await empQuery.FirstOrDefaultAsync();
+                if (employee == null)
+                {
+                    return NotFound("Employee not found.");
                 }
 
                 // ---------------------------------------------------------
@@ -205,6 +221,9 @@ namespace EmployeeManagementSystem.Controllers
                 // ---------------------------------------------------------
                 if (existingTds != null)
                 {
+                    existingTds.OrganizationId =
+                        orgId ?? employee.OrganizationId;
+
                     existingTds.GrossSalary =
                         grossSalary;
 
@@ -251,6 +270,8 @@ namespace EmployeeManagementSystem.Controllers
                 // ---------------------------------------------------------
                 var tds = new EmployeeTDS
                 {
+                    OrganizationId = orgId ?? employee.OrganizationId,
+
                     Employee_Id = employeeId,
 
                     FinancialYear = financialYear,
@@ -312,8 +333,15 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetEmployeeTDS(string employeeId)
         {
-            return Ok(await _context.EmployeeTDS
-                .Where(x => x.Employee_Id == employeeId)
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.EmployeeTDS.Where(x => x.Employee_Id == employeeId);
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            return Ok(await query
                 .OrderByDescending(x => x.GeneratedOn)
                 .ToListAsync());
         }

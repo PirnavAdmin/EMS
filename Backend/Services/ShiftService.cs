@@ -1,5 +1,6 @@
 ﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,10 @@ namespace EmployeeManagementSystem.Services
 
         private async Task<int?> GetUserOrganizationIdAsync(ClaimsPrincipal user)
         {
+            // Fast check: Read OrganizationId directly from JWT claim
+            var tokenOrgId = CurrentUserHelper.GetOrganizationId(user);
+            if (tokenOrgId.HasValue && tokenOrgId.Value > 0)
+                return tokenOrgId.Value;
             var adminIdClaim = user.FindFirst("AdminId")?.Value;
             if (!string.IsNullOrWhiteSpace(adminIdClaim) && int.TryParse(adminIdClaim, out int adminId))
             {

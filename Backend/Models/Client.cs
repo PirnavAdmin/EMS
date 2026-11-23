@@ -8,6 +8,10 @@ public class Client
     public int Id { get; set; }   // Internal only
 
     [Required]
+    [Column("OrganizationId")]
+    public int OrganizationId { get; set; }
+
+    [Required]
     public string Client_Name { get; set; } = string.Empty;
 
     public string? Description { get; set; }
@@ -20,8 +24,6 @@ public class Client
 
     public int Active_Projects { get; set; } = 0;
     public int? AdminId { get; set; }
-
-    public int? OrganizationId { get; set; }
 
     public DateTime CreatedAt { get; set; }  // DB default
 }

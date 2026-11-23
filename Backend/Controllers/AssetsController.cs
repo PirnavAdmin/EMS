@@ -1,18 +1,11 @@
-﻿using EmployeeManagementSystem.Constants;
-using EmployeeManagementSystem.DTOs;
+﻿using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using EmployeeManagementSystem.Authorization;
-using EmployeeManagementSystem.Constants;
-using Microsoft.AspNetCore.Authorization;
 
 namespace EmployeeManagementSystem.Controllers
-
 {
-
-
-    //[Authorize]
+    [Authorize] // 🔥 Ensure Authorize is enabled
     [ApiController]
     [Route("api/[controller]")]
     public class AssetsController : ControllerBase
@@ -24,7 +17,6 @@ namespace EmployeeManagementSystem.Controllers
             _service = service;
         }
 
-        //[Permission(ModuleIds.Assets, PermissionAction.View)]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -32,7 +24,6 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(data);
         }
 
-        //[Permission(ModuleIds.Assets, PermissionAction.View)]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -44,16 +35,13 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(asset);
         }
 
-        //[Permission(ModuleIds.Assets, PermissionAction.Add)]
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] AssetDto dto)
         {
             var result = await _service.CreateAsset(dto);
-
             return Ok(new { message = result });
         }
 
-        //[Permission(ModuleIds.Assets, PermissionAction.Edit)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromForm] AssetDto dto)
         {
@@ -65,7 +53,6 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(new { message = result });
         }
 
-        //[Permission(ModuleIds.Assets, PermissionAction.Delete)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -77,7 +64,6 @@ namespace EmployeeManagementSystem.Controllers
             return Ok(new { message = result });
         }
 
-        //[Permission(ModuleIds.Assets, PermissionAction.View)]
         [HttpGet("export-report")]
         public async Task<IActionResult> ExportAssetsReport()
         {
@@ -90,6 +76,3 @@ namespace EmployeeManagementSystem.Controllers
         }
     }
 }
-
-
-

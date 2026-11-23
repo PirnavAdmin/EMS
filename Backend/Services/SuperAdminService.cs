@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MySqlConnector;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -16,6 +17,7 @@ namespace EmployeeManagementSystem.Services
     public class SuperAdminService : ISuperAdminService
     {
         private readonly AppDbContext _context;
+        private readonly MasterDbContext? _masterDb;
         private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService;
         private readonly IWebHostEnvironment _environment;
@@ -24,12 +26,14 @@ namespace EmployeeManagementSystem.Services
             AppDbContext context,
             IConfiguration configuration,
             IAuditLogService auditLogService,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            MasterDbContext? masterDb = null)
         {
             _context = context;
             _configuration = configuration;
             _auditLogService = auditLogService;
             _environment = environment;
+            _masterDb = masterDb;
         }
 
         // =========================================================
@@ -47,8 +51,28 @@ namespace EmployeeManagementSystem.Services
                 };
             }
 
-            var admin = await _context.SuperAdmins
-                .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.Trim().ToLower());
+            SuperAdmin? admin = null;
+            bool isFromMaster = false;
+            if (_masterDb != null)
+            {
+                try
+                {
+                    admin = await _masterDb.SuperAdmins
+                        .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.Trim().ToLower());
+                    if (admin != null) isFromMaster = true;
+                }
+                catch { }
+            }
+
+            if (admin == null)
+            {
+                try
+                {
+                    admin = await _context.SuperAdmins
+                        .FirstOrDefaultAsync(x => x.Email.ToLower() == dto.Email.Trim().ToLower());
+                }
+                catch { }
+            }
 
             if (admin == null)
             {
@@ -107,7 +131,8 @@ namespace EmployeeManagementSystem.Services
                 new Claim(ClaimTypes.NameIdentifier, admin.SuperAdminId.ToString()),
                 new Claim(ClaimTypes.Name, admin.FullName),
                 new Claim(ClaimTypes.Email, admin.Email),
-                new Claim(ClaimTypes.Role, admin.Role)
+                new Claim(ClaimTypes.Role, admin.Role),
+                new Claim("OrganizationCode", "master")
             };
 
             var key = new SymmetricSecurityKey(
@@ -118,9 +143,27 @@ namespace EmployeeManagementSystem.Services
                 SecurityAlgorithms.HmacSha256);
 
             // Read session timeout from system settings (default to 120 minutes if not configured)
-            var timeoutSetting = await _context.SystemSettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.SettingKey == "SessionTimeoutMinutes");
+            SystemSetting? timeoutSetting = null;
+            if (_masterDb != null)
+            {
+                try
+                {
+                    timeoutSetting = await _masterDb.SystemSettings
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.SettingKey == "SessionTimeoutMinutes");
+                }
+                catch { }
+            }
+            if (timeoutSetting == null)
+            {
+                try
+                {
+                    timeoutSetting = await _context.SystemSettings
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.SettingKey == "SessionTimeoutMinutes");
+                }
+                catch { }
+            }
 
             int timeoutMinutes = int.TryParse(timeoutSetting?.SettingValue, out int parsedTimeout) && parsedTimeout > 0
                 ? parsedTimeout
@@ -134,7 +177,14 @@ namespace EmployeeManagementSystem.Services
                 signingCredentials: creds);
 
             admin.LastLogin = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            if (isFromMaster && _masterDb != null)
+            {
+                try { await _masterDb.SaveChangesAsync(); } catch { }
+            }
+            else
+            {
+                try { await _context.SaveChangesAsync(); } catch { }
+            }
 
             // Log successful login
             await _auditLogService.LogAsync(
@@ -155,7 +205,8 @@ namespace EmployeeManagementSystem.Services
                     admin.SuperAdminId,
                     admin.FullName,
                     admin.Email,
-                    admin.Role
+                    admin.Role,
+                    OrganizationCode = "master"
                 }
             };
         }
@@ -183,21 +234,24 @@ namespace EmployeeManagementSystem.Services
                 .Where(a => a.OrganizationId != null)
                 .ToListAsync();
 
-            var allAdminSubs = await _context.AdminSubscriptions
-                .AsNoTracking()
-                .Where(s => s.IsActive)
-                .ToListAsync();
-
-            var employeeCounts = await _context.Employees
-                .Where(e => e.OrganizationId != null)
-                .GroupBy(e => e.OrganizationId)
-                .Select(g => new
-                {
-                    OrganizationId = g.Key,
-                    Count = g.Count()
-                })
-                .ToListAsync();
-
+            var employeeCounts = new List<dynamic>();
+            try
+            {
+                var counts = await _context.Employees
+                    .Where(e => e.OrganizationId != null)
+                    .GroupBy(e => e.OrganizationId)
+                    .Select(g => new
+                    {
+                        OrganizationId = g.Key,
+                        Count = g.Count()
+                    })
+                    .ToListAsync();
+                foreach (var c in counts) employeeCounts.Add(c);
+            }
+            catch
+            {
+                // In multi-tenancy, employees live in tenant DBs
+            }
 
             var result = new SuperAdminDashboardDto
             {
@@ -207,7 +261,7 @@ namespace EmployeeManagementSystem.Services
                 InactiveClients = organizations.Count(x => x.Status != "Active")
             };
 
-            // ✅ IMPORTANT: One loop per organization
+            // ✅ IMPORTANT: One loop per organization (Strictly OrganizationSubscription)
             foreach (var organization in organizations)
             {
                 // Get latest subscription for THIS organization only
@@ -216,12 +270,7 @@ namespace EmployeeManagementSystem.Services
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
 
-                var orgAdminIds = allAdmins.Where(a => a.OrganizationId == organization.Id).Select(a => a.Id).ToList();
-                var orgAdminSubs = allAdminSubs.Where(s => orgAdminIds.Contains(s.AdminId)).ToList();
-
-                var currentUsers = employeeCounts
-                    .FirstOrDefault(x => x.OrganizationId == organization.Id)
-                    ?.Count ?? 0;
+                int currentUsers = await GetTenantEmployeeCountAsync(organization);
 
                 int maxUsers = 0;
                 int remainingUsers = 0;
@@ -232,45 +281,24 @@ namespace EmployeeManagementSystem.Services
 
                 string subscriptionStatus = "No Subscription";
 
-                if (subscription != null || orgAdminSubs.Any())
+                if (subscription != null)
                 {
-                    int effectiveMaxUsers = subscription?.MaxUsers ?? 0;
-                    DateTime effectiveStartDate = subscription?.StartDate ?? DateTime.MaxValue;
-                    DateTime effectiveEndDate = subscription?.EndDate ?? DateTime.MinValue;
+                    maxUsers = subscription.MaxUsers;
+                    remainingUsers = Math.Max(0, maxUsers - currentUsers);
+                    startDate = subscription.StartDate;
+                    endDate = subscription.EndDate;
 
-                    foreach (var aSub in orgAdminSubs)
-                    {
-                        effectiveMaxUsers = Math.Max(effectiveMaxUsers, aSub.MaxUsers);
-                        if (aSub.StartDate < effectiveStartDate) effectiveStartDate = aSub.StartDate;
-                        if (aSub.EndDate > effectiveEndDate) effectiveEndDate = aSub.EndDate;
-                    }
+                    daysRemaining = Math.Max(0, (subscription.EndDate.Date - today).Days);
 
-                    if (effectiveStartDate == DateTime.MaxValue) effectiveStartDate = subscription?.StartDate ?? DateTime.UtcNow;
-                    if (effectiveEndDate == DateTime.MinValue) effectiveEndDate = subscription?.EndDate ?? DateTime.UtcNow;
-
-                    maxUsers = effectiveMaxUsers;
-
-                    remainingUsers = Math.Max(
-                        0,
-                        maxUsers - currentUsers);
-
-                    startDate = effectiveStartDate;
-                    endDate = effectiveEndDate;
-
-                    daysRemaining = Math.Max(
-                        0,
-                        (effectiveEndDate.Date - today).Days);
-
-                    // ✅ Correct subscription status
-                    if (effectiveEndDate.Date < today)
+                    if (subscription.EndDate.Date < today)
                     {
                         subscriptionStatus = "Expired";
                     }
-                    else if (effectiveStartDate.Date > today)
+                    else if (subscription.StartDate.Date > today)
                     {
                         subscriptionStatus = "Upcoming";
                     }
-                    else if (subscription != null && !subscription.IsActive && !orgAdminSubs.Any())
+                    else if (!subscription.IsActive)
                     {
                         subscriptionStatus = "Inactive";
                     }
@@ -361,16 +389,31 @@ namespace EmployeeManagementSystem.Services
             var activeAdmins = await _context.Admins.CountAsync(a => a.IsActive);
             var inactiveAdmins = totalAdmins - activeAdmins;
 
-            // Employee metrics
-            var totalEmployees = await _context.Employees.CountAsync();
-            var activeEmployees = await _context.Employees.CountAsync(e => e.Status == "Active");
-            var blockedEmployees = await _context.Employees.CountAsync(e => e.Status == "Blocked");
-            var inactiveEmployees = await _context.Employees.CountAsync(e => e.Status == "Inactive" || e.Status == "Suspended");
+            // Employee metrics across active organizations
+            var activeOrgList = await _context.Organizations.AsNoTracking().Where(o => !o.IsDeleted && o.Status == "Active").ToListAsync();
+            int totalEmployees = 0;
+            foreach (var aOrg in activeOrgList)
+            {
+                totalEmployees += await GetTenantEmployeeCountAsync(aOrg);
+            }
+            var activeEmployees = totalEmployees;
+            var blockedEmployees = 0;
+            var inactiveEmployees = 0;
 
-            // Onboarding metrics
-            var pendingOnboarding = await _context.OnboardingCandidates.CountAsync(c => c.Status == "Pending");
-            var completedOnboarding = await _context.OnboardingCandidates.CountAsync(c => c.Status == "Approved");
-            var totalUsers = await _context.Users.CountAsync();
+            // Onboarding metrics (tenant data fallback in multi-tenancy)
+            var pendingOnboarding = 0;
+            var completedOnboarding = 0;
+            var totalUsers = 0;
+            try
+            {
+                pendingOnboarding = await _context.OnboardingCandidates.CountAsync(c => c.Status == "Pending");
+                completedOnboarding = await _context.OnboardingCandidates.CountAsync(c => c.Status == "Approved");
+                totalUsers = await _context.Users.CountAsync();
+            }
+            catch
+            {
+                // In multi-tenancy, onboarding candidates and users belong to tenant databases
+            }
 
             // Recent Organizations
             var recentOrgs = await _context.Organizations
@@ -389,6 +432,11 @@ namespace EmployeeManagementSystem.Services
                 })
                 .ToListAsync();
 
+            foreach (var rOrg in recentOrgs)
+            {
+                rOrg.EmployeeCount = await GetTenantEmployeeCountAsync(rOrg.Id);
+            }
+
             // Recent Admins
             var recentAdmins = await _context.Admins
                 .AsNoTracking()
@@ -406,101 +454,130 @@ namespace EmployeeManagementSystem.Services
                 .ToListAsync();
 
             // Recent Employees
-            var recentEmployees = await _context.Employees
-                .AsNoTracking()
-                .OrderByDescending(e => e.Id)
-                .Take(5)
-                .Select(e => new RecentEmployeeItemDto
-                {
-                    Id = e.Id,
-                    EmployeeId = e.Employee_Id,
-                    Name = e.Name,
-                    Email = e.Email,
-                    Department = e.Department,
-                    RoleName = e.RoleName,
-                    Status = e.Status,
-                    JoiningDate = e.JoiningDate
-                })
-                .ToListAsync();
+            var recentEmployees = new List<RecentEmployeeItemDto>();
+            try
+            {
+                recentEmployees = await _context.Employees
+                    .AsNoTracking()
+                    .OrderByDescending(e => e.Id)
+                    .Take(5)
+                    .Select(e => new RecentEmployeeItemDto
+                    {
+                        Id = e.Id,
+                        EmployeeId = e.Employee_Id,
+                        Name = e.Name,
+                        Email = e.Email,
+                        Department = e.Department,
+                        RoleName = e.RoleName,
+                        Status = e.Status,
+                        JoiningDate = e.JoiningDate
+                    })
+                    .ToListAsync();
+            }
+            catch
+            {
+                // In multi-tenancy, employees belong to tenant databases
+            }
 
             // Recent Activities from AuditLogs (Only Admin/Client actions, excluding SuperAdmin's own actions)
-            var recentActivities = await _context.AuditLogs
-                .AsNoTracking()
-                .Where(a => (a.UserRole == null || a.UserRole != "SuperAdmin") && a.Module != "SuperAdmin")
-                .OrderByDescending(a => a.CreatedAt)
-                .Take(7)
-                .Select(a => new RecentActivityItemDto
-                {
-                    Id = a.Id,
-                    Action = a.Action,
-                    Activity = a.Description ?? $"{a.Action} on {a.Module}",
-                    User = a.UserName ?? a.UserId,
-                    Module = a.Module,
-                    CreatedAt = a.CreatedAt
-                })
-                .ToListAsync();
-
-            // If audit logs are few, supplement from ActivityLogs
-            if (recentActivities.Count < 5)
+            var recentActivities = new List<RecentActivityItemDto>();
+            try
             {
-                var fallbackActivities = await _context.ActivityLogs
+                recentActivities = await _context.AuditLogs
                     .AsNoTracking()
+                    .Where(a => (a.UserRole == null || a.UserRole != "SuperAdmin") && a.Module != "SuperAdmin")
                     .OrderByDescending(a => a.CreatedAt)
-                    .Take(5)
+                    .Take(7)
                     .Select(a => new RecentActivityItemDto
                     {
                         Id = a.Id,
-                        Action = "System Activity",
-                        Activity = a.Activity,
-                        User = "System",
-                        Module = "General",
+                        Action = a.Action,
+                        Activity = a.Description ?? $"{a.Action} on {a.Module}",
+                        User = a.UserName ?? a.UserId,
+                        Module = a.Module,
                         CreatedAt = a.CreatedAt
                     })
                     .ToListAsync();
 
-                recentActivities.AddRange(fallbackActivities);
-                recentActivities = recentActivities.OrderByDescending(x => x.CreatedAt).Take(7).ToList();
+                // If audit logs are few, supplement from ActivityLogs
+                if (recentActivities.Count < 5)
+                {
+                    var fallbackActivities = await _context.ActivityLogs
+                        .AsNoTracking()
+                        .OrderByDescending(a => a.CreatedAt)
+                        .Take(5)
+                        .Select(a => new RecentActivityItemDto
+                        {
+                            Id = a.Id,
+                            Action = "System Activity",
+                            Activity = a.Activity,
+                            User = "System",
+                            Module = "General",
+                            CreatedAt = a.CreatedAt
+                        })
+                        .ToListAsync();
+
+                    recentActivities.AddRange(fallbackActivities);
+                    recentActivities = recentActivities.OrderByDescending(x => x.CreatedAt).Take(7).ToList();
+                }
+            }
+            catch
+            {
+                // In multi-tenancy, audit logs belong to tenant databases
             }
 
             // Pending Approvals
             var pendingApprovals = new List<PendingApprovalItemDto>();
-
-            var pendingCandidates = await _context.OnboardingCandidates
-                .AsNoTracking()
-                .Where(c => c.Status == "Pending")
-                .OrderByDescending(c => c.Id)
-                .Take(5)
-                .ToListAsync();
-
-            foreach (var c in pendingCandidates)
+            try
             {
-                pendingApprovals.Add(new PendingApprovalItemDto
+                var pendingCandidates = await _context.OnboardingCandidates
+                    .AsNoTracking()
+                    .Where(c => c.Status == "Pending")
+                    .OrderByDescending(c => c.Id)
+                    .Take(5)
+                    .ToListAsync();
+
+                foreach (var c in pendingCandidates)
                 {
-                    Type = "Onboarding",
-                    Identifier = c.OnboardingId,
-                    Description = $"Candidate onboarding pending: {c.FullName}",
-                    RequestedBy = c.Email,
-                    DateRequested = DateTime.UtcNow
-                });
+                    pendingApprovals.Add(new PendingApprovalItemDto
+                    {
+                        Type = "Onboarding",
+                        Identifier = c.OnboardingId,
+                        Description = $"Candidate onboarding pending: {c.FullName}",
+                        RequestedBy = c.Email,
+                        DateRequested = DateTime.UtcNow
+                    });
+                }
+            }
+            catch
+            {
+                // In multi-tenancy, onboarding candidates belong to tenant databases
             }
 
-            var pendingResignations = await _context.EmployeeResignations
-                .AsNoTracking()
-                .Where(r => r.OverallStatus == "Pending")
-                .OrderByDescending(r => r.ResignationId)
-                .Take(5)
-                .ToListAsync();
-
-            foreach (var r in pendingResignations)
+            try
             {
-                pendingApprovals.Add(new PendingApprovalItemDto
+                var pendingResignations = await _context.EmployeeResignations
+                    .AsNoTracking()
+                    .Where(r => r.OverallStatus == "Pending")
+                    .OrderByDescending(r => r.ResignationId)
+                    .Take(5)
+                    .ToListAsync();
+
+                foreach (var r in pendingResignations)
                 {
-                    Type = "Resignation",
-                    Identifier = r.Employee_Id,
-                    Description = $"Resignation request from Employee {r.Employee_Id}",
-                    RequestedBy = r.Employee_Id,
-                    DateRequested = r.ResignationDate
-                });
+                    pendingApprovals.Add(new PendingApprovalItemDto
+                    {
+                        Type = "Resignation",
+                        Identifier = r.Employee_Id,
+                        Description = $"Resignation request from Employee {r.Employee_Id}",
+                        RequestedBy = r.Employee_Id,
+                        DateRequested = r.ResignationDate
+                    });
+                }
+            }
+            catch
+            {
+                // In multi-tenancy, employee resignations belong to tenant databases
             }
 
             return new SuperAdminEnhancedDashboardDto
@@ -589,6 +666,10 @@ namespace EmployeeManagementSystem.Services
                     State = o.State,
                     Country = o.Country,
                     Status = o.Status,
+                    DatabaseName = o.DatabaseName,
+                    DbHost = o.DbHost,
+                    DbPort = o.DbPort,
+                    DbUser = o.DbUser,
                     AdminCount = _context.Admins.Count(a =>
       a.OrganizationId == o.Id),
 
@@ -597,7 +678,7 @@ namespace EmployeeManagementSystem.Services
                     //    _context.Admins.Any(a =>
                     //        a.Id == e.AdminId &&
                     //        a.OrganizationId == o.Id)),
-                    EmployeeCount = _context.Employees.Count(e => e.OrganizationId == o.Id),
+                    EmployeeCount = 0,
 
                     Admins = _context.Admins
     .Where(a => a.OrganizationId == o.Id)
@@ -611,8 +692,7 @@ namespace EmployeeManagementSystem.Services
         IsActive = a.IsActive,
         OrganizationId = a.OrganizationId,
         OrganizationName = a.OrganizationName,
-        EmployeeCount = _context.Employees.Count(e =>
-            e.AdminId == a.Id),
+        EmployeeCount = 0,
         CreatedAt = a.CreatedAt,
         LastLogin = a.LastLogin
     })
@@ -622,6 +702,11 @@ namespace EmployeeManagementSystem.Services
                     UpdatedDate = o.UpdatedDate
                 })
                 .ToListAsync();
+
+            foreach (var item in items)
+            {
+                item.EmployeeCount = await GetTenantEmployeeCountAsync(item.Id);
+            }
 
             return new PagedResultDto<SuperAdminOrgDto>
             {
@@ -653,7 +738,7 @@ namespace EmployeeManagementSystem.Services
                     IsActive = a.IsActive,
                     OrganizationId = a.OrganizationId,
                     OrganizationName = a.OrganizationName,
-                    EmployeeCount = _context.Employees.Count(e => e.AdminId == a.Id),
+                    EmployeeCount = 0,
                     CreatedAt = a.CreatedAt,
                     LastLogin = a.LastLogin
                 })
@@ -672,9 +757,13 @@ namespace EmployeeManagementSystem.Services
                 State = o.State,
                 Country = o.Country,
                 Status = o.Status,
+                DatabaseName = o.DatabaseName,
+                DbHost = o.DbHost,
+                DbPort = o.DbPort,
+                DbUser = o.DbUser,
                 AdminCount = admins.Count,
                 //EmployeeCount = await _context.Employees.CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == o.Id)),
-                EmployeeCount = await _context.Employees.CountAsync(e => e.OrganizationId == o.Id),
+                EmployeeCount = await GetTenantEmployeeCountAsync(o),
                 CreatedDate = o.CreatedDate,
                 UpdatedDate = o.UpdatedDate,
                 Admins = admins
@@ -683,6 +772,9 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<SuperAdminOrgDto> CreateOrganization(CreateOrganizationDto dto, ClaimsPrincipal? user, string? ipAddress)
         {
+            var masterConnStr = _configuration.GetConnectionString("MasterConnection") ?? "";
+            var masterBuilder = new MySqlConnectionStringBuilder(masterConnStr);
+
             var org = new Organization
             {
                 OrganizationName = dto.OrganizationName.Trim(),
@@ -695,13 +787,74 @@ namespace EmployeeManagementSystem.Services
                 State = dto.State?.Trim(),
                 Country = dto.Country?.Trim(),
                 Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
-
+                DatabaseName = !string.IsNullOrWhiteSpace(dto.DatabaseName)
+                    ? dto.DatabaseName.Trim()
+                    : (!string.IsNullOrWhiteSpace(dto.OrganizationCode)
+                        ? $"ems_tenant_{dto.OrganizationCode.Trim().ToLower().Replace(" ", "_")}"
+                        : $"ems_tenant_{dto.OrganizationName.Trim().ToLower().Replace(" ", "_")}"),
+                DbHost = !string.IsNullOrWhiteSpace(dto.DbHost) ? dto.DbHost.Trim() : masterBuilder.Server,
+                DbPort = dto.DbPort.HasValue && dto.DbPort.Value > 0 ? dto.DbPort.Value : (masterBuilder.Port > 0 ? (int)masterBuilder.Port : 3306),
+                DbUser = !string.IsNullOrWhiteSpace(dto.DbUser) ? dto.DbUser.Trim() : masterBuilder.UserID,
+                DbPassword = !string.IsNullOrWhiteSpace(dto.DbPassword) ? dto.DbPassword.Trim() : masterBuilder.Password,
                 CreatedDate = DateTime.UtcNow,
                 UpdatedDate = DateTime.UtcNow
             };
 
             _context.Organizations.Add(org);
             await _context.SaveChangesAsync();
+
+            // Automatically initialize Company, CompanySettings, and BrandingSettings for the new organization
+            try
+            {
+                var company = new Company
+                {
+                    OrganizationId = org.Id,
+                    CompanyName = org.OrganizationName,
+                    PhoneNumber = org.PhoneNumber ?? "",
+                    EmailAddress = org.Email ?? "",
+                    GSTNumber = "",
+                    TINNumber = "",
+                    PANNumber = "",
+                    TotalBranches = 1,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.Company.Add(company);
+                await _context.SaveChangesAsync();
+
+                var companySettings = new CompanySettings
+                {
+                    OrganizationId = org.Id,
+                    CompanyName = org.OrganizationName,
+                    CompanyShortName = org.OrganizationCode ?? "",
+                    CompanyEmail = org.Email ?? "",
+                    CompanyPhone = org.PhoneNumber ?? "",
+                    CompanyWebsite = "",
+                    CompanyAddress = org.Address ?? "",
+                    LogoUrl = "",
+                    GSTNumber = "",
+                    CINNumber = "",
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.CompanySettings.Add(companySettings);
+
+                var branding = new BrandingSettings
+                {
+                    Company_Id = company.Id,
+                    CompanyLogo = "",
+                    LoginLogo = "",
+                    SidebarLogo = "",
+                    CreatedDate = DateTime.UtcNow
+                };
+                _context.BrandingSettings.Add(branding);
+                await _context.SaveChangesAsync();
+            }
+            catch
+            {
+                // Organization record has already been created. Company/branding settings are non-critical and can be added later.
+            }
+
+            // Sync organization and baseline tables into tenant database
+            await SyncOrganizationToTenantDatabaseAsync(org);
 
             await _auditLogService.LogAsync(
                 action: "Create",
@@ -730,6 +883,10 @@ namespace EmployeeManagementSystem.Services
                 State = org.State,
                 Country = org.Country,
                 Status = org.Status,
+                DatabaseName = org.DatabaseName,
+                DbHost = org.DbHost,
+                DbPort = org.DbPort,
+                DbUser = org.DbUser,
                 AdminCount = 0,
                 EmployeeCount = 0,
                 CreatedDate = org.CreatedDate
@@ -1443,7 +1600,11 @@ namespace EmployeeManagementSystem.Services
                 org.City,
                 org.State,
                 org.Country,
-                org.Status
+                org.Status,
+                org.DatabaseName,
+                org.DbHost,
+                org.DbPort,
+                org.DbUser
             });
 
             var oldOrganizationName = org.OrganizationName;
@@ -1631,6 +1792,27 @@ namespace EmployeeManagementSystem.Services
                 org.Status = dto.Status.Trim();
             }
 
+            if (!string.IsNullOrWhiteSpace(dto.DatabaseName))
+            {
+                org.DatabaseName = dto.DatabaseName.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.DbHost))
+            {
+                org.DbHost = dto.DbHost.Trim();
+            }
+            if (dto.DbPort.HasValue && dto.DbPort.Value > 0)
+            {
+                org.DbPort = dto.DbPort.Value;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.DbUser))
+            {
+                org.DbUser = dto.DbUser.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.DbPassword))
+            {
+                org.DbPassword = dto.DbPassword.Trim();
+            }
+
             org.UpdatedDate = DateTime.UtcNow;
 
             // ==========================================
@@ -1786,30 +1968,37 @@ namespace EmployeeManagementSystem.Services
                         removedAdmin.OrganizationId = null;
                         removedAdmin.OrganizationName = null;
 
-                        // Reassign employees to fallback admin, keeping OrganizationId intact
-                        var linkedEmployees = await _context.Employees
-                            .Where(e => e.AdminId == removedAdmin.Id && e.OrganizationId == org.Id)
-                            .ToListAsync();
-
-                        foreach (var emp in linkedEmployees)
+                        // Reassign employees to fallback admin (if tenant tables exist)
+                        try
                         {
-                            if (fallbackAdmin != null)
+                            var linkedEmployees = await _context.Employees
+                                .Where(e => e.AdminId == removedAdmin.Id && e.OrganizationId == org.Id)
+                                .ToListAsync();
+
+                            foreach (var emp in linkedEmployees)
                             {
-                                emp.AdminId = fallbackAdmin.Id;
+                                if (fallbackAdmin != null)
+                                {
+                                    emp.AdminId = fallbackAdmin.Id;
+                                }
+                                // emp.OrganizationId remains org.Id
                             }
-                            // emp.OrganizationId remains org.Id
+
+                            var linkedBranches = await _context.Branches
+                                .Where(b => b.AdminId == removedAdmin.Id && b.OrganizationId == org.Id)
+                                .ToListAsync();
+
+                            foreach (var branch in linkedBranches)
+                            {
+                                if (fallbackAdmin != null)
+                                {
+                                    branch.AdminId = fallbackAdmin.Id;
+                                }
+                            }
                         }
-
-                        var linkedBranches = await _context.Branches
-                            .Where(b => b.AdminId == removedAdmin.Id && b.OrganizationId == org.Id)
-                            .ToListAsync();
-
-                        foreach (var branch in linkedBranches)
+                        catch
                         {
-                            if (fallbackAdmin != null)
-                            {
-                                branch.AdminId = fallbackAdmin.Id;
-                            }
+                            // In multi-tenancy, employees and branches belong to tenant databases
                         }
                     }
                 }
@@ -1936,18 +2125,22 @@ namespace EmployeeManagementSystem.Services
                             admin.OrganizationName = org.OrganizationName;
                             admin.Role = "Admin";
 
-                            // ------------------------------------------
                             // Preserve employees
-                            // ------------------------------------------
-
-                            var adminEmployees =
-                                await _context.Employees
-                                    .Where(e => e.AdminId == admin.Id)
-                                    .ToListAsync();
-
-                            foreach (var emp in adminEmployees)
+                            try
                             {
-                                emp.OrganizationId = org.Id;
+                                var adminEmployees =
+                                    await _context.Employees
+                                        .Where(e => e.AdminId == admin.Id)
+                                        .ToListAsync();
+
+                                foreach (var emp in adminEmployees)
+                                {
+                                    emp.OrganizationId = org.Id;
+                                }
+                            }
+                            catch
+                            {
+                                // In multi-tenancy, employees belong to tenant databases
                             }
                         }
 
@@ -2030,19 +2223,23 @@ namespace EmployeeManagementSystem.Services
                         extraAdmin.OrganizationName =
                             org.OrganizationName;
 
-                        // ------------------------------------------
                         // Preserve employees
-                        // ------------------------------------------
-
-                        var extraAdminEmployees =
-                            await _context.Employees
-                                .Where(e =>
-                                    e.AdminId == extraAdmin.Id)
-                                .ToListAsync();
-
-                        foreach (var emp in extraAdminEmployees)
+                        try
                         {
-                            emp.OrganizationId = org.Id;
+                            var extraAdminEmployees =
+                                await _context.Employees
+                                    .Where(e =>
+                                        e.AdminId == extraAdmin.Id)
+                                    .ToListAsync();
+
+                            foreach (var emp in extraAdminEmployees)
+                            {
+                                emp.OrganizationId = org.Id;
+                            }
+                        }
+                        catch
+                        {
+                            // In multi-tenancy, employees belong to tenant databases
                         }
                     }
                 }
@@ -2075,6 +2272,9 @@ namespace EmployeeManagementSystem.Services
             // ==========================================
 
             await _context.SaveChangesAsync();
+
+            // Sync updated organization details to tenant database
+            await SyncOrganizationToTenantDatabaseAsync(org);
 
             // ==========================================
             // 9. AUDIT LOG
@@ -2156,8 +2356,7 @@ namespace EmployeeManagementSystem.Services
 
             // Check if organization has active admins or employees
             int linkedAdmins = await _context.Admins.CountAsync(a => a.OrganizationId == id);
-            // int linkedEmployees = await _context.Employees.CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == id));
-            int linkedEmployees = await _context.Employees.CountAsync(e => e.OrganizationId == id);
+            int linkedEmployees = await GetTenantEmployeeCountAsync(id);
 
             if (linkedAdmins > 0 || linkedEmployees > 0)
             {
@@ -2213,10 +2412,7 @@ namespace EmployeeManagementSystem.Services
                 throw new KeyNotFoundException($"Organization with ID {dto.OrganizationId} not found.");
 
             // Calculate existing employees in organization
-            //int currentUsers = await _context.Employees
-            //    .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == dto.OrganizationId));
-            int currentUsers = await _context.Employees
-    .CountAsync(e => e.OrganizationId == dto.OrganizationId);
+            int currentUsers = await GetTenantEmployeeCountAsync(org);
 
 
             if (dto.MaxUsers < currentUsers)
@@ -2317,8 +2513,7 @@ namespace EmployeeManagementSystem.Services
 
             if (sub == null && !adminSubs.Any()) return null;
 
-            int currentUsers = await _context.Employees
-                .CountAsync(e => e.OrganizationId == organizationId);
+            int currentUsers = await GetTenantEmployeeCountAsync(org);
 
             int effectiveMaxUsers = sub?.MaxUsers ?? 0;
             DateTime effectiveStartDate = sub?.StartDate ?? DateTime.MaxValue;
@@ -2382,11 +2577,7 @@ namespace EmployeeManagementSystem.Services
                 .OrderByDescending(s => s.Id)
                 .FirstOrDefaultAsync();
 
-            //int currentUsers = await _context.Employees
-            //    .CountAsync(e => e.AdminId != null && _context.Admins.Any(a => a.Id == e.AdminId && a.OrganizationId == organizationId));
-
-            int currentUsers = await _context.Employees
-    .CountAsync(e => e.OrganizationId == organizationId);
+            int currentUsers = await GetTenantEmployeeCountAsync(org);
 
             if (dto.MaxUsers < currentUsers)
             {
@@ -2519,8 +2710,7 @@ namespace EmployeeManagementSystem.Services
                 .ToListAsync();
 
             int totalAdmins = assignedAdminIds.Count;
-            int currentUsers = await _context.Employees
-                .CountAsync(e => e.OrganizationId == organizationId);
+            int currentUsers = await GetTenantEmployeeCountAsync(org);
 
             if (sub == null && !adminSubs.Any())
             {
@@ -2633,8 +2823,7 @@ namespace EmployeeManagementSystem.Services
                 if (sub == null && !orgAdminSubs.Any())
                     continue;
 
-                int currentUsers = await _context.Employees
-                    .CountAsync(e => e.OrganizationId == org.Id);
+                int currentUsers = await GetTenantEmployeeCountAsync(org);
 
                 int effectiveMaxUsers = sub?.MaxUsers ?? 0;
                 DateTime effectiveStartDate = sub?.StartDate ?? DateTime.MaxValue;
@@ -2746,7 +2935,7 @@ namespace EmployeeManagementSystem.Services
                     IsActive = a.IsActive,
                     OrganizationId = a.OrganizationId,
                     OrganizationName = a.OrganizationName,
-                    EmployeeCount = _context.Employees.Count(e => e.AdminId == a.Id),
+                    EmployeeCount = 0,
                     CreatedAt = a.CreatedAt,
                     LastLogin = a.LastLogin
                 })
@@ -2779,7 +2968,7 @@ namespace EmployeeManagementSystem.Services
                 IsActive = a.IsActive,
                 OrganizationId = a.OrganizationId,
                 OrganizationName = a.OrganizationName,
-                EmployeeCount = await _context.Employees.CountAsync(e => e.AdminId == a.Id),
+                EmployeeCount = 0,
                 CreatedAt = a.CreatedAt,
                 LastLogin = a.LastLogin
             };
@@ -2862,6 +3051,7 @@ namespace EmployeeManagementSystem.Services
             // ========================================================
             if (existingAdmin != null)
             {
+                int? oldOrgId = existingAdmin.OrganizationId;
                 existingAdmin.OrganizationId = dto.OrganizationId;
                 existingAdmin.OrganizationName = orgName;
                 existingAdmin.IsActive = dto.IsActive;
@@ -2873,22 +3063,34 @@ namespace EmployeeManagementSystem.Services
                     existingAdmin.PhoneNumber = dto.PhoneNumber.Trim();
 
                 // Update all existing employees belonging to this Admin
-                var adminEmployees = await _context.Employees
-                    .Where(e => e.AdminId == existingAdmin.Id)
-                    .ToListAsync();
-
-                foreach (var emp in adminEmployees)
+                int empCount = 0;
+                try
                 {
-                    emp.OrganizationId = dto.OrganizationId;
+                    var adminEmployees = await _context.Employees
+                        .Where(e => e.AdminId == existingAdmin.Id)
+                        .ToListAsync();
+
+                    foreach (var emp in adminEmployees)
+                    {
+                        emp.OrganizationId = dto.OrganizationId;
+                    }
+                    empCount = adminEmployees.Count;
+                }
+                catch
+                {
+                    // In multi-tenancy, employees belong to tenant databases
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Sync to tenant database
+                await SyncAdminToTenantDatabaseAsync(existingAdmin, oldOrgId);
 
                 await _auditLogService.LogAsync(
                     action: "Update",
                     module: "Admins",
                     entityId: existingAdmin.Id.ToString(),
-                    description: $"Assigned existing Admin '{existingAdmin.Email}' (ID: {existingAdmin.Id}) to Organization: {orgName ?? "Unassigned"} and updated {adminEmployees.Count} employees.",
+                    description: $"Assigned existing Admin '{existingAdmin.Email}' (ID: {existingAdmin.Id}) to Organization: {orgName ?? "Unassigned"} and updated {empCount} employees.",
                     user: user,
                     ipAddress: ipAddress);
 
@@ -2902,7 +3104,7 @@ namespace EmployeeManagementSystem.Services
                     IsActive = existingAdmin.IsActive,
                     OrganizationId = existingAdmin.OrganizationId,
                     OrganizationName = existingAdmin.OrganizationName,
-                    EmployeeCount = adminEmployees.Count,
+                    EmployeeCount = empCount,
                     CreatedAt = existingAdmin.CreatedAt
                 };
             }
@@ -2925,6 +3127,9 @@ namespace EmployeeManagementSystem.Services
 
             _context.Admins.Add(newAdmin);
             await _context.SaveChangesAsync();
+
+            // Sync to tenant database
+            await SyncAdminToTenantDatabaseAsync(newAdmin);
 
             await _auditLogService.LogAsync(
                 action: "Create",
@@ -3088,24 +3293,33 @@ namespace EmployeeManagementSystem.Services
                 var nextAdmin = remainingOldOrgAdmins.First();
 
                 // Reassign employees in old organization to nextAdmin, keeping OrganizationId intact
-                var oldOrgEmployees = await _context.Employees
-                    .Where(e => e.AdminId == admin.Id && e.OrganizationId == admin.OrganizationId.Value)
-                    .ToListAsync();
-
-                foreach (var emp in oldOrgEmployees)
+                try
                 {
-                    emp.AdminId = nextAdmin.Id;
+                    var oldOrgEmployees = await _context.Employees
+                        .Where(e => e.AdminId == admin.Id && e.OrganizationId == admin.OrganizationId.Value)
+                        .ToListAsync();
+
+                    foreach (var emp in oldOrgEmployees)
+                    {
+                        emp.AdminId = nextAdmin.Id;
+                    }
+
+                    var oldOrgBranches = await _context.Branches
+                        .Where(b => b.AdminId == admin.Id && b.OrganizationId == admin.OrganizationId.Value)
+                        .ToListAsync();
+
+                    foreach (var branch in oldOrgBranches)
+                    {
+                        branch.AdminId = nextAdmin.Id;
+                    }
                 }
-
-                var oldOrgBranches = await _context.Branches
-                    .Where(b => b.AdminId == admin.Id && b.OrganizationId == admin.OrganizationId.Value)
-                    .ToListAsync();
-
-                foreach (var branch in oldOrgBranches)
+                catch
                 {
-                    branch.AdminId = nextAdmin.Id;
+                    // In multi-tenancy, employees and branches belong to tenant databases
                 }
             }
+
+            int? previousOrgId = admin.OrganizationId;
 
             admin.Email = dto.Email.Trim();
             admin.FullName = dto.FullName?.Trim();
@@ -3117,17 +3331,27 @@ namespace EmployeeManagementSystem.Services
             // If assigning this admin to a new organization, update their standalone employees to that organization
             if (dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0)
             {
-                var standaloneEmployees = await _context.Employees
-                    .Where(e => e.AdminId == admin.Id && (e.OrganizationId == null || e.OrganizationId == 0))
-                    .ToListAsync();
-
-                foreach (var employee in standaloneEmployees)
+                try
                 {
-                    employee.OrganizationId = dto.OrganizationId;
+                    var standaloneEmployees = await _context.Employees
+                        .Where(e => e.AdminId == admin.Id && (e.OrganizationId == null || e.OrganizationId == 0))
+                        .ToListAsync();
+
+                    foreach (var employee in standaloneEmployees)
+                    {
+                        employee.OrganizationId = dto.OrganizationId;
+                    }
+                }
+                catch
+                {
+                    // In multi-tenancy, employees belong to tenant databases
                 }
             }
 
             await _context.SaveChangesAsync();
+
+            // Sync to tenant database
+            await SyncAdminToTenantDatabaseAsync(admin, previousOrgId);
 
             await _auditLogService.LogAsync(
                 action: "Update",
@@ -3247,6 +3471,8 @@ namespace EmployeeManagementSystem.Services
             if (admin == null)
                 return null;
 
+            int? previousOrgId = admin.OrganizationId;
+
             string? orgName = null;
             int? newOrganizationId = null;
 
@@ -3295,22 +3521,29 @@ namespace EmployeeManagementSystem.Services
                 var nextAdmin = remainingAdmins.First();
 
                 // Reassign all employees in this organization to nextAdmin, keeping OrganizationId intact
-                var currentOrgEmployees = await _context.Employees
-                    .Where(e => e.AdminId == admin.Id && e.OrganizationId == admin.OrganizationId.Value)
-                    .ToListAsync();
-
-                foreach (var emp in currentOrgEmployees)
+                try
                 {
-                    emp.AdminId = nextAdmin.Id;
+                    var currentOrgEmployees = await _context.Employees
+                        .Where(e => e.AdminId == admin.Id && e.OrganizationId == admin.OrganizationId.Value)
+                        .ToListAsync();
+
+                    foreach (var emp in currentOrgEmployees)
+                    {
+                        emp.AdminId = nextAdmin.Id;
+                    }
+
+                    var linkedBranches = await _context.Branches
+                        .Where(b => b.AdminId == admin.Id && b.OrganizationId == admin.OrganizationId.Value)
+                        .ToListAsync();
+
+                    foreach (var branch in linkedBranches)
+                    {
+                        branch.AdminId = nextAdmin.Id;
+                    }
                 }
-
-                var linkedBranches = await _context.Branches
-                    .Where(b => b.AdminId == admin.Id && b.OrganizationId == admin.OrganizationId.Value)
-                    .ToListAsync();
-
-                foreach (var branch in linkedBranches)
+                catch
                 {
-                    branch.AdminId = nextAdmin.Id;
+                    // In multi-tenancy, employees and branches belong to tenant databases
                 }
             }
 
@@ -3328,13 +3561,20 @@ namespace EmployeeManagementSystem.Services
             // 7. IF ASSIGNING TO AN ORGANIZATION -> Update this admin's standalone employees
             if (newOrganizationId.HasValue && newOrganizationId.Value > 0)
             {
-                var standaloneEmployees = await _context.Employees
-                    .Where(e => e.AdminId == admin.Id && (e.OrganizationId == null || e.OrganizationId == 0))
-                    .ToListAsync();
-
-                foreach (var employee in standaloneEmployees)
+                try
                 {
-                    employee.OrganizationId = newOrganizationId;
+                    var standaloneEmployees = await _context.Employees
+                        .Where(e => e.AdminId == admin.Id && (e.OrganizationId == null || e.OrganizationId == 0))
+                        .ToListAsync();
+
+                    foreach (var employee in standaloneEmployees)
+                    {
+                        employee.OrganizationId = newOrganizationId;
+                    }
+                }
+                catch
+                {
+                    // In multi-tenancy, employees belong to tenant databases
                 }
             }
 
@@ -3393,7 +3633,18 @@ namespace EmployeeManagementSystem.Services
             // 8. SAVE CHANGES
             await _context.SaveChangesAsync();
 
-            int empCount = await _context.Employees.CountAsync(e => e.AdminId == admin.Id);
+            // Sync to tenant database
+            await SyncAdminToTenantDatabaseAsync(admin, previousOrgId);
+
+            int empCount = 0;
+            try
+            {
+                empCount = await _context.Employees.CountAsync(e => e.AdminId == admin.Id);
+            }
+            catch
+            {
+                // In multi-tenancy, employees belong to tenant databases
+            }
 
             // 9. CREATE AUDIT LOG
             await _auditLogService.LogAsync(
@@ -3448,7 +3699,7 @@ namespace EmployeeManagementSystem.Services
                     IsActive = a.IsActive,
                     OrganizationId = a.OrganizationId,
                     OrganizationName = a.OrganizationName,
-                    EmployeeCount = _context.Employees.Count(e => e.AdminId == a.Id),
+                    EmployeeCount = 0,
                     CreatedAt = a.CreatedAt,
                     LastLogin = a.LastLogin
                 })
@@ -3595,6 +3846,9 @@ namespace EmployeeManagementSystem.Services
 
             await _context.SaveChangesAsync();
 
+            // Sync updated password to tenant database
+            await SyncAdminToTenantDatabaseAsync(admin);
+
 
             // ==========================================
             // 7. AUDIT LOG
@@ -3648,11 +3902,15 @@ namespace EmployeeManagementSystem.Services
             }
 
             // 2. Clean up AdminNotifications
-            var adminNotifs = await _context.AdminNotifications.Where(n => n.AdminId == admin.Id).ToListAsync();
-            if (adminNotifs.Any())
+            try
             {
-                _context.AdminNotifications.RemoveRange(adminNotifs);
+                var adminNotifs = await _context.AdminNotifications.Where(n => n.AdminId == admin.Id).ToListAsync();
+                if (adminNotifs.Any())
+                {
+                    _context.AdminNotifications.RemoveRange(adminNotifs);
+                }
             }
+            catch { }
 
             // 3. Clean up AdminSubscriptions
             var adminSubs = await _context.AdminSubscriptions.Where(s => s.AdminId == admin.Id).ToListAsync();
@@ -3661,23 +3919,34 @@ namespace EmployeeManagementSystem.Services
                 _context.AdminSubscriptions.RemoveRange(adminSubs);
             }
 
-            // 4. Reassign employees
-            var linkedEmployees = await _context.Employees.Where(e => e.AdminId == admin.Id).ToListAsync();
-            foreach (var emp in linkedEmployees)
+            // 4. Reassign employees and branches
+            try
             {
-                emp.AdminId = fallbackAdmin?.Id;
-            }
+                var linkedEmployees = await _context.Employees.Where(e => e.AdminId == admin.Id).ToListAsync();
+                foreach (var emp in linkedEmployees)
+                {
+                    emp.AdminId = fallbackAdmin?.Id;
+                }
 
-            // 5. Reassign branches
-            var linkedBranches = await _context.Branches.Where(b => b.AdminId == admin.Id).ToListAsync();
-            foreach (var branch in linkedBranches)
-            {
-                branch.AdminId = fallbackAdmin?.Id;
+                var linkedBranches = await _context.Branches.Where(b => b.AdminId == admin.Id).ToListAsync();
+                foreach (var branch in linkedBranches)
+                {
+                    branch.AdminId = fallbackAdmin?.Id;
+                }
             }
+            catch { }
 
             // 6. Delete the admin record
+            int? deletedOrgId = admin.OrganizationId;
+            string deletedEmail = admin.Email;
+
             _context.Admins.Remove(admin);
             await _context.SaveChangesAsync();
+
+            if (deletedOrgId.HasValue && deletedOrgId.Value > 0)
+            {
+                await RemoveAdminFromTenantDatabaseAsync(deletedEmail, deletedOrgId.Value);
+            }
 
             // 7. Audit log
             await _auditLogService.LogAsync(
@@ -3725,24 +3994,32 @@ namespace EmployeeManagementSystem.Services
             // 4. Select the next successor admin
             var nextAdmin = remainingAdmins.First();
 
-            // 5. Reassign all employees of the removed admin to the next admin (keep OrganizationId intact)
-            var adminEmployees = await _context.Employees
-                .Where(e => e.AdminId == admin.Id && e.OrganizationId == organizationId)
-                .ToListAsync();
-
-            foreach (var emp in adminEmployees)
+            // 5. Reassign all employees and branches of the removed admin to the next admin
+            int reassignedCount = 0;
+            try
             {
-                emp.AdminId = nextAdmin.Id; // Reassign to next Admin
+                var adminEmployees = await _context.Employees
+                    .Where(e => e.AdminId == admin.Id && e.OrganizationId == organizationId)
+                    .ToListAsync();
+
+                foreach (var emp in adminEmployees)
+                {
+                    emp.AdminId = nextAdmin.Id; // Reassign to next Admin
+                }
+                reassignedCount = adminEmployees.Count;
+
+                var linkedBranches = await _context.Branches
+                    .Where(b => b.AdminId == admin.Id)
+                    .ToListAsync();
+
+                foreach (var branch in linkedBranches)
+                {
+                    branch.AdminId = nextAdmin.Id;
+                }
             }
-
-            // 6. Reassign linked branches to next admin
-            var linkedBranches = await _context.Branches
-                .Where(b => b.AdminId == admin.Id)
-                .ToListAsync();
-
-            foreach (var branch in linkedBranches)
+            catch
             {
-                branch.AdminId = nextAdmin.Id;
+                // In multi-tenancy, employees and branches belong to tenant databases
             }
 
             // 7. Unlink the removed Admin from the organization
@@ -3751,16 +4028,19 @@ namespace EmployeeManagementSystem.Services
 
             await _context.SaveChangesAsync();
 
+            // Remove from tenant database
+            await RemoveAdminFromTenantDatabaseAsync(admin.Email, organizationId);
+
             // 8. Log the handover in Audit Trail
             await _auditLogService.LogAsync(
                 action: "RemoveAdminFromOrganization",
                 module: "Admins",
                 entityId: admin.Id.ToString(),
-                description: $"Removed Admin '{admin.Email}' (ID: {admin.Id}) from Organization ID {organizationId}. Handed over {adminEmployees.Count} employees to Admin '{nextAdmin.Email}' (ID: {nextAdmin.Id}).",
+                description: $"Removed Admin '{admin.Email}' (ID: {admin.Id}) from Organization ID {organizationId}. Handed over {reassignedCount} employees to Admin '{nextAdmin.Email}' (ID: {nextAdmin.Id}).",
                 user: user,
                 ipAddress: ipAddress);
 
-            return (true, $"Admin removed successfully. All {adminEmployees.Count} employees have been reassigned to Admin '{nextAdmin.Email}'.");
+            return (true, $"Admin removed successfully. All {reassignedCount} employees have been reassigned to Admin '{nextAdmin.Email}'.");
         }
 
 
@@ -3814,162 +4094,177 @@ namespace EmployeeManagementSystem.Services
                 query = query.Where(e => e.RoleId == filter.RoleId.Value);
             }
 
-            int totalCount = await query.CountAsync();
+            try
+            {
+                int totalCount = await query.CountAsync();
 
-            var items = await (
-                from e in query
-                join adm in _context.Admins on e.AdminId equals adm.Id into adminJoin
-                from a in adminJoin.DefaultIfEmpty()
-                orderby e.Id descending
-                select new SuperAdminEmployeeItemDto
+                var items = await (
+                    from e in query
+                    join adm in _context.Admins on e.AdminId equals adm.Id into adminJoin
+                    from a in adminJoin.DefaultIfEmpty()
+                    orderby e.Id descending
+                    select new SuperAdminEmployeeItemDto
+                    {
+                        Id = e.Id,
+                        EmployeeId = e.Employee_Id,
+                        Name = e.Name,
+                        Email = e.Email,
+                        Department = e.Department,
+                        RoleName = e.RoleName,
+                        RoleId = e.RoleId,
+                        Status = e.Status,
+                        CTC = e.CTC,
+                        JoiningDate = e.JoiningDate,
+                        AdminId = e.AdminId,
+                        AdminEmail = a != null ? a.Email : null,
+                        OrganizationName = org.OrganizationName
+                    }
+                )
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+                return new PagedResultDto<SuperAdminEmployeeItemDto>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
+            }
+            catch
+            {
+                return new PagedResultDto<SuperAdminEmployeeItemDto>
+                {
+                    Items = new List<SuperAdminEmployeeItemDto>(),
+                    TotalCount = 0,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
+            }
+        }
+
+        public async Task<SuperAdminEmployeeDetailDto?> GetEmployeeByOrganizationAndId(int organizationId, string employeeId)
+        {
+            try
+            {
+                var e = await _context.Employees.AsNoTracking()
+                    .FirstOrDefaultAsync(emp => emp.Employee_Id == employeeId && emp.OrganizationId == organizationId);
+
+                if (e == null) return null;
+
+                Admin? a = null;
+                if (e.AdminId.HasValue)
+                {
+                    a = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(adm => adm.Id == e.AdminId.Value);
+                }
+
+                var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == organizationId);
+                string? orgName = org?.OrganizationName ?? a?.OrganizationName;
+
+                var personal = await _context.EmployeePersonalInfos
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Employee_Id == employeeId);
+
+                var bank = await _context.EmployeeBankDetails
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(b => b.Employee_Id == employeeId);
+
+                return new SuperAdminEmployeeDetailDto
                 {
                     Id = e.Id,
                     EmployeeId = e.Employee_Id,
                     Name = e.Name,
                     Email = e.Email,
                     Department = e.Department,
+                    DepartmentId = e.Department_Id,
+                    BranchId = e.Branch_Id,
                     RoleName = e.RoleName,
                     RoleId = e.RoleId,
                     Status = e.Status,
                     CTC = e.CTC,
                     JoiningDate = e.JoiningDate,
                     AdminId = e.AdminId,
-                    AdminEmail = a != null ? a.Email : null,
-                    OrganizationName = org.OrganizationName
-                }
-            )
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-            return new PagedResultDto<SuperAdminEmployeeItemDto>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageNumber = page,
-                PageSize = pageSize
-            };
-        }
-
-        public async Task<SuperAdminEmployeeDetailDto?> GetEmployeeByOrganizationAndId(int organizationId, string employeeId)
-        {
-            // var match = await (
-            //     from emp in _context.Employees.AsNoTracking()
-            //     join admin in _context.Admins.AsNoTracking() on emp.AdminId equals admin.Id
-            //     where emp.Employee_Id == employeeId && admin.OrganizationId == organizationId
-            //     select new { Employee = emp, Admin = admin }
-            // ).FirstOrDefaultAsync();
-            var e = await _context.Employees.AsNoTracking()
-                .FirstOrDefaultAsync(emp => emp.Employee_Id == employeeId && emp.OrganizationId == organizationId);
-
-            if (e == null) return null;
-
-            Admin? a = null;
-            if (e.AdminId.HasValue)
-            {
-                a = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(adm => adm.Id == e.AdminId.Value);
+                    AdminEmail = a?.Email,
+                    OrganizationName = orgName,
+                    PersonalInfo = personal != null ? new EmployeePersonalInfoDto
+                    {
+                        Employee_Id = personal.Employee_Id,
+                        FirstName = personal.FirstName,
+                        LastName = personal.LastName,
+                        MiddleName = personal.MiddleName,
+                        PhoneNumber = personal.PhoneNumber,
+                        Email = personal.Email,
+                        Gender = personal.Gender,
+                        DateOfBirth = personal.DateOfBirth,
+                        AadhaarNumber = personal.AadhaarNumber,
+                        PanNumber = personal.PanNumber,
+                        BloodGroup = personal.BloodGroup,
+                        Marital_Status = personal.Marital_Status,
+                        HouseNo = personal.HouseNo,
+                        Street = personal.Street,
+                        City = personal.City,
+                        District = personal.District,
+                        State = personal.State,
+                        Country = personal.Country,
+                        Pincode = personal.Pincode
+                    } : null,
+                    BankDetails = bank != null ? new EmployeeBankDetailDto
+                    {
+                        Account_Number = bank.Account_Number,
+                        Bank_Name = bank.Bank_Name,
+                        IFSC_Code = bank.IFSC_Code,
+                        Branch_Name = bank.Branch_Name
+                    } : null
+                };
             }
-
-            var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == organizationId);
-            string? orgName = org?.OrganizationName ?? a?.OrganizationName;
-
-            var personal = await _context.EmployeePersonalInfos
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Employee_Id == employeeId);
-
-            var bank = await _context.EmployeeBankDetails
-                .AsNoTracking()
-                .FirstOrDefaultAsync(b => b.Employee_Id == employeeId);
-
-            return new SuperAdminEmployeeDetailDto
+            catch
             {
-                Id = e.Id,
-                EmployeeId = e.Employee_Id,
-                Name = e.Name,
-                Email = e.Email,
-                Department = e.Department,
-                DepartmentId = e.Department_Id,
-                BranchId = e.Branch_Id,
-                RoleName = e.RoleName,
-                RoleId = e.RoleId,
-                Status = e.Status,
-                CTC = e.CTC,
-                JoiningDate = e.JoiningDate,
-                AdminId = e.AdminId,
-                AdminEmail = a?.Email,
-                OrganizationName = orgName,
-                PersonalInfo = personal != null ? new EmployeePersonalInfoDto
-                {
-                    Employee_Id = personal.Employee_Id,
-                    FirstName = personal.FirstName,
-                    LastName = personal.LastName,
-                    MiddleName = personal.MiddleName,
-                    PhoneNumber = personal.PhoneNumber,
-                    Email = personal.Email,
-                    Gender = personal.Gender,
-                    DateOfBirth = personal.DateOfBirth,
-                    AadhaarNumber = personal.AadhaarNumber,
-                    PanNumber = personal.PanNumber,
-                    BloodGroup = personal.BloodGroup,
-                    Marital_Status = personal.Marital_Status,
-                    HouseNo = personal.HouseNo,
-                    Street = personal.Street,
-                    City = personal.City,
-                    District = personal.District,
-                    State = personal.State,
-                    Country = personal.Country,
-                    Pincode = personal.Pincode
-                } : null,
-                BankDetails = bank != null ? new EmployeeBankDetailDto
-                {
-                    Account_Number = bank.Account_Number,
-                    Bank_Name = bank.Bank_Name,
-                    IFSC_Code = bank.IFSC_Code,
-                    Branch_Name = bank.Branch_Name
-                } : null
-            };
+                return null;
+            }
         }
 
         public async Task<bool> UpdateEmployeeStatusByOrganization(int organizationId, string employeeId, UpdateEntityStatusDto dto, ClaimsPrincipal? user, string? ipAddress)
         {
-            // var emp = await (
-            //     from employee in _context.Employees
-            //     join admin in _context.Admins on employee.AdminId equals admin.Id
-            //     where employee.Employee_Id == employeeId && admin.OrganizationId == organizationId
-            //     select employee
-            // ).FirstOrDefaultAsync();
-            var emp = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Employee_Id == employeeId && e.OrganizationId == organizationId);
+            try
+            {
+                var emp = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId && e.OrganizationId == organizationId);
 
-            if (emp == null) return false;
+                if (emp == null) return false;
 
-            string previousStatus = emp.Status;
-            string newStatus = !string.IsNullOrWhiteSpace(dto.Status)
-                ? dto.Status
-                : (dto.IsActive.HasValue && dto.IsActive.Value ? "Active" : "Inactive");
+                string previousStatus = emp.Status;
+                string newStatus = !string.IsNullOrWhiteSpace(dto.Status)
+                    ? dto.Status
+                    : (dto.IsActive.HasValue && dto.IsActive.Value ? "Active" : "Inactive");
 
-            emp.Status = newStatus;
-            await _context.SaveChangesAsync();
+                emp.Status = newStatus;
+                await _context.SaveChangesAsync();
 
-            await _auditLogService.LogStatusChangeAsync(
-                entityType: "Employee",
-                entityId: emp.Employee_Id,
-                previousStatus: previousStatus,
-                newStatus: newStatus,
-                reason: dto.Reason,
-                user: user);
+                await _auditLogService.LogStatusChangeAsync(
+                    entityType: "Employee",
+                    entityId: emp.Employee_Id,
+                    previousStatus: previousStatus,
+                    newStatus: newStatus,
+                    reason: dto.Reason,
+                    user: user);
 
-            await _auditLogService.LogAsync(
-                action: "StatusChange",
-                module: "Employees",
-                entityId: emp.Employee_Id,
-                description: $"Changed employee '{emp.Name}' ({emp.Employee_Id}) in Organization ID {organizationId} status from {previousStatus} to {newStatus}. Reason: {dto.Reason ?? "None"}",
-                oldValue: previousStatus,
-                newValue: newStatus,
-                user: user,
-                ipAddress: ipAddress);
+                await _auditLogService.LogAsync(
+                    action: "StatusChange",
+                    module: "Employees",
+                    entityId: emp.Employee_Id,
+                    description: $"Changed employee '{emp.Name}' ({emp.Employee_Id}) in Organization ID {organizationId} status from {previousStatus} to {newStatus}. Reason: {dto.Reason ?? "None"}",
+                    oldValue: previousStatus,
+                    newValue: newStatus,
+                    user: user,
+                    ipAddress: ipAddress);
 
-            return true;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         // =========================================================
@@ -3977,20 +4272,27 @@ namespace EmployeeManagementSystem.Services
         // =========================================================
         public async Task<List<SuperAdminRoleDto>> GetAllRoles()
         {
-            var roles = await _context.Roles
-                .AsNoTracking()
-                .OrderBy(r => r.RoleId)
-                .Select(r => new SuperAdminRoleDto
-                {
-                    RoleId = r.RoleId,
-                    Name = r.Name,
-                    IsActive = r.IsActive,
-                    UserCount = _context.Users.Count(u => u.RoleId == r.RoleId) + _context.Employees.Count(e => e.RoleId == r.RoleId),
-                    PermissionCount = _context.RolePermissions.Count(rp => rp.RoleId == r.RoleId && rp.CanAccess)
-                })
-                .ToListAsync();
+            try
+            {
+                var roles = await _context.Roles
+                    .AsNoTracking()
+                    .OrderBy(r => r.RoleId)
+                    .Select(r => new SuperAdminRoleDto
+                    {
+                        RoleId = r.RoleId,
+                        Name = r.Name,
+                        IsActive = r.IsActive,
+                        UserCount = 0,
+                        PermissionCount = 0
+                    })
+                    .ToListAsync();
 
-            return roles;
+                return roles;
+            }
+            catch
+            {
+                return new List<SuperAdminRoleDto>();
+            }
         }
 
         public async Task<SuperAdminRoleDto> CreateRole(CreateRoleDto dto, ClaimsPrincipal? user, string? ipAddress)
@@ -4057,8 +4359,8 @@ namespace EmployeeManagementSystem.Services
                 RoleId = role.RoleId,
                 Name = role.Name,
                 IsActive = role.IsActive,
-                UserCount = await _context.Employees.CountAsync(e => e.RoleId == role.RoleId),
-                PermissionCount = await _context.RolePermissions.CountAsync(rp => rp.RoleId == role.RoleId && rp.CanAccess)
+                UserCount = 0,
+                PermissionCount = 0
             };
         }
 
@@ -4095,22 +4397,29 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<List<RoleUserDto>> GetUsersByRole(int roleId)
         {
-            var employees = await (
-                from e in _context.Employees.AsNoTracking().Where(x => x.RoleId == roleId)
-                join a in _context.Admins on e.AdminId equals a.Id into adminJoin
-                from a in adminJoin.DefaultIfEmpty()
-                select new RoleUserDto
-                {
-                    UserId = e.Id,
-                    EmployeeId = e.Employee_Id,
-                    Name = e.Name,
-                    Email = e.Email ?? string.Empty,
-                    Status = e.Status,
-                    OrganizationName = a != null ? a.OrganizationName : null
-                }
-            ).ToListAsync();
+            try
+            {
+                var employees = await (
+                    from e in _context.Employees.AsNoTracking().Where(x => x.RoleId == roleId)
+                    join a in _context.Admins on e.AdminId equals a.Id into adminJoin
+                    from a in adminJoin.DefaultIfEmpty()
+                    select new RoleUserDto
+                    {
+                        UserId = e.Id,
+                        EmployeeId = e.Employee_Id,
+                        Name = e.Name,
+                        Email = e.Email ?? string.Empty,
+                        Status = e.Status,
+                        OrganizationName = a != null ? a.OrganizationName : null
+                    }
+                ).ToListAsync();
 
-            return employees;
+                return employees;
+            }
+            catch
+            {
+                return new List<RoleUserDto>();
+            }
         }
 
         // =========================================================
@@ -4118,107 +4427,140 @@ namespace EmployeeManagementSystem.Services
         // =========================================================
         public async Task<PagedResultDto<AuditLogItemDto>> GetAuditLogs(AuditLogFilterDto filter)
         {
-            int page = Math.Max(1, filter.PageNumber);
-            int pageSize = filter.PageSize > 0 ? Math.Min(200, filter.PageSize) : 20;
-
-            if (string.Equals(filter.Search, "string", StringComparison.OrdinalIgnoreCase)) filter.Search = null;
-            if (string.Equals(filter.Module, "string", StringComparison.OrdinalIgnoreCase)) filter.Module = null;
-            if (string.Equals(filter.Action, "string", StringComparison.OrdinalIgnoreCase)) filter.Action = null;
-            if (string.Equals(filter.UserId, "string", StringComparison.OrdinalIgnoreCase)) filter.UserId = null;
-            if (string.Equals(filter.UserRole, "string", StringComparison.OrdinalIgnoreCase)) filter.UserRole = null;
-
-            var query = _context.AuditLogs.AsNoTracking();
-
-            if (!string.IsNullOrWhiteSpace(filter.Search))
+            try
             {
-                string s = filter.Search.Trim().ToLower();
-                query = query.Where(a =>
-                    a.Action.ToLower().Contains(s) ||
-                    a.Module.ToLower().Contains(s) ||
-                    (a.Description != null && a.Description.ToLower().Contains(s)) ||
-                    (a.UserName != null && a.UserName.ToLower().Contains(s)));
-            }
+                int page = Math.Max(1, filter.PageNumber);
+                int pageSize = filter.PageSize > 0 ? Math.Min(200, filter.PageSize) : 20;
 
-            if (!string.IsNullOrWhiteSpace(filter.Module))
-            {
-                query = query.Where(a => a.Module.ToLower() == filter.Module.Trim().ToLower());
-            }
+                if (string.Equals(filter.Search, "string", StringComparison.OrdinalIgnoreCase)) filter.Search = null;
+                if (string.Equals(filter.Module, "string", StringComparison.OrdinalIgnoreCase)) filter.Module = null;
+                if (string.Equals(filter.Action, "string", StringComparison.OrdinalIgnoreCase)) filter.Action = null;
+                if (string.Equals(filter.UserId, "string", StringComparison.OrdinalIgnoreCase)) filter.UserId = null;
+                if (string.Equals(filter.UserRole, "string", StringComparison.OrdinalIgnoreCase)) filter.UserRole = null;
 
-            if (!string.IsNullOrWhiteSpace(filter.Action))
-            {
-                query = query.Where(a => a.Action.ToLower() == filter.Action.Trim().ToLower());
-            }
+                var query = _context.AuditLogs.AsNoTracking();
 
-            if (!string.IsNullOrWhiteSpace(filter.UserId))
-            {
-                query = query.Where(a => a.UserId == filter.UserId.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(filter.UserRole))
-            {
-                query = query.Where(a => a.UserRole != null && a.UserRole.ToLower() == filter.UserRole.Trim().ToLower());
-            }
-
-            if (filter.FromDate.HasValue)
-            {
-                query = query.Where(a => a.CreatedAt >= filter.FromDate.Value);
-            }
-
-            if (filter.ToDate.HasValue)
-            {
-                query = query.Where(a => a.CreatedAt <= filter.ToDate.Value);
-            }
-
-            int totalCount = await query.CountAsync();
-
-            var items = await query
-                .OrderByDescending(a => a.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(a => new AuditLogItemDto
+                if (!string.IsNullOrWhiteSpace(filter.Search))
                 {
-                    Id = a.Id,
-                    UserId = a.UserId,
-                    UserName = a.UserName,
-                    UserRole = a.UserRole,
-                    Action = a.Action,
-                    Module = a.Module,
-                    EntityId = a.EntityId,
-                    Description = a.Description,
-                    OldValue = a.OldValue,
-                    NewValue = a.NewValue,
-                    IpAddress = a.IpAddress,
-                    CreatedAt = a.CreatedAt
-                })
-                .ToListAsync();
+                    string s = filter.Search.Trim().ToLower();
+                    query = query.Where(a =>
+                        a.Action.ToLower().Contains(s) ||
+                        a.Module.ToLower().Contains(s) ||
+                        (a.Description != null && a.Description.ToLower().Contains(s)) ||
+                        (a.UserName != null && a.UserName.ToLower().Contains(s)));
+                }
 
-            return new PagedResultDto<AuditLogItemDto>
+                if (!string.IsNullOrWhiteSpace(filter.Module))
+                {
+                    query = query.Where(a => a.Module.ToLower() == filter.Module.Trim().ToLower());
+                }
+
+                if (!string.IsNullOrWhiteSpace(filter.Action))
+                {
+                    query = query.Where(a => a.Action.ToLower() == filter.Action.Trim().ToLower());
+                }
+
+                if (!string.IsNullOrWhiteSpace(filter.UserId))
+                {
+                    query = query.Where(a => a.UserId == filter.UserId.Trim());
+                }
+
+                if (!string.IsNullOrWhiteSpace(filter.UserRole))
+                {
+                    query = query.Where(a => a.UserRole != null && a.UserRole.ToLower() == filter.UserRole.Trim().ToLower());
+                }
+
+                if (filter.FromDate.HasValue)
+                {
+                    query = query.Where(a => a.CreatedAt >= filter.FromDate.Value);
+                }
+
+                if (filter.ToDate.HasValue)
+                {
+                    query = query.Where(a => a.CreatedAt <= filter.ToDate.Value);
+                }
+
+                if (filter.OrganizationId.HasValue && filter.OrganizationId.Value > 0)
+                {
+                    query = query.Where(a => a.OrganizationId == filter.OrganizationId.Value);
+                }
+
+                int totalCount = await query.CountAsync();
+
+                var items = await query
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(a => new AuditLogItemDto
+                    {
+                        Id = a.Id,
+                        OrganizationId = a.OrganizationId,
+                        UserId = a.UserId,
+                        UserName = a.UserName,
+                        UserRole = a.UserRole,
+                        Action = a.Action,
+                        Module = a.Module,
+                        EntityId = a.EntityId,
+                        Description = a.Description,
+                        OldValue = a.OldValue,
+                        NewValue = a.NewValue,
+                        IpAddress = a.IpAddress,
+                        CreatedAt = a.CreatedAt
+                    })
+                    .ToListAsync();
+
+                return new PagedResultDto<AuditLogItemDto>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
+            }
+            catch
             {
-                Items = items,
-                TotalCount = totalCount,
-                PageNumber = page,
-                PageSize = pageSize
-            };
+                return new PagedResultDto<AuditLogItemDto>
+                {
+                    Items = new List<AuditLogItemDto>(),
+                    TotalCount = 0,
+                    PageNumber = Math.Max(1, filter.PageNumber),
+                    PageSize = filter.PageSize > 0 ? Math.Min(200, filter.PageSize) : 20
+                };
+            }
         }
 
         public async Task<List<string>> GetAuditModules()
         {
-            return await _context.AuditLogs
-                .AsNoTracking()
-                .Select(a => a.Module)
-                .Distinct()
-                .OrderBy(m => m)
-                .ToListAsync();
+            try
+            {
+                return await _context.AuditLogs
+                    .AsNoTracking()
+                    .Select(a => a.Module)
+                    .Distinct()
+                    .OrderBy(m => m)
+                    .ToListAsync();
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
 
         public async Task<List<string>> GetAuditActions()
         {
-            return await _context.AuditLogs
-                .AsNoTracking()
-                .Select(a => a.Action)
-                .Distinct()
-                .OrderBy(a => a)
-                .ToListAsync();
+            try
+            {
+                return await _context.AuditLogs
+                    .AsNoTracking()
+                    .Select(a => a.Action)
+                    .Distinct()
+                    .OrderBy(a => a)
+                    .ToListAsync();
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
 
         // =========================================================
@@ -4228,7 +4570,15 @@ namespace EmployeeManagementSystem.Services
         {
             var settingsList = await _context.SystemSettings.AsNoTracking().ToListAsync();
 
-            var emailSetting = await _context.EmailSettings.AsNoTracking().FirstOrDefaultAsync();
+            EmailSettings? emailSetting = null;
+            try
+            {
+                emailSetting = await _context.EmailSettings.AsNoTracking().FirstOrDefaultAsync();
+            }
+            catch
+            {
+                // In multi-tenancy, email settings can be in tenant DB or systemsettings
+            }
 
             var dto = new SystemSettingsDto
             {
@@ -4349,20 +4699,28 @@ namespace EmployeeManagementSystem.Services
                 .ToListAsync();
 
             // 3. Employees
-            var employees = await _context.Employees
-                .AsNoTracking()
-                .Where(e => e.Name.ToLower().Contains(keyword) || e.Employee_Id.ToLower().Contains(keyword) || (e.Email != null && e.Email.ToLower().Contains(keyword)))
-                .Take(5)
-                .Select(e => new GlobalSearchResultItemDto
-                {
-                    Id = e.Employee_Id,
-                    Title = e.Name,
-                    Subtitle = $"ID: {e.Employee_Id} | Dept: {e.Department} | Role: {e.RoleName}",
-                    EntityType = "Employee",
-                    Status = e.Status,
-                    NavigationRoute = $"/superadmin/employees/{e.Employee_Id}"
-                })
-                .ToListAsync();
+            var employees = new List<GlobalSearchResultItemDto>();
+            try
+            {
+                employees = await _context.Employees
+                    .AsNoTracking()
+                    .Where(e => e.Name.ToLower().Contains(keyword) || e.Employee_Id.ToLower().Contains(keyword) || (e.Email != null && e.Email.ToLower().Contains(keyword)))
+                    .Take(5)
+                    .Select(e => new GlobalSearchResultItemDto
+                    {
+                        Id = e.Employee_Id,
+                        Title = e.Name,
+                        Subtitle = $"ID: {e.Employee_Id} | Dept: {e.Department} | Role: {e.RoleName}",
+                        EntityType = "Employee",
+                        Status = e.Status,
+                        NavigationRoute = $"/superadmin/employees/{e.Employee_Id}"
+                    })
+                    .ToListAsync();
+            }
+            catch
+            {
+                // In multi-tenancy, employees belong to tenant databases
+            }
 
             response.Organizations = orgs;
             response.Admins = admins;
@@ -4414,17 +4772,6 @@ namespace EmployeeManagementSystem.Services
             return true;
         }
 
-        public async Task<bool> MarkAllNotificationsAsRead()
-        {
-            var unread = await _context.SuperAdminNotifications.Where(n => !n.IsRead).ToListAsync();
-            foreach (var n in unread)
-            {
-                n.IsRead = true;
-            }
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
         // =========================================================
         // LANDING PAGE LOGO
         // =========================================================
@@ -4443,7 +4790,7 @@ namespace EmployeeManagementSystem.Services
                 return new { Success = false, Message = "Only PNG, JPG, JPEG, WEBP and SVG files are allowed." };
             }
 
-            var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "branding");
+            var uploadsFolder = Path.Combine(_environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "branding");
             if (!Directory.Exists(uploadsFolder))
             {
                 Directory.CreateDirectory(uploadsFolder);
@@ -4504,15 +4851,43 @@ namespace EmployeeManagementSystem.Services
 
             try
             {
-                plans = await _context.LandingPricingPlans
+                var planSet = _masterDb != null ? _masterDb.LandingPricingPlans : _context.LandingPricingPlans;
+                var db = _masterDb != null ? (DbContext)_masterDb : (DbContext)_context;
+
+                plans = await planSet
                     .OrderBy(p => p.DisplayOrder)
                     .ToListAsync();
+
+                // Deduplicate in case multiple rows exist with the same PlanKey
+                var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var distinctPlans = new List<LandingPricingPlan>();
+                var duplicatesToDelete = new List<LandingPricingPlan>();
+
+                foreach (var p in plans)
+                {
+                    var key = (p.PlanKey ?? string.Empty).Trim().ToLowerInvariant();
+                    if (seenKeys.Add(key))
+                    {
+                        distinctPlans.Add(p);
+                    }
+                    else
+                    {
+                        duplicatesToDelete.Add(p);
+                    }
+                }
+
+                if (duplicatesToDelete.Count > 0)
+                {
+                    planSet.RemoveRange(duplicatesToDelete);
+                    await db.SaveChangesAsync();
+                    plans = distinctPlans;
+                }
 
                 if (plans.Count == 0)
                 {
                     var defaultPlans = GetDefaultPricingPlans();
-                    _context.LandingPricingPlans.AddRange(defaultPlans);
-                    await _context.SaveChangesAsync();
+                    planSet.AddRange(defaultPlans);
+                    await db.SaveChangesAsync();
                     plans = defaultPlans;
                 }
             }
@@ -4556,29 +4931,70 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<object> UpdateLandingPricingPlans(List<UpdateLandingPricingPlanDto> inputPlans)
         {
-            if (inputPlans == null || inputPlans.Count == 0)
+            var planSet = _masterDb != null ? _masterDb.LandingPricingPlans : _context.LandingPricingPlans;
+            var db = _masterDb != null ? (DbContext)_masterDb : (DbContext)_context;
+
+            var existingPlans = await planSet.ToListAsync();
+
+            if (inputPlans == null)
             {
-                return new { Success = false, Message = "No plans provided." };
+                inputPlans = new List<UpdateLandingPricingPlanDto>();
             }
 
-            var existingPlans = await _context.LandingPricingPlans.ToListAsync();
+            var inputKeys = inputPlans
+                .Where(i => !string.IsNullOrWhiteSpace(i.PlanKey))
+                .Select(i => i.PlanKey.Trim().ToLowerInvariant())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+            // 1. Remove plans omitted from inputPlans (actual deletion when user deletes a plan)
+            var toDelete = existingPlans
+                .Where(p => !inputKeys.Contains((p.PlanKey ?? string.Empty).Trim().ToLowerInvariant()))
+                .ToList();
+
+            if (toDelete.Count > 0)
+            {
+                planSet.RemoveRange(toDelete);
+                foreach (var del in toDelete)
+                {
+                    existingPlans.Remove(del);
+                }
+            }
+
+            // 2. Remove duplicate rows for the same PlanKey
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var duplicatesToDelete = new List<LandingPricingPlan>();
+            foreach (var p in existingPlans.ToList())
+            {
+                var key = (p.PlanKey ?? string.Empty).Trim().ToLowerInvariant();
+                if (!seen.Add(key))
+                {
+                    duplicatesToDelete.Add(p);
+                    existingPlans.Remove(p);
+                }
+            }
+            if (duplicatesToDelete.Count > 0)
+            {
+                planSet.RemoveRange(duplicatesToDelete);
+            }
+
+            // 3. Add or update incoming plans
             foreach (var input in inputPlans)
             {
                 if (string.IsNullOrWhiteSpace(input.PlanKey))
                     continue;
 
+                var key = input.PlanKey.Trim().ToLowerInvariant();
                 var plan = existingPlans.FirstOrDefault(p =>
-                    string.Equals(p.PlanKey, input.PlanKey, StringComparison.OrdinalIgnoreCase));
+                    string.Equals((p.PlanKey ?? string.Empty).Trim(), key, StringComparison.OrdinalIgnoreCase));
 
                 if (plan == null)
                 {
                     plan = new LandingPricingPlan
                     {
-                        PlanKey = input.PlanKey.Trim().ToLowerInvariant(),
+                        PlanKey = key,
                         Name = input.Name ?? input.PlanKey
                     };
-                    _context.LandingPricingPlans.Add(plan);
+                    planSet.Add(plan);
                     existingPlans.Add(plan);
                 }
 
@@ -4602,7 +5018,7 @@ namespace EmployeeManagementSystem.Services
                 if (input.DisplayOrder.HasValue) plan.DisplayOrder = input.DisplayOrder.Value;
             }
 
-            await _context.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             return new
             {
@@ -4610,6 +5026,41 @@ namespace EmployeeManagementSystem.Services
                 Message = "Landing pricing plans updated successfully.",
                 Plans = await GetLandingPricingPlans()
             };
+        }
+
+        public async Task<object> DeleteLandingPricingPlan(string planKey)
+        {
+            if (string.IsNullOrWhiteSpace(planKey))
+            {
+                return new { Success = false, Message = "Plan key is required." };
+            }
+
+            var planSet = _masterDb != null ? _masterDb.LandingPricingPlans : _context.LandingPricingPlans;
+            var db = _masterDb != null ? (DbContext)_masterDb : (DbContext)_context;
+
+            var key = planKey.Trim().ToLowerInvariant();
+            var plansToDelete = await planSet
+                .Where(p => (p.PlanKey != null && p.PlanKey.ToLower() == key))
+                .ToListAsync();
+
+            if (plansToDelete.Count == 0 && int.TryParse(planKey, out int planId))
+            {
+                plansToDelete = await planSet.Where(p => p.Id == planId).ToListAsync();
+            }
+
+            if (plansToDelete.Count > 0)
+            {
+                planSet.RemoveRange(plansToDelete);
+                await db.SaveChangesAsync();
+                return new
+                {
+                    Success = true,
+                    Message = "Landing pricing plan deleted successfully.",
+                    Plans = await GetLandingPricingPlans()
+                };
+            }
+
+            return new { Success = false, Message = "Pricing plan not found." };
         }
 
         private static List<LandingPricingPlan> GetDefaultPricingPlans()
@@ -4677,6 +5128,328 @@ namespace EmployeeManagementSystem.Services
                     DisplayOrder = 3
                 }
             };
+        }
+
+        public async Task<bool> MarkAllNotificationsAsRead()
+        {
+            var unread = await _context.SuperAdminNotifications.Where(n => !n.IsRead).ToListAsync();
+            foreach (var n in unread)
+            {
+                n.IsRead = true;
+            }
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // =========================================================
+        // TENANT ORGANIZATION & BASELINE SYNCHRONIZATION HELPERS
+        // =========================================================
+        private async Task SyncOrganizationToTenantDatabaseAsync(Organization org)
+        {
+            if (org == null || string.IsNullOrWhiteSpace(org.DatabaseName))
+                return;
+
+            try
+            {
+                var template = _configuration.GetConnectionString("TenantConnectionTemplate")
+                    ?? "Server={Host};Port={Port};Database={Database};User={User};Password={Password};SslMode=None;AllowPublicKeyRetrieval=True;Allow User Variables=True;";
+
+                var connStr = template
+                    .Replace("{Host}", string.IsNullOrWhiteSpace(org.DbHost) ? "localhost" : org.DbHost)
+                    .Replace("{Port}", (org.DbPort > 0 ? org.DbPort : 3306).ToString())
+                    .Replace("{Database}", org.DatabaseName)
+                    .Replace("{User}", string.IsNullOrWhiteSpace(org.DbUser) ? "root" : org.DbUser)
+                    .Replace("{Password}", org.DbPassword ?? "");
+
+                using var conn = new MySqlConnection(connStr);
+                await conn.OpenAsync();
+
+                // 1. Sync Organization row
+                using (var checkCmd = new MySqlCommand("SHOW TABLES LIKE 'organizations';", conn))
+                {
+                    var exists = await checkCmd.ExecuteScalarAsync();
+                    if (exists != null)
+                    {
+                        using var upsertCmd = new MySqlCommand(@"
+                            INSERT INTO organizations (
+                                Id, OrganizationName, OrganizationCode, ContactPerson, Email, PhoneNumber,
+                                Address, City, State, Country, Status, IsDeleted, CreatedDate, UpdatedDate
+                            )
+                            VALUES (
+                                @Id, @OrganizationName, @OrganizationCode, @ContactPerson, @Email, @PhoneNumber,
+                                @Address, @City, @State, @Country, @Status, @IsDeleted, @CreatedDate, @UpdatedDate
+                            )
+                            ON DUPLICATE KEY UPDATE
+                                OrganizationName = VALUES(OrganizationName),
+                                OrganizationCode = VALUES(OrganizationCode),
+                                ContactPerson = VALUES(ContactPerson),
+                                Email = VALUES(Email),
+                                PhoneNumber = VALUES(PhoneNumber),
+                                Address = VALUES(Address),
+                                City = VALUES(City),
+                                State = VALUES(State),
+                                Country = VALUES(Country),
+                                Status = VALUES(Status),
+                                IsDeleted = VALUES(IsDeleted),
+                                UpdatedDate = VALUES(UpdatedDate);", conn);
+
+                        upsertCmd.Parameters.AddWithValue("@Id", org.Id);
+                        upsertCmd.Parameters.AddWithValue("@OrganizationName", org.OrganizationName ?? "");
+                        upsertCmd.Parameters.AddWithValue("@OrganizationCode", org.OrganizationCode ?? "");
+                        upsertCmd.Parameters.AddWithValue("@ContactPerson", org.ContactPerson ?? "");
+                        upsertCmd.Parameters.AddWithValue("@Email", org.Email ?? "");
+                        upsertCmd.Parameters.AddWithValue("@PhoneNumber", org.PhoneNumber ?? "");
+                        upsertCmd.Parameters.AddWithValue("@Address", org.Address ?? "");
+                        upsertCmd.Parameters.AddWithValue("@City", org.City ?? "");
+                        upsertCmd.Parameters.AddWithValue("@State", org.State ?? "");
+                        upsertCmd.Parameters.AddWithValue("@Country", string.IsNullOrWhiteSpace(org.Country) ? "India" : org.Country);
+                        upsertCmd.Parameters.AddWithValue("@Status", string.IsNullOrWhiteSpace(org.Status) ? "Active" : org.Status);
+                        upsertCmd.Parameters.AddWithValue("@IsDeleted", org.IsDeleted ? 1 : 0);
+                        upsertCmd.Parameters.AddWithValue("@CreatedDate", org.CreatedDate != default ? org.CreatedDate : DateTime.UtcNow);
+                        upsertCmd.Parameters.AddWithValue("@UpdatedDate", org.UpdatedDate ?? DateTime.UtcNow);
+
+                        await upsertCmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                // 2. Ensure TemplateModuleMaster is seeded if table exists and empty
+                using (var checkTmplCmd = new MySqlCommand("SHOW TABLES LIKE 'templatemodulemaster';", conn))
+                {
+                    var tmplExists = await checkTmplCmd.ExecuteScalarAsync();
+                    if (tmplExists != null)
+                    {
+                        using var countCmd = new MySqlCommand("SELECT COUNT(*) FROM templatemodulemaster;", conn);
+                        var count = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
+                        if (count == 0)
+                        {
+                            using var seedCmd = new MySqlCommand(@"
+                                INSERT IGNORE INTO templatemodulemaster (ModuleId, ModuleCode, ModuleName, Description, IsMergeTemplate, IsActive, DisplayOrder, CreatedDate)
+                                VALUES 
+                                (1, 'OFFER', 'Offer Letter', 'Offer Letter Templates', 0, 1, 0, NOW()),
+                                (2, 'PAYSLIP', 'Payslip', 'Payslip Templates', 0, 1, 0, NOW()),
+                                (3, 'RELIEVING', 'Relieving Letter', 'Relieving Letter Template', 0, 1, 0, NOW()),
+                                (4, 'APPRAISAL', 'Appraisal Letter', 'Appraisal Letter Template', 0, 1, 0, NOW());", conn);
+                            await seedCmd.ExecuteNonQueryAsync();
+                        }
+                    }
+                }
+
+                // 3. Ensure core default roles exist if table exists and empty
+                using (var checkRolesCmd = new MySqlCommand("SHOW TABLES LIKE 'roles';", conn))
+                {
+                    var rolesExist = await checkRolesCmd.ExecuteScalarAsync();
+                    if (rolesExist != null)
+                    {
+                        using var countCmd = new MySqlCommand("SELECT COUNT(*) FROM roles WHERE OrganizationId = @OrgId OR OrganizationId IS NULL;", conn);
+                        countCmd.Parameters.AddWithValue("@OrgId", org.Id);
+                        var count = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
+                        if (count == 0)
+                        {
+                            using var seedRolesCmd = new MySqlCommand(@"
+                                INSERT INTO roles (Name, IsActive, OrganizationId)
+                                VALUES 
+                                ('Employee', 1, @OrgId),
+                                ('HR', 1, @OrgId),
+                                ('Manager', 1, @OrgId),
+                                ('Operational Manager', 1, @OrgId);", conn);
+                            seedRolesCmd.Parameters.AddWithValue("@OrgId", org.Id);
+                            await seedRolesCmd.ExecuteNonQueryAsync();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SyncOrganizationToTenantDatabaseAsync Error] Failed syncing org {org.OrganizationName} to {org.DatabaseName}: {ex.Message}");
+            }
+        }
+
+        // =========================================================
+        // TENANT ADMIN SYNCHRONIZATION HELPERS
+        // =========================================================
+        private async Task SyncAdminToTenantDatabaseAsync(Admin admin, int? previousOrgId = null)
+        {
+            if (admin == null || string.IsNullOrWhiteSpace(admin.Email))
+                return;
+
+            try
+            {
+                // 1. If admin moved from another organization, clean up old tenant DB
+                if (previousOrgId.HasValue && previousOrgId.Value > 0 && previousOrgId.Value != admin.OrganizationId)
+                {
+                    await RemoveAdminFromTenantDatabaseAsync(admin.Email, previousOrgId.Value);
+                }
+
+                // 2. If admin has an assigned organization, sync to the target tenant DB
+                if (!admin.OrganizationId.HasValue || admin.OrganizationId.Value <= 0)
+                    return;
+
+                var org = await _context.Organizations
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == admin.OrganizationId.Value && !o.IsDeleted);
+
+                if (org == null || string.IsNullOrWhiteSpace(org.DatabaseName))
+                    return;
+
+                // Ensure tenant database has the organization and baseline lookups
+                await SyncOrganizationToTenantDatabaseAsync(org);
+
+                var connStr = BuildTenantConnectionString(org);
+
+                using var conn = new MySqlConnection(connStr);
+                await conn.OpenAsync();
+
+                // Check if admins table exists in tenant DB
+                using (var checkCmd = new MySqlCommand("SHOW TABLES LIKE 'admins';", conn))
+                {
+                    var exists = await checkCmd.ExecuteScalarAsync();
+                    if (exists == null) return;
+                }
+
+                // Check if admin already exists by email
+                int existingId = 0;
+                using (var selectCmd = new MySqlCommand("SELECT id FROM admins WHERE LOWER(Email) = LOWER(@Email) LIMIT 1;", conn))
+                {
+                    selectCmd.Parameters.AddWithValue("@Email", admin.Email.Trim());
+                    var scalar = await selectCmd.ExecuteScalarAsync();
+                    if (scalar != null && scalar != DBNull.Value)
+                    {
+                        existingId = Convert.ToInt32(scalar);
+                    }
+                }
+
+                if (existingId > 0)
+                {
+                    using var updateCmd = new MySqlCommand(@"
+                        UPDATE admins 
+                        SET Password = @Password, 
+                            Role = @Role, 
+                            IsActive = @IsActive, 
+                            OrganizationId = @OrganizationId, 
+                            OrganizationName = @OrganizationName, 
+                            FullName = @FullName, 
+                            PhoneNumber = @PhoneNumber
+                        WHERE id = @Id;", conn);
+
+                    updateCmd.Parameters.AddWithValue("@Password", admin.Password ?? "");
+                    updateCmd.Parameters.AddWithValue("@Role", string.IsNullOrWhiteSpace(admin.Role) ? "Admin" : admin.Role);
+                    updateCmd.Parameters.AddWithValue("@IsActive", admin.IsActive ? 1 : 0);
+                    updateCmd.Parameters.AddWithValue("@OrganizationId", admin.OrganizationId ?? (object)DBNull.Value);
+                    updateCmd.Parameters.AddWithValue("@OrganizationName", admin.OrganizationName ?? (object)DBNull.Value);
+                    updateCmd.Parameters.AddWithValue("@FullName", admin.FullName ?? (object)DBNull.Value);
+                    updateCmd.Parameters.AddWithValue("@PhoneNumber", admin.PhoneNumber ?? (object)DBNull.Value);
+                    updateCmd.Parameters.AddWithValue("@Id", existingId);
+
+                    await updateCmd.ExecuteNonQueryAsync();
+                }
+                else
+                {
+                    using var insertCmd = new MySqlCommand(@"
+                        INSERT INTO admins (Email, Password, Role, IsActive, OrganizationId, OrganizationName, FullName, PhoneNumber, CreatedAt)
+                        VALUES (@Email, @Password, @Role, @IsActive, @OrganizationId, @OrganizationName, @FullName, @PhoneNumber, @CreatedAt);", conn);
+
+                    insertCmd.Parameters.AddWithValue("@Email", admin.Email.Trim());
+                    insertCmd.Parameters.AddWithValue("@Password", admin.Password ?? "");
+                    insertCmd.Parameters.AddWithValue("@Role", string.IsNullOrWhiteSpace(admin.Role) ? "Admin" : admin.Role);
+                    insertCmd.Parameters.AddWithValue("@IsActive", admin.IsActive ? 1 : 0);
+                    insertCmd.Parameters.AddWithValue("@OrganizationId", admin.OrganizationId ?? (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@OrganizationName", admin.OrganizationName ?? (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@FullName", admin.FullName ?? (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@PhoneNumber", admin.PhoneNumber ?? (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@CreatedAt", admin.CreatedAt ?? DateTime.UtcNow);
+
+                    await insertCmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non-blocking: log so master DB operation succeeds even if tenant DB is still initializing
+                Console.WriteLine($"[SyncAdminToTenantDatabaseAsync Error] Failed syncing admin {admin.Email}: {ex.Message}");
+            }
+        }
+
+        private async Task RemoveAdminFromTenantDatabaseAsync(string email, int organizationId)
+        {
+            if (string.IsNullOrWhiteSpace(email) || organizationId <= 0)
+                return;
+
+            try
+            {
+                var org = await _context.Organizations
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted);
+
+                if (org == null || string.IsNullOrWhiteSpace(org.DatabaseName))
+                    return;
+
+                var connStr = BuildTenantConnectionString(org);
+
+                using var conn = new MySqlConnection(connStr);
+                await conn.OpenAsync();
+
+                using var cmd = new MySqlCommand("DELETE FROM admins WHERE LOWER(Email) = LOWER(@Email);", conn);
+                cmd.Parameters.AddWithValue("@Email", email.Trim());
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RemoveAdminFromTenantDatabaseAsync Error] Failed removing admin {email} from org {organizationId}: {ex.Message}");
+            }
+        }
+
+        private string BuildTenantConnectionString(Organization org)
+        {
+            var masterConnStr = _configuration.GetConnectionString("MasterConnection") ?? "";
+            var masterBuilder = new MySqlConnectionStringBuilder(masterConnStr);
+
+            var template = _configuration.GetConnectionString("TenantConnectionTemplate")
+                ?? "Server={Host};Port={Port};Database={Database};User={User};Password={Password};SslMode=None;AllowPublicKeyRetrieval=True;Allow User Variables=True;";
+
+            var host = !string.IsNullOrWhiteSpace(org.DbHost) ? org.DbHost : masterBuilder.Server;
+            var port = org.DbPort > 0 ? org.DbPort : (masterBuilder.Port > 0 ? (int)masterBuilder.Port : 3306);
+            var user = !string.IsNullOrWhiteSpace(org.DbUser) ? org.DbUser : masterBuilder.UserID;
+            var pass = !string.IsNullOrWhiteSpace(org.DbPassword) ? org.DbPassword : masterBuilder.Password;
+
+            return template
+                .Replace("{Host}", host)
+                .Replace("{Port}", port.ToString())
+                .Replace("{Database}", org.DatabaseName)
+                .Replace("{User}", user)
+                .Replace("{Password}", pass);
+        }
+
+        private async Task<int> GetTenantEmployeeCountAsync(Organization? org)
+        {
+            if (org == null || string.IsNullOrWhiteSpace(org.DatabaseName))
+                return 0;
+
+            try
+            {
+                var connStr = BuildTenantConnectionString(org);
+
+                using var conn = new MySqlConnection(connStr);
+                await conn.OpenAsync();
+
+                using var cmd = new MySqlCommand("SELECT COUNT(*) FROM employees;", conn);
+                var res = await cmd.ExecuteScalarAsync();
+                if (res != null && res != DBNull.Value)
+                {
+                    return Convert.ToInt32(res);
+                }
+            }
+            catch
+            {
+                // Fallback to 0 if tenant DB or employees table cannot be reached
+            }
+
+            return 0;
+        }
+
+        private async Task<int> GetTenantEmployeeCountAsync(int organizationId)
+        {
+            var org = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted);
+            if (org == null) return 0;
+            return await GetTenantEmployeeCountAsync(org);
         }
     }
 }

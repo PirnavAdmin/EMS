@@ -1,9 +1,16 @@
-﻿using EmployeeManagementSystem.Data;
+using ClosedXML.Excel;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using ClosedXML.Excel;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -11,34 +18,45 @@ namespace EmployeeManagementSystem.Services
     {
         private readonly IAdminNotificationService _adminNotificationService;
         private readonly IUserNotificationService _notificationService;
-
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public TaskManagementService(
-    AppDbContext context,
-    IUserNotificationService notificationService,
-    IAdminNotificationService adminNotificationService)
+            AppDbContext context,
+            IUserNotificationService notificationService,
+            IAdminNotificationService adminNotificationService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _notificationService = notificationService;
             _adminNotificationService = adminNotificationService;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        // Helper to extract OrganizationId from the JWT claims
+        private int GetCurrentOrgId()
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User context not found.");
+            }
+            var orgId = CurrentUserHelper.GetOrganizationId(user);
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                throw new UnauthorizedAccessException("OrganizationId not found in token.");
+            }
+            return orgId.Value;
         }
 
         // CREATE TASK
         public async Task<string> CreateTask(TaskManagementDto dto)
         {
-            // varsha: Validate that assigned employee is active
-            if (!string.IsNullOrWhiteSpace(dto.AssignedTo)) // varsha
-            { // varsha
-                var assignedEmp = await _context.Employees // varsha
-                    .AsNoTracking() // varsha
-                    .FirstOrDefaultAsync(e => e.Employee_Id == dto.AssignedTo && e.Status == "Active"); // varsha
-                if (assignedEmp == null) // varsha
-                    return "Cannot assign task: employee is inactive or not found"; // varsha
-            } // varsha
+            int orgId = GetCurrentOrgId();
 
             var task = new TaskManagement
             {
+                OrganizationId = orgId,
                 TaskTitle = dto.TaskTitle,
                 Project = dto.Project,
                 Priority = dto.Priority,
@@ -53,11 +71,13 @@ namespace EmployeeManagementSystem.Services
 
             _context.ActivityLogs.Add(new ActivityLog
             {
+                OrganizationId = task.OrganizationId,
                 Activity = $"Task '{dto.TaskTitle}' created",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
+
             await _notificationService.CreateNotification(new UserNotificationDto
             {
                 Employee_Id = task.AssignedTo,
@@ -71,34 +91,30 @@ namespace EmployeeManagementSystem.Services
         // GET ALL TASKS
         public async Task<List<TaskManagement>> GetAllTasks()
         {
-            return await _context.TaskManagement.ToListAsync();
+            int orgId = GetCurrentOrgId();
+            return await _context.TaskManagement
+                .Where(t => t.OrganizationId == orgId)
+                .ToListAsync();
         }
 
-        // GET BY ID
+        // GET BY EMPLOYEE
         public async Task<List<TaskManagement>> GetTasksByEmployee(string employeeId)
         {
+            int orgId = GetCurrentOrgId();
             return await _context.TaskManagement
-                .Where(t => t.AssignedTo == employeeId)
+                .Where(t => t.OrganizationId == orgId && t.AssignedTo == employeeId)
                 .ToListAsync();
         }
 
         // UPDATE TASK
         public async Task<object?> UpdateTask(int id, TaskManagementDto dto)
         {
-            var task = await _context.TaskManagement.FindAsync(id);
+            int orgId = GetCurrentOrgId();
+            var task = await _context.TaskManagement
+                .FirstOrDefaultAsync(t => t.Id == id && t.OrganizationId == orgId);
 
             if (task == null)
                 return null;
-
-            // varsha: Validate that assigned employee is active
-            if (!string.IsNullOrWhiteSpace(dto.AssignedTo)) // varsha
-            { // varsha
-                var assignedEmp = await _context.Employees // varsha
-                    .AsNoTracking() // varsha
-                    .FirstOrDefaultAsync(e => e.Employee_Id == dto.AssignedTo && e.Status == "Active"); // varsha
-                if (assignedEmp == null) // varsha
-                    throw new Exception("Cannot assign task: employee is inactive or not found"); // varsha
-            } // varsha
 
             task.TaskTitle = dto.TaskTitle;
             task.Project = dto.Project;
@@ -109,6 +125,7 @@ namespace EmployeeManagementSystem.Services
 
             _context.ActivityLogs.Add(new ActivityLog
             {
+                OrganizationId = task.OrganizationId,
                 Activity = $"Task '{dto.TaskTitle}' updated",
                 CreatedAt = DateTime.UtcNow
             });
@@ -118,11 +135,12 @@ namespace EmployeeManagementSystem.Services
             return task;
         }
 
-
         // UPDATE STATUS
         public async Task<string> UpdateStatus(int id, string status)
         {
-            var task = await _context.TaskManagement.FindAsync(id);
+            int orgId = GetCurrentOrgId();
+            var task = await _context.TaskManagement
+                .FirstOrDefaultAsync(t => t.Id == id && t.OrganizationId == orgId);
 
             if (task == null)
                 return "Task not found";
@@ -131,14 +149,15 @@ namespace EmployeeManagementSystem.Services
 
             _context.ActivityLogs.Add(new ActivityLog
             {
+                OrganizationId = task.OrganizationId,
                 Activity = $"Task '{task.TaskTitle}' status changed to {status}",
                 CreatedAt = DateTime.UtcNow
             });
 
-            // ✅ IMPORTANT (Admin notification)
             await _adminNotificationService.CreateNotification(
                 "Task Updated",
-                $"Task '{task.TaskTitle}' marked as {status} by {task.AssignedTo}"
+                $"Task '{task.TaskTitle}' marked as {status} by {task.AssignedTo}",
+                task.OrganizationId
             );
 
             await _context.SaveChangesAsync();
@@ -149,7 +168,9 @@ namespace EmployeeManagementSystem.Services
         // DELETE TASK
         public async Task<string> DeleteTask(int id)
         {
-            var task = await _context.TaskManagement.FindAsync(id);
+            int orgId = GetCurrentOrgId();
+            var task = await _context.TaskManagement
+                .FirstOrDefaultAsync(t => t.Id == id && t.OrganizationId == orgId);
 
             if (task == null)
                 return "Task not found";
@@ -158,6 +179,7 @@ namespace EmployeeManagementSystem.Services
 
             _context.ActivityLogs.Add(new ActivityLog
             {
+                OrganizationId = task.OrganizationId,
                 Activity = $"Task '{task.TaskTitle}' deleted",
                 CreatedAt = DateTime.UtcNow
             });
@@ -167,15 +189,20 @@ namespace EmployeeManagementSystem.Services
             return "Task deleted successfully";
         }
 
-
-        // CHECK TASK DEADLINES (ADMIN ALERT)
+        // CHECK TASK DEADLINES
         public async Task CheckTaskDeadlines()
         {
             var today = DateTime.UtcNow.Date;
+            var user = _httpContextAccessor.HttpContext?.User;
+            var orgId = CurrentUserHelper.GetOrganizationId(user);
 
-            var tasks = await _context.TaskManagement
-                .Where(t => t.Status != "Completed")
-                .ToListAsync();
+            var query = _context.TaskManagement.Where(t => t.Status != "Completed");
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(t => t.OrganizationId == orgId.Value);
+            }
+
+            var tasks = await query.ToListAsync();
 
             foreach (var task in tasks)
             {
@@ -183,7 +210,8 @@ namespace EmployeeManagementSystem.Services
                 {
                     await _adminNotificationService.CreateNotification(
                         "Task Due Today",
-                        $"{task.TaskTitle} is due today"
+                        $"{task.TaskTitle} is due today",
+                        task.OrganizationId
                     );
                 }
 
@@ -191,20 +219,23 @@ namespace EmployeeManagementSystem.Services
                 {
                     await _adminNotificationService.CreateNotification(
                         "Task Overdue",
-                        $"{task.TaskTitle} is overdue"
+                        $"{task.TaskTitle} is overdue",
+                        task.OrganizationId
                     );
-
-
                 }
             }
         }
+
+        // GET MY TASKS
         public async Task<object> GetMyTasksAsync(string email)
         {
+            int orgId = GetCurrentOrgId();
+
             if (string.IsNullOrEmpty(email))
                 throw new Exception("Invalid token");
 
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Email == email);
+                .FirstOrDefaultAsync(e => e.Email == email && e.OrganizationId == orgId);
 
             if (employee == null)
                 throw new Exception("Employee not found");
@@ -212,14 +243,13 @@ namespace EmployeeManagementSystem.Services
             var today = DateTime.UtcNow.Date;
 
             var tasks = await _context.TaskManagement
-                .Where(t => t.AssignedTo == employee.Employee_Id)
+                .Where(t => t.OrganizationId == orgId && t.AssignedTo == employee.Employee_Id)
                 .ToListAsync();
 
             var updatedTasks = tasks.Select(task =>
             {
                 var status = task.Status;
 
-                // Existing logic
                 if (status == "Pending")
                     status = "In Progress";
 
@@ -255,16 +285,19 @@ namespace EmployeeManagementSystem.Services
             };
         }
 
-            public async Task<byte[]> ExportTasksExcel()
+        // EXPORT EXCEL
+        public async Task<byte[]> ExportTasksExcel()
         {
+            int orgId = GetCurrentOrgId();
+
             var tasks = await _context.TaskManagement
                 .AsNoTracking()
+                .Where(t => t.OrganizationId == orgId)
                 .ToListAsync();
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Tasks");
 
-            // Headers
             worksheet.Cell(1, 1).Value = "Task Title";
             worksheet.Cell(1, 2).Value = "Project";
             worksheet.Cell(1, 3).Value = "Priority";
@@ -278,7 +311,6 @@ namespace EmployeeManagementSystem.Services
             headerRange.Style.Font.Bold = true;
 
             int row = 2;
-
             foreach (var task in tasks)
             {
                 worksheet.Cell(row, 1).Value = task.TaskTitle;
@@ -289,7 +321,6 @@ namespace EmployeeManagementSystem.Services
                 worksheet.Cell(row, 6).Value = task.DueDate;
                 worksheet.Cell(row, 7).Value = task.Description;
                 worksheet.Cell(row, 8).Value = task.CreatedAt;
-
                 row++;
             }
 
@@ -297,10 +328,7 @@ namespace EmployeeManagementSystem.Services
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-
             return stream.ToArray();
         }
     }
-    }
-
-
+}

@@ -9,6 +9,11 @@ public class Project
     public int Id { get; set; }
 
     [Required]
+    [Column("OrganizationId")]
+    public int OrganizationId { get; set; }
+
+
+    [Required]
     public string Project_Name { get; set; } = string.Empty;
 
     [Required]

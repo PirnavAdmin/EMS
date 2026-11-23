@@ -23,7 +23,8 @@ namespace EmployeeManagementSystem.Interfaces
         Task<List<BulkPayslipGenerationResultDto>> GenerateAllPaySlips(
     int year,
     List<string> months,
-    List<string> employeeIds);
+    List<string> employeeIds,
+    string? organizationCode = null);
 
         Task<List<PaySlip>> GetRecentPayslips();
 

@@ -1,8 +1,9 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Models.Master;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,20 +14,49 @@ namespace EmployeeManagementSystem.Controllers
     public class UserController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly MasterDbContext _masterDb;
         private readonly IEmailService _emailService;
         private readonly JwtHelper _jwtHelper;
         private readonly IAdminNotificationService _notificationService;
+        private readonly ITenantProvider _tenantProvider;
 
         public UserController(
             AppDbContext context,
+            MasterDbContext masterDb,
             IEmailService emailService,
             JwtHelper jwtHelper,
-            IAdminNotificationService notificationService)
+            IAdminNotificationService notificationService,
+            ITenantProvider tenantProvider)
         {
             _context = context;
+            _masterDb = masterDb;
             _emailService = emailService;
             _jwtHelper = jwtHelper;
             _notificationService = notificationService;
+            _tenantProvider = tenantProvider;
+        }
+
+        private async Task EnsureTenantContextByEmailAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return;
+
+            try
+            {
+                var masterUser = await _masterDb.MasterUsers
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == email.Trim().ToLower());
+
+                if (masterUser != null && !string.IsNullOrWhiteSpace(masterUser.OrganizationCode))
+                {
+                    _tenantProvider.SetCurrentTenant(masterUser.OrganizationCode);
+                    var tenantConnStr = _tenantProvider.GetTenantConnectionString();
+                    _context.Database.SetConnectionString(tenantConnStr);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UserController] Auto-detect tenant failed: {ex.Message}");
+            }
         }
 
         // ============================================================
@@ -94,6 +124,12 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             string email = dto.Email.Trim();
+
+            // ========================================================
+            // AUTO-DETECT TENANT FROM MASTER DATABASE
+            // ========================================================
+
+            await EnsureTenantContextByEmailAsync(email);
 
             // ========================================================
             // CHECK IF USER ALREADY EXISTS
@@ -209,6 +245,27 @@ namespace EmployeeManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Sync to MasterUsers if organization is known
+            if (employee.OrganizationId.HasValue)
+            {
+                var org = await _masterDb.Organizations.FirstOrDefaultAsync(o => o.Id == employee.OrganizationId.Value);
+                if (org != null && !string.IsNullOrWhiteSpace(org.OrganizationCode))
+                {
+                    var existingMu = await _masterDb.MasterUsers.FirstOrDefaultAsync(m => m.Email.ToLower() == email.ToLower());
+                    if (existingMu == null)
+                    {
+                        _masterDb.MasterUsers.Add(new MasterUser
+                        {
+                            Email = email.ToLower(),
+                            OrganizationCode = org.OrganizationCode,
+                            Role = defaultRole.Name ?? "Employee",
+                            IsActive = true
+                        });
+                        await _masterDb.SaveChangesAsync();
+                    }
+                }
+            }
+
             // ========================================================
             // ADMIN NOTIFICATION
             // ========================================================
@@ -270,6 +327,12 @@ namespace EmployeeManagementSystem.Controllers
                 string email = dto.Email.Trim();
 
                 // ====================================================
+                // AUTO-DETECT TENANT FROM MASTER DATABASE
+                // ====================================================
+
+                await EnsureTenantContextByEmailAsync(email);
+
+                // ====================================================
                 // FIND NORMAL USER
                 // ====================================================
 
@@ -279,8 +342,32 @@ namespace EmployeeManagementSystem.Controllers
 
                 // ====================================================
                 // USER NOT FOUND
-                // CHECK ONBOARDING CANDIDATE
+                // CHECK INITIAL EMPLOYEE OR ONBOARDING CANDIDATE
                 // ====================================================
+
+                if (user == null)
+                {
+                    // 1. Check if an active employee account was created by Admin with initial password
+                    var initialEmp = await _context.Employees
+                        .FirstOrDefaultAsync(e => e.Email.ToLower() == email.ToLower());
+
+                    if (initialEmp != null && !string.IsNullOrWhiteSpace(initialEmp.Password) && initialEmp.Password == dto.Password)
+                    {
+                        var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleId == initialEmp.RoleId)
+                                          ?? await _context.Roles.FirstOrDefaultAsync(r => r.Name.ToLower() == "employee");
+
+                        user = new Register
+                        {
+                            FirstName = initialEmp.Name ?? "",
+                            LastName = "",
+                            Email = email,
+                            Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                            RoleId = initialEmp.RoleId ?? defaultRole?.RoleId
+                        };
+                        _context.Users.Add(user);
+                        await _context.SaveChangesAsync();
+                    }
+                }
 
                 if (user == null)
                 {
@@ -455,11 +542,22 @@ namespace EmployeeManagementSystem.Controllers
 
                 if (user.RoleId == null)
                 {
-                    return Unauthorized(new
+                    var empRecord = await _context.Employees
+                        .FirstOrDefaultAsync(e => e.Email.ToLower() == email.ToLower());
+
+                    if (empRecord?.RoleId != null)
                     {
-                        Status = false,
-                        Message = "Role not assigned."
-                    });
+                        user.RoleId = empRecord.RoleId;
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        return Unauthorized(new
+                        {
+                            Status = false,
+                            Message = "Role not assigned."
+                        });
+                    }
                 }
 
                 // ====================================================
@@ -512,6 +610,22 @@ namespace EmployeeManagementSystem.Controllers
                 }
 
                 // ====================================================
+                // AUTO-SYNC ROLE (EMPLOYEE MASTER -> USER TABLE)
+                // ====================================================
+                if (employee.RoleId.HasValue && employee.RoleId.Value > 0 && user.RoleId != employee.RoleId.Value)
+                {
+                    var matchedRole = await _context.Roles
+                        .FirstOrDefaultAsync(r => r.RoleId == employee.RoleId.Value);
+
+                    if (matchedRole != null && matchedRole.IsActive)
+                    {
+                        user.RoleId = employee.RoleId.Value;
+                        role = matchedRole;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                // ====================================================
                 // EMPLOYEE STATUS CHECK
                 // ====================================================
 
@@ -529,27 +643,18 @@ namespace EmployeeManagementSystem.Controllers
                 }
 
                 var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
-
-_context,
-
-employee.AdminId,
-
-employee.OrganizationId);
+                    _context,
+                    employee.AdminId,
+                    employee.OrganizationId,
+                    _masterDb);
 
                 if (!effectiveSub.IsActive)
-
                 {
-
                     return Unauthorized(new
-
                     {
-
                         Status = false,
-
-                        Message = "Your organization subscription has expired or is inactive. Please contact your administrator."
-
+                        Message = "Subscription expired or inactive."
                     });
-
                 }
 
 
@@ -575,6 +680,7 @@ employee.OrganizationId);
                 _context.ActivityLogs.Add(
                     new ActivityLog
                     {
+                        OrganizationId = employee.OrganizationId,
                         Activity =
                             $"{employeeName} logged in",
 
@@ -585,6 +691,28 @@ employee.OrganizationId);
                 await _context.SaveChangesAsync();
 
                 // ====================================================
+                // RESOLVE TENANT ORGANIZATION CODE
+                // ====================================================
+
+                string orgCode = _tenantProvider.GetCurrentOrganizationCode() ?? string.Empty;
+                if (employee.OrganizationId.HasValue && employee.OrganizationId.Value > 0)
+                {
+                    var org = await _masterDb.Organizations.FirstOrDefaultAsync(o => o.Id == employee.OrganizationId.Value);
+                    if (org != null && !string.IsNullOrWhiteSpace(org.OrganizationCode))
+                    {
+                        orgCode = org.OrganizationCode;
+                    }
+                }
+                else
+                {
+                    var mu = await _masterDb.MasterUsers.FirstOrDefaultAsync(u => u.Email == user.Email);
+                    if (mu != null && !string.IsNullOrWhiteSpace(mu.OrganizationCode))
+                    {
+                        orgCode = mu.OrganizationCode;
+                    }
+                }
+
+                // ====================================================
                 // GENERATE JWT
                 // ====================================================
 
@@ -593,7 +721,9 @@ employee.OrganizationId);
                         user,
                         role.Name,
                         employeeId,
-                        adminId
+                        adminId,
+                        employee.OrganizationId,
+                        orgCode
                     );
 
                 // ====================================================
@@ -610,7 +740,10 @@ employee.OrganizationId);
                     employeeId = employee.Employee_Id,
                     roleId = user.RoleId,
                     adminId = employee.AdminId,
-                    roleName = role.Name
+                    roleName = role.Name,
+                    organizationCode = orgCode,
+                    tenantId = orgCode,
+                    redirectUrl = $"/{orgCode}/dashboard"
                 });
             }
             catch (Exception ex)
@@ -646,6 +779,8 @@ employee.OrganizationId);
 
             string email = dto.Email.Trim();
 
+            await EnsureTenantContextByEmailAsync(email);
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(x =>
                     x.Email.ToLower() ==
@@ -657,16 +792,6 @@ employee.OrganizationId);
                 {
                     Status = false,
                     Message = "Employee not found."
-                });
-            }
-
-            // varsha: Prevent inactive employees from receiving password reset OTP emails
-            if (!string.Equals(employee.Status?.Trim(), "Active", StringComparison.OrdinalIgnoreCase))
-            {
-                return BadRequest(new
-                {
-                    Status = false,
-                    Message = "Your employee account is inactive. Please contact the administrator."
                 });
             }
 
@@ -731,6 +856,8 @@ employee.OrganizationId);
             }
 
             string email = dto.Email.Trim();
+
+            await EnsureTenantContextByEmailAsync(email);
 
             var user = await _context.Users
                 .FirstOrDefaultAsync(x =>

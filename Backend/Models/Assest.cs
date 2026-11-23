@@ -11,6 +11,11 @@ public class Asset
     public int Id { get; set; }
 
     [Required]
+    [Column("OrganizationId")]
+    public int OrganizationId { get; set; }
+
+
+    [Required]
     [Column("Asset_Name")]
     public string? AssetName { get; set; }
 

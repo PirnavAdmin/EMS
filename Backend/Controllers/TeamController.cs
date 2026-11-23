@@ -1,15 +1,8 @@
-using EmployeeManagementSystem.Controllers;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-
-using EmployeeManagementSystem.DTOs;
- using EmployeeManagementSystem.Interfaces;
- using Microsoft.AspNetCore.Authorization;
- using Microsoft.AspNetCore.Mvc;
- 
 namespace EmployeeManagementSystem.Controllers
 {
     [Authorize]
@@ -33,90 +26,91 @@ namespace EmployeeManagementSystem.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            return await _service.CreateTeam(dto);
+            return await _service.CreateTeam(dto, User);
         }
 
         [HttpGet]
         public async Task<IActionResult> GetTeams()
         {
-            return await _service.GetTeams();
+            return await _service.GetTeams(User);
         }
 
         [HttpGet("{teamId}")]
         public async Task<IActionResult> GetDetails(int teamId, [FromQuery] DateTime? date = null)
         {
-            return await _service.GetTeamDetails(teamId, date);
+            return await _service.GetTeamDetails(teamId, User, date);
         }
 
         [HttpPut("update")]
         public async Task<IActionResult> UpdateTeam(UpdateTeamDto dto)
         {
-            return await _service.UpdateTeam(dto);
+            return await _service.UpdateTeam(dto, User);
         }
 
         [HttpDelete("{teamId}")]
         public async Task<IActionResult> DeleteTeam(int teamId)
         {
-            return await _service.DeleteTeam(teamId);
+            return await _service.DeleteTeam(teamId, User);
         }
 
         [HttpPost("add-members")]
         public async Task<IActionResult> AddMembers(AddTeamMembersDto dto)
         {
-            return await _service.AddMembers(dto);
+            return await _service.AddMembers(dto, User);
         }
 
         [HttpDelete("{teamId}/member/{employeeId}")]
         public async Task<IActionResult> RemoveMember(int teamId, string employeeId)
         {
-            return await _service.RemoveMember(teamId, employeeId);
+            return await _service.RemoveMember(teamId, employeeId, User);
         }
 
         [HttpPut("update-weekly-off")]
         public async Task<IActionResult> UpdateWeeklyOff(UpdateTeamWeeklyOffDto dto)
         {
-            return await _service.UpdateTeamWeeklyOff(dto);
+            return await _service.UpdateTeamWeeklyOff(dto, User);
         }
 
         [HttpPut("update-reporting-days")]
         public async Task<IActionResult> UpdateReportingDays(UpdateReportingDaysDto dto)
         {
-            return await _service.UpdateReportingDays(dto);
+            return await _service.UpdateReportingDays(dto, User);
         }
 
         [HttpPut("member-override")]
         public async Task<IActionResult> MemberOverride(MemberOverrideDto dto)
         {
-            return await _service.MemberOverride(dto);
+            return await _service.MemberOverride(dto, User);
         }
 
         [HttpGet("available-employees")]
         public async Task<IActionResult> GetAvailableEmployees()
         {
-            return await _service.GetAvailableEmployees();
+            return await _service.GetAvailableEmployees(User);
         }
 
         [HttpGet("managers")]
         public async Task<IActionResult> GetManagers()
         {
-            return await _service.GetManagers();
+            return await _service.GetManagers(User);
         }
 
         [HttpGet("project-teams")]
         public async Task<IActionResult> GetProjectTeams()
         {
-            return await _service.GetProjectTeams();
+            return await _service.GetProjectTeams(User);
         }
 
         [HttpGet("export")]
         public async Task<IActionResult> ExportTeams()
         {
-            return await _service.ExportTeams();
+            return await _service.ExportTeams(User);
         }
+
         [HttpGet("my-team")]
         public async Task<IActionResult> GetMyTeam([FromQuery] DateTime? date = null)
         {
-            return await _service.GetMyTeam(date);
+            return await _service.GetMyTeam(User, date);
         }
     }
 }

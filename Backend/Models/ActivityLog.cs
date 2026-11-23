@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
@@ -12,5 +12,8 @@ namespace EmployeeManagementSystem.Models
         public string Activity { get; set; }
 
         public DateTime CreatedAt { get; set; }
+
+        [Column("OrganizationId")]
+        public int? OrganizationId { get; set; }
     }
 }

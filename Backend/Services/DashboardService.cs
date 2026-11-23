@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 
 using EmployeeManagementSystem.DTOs;
 
@@ -80,7 +80,7 @@ namespace EmployeeManagementSystem.Services
 
                     .AsNoTracking()
 
-                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId && e.Status == "Active"); // varsha
+                    .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 
                 if (loggedInEmployee?.AdminId == null)
 
@@ -88,7 +88,7 @@ namespace EmployeeManagementSystem.Services
 
                     throw new UnauthorizedAccessException(
 
-                        "Logged-in user is not assigned to an Admin/company or is inactive."); // varsha
+                        "Logged-in user is not assigned to an Admin/company.");
 
                 }
 
@@ -190,11 +190,11 @@ namespace EmployeeManagementSystem.Services
 
             var totalEmployees = await _context.Employees
 
-                .Where(e => (isOrg
+                .Where(e => isOrg
 
                     ? (e.OrganizationId == orgId || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
 
-                    : e.AdminId == adminId) && e.Status == "Active") // varsha: dashboard only counts active employees
+                    : e.AdminId == adminId)
 
                 .CountAsync();
 
@@ -205,19 +205,14 @@ namespace EmployeeManagementSystem.Services
             // ==========================================
 
             var totalDepartments = await _context.Departments
-
+                .Where(d => !isOrg || d.OrganizationId == orgId)
                 .CountAsync();
 
             // ==========================================
-
             // ACTIVE PROJECTS
-
             // ==========================================
-
             var activeProjects = await _context.Projects
-
-                .Where(p => new[] { "Active", "In Progress" }.Contains(p.Status))
-
+                .Where(p => (!isOrg || p.OrganizationId == orgId) && new[] { "Active", "In Progress" }.Contains(p.Status))
                 .CountAsync();
 
             // ==========================================
@@ -235,7 +230,6 @@ namespace EmployeeManagementSystem.Services
                     _context.Employees.Any(e =>
 
                         e.Employee_Id == a.Employee_Id &&
-                        e.Status == "Active" && // varsha: active employees only
 
                         (isOrg
 
@@ -262,7 +256,7 @@ namespace EmployeeManagementSystem.Services
 
             var activityLogs = await _context.ActivityLogs
 
-                .Where(a => a.CreatedAt >= activityExpiry)
+                .Where(a => (!isOrg || a.OrganizationId == orgId) && a.CreatedAt >= activityExpiry)
 
                 .OrderByDescending(a => a.CreatedAt)
 
@@ -301,11 +295,8 @@ namespace EmployeeManagementSystem.Services
             // ==========================================
 
             var upcomingHolidays = await _context.Holidays
-
-                .Where(h => h.Holiday_Date >= today)
-
+                .Where(h => (!isOrg || h.OrganizationId == orgId) && h.Holiday_Date >= today)
                 .OrderBy(h => h.Holiday_Date)
-
                 .Take(3)
 
                 .Select(h => new UpComingHolidayDto

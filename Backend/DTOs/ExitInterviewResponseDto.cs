@@ -1,8 +1,10 @@
-﻿namespace EmployeeManagementSystem.DTOs
+namespace EmployeeManagementSystem.DTOs
 {
     public class ExitInterviewResponseDto
     {
         public int ExitInterviewId { get; set; }
+
+        public int? OrganizationId { get; set; }
 
         public int ResignationId { get; set; }
 

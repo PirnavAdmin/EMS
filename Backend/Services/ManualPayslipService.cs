@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
@@ -533,6 +533,7 @@ e.Status == "Active");
             //--------------------------------
             var payslip = new PaySlip
             {
+                OrganizationId = employee.OrganizationId ?? (employee.AdminId.HasValue ? (_context.Admins.Where(a => a.Id == employee.AdminId.Value).Select(a => a.OrganizationId).FirstOrDefault() ?? throw new InvalidOperationException($"Employee {employee.Employee_Id} has no assigned organization.")) : throw new InvalidOperationException($"Employee {employee.Employee_Id} has no assigned organization.")),
                 EmployeeId = employee.Employee_Id,
                 CTC = employee.CTC,
                 Month = dto.Month,

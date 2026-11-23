@@ -8,6 +8,11 @@ public class TaskManagement
     [Key]
     public int Id { get; set; }
 
+
+    [Required]
+    [Column("OrganizationId")]
+    public int OrganizationId { get; set; }
+
     [Required]
     [Column("Task_Title")]
     public string? TaskTitle { get; set; }

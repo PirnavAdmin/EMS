@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml.Spreadsheet;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Helpers;
@@ -24,21 +24,17 @@ namespace EmployeeManagementSystem.Controllers
     {
 
         private readonly IConfiguration _configuration;
-
         private readonly AppDbContext _context;
+        private readonly MasterDbContext _masterDb;
 
         public AdminController(
-
-    IConfiguration configuration,
-
-    AppDbContext context)
-
+            IConfiguration configuration,
+            AppDbContext context,
+            MasterDbContext masterDb)
         {
-
             _configuration = configuration;
-
             _context = context;
-
+            _masterDb = masterDb;
         }
         //[HttpPost("login")]
         //public IActionResult Login(LoginDto dto)
@@ -107,26 +103,28 @@ namespace EmployeeManagementSystem.Controllers
 
         string email = dto.Email.Trim().ToLower();
 
-            // 2. Find Admin (Case-insensitive)
-
+            // 2. Find Admin (Case-insensitive) - Check tenant context first, then fallback to Master DB
             var admin = await _context.Admins
-
                 .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
 
+            bool isFromMaster = false;
             if (admin == null)
-
             {
-
-                return Unauthorized(new
-
+                admin = await _masterDb.Admins
+                    .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
+                if (admin != null)
                 {
+                    isFromMaster = true;
+                }
+            }
 
+            if (admin == null)
+            {
+                return Unauthorized(new
+                {
                     Status = false,
-
                     Message = "Invalid credentials"
-
                 });
-
             }
 
             // 3. Block Inactive Admin Account
@@ -147,30 +145,20 @@ namespace EmployeeManagementSystem.Controllers
 
             }
 
-            // 4. Validate Subscription FIRST (Admin + Organization)
-
+            // 4. Validate Organization Subscription
             var effectiveSub = await SubscriptionHelper.GetEffectiveSubscriptionAsync(
-
                 _context,
-
                 admin.Id,
-
-                admin.OrganizationId);
+                admin.OrganizationId,
+                _masterDb);
 
             if (!effectiveSub.IsActive)
-
             {
-
                 return Unauthorized(new
-
                 {
-
                     Status = false,
-
-                    Message = "Your subscription is inactive"
-
+                    Message = "Subscription expired or inactive."
                 });
-
             }
 
             // 5. Verify Password (Supports BCrypt and Plain-Text fallback)
@@ -230,67 +218,78 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             // 6. Update Last Login
-
             admin.LastLogin = DateTime.UtcNow;
+            if (isFromMaster)
+            {
+                try { await _masterDb.SaveChangesAsync(); } catch { }
+            }
+            else
+            {
+                try { await _context.SaveChangesAsync(); } catch { }
+            }
 
-            await _context.SaveChangesAsync();
+            // 6b. Resolve OrganizationCode for Multi-Tenant routing
+            string orgCode = string.Empty;
+            if (admin.OrganizationId.HasValue && admin.OrganizationId.Value > 0)
+            {
+                var org = await _masterDb.Organizations.FirstOrDefaultAsync(o => o.Id == admin.OrganizationId.Value);
+                if (org != null && !string.IsNullOrWhiteSpace(org.OrganizationCode))
+                {
+                    orgCode = org.OrganizationCode.Trim().ToLower();
+                }
+            }
+            
+            if (string.IsNullOrEmpty(orgCode))
+            {
+                var mu = await _masterDb.MasterUsers.FirstOrDefaultAsync(u => u.Email.ToLower() == admin.Email.ToLower());
+                if (mu != null && !string.IsNullOrWhiteSpace(mu.OrganizationCode))
+                {
+                    orgCode = mu.OrganizationCode.Trim().ToLower();
+                }
+            }
+
+            if (string.IsNullOrEmpty(orgCode))
+            {
+                return Unauthorized(new
+                {
+                    Status = false,
+                    Message = "No organization is associated with this admin account. Please contact Super Admin."
+                });
+            }
 
             // 7. Generate JWT Token
-
-            var token = GenerateJwtToken(admin);
+            var token = GenerateJwtToken(admin, orgCode);
 
             // 8. Return Successful Response
-
             return Ok(new
-
             {
-
                 Status = true,
-
                 Message = "Login successful",
-
                 token,
-
+                organizationCode = orgCode,
+                tenantId = orgCode,
+                redirectUrl = $"/{orgCode}/dashboard",
                 admin = new
-
                 {
-
                     admin.Id,
-
                     admin.Email,
-
                     admin.FullName,
-
                     admin.Role,
-
                     admin.IsActive,
-
                     admin.OrganizationId,
-
                     admin.OrganizationName,
-
+                    organizationCode = orgCode,
                     subscription = new
-
                     {
-
                         effectiveSub.MaxUsers,
-
                         effectiveSub.CurrentUsers,
-
                         effectiveSub.RemainingUsers,
-
                         effectiveSub.StartDate,
-
                         effectiveSub.EndDate,
-
                         effectiveSub.Source,
-
                         effectiveSub.PlanName
-
                     }
-
                 }
-
             });
 
         }
@@ -441,14 +440,20 @@ namespace EmployeeManagementSystem.Controllers
                 Role = admin.Role
             });
         }
-        private string GenerateJwtToken(Admin admin)
+        private string GenerateJwtToken(Admin admin, string? organizationCode = null)
         {
-            var claims = new[]
+            var claims = new List<Claim>
             {
-        new Claim("AdminId", admin.Id.ToString()),
-        new Claim(ClaimTypes.Email, admin.Email),
-        new Claim(ClaimTypes.Role, admin.Role)
-    };
+                new Claim("AdminId", admin.Id.ToString()),
+                new Claim("OrganizationId", (admin.OrganizationId ?? 0).ToString()),
+                new Claim(ClaimTypes.Email, admin.Email),
+                new Claim(ClaimTypes.Role, admin.Role)
+            };
+
+            if (!string.IsNullOrEmpty(organizationCode))
+            {
+                claims.Add(new Claim("OrganizationCode", organizationCode));
+            }
 
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));

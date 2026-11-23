@@ -1,8 +1,10 @@
-﻿
+
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,17 +16,35 @@ namespace EmployeeManagementSystem.Services
         private readonly ITemplateService _templateService;
         private readonly IWebHostEnvironment _environment;
         private readonly IEmailService _emailService;
+        private readonly IHttpContextAccessor? _httpContextAccessor;
 
         public AppraisalSalaryService(
          AppDbContext context,
          ITemplateService templateService,
          IWebHostEnvironment environment,
-         IEmailService emailService)
+         IEmailService emailService,
+         IHttpContextAccessor? httpContextAccessor = null)
         {
             _context = context;
             _templateService = templateService;
             _environment = environment;
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private async Task<IQueryable<Appraisal>> GetScopedAppraisalsAsync()
+        {
+            var user = _httpContextAccessor?.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
+            var query = _context.Appraisals.AsQueryable();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(a => a.OrganizationId == orgId.Value || _context.Employees.Any(e => e.Employee_Id == a.Employee_Id && e.OrganizationId == orgId.Value));
+            }
+            return query;
         }
 
         // 1. Calculate revised salary from the approved appraisal
@@ -32,7 +52,8 @@ namespace EmployeeManagementSystem.Services
       string employeeId,
       int appraisalId)
         {
-            var appraisal = await _context.Appraisals
+            var scoped = await GetScopedAppraisalsAsync();
+            var appraisal = await scoped
      .AsNoTracking()
      .FirstOrDefaultAsync(x =>
          x.AppraisalId == appraisalId &&
@@ -190,7 +211,8 @@ namespace EmployeeManagementSystem.Services
         public async Task<AppraisalSalaryDto?> SaveRevisedSalaryAsync(
         AppraisalSalaryDto dto)
         {
-            var appraisal = await _context.Appraisals
+            var scoped = await GetScopedAppraisalsAsync();
+            var appraisal = await scoped
                 .FirstOrDefaultAsync(x =>
                     x.AppraisalId == dto.AppraisalId &&
                     x.Employee_Id == dto.Employee_Id &&
@@ -344,7 +366,8 @@ namespace EmployeeManagementSystem.Services
         public async Task<string> GenerateAppraisalLetterAsync(
      int appraisalId)
         {
-            var appraisal = await _context.Appraisals
+            var scoped = await GetScopedAppraisalsAsync();
+            var appraisal = await scoped
     .FirstOrDefaultAsync(x =>
         x.AppraisalId == appraisalId &&
         (x.Status == "Salary Saved" ||
@@ -692,7 +715,7 @@ $"--outdir \"{appraisalDirectory}\" " +
                 // Ignore cleanup errors
             }
 
-            var appraisalToUpdate = await _context.Appraisals
+            var appraisalToUpdate = await scoped
      .FirstOrDefaultAsync(x => x.AppraisalId == appraisalId);
 
             if (appraisalToUpdate != null)
@@ -706,7 +729,8 @@ $"--outdir \"{appraisalDirectory}\" " +
 
         public async Task<string> GetAppraisalLetterPathAsync(int appraisalId)
         {
-            var appraisal = await _context.Appraisals
+            var scoped = await GetScopedAppraisalsAsync();
+            var appraisal = await scoped
                 .FirstOrDefaultAsync(x => x.AppraisalId == appraisalId);
 
             if (appraisal == null)
@@ -824,12 +848,12 @@ $"--outdir \"{appraisalDirectory}\" " +
             var employee = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == appraisal.Employee_Id && x.Status == "Active"); // varsha
+                    x.Employee_Id == appraisal.Employee_Id);
 
             if (employee == null)
             {
                 throw new InvalidOperationException(
-                    "Employee not found or is inactive."); // varsha
+                    "Employee not found.");
             }
 
             if (string.IsNullOrWhiteSpace(employee.Email))

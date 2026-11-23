@@ -4,6 +4,7 @@
     {
         public int Id { get; set; }
 
+        public int OrganizationId { get; set; }
         public string TicketNumber { get; set; } = string.Empty;
 
         public int ProjectId { get; set; }

@@ -1,13 +1,13 @@
 ﻿using ClosedXML.Excel;
-using EmployeeManagementSystem.Authorization;
-using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Helpers;
+using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.IO;
 
-//[Authorize]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class DepartmentsController : ControllerBase
@@ -19,17 +19,29 @@ public class DepartmentsController : ControllerBase
         _context = context;
     }
 
+    private int GetCurrentOrgId()
+    {
+        var orgId = CurrentUserHelper.GetOrganizationId(User);
+        if (!orgId.HasValue || orgId.Value <= 0)
+        {
+            throw new UnauthorizedAccessException("OrganizationId not found in token.");
+        }
+        return orgId.Value;
+    }
+
     // ✅ Create Department
-    //[Permission(ModuleIds.Departments, PermissionAction.Add)]
     [HttpPost]
     public async Task<IActionResult> Create(DepartmentDto dto)
     {
+        int orgId = GetCurrentOrgId();
+
         var department = new Department
         {
+            OrganizationId = orgId, // 🔥 Scoped to current org
             DepartmentName = dto.DepartmentName,
             DepartmentHead = dto.DepartmentHead,
             Building = dto.Building,
-            Status = dto.Status,
+            Status = dto.Status ?? "Active",
             MembersCount = dto.MembersCount,
             Department_Id = dto.Department_Id,
             CreatedAt = DateTime.UtcNow
@@ -38,40 +50,50 @@ public class DepartmentsController : ControllerBase
         await _context.Departments.AddAsync(department);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Department created successfully" });
+        return Ok(new { message = "Department created successfully", id = department.Id });
     }
 
     // ✅ Get All
-    //[Permission(ModuleIds.Departments, PermissionAction.View)]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var departments = await _context.Departments.ToListAsync();
+        int orgId = GetCurrentOrgId();
+
+        var departments = await _context.Departments
+            .AsNoTracking()
+            .Where(d => d.OrganizationId == orgId) // 🔥 Isolated
+            .ToListAsync();
+
         return Ok(departments);
     }
 
     // ✅ Get By Id
-    //[Permission(ModuleIds.Departments, PermissionAction.View)]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var department = await _context.Departments.FindAsync(id);
+        int orgId = GetCurrentOrgId();
+
+        var department = await _context.Departments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == orgId); // 🔥 Ownership check
 
         if (department == null)
-            return NotFound("Department not found");
+            return NotFound(new { message = "Department not found" });
 
         return Ok(department);
     }
 
     // ✅ Update Department
-    //[Permission(ModuleIds.Departments, PermissionAction.Edit)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, DepartmentDto dto)
     {
-        var department = await _context.Departments.FindAsync(id);
+        int orgId = GetCurrentOrgId();
+
+        var department = await _context.Departments
+            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == orgId); // 🔥 Ownership check
 
         if (department == null)
-            return NotFound("Department not found");
+            return NotFound(new { message = "Department not found" });
 
         department.DepartmentName = dto.DepartmentName;
         department.DepartmentHead = dto.DepartmentHead;
@@ -85,28 +107,32 @@ public class DepartmentsController : ControllerBase
     }
 
     // ✅ Delete Department
-    //[Permission(ModuleIds.Departments, PermissionAction.Delete)]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var department = await _context.Departments.FindAsync(id);
+        int orgId = GetCurrentOrgId();
+
+        var department = await _context.Departments
+            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == orgId); // 🔥 Ownership check
 
         if (department == null)
-            return NotFound("Department not found");
+            return NotFound(new { message = "Department not found" });
 
         _context.Departments.Remove(department);
         await _context.SaveChangesAsync();
 
-        return Ok("Department deleted successfully");
+        return Ok(new { message = "Department deleted successfully" });
     }
 
-    //// ✅ Export Departments
-    //[Permission(ModuleIds.Departments, PermissionAction.View)]
+    // ✅ Export Departments
     [HttpGet("export")]
     public async Task<IActionResult> ExportDepartments()
     {
+        int orgId = GetCurrentOrgId();
+
         var departments = await _context.Departments
             .AsNoTracking()
+            .Where(d => d.OrganizationId == orgId) // 🔥 Isolated
             .ToListAsync();
 
         using var workbook = new XLWorkbook();

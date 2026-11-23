@@ -1,6 +1,9 @@
-﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Interfaces
 {
@@ -8,17 +11,9 @@ namespace EmployeeManagementSystem.Interfaces
     {
         Task<CreateTicketResponseDto> CreateTicket(CreateTicketDto dto, ClaimsPrincipal user);
         Task<IEnumerable<TicketResponseDto>> GetAllTickets();
-
         Task<TicketResponseDto?> GetTicketById(int id);
-
         Task<IEnumerable<TicketResponseDto>> GetMyTickets(ClaimsPrincipal user);
-
-        Task<string> UpdateTicketStatus(
-            int ticketId,
-            string status,
-            string? remarks,
-            ClaimsPrincipal user);
-
+        Task<string> UpdateTicketStatus(int ticketId, string status, string? remarks, ClaimsPrincipal user);
         Task<bool> DeleteTicket(int ticketId);
         Task<string> UpdateTicket(int ticketId, UpdateTicketDto dto, ClaimsPrincipal user);
         Task<byte[]> ExportTicketsToExcel();
@@ -26,10 +21,8 @@ namespace EmployeeManagementSystem.Interfaces
         Task<byte[]> ExportTicketsToExcel(List<int> projectIds);
         Task<BulkUploadResultDto> BulkUploadTickets(IFormFile file, ClaimsPrincipal user);
         Task<bool> AcceptTicketAsync(AcceptTicketDto dto);
-
         Task<bool> RejectTicketAsync(RejectTicketDto dto);
         Task<bool> StartWorkAsync(StartWorkDto dto);
-
         Task<bool> StopWorkAsync(StopWorkDto dto);
         Task<List<TicketWorkLog>> GetWorkLogsAsync(int ticketId);
         Task<List<TicketResponseDto>> GetTicketsByEmployeeIdAsync(string employeeId);

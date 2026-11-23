@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
@@ -9,6 +10,9 @@ namespace EmployeeManagementSystem.Models
         [Key]
         public int Id { get; set; }
 
+        [Column("OrganizationId")]
+        public int OrganizationId { get; set; }
+
         public string TicketNumber { get; set; } = string.Empty;
 
         public int ProjectId { get; set; }
@@ -17,27 +21,12 @@ namespace EmployeeManagementSystem.Models
 
         public string? Description { get; set; }
 
-        // Backend
-        // Frontend
-        // Testing
-        // QA
-        // DevOps
         public string Technology { get; set; } = string.Empty;
 
-        // Attendance
-        // Payroll
-        // Employee
-        // Dashboard
         public string? Module { get; set; }
 
         public string Priority { get; set; } = string.Empty;
 
-        // Pending Assignment
-        // Assigned
-        // In Progress
-        // Completed
-        // Reassigned
-        // Cancelled
         public string Status { get; set; } = "Pending Assignment";
 
         public string? AssignedTo { get; set; }
@@ -62,17 +51,8 @@ namespace EmployeeManagementSystem.Models
 
         public decimal RemainingHours { get; set; }
 
-        // Pending
-        // Running
-        // Completed
-        // Breached
         public string SLAStatus { get; set; } = "Pending";
 
-        // Manual
-        // Auto
-        // Module Continuity
-        // Least Workload
-        // Round Robin
         public string? AssignmentType { get; set; }
 
         public DateTime CreatedAt { get; set; }

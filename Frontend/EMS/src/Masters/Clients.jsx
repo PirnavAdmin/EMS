@@ -203,7 +203,7 @@ function Clients() {
       }
 
       // VALID EMAIL FORMAT FOR ANY COMPANY DOMAIN
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(trimmed)) {
         return "Please enter a valid email address (e.g. contact@peoplehrsync.com)";
       }

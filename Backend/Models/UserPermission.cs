@@ -1,10 +1,12 @@
-﻿using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Models;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("userpermission")]
 public class UserPermission
 {
     public int Id { get; set; }
+
+    public int? OrganizationId { get; set; }
 
     public string EmployeeId { get; set; } = string.Empty;
 

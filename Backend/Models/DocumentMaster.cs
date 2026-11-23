@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace EmployeeManagementSystem.Models;
 
@@ -6,6 +6,8 @@ public class DocumentMaster
 {
     [Key]
     public int DocumentId { get; set; }
+
+    public int? OrganizationId { get; set; }
 
     public int Company_Id { get; set; }
 

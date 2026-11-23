@@ -1,13 +1,20 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using Microsoft.Extensions.Hosting;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.IO;
+using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -18,12 +25,13 @@ namespace EmployeeManagementSystem.Services
         private readonly IEmailService _emailService;
         private readonly ITicketAssignmentEngine _assignmentEngine;
         private readonly IHttpContextAccessor _httpContextAccessor;
+
         public TicketService(
-      AppDbContext context,
-      IUserNotificationService notificationService,
-      IEmailService emailService,
-      ITicketAssignmentEngine assignmentEngine,
-      IHttpContextAccessor httpContextAccessor)
+            AppDbContext context,
+            IUserNotificationService notificationService,
+            IEmailService emailService,
+            ITicketAssignmentEngine assignmentEngine,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _notificationService = notificationService;
@@ -31,45 +39,214 @@ namespace EmployeeManagementSystem.Services
             _assignmentEngine = assignmentEngine;
             _httpContextAccessor = httpContextAccessor;
         }
-        public async Task<CreateTicketResponseDto> CreateTicket(CreateTicketDto dto, ClaimsPrincipal user)
+
+        // =========================================================
+        // 🔥 Helper: Extract OrganizationId from JWT Context
+        // =========================================================
+        private int GetCurrentOrgId()
         {
-            var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return 1;
+
+            var orgId = CurrentUserHelper.GetOrganizationId(user);
+            if (orgId.HasValue && orgId.Value > 0) return orgId.Value;
+
+            // Fallback 1: via AdminId claim
+            var adminIdClaim = user.FindFirst("AdminId")?.Value;
+            if (!string.IsNullOrWhiteSpace(adminIdClaim) && int.TryParse(adminIdClaim, out int aid) && aid > 0)
+            {
+                var admin = _context.Admins.AsNoTracking().FirstOrDefault(a => a.Id == aid);
+                if (admin?.OrganizationId != null && admin.OrganizationId > 0)
+                    return admin.OrganizationId.Value;
+            }
+
+            // Fallback 2: via EmployeeId claim
+            var empId = CurrentUserHelper.GetEmployeeId(user);
+            if (!string.IsNullOrWhiteSpace(empId))
+            {
+                var emp = _context.Employees.AsNoTracking().FirstOrDefault(e => e.Employee_Id == empId);
+                if (emp?.OrganizationId != null && emp.OrganizationId > 0)
+                    return emp.OrganizationId.Value;
+            }
+
+            // Fallback 3: via Email claim
+            var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower()
+                     ?? user.FindFirst("email")?.Value?.Trim().ToLower();
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var admin = _context.Admins.AsNoTracking().FirstOrDefault(a => a.Email.ToLower() == email);
+                if (admin?.OrganizationId != null && admin.OrganizationId > 0)
+                    return admin.OrganizationId.Value;
+
+                var emp = _context.Employees.AsNoTracking().FirstOrDefault(e => e.Email.ToLower() == email);
+                if (emp?.OrganizationId != null && emp.OrganizationId > 0)
+                    return emp.OrganizationId.Value;
+            }
+
+            return 1;
+        }
+
+        private async Task<(string Id, string Name, bool IsAdmin)> ResolveUserIdentityAsync(ClaimsPrincipal user, int orgId)
+        {
+            var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower()
+                     ?? user.FindFirst("email")?.Value?.Trim().ToLower()
+                     ?? user.FindFirst(ClaimTypes.Name)?.Value?.Trim().ToLower();
 
             if (string.IsNullOrWhiteSpace(email))
                 throw new Exception("Invalid user.");
 
-            // Logged-in employee (Creator of the ticket)
-            var loggedInEmployee = await _context.Employees
+            // 1. Try matching active employee in current organization (or legacy admin-linked)
+            var employee = await _context.Employees
                 .FirstOrDefaultAsync(e =>
+                    e.Email != null &&
                     e.Email.ToLower() == email &&
+                    (e.OrganizationId == orgId || (e.AdminId.HasValue && e.AdminId.Value > 0)) &&
                     e.Status == "Active");
 
-            if (loggedInEmployee == null)
-                throw new Exception("Employee not found.");
+            if (employee != null)
+            {
+                return (employee.Employee_Id, string.IsNullOrWhiteSpace(employee.Name) ? employee.Employee_Id : employee.Name, false);
+            }
 
-            // Validate Project
-            var project = await _context.Projects
-                .FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
+            // 2. Check if caller is Admin in this organization
+            var admin = await _context.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a =>
+                    a.Email.ToLower() == email &&
+                    (a.OrganizationId == orgId || a.OrganizationId == null || a.OrganizationId == 0) &&
+                    a.IsActive);
 
+            if (admin != null)
+            {
+                string adminIdentifier = !string.IsNullOrWhiteSpace(admin.FullName) ? admin.FullName : admin.Email;
+                return (admin.Email, adminIdentifier, true);
+            }
+
+            // 3. Fallback check for Admin/SuperAdmin role claim
+            var roleClaim = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+            if (string.Equals(roleClaim, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(roleClaim, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+            {
+                return (email, "Admin", true);
+            }
+
+            throw new Exception("User not found in the current organization.");
+        }
+
+        public async Task<CreateTicketResponseDto> CreateTicket(CreateTicketDto dto, ClaimsPrincipal user)
+        {
+            int orgId = dto.OrganizationId.HasValue && dto.OrganizationId.Value > 0
+                ? dto.OrganizationId.Value
+                : GetCurrentOrgId();
+
+            // Resolve caller identity (Supports both Admin and Employee)
+            var (creatorId, creatorName, isAdmin) = await ResolveUserIdentityAsync(user, orgId);
+
+            // Validate or Resolve Project - Scoped to Organization
+            Project? project = null;
+
+            if (dto.ProjectId.HasValue && dto.ProjectId.Value > 0)
+            {
+                project = await _context.Projects
+                    .FirstOrDefaultAsync(p => p.Id == dto.ProjectId.Value && p.OrganizationId == orgId);
+            }
+
+            // Fallback: If UI did not provide ProjectId or project not found, use first project of this organization
             if (project == null)
-                throw new Exception("Invalid Project.");
+            {
+                project = await _context.Projects
+                    .FirstOrDefaultAsync(p => p.OrganizationId == orgId);
+            }
 
-            // Validate Assigned Employee
-            // Validate Assigned Employee only when manually assigned
+            // If still no project exists in this organization, auto-create a default General project
+            if (project == null)
+            {
+                project = new Project
+                {
+                    OrganizationId = orgId,
+                    Project_Name = "General",
+                    Project_Id = $"PRJ-{orgId}-GEN",
+                    ProjectCode = "GEN",
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Projects.Add(project);
+                await _context.SaveChangesAsync();
+            }
+
+            int resolvedProjectId = project.Id;
+
+            // Validate Assigned Employee only when manually assigned - Scoped to Organization
             Employee? assignedEmployee = null;
 
-            if (!string.IsNullOrWhiteSpace(dto.AssignedTo))
+            if (!string.IsNullOrWhiteSpace(dto.AssignedTo) &&
+                !dto.AssignedTo.Equals("null", StringComparison.OrdinalIgnoreCase) &&
+                !dto.AssignedTo.Equals("undefined", StringComparison.OrdinalIgnoreCase) &&
+                !dto.AssignedTo.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
             {
+                var assignedInput = dto.AssignedTo.Trim();
+                var assignedInputLower = assignedInput.ToLower();
+
+                // Clean composite labels like "P434 - Akhil Reddy" or "Akhil Reddy (P434)"
+                var cleanInput = assignedInput;
+                if (cleanInput.Contains(" - "))
+                {
+                    cleanInput = cleanInput.Split(" - ")[0].Trim();
+                }
+                else if (cleanInput.Contains("(") && cleanInput.Contains(")"))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(cleanInput, @"\(([^)]+)\)");
+                    if (match.Success)
+                    {
+                        cleanInput = match.Groups[1].Value.Trim();
+                    }
+                }
+
+                var orgAdminIds = await _context.Admins
+                    .AsNoTracking()
+                    .Where(a => a.OrganizationId == orgId)
+                    .Select(a => a.Id)
+                    .ToListAsync();
+
                 assignedEmployee = await _context.Employees
                     .FirstOrDefaultAsync(e =>
-                        e.Employee_Id == dto.AssignedTo &&
-                        e.Status == "Active");
+                        (e.Employee_Id == cleanInput ||
+                         e.Employee_Id.ToLower() == cleanInput.ToLower() ||
+                         e.Employee_Id == assignedInput ||
+                         e.Employee_Id.ToLower() == assignedInputLower ||
+                         (e.Name != null && (e.Name == assignedInput || e.Name.ToLower() == assignedInputLower)) ||
+                         (e.Email != null && (e.Email == assignedInput || e.Email.ToLower() == assignedInputLower))) &&
+                        (e.OrganizationId == orgId || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value))));
 
-                if (assignedEmployee == null)
+                if (assignedEmployee != null)
                 {
-                    throw new Exception("Assigned employee not found.");
+                    dto.AssignedTo = assignedEmployee.Employee_Id;
+                }
+                else
+                {
+                    // Check if assigned to an Admin in this organization
+                    var matchedAdmin = await _context.Admins
+                        .FirstOrDefaultAsync(a =>
+                            (a.Email.ToLower() == assignedInputLower ||
+                             (a.FullName != null && a.FullName.ToLower() == assignedInputLower) ||
+                             assignedInputLower == "admin") &&
+                            (a.OrganizationId == orgId || a.OrganizationId == null || a.OrganizationId == 0));
+
+                    if (matchedAdmin != null)
+                    {
+                        dto.AssignedTo = matchedAdmin.Email;
+                    }
+                    else
+                    {
+                        throw new Exception("Assigned employee not found in this organization.");
+                    }
                 }
             }
+            else
+            {
+                dto.AssignedTo = null;
+            }
+
             // Validate Estimated Hours
             if (dto.EstimatedHours.HasValue &&
                 dto.EstimatedHours <= 0)
@@ -85,17 +262,21 @@ namespace EmployeeManagementSystem.Services
             using var command = new MySqlCommand("SP_CreateTicket", connection);
             command.CommandType = CommandType.StoredProcedure;
 
-            command.Parameters.AddWithValue("@p_ProjectId", dto.ProjectId);
+            command.Parameters.AddWithValue("@p_OrganizationId", orgId);
+            command.Parameters.AddWithValue("@p_ProjectId", resolvedProjectId);
             command.Parameters.AddWithValue("@p_Title", dto.Title);
             command.Parameters.AddWithValue("@p_Description", (object?)dto.Description ?? DBNull.Value);
             command.Parameters.AddWithValue("@p_Technology", dto.Technology);
             command.Parameters.AddWithValue("@p_Priority", dto.Priority);
+
             var assignedToParameter = command.Parameters.Add(
-     "@p_AssignedTo",
-     MySqlDbType.VarChar,
-     50);
-            // Ticket creator (logged-in employee)
-            command.Parameters.AddWithValue("@p_AssignedBy", loggedInEmployee.Employee_Id);
+                "@p_AssignedTo",
+                MySqlDbType.VarChar,
+                50);
+            assignedToParameter.Value = (object?)dto.AssignedTo ?? DBNull.Value;
+
+            // Ticket creator (logged-in employee or admin)
+            command.Parameters.AddWithValue("@p_AssignedBy", creatorId);
 
             command.Parameters.AddWithValue("@p_StartDate", (object?)dto.StartDate ?? DBNull.Value);
             command.Parameters.AddWithValue("@p_DueDate", (object?)dto.DueDate ?? DBNull.Value);
@@ -133,23 +314,38 @@ namespace EmployeeManagementSystem.Services
 
             if (createdTicket != null)
             {
+                if (createdTicket.OrganizationId != orgId)
+                {
+                    createdTicket.OrganizationId = orgId;
+                    await _context.SaveChangesAsync();
+                }
                 await SendTicketAssignedEmail(createdTicket);
             }
 
             return response;
         }
+
         private async Task SendTicketAssignedEmail(Ticket ticket)
         {
+            if (string.IsNullOrWhiteSpace(ticket.AssignedTo))
+                return;
+
             var assignedEmployee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Employee_Id == ticket.AssignedTo && e.Status == "Active"); // varsha: exclude inactive employees from receiving ticket emails
+                .FirstOrDefaultAsync(e => e.Employee_Id == ticket.AssignedTo && e.OrganizationId == ticket.OrganizationId);
 
             if (assignedEmployee == null || string.IsNullOrWhiteSpace(assignedEmployee.Email))
                 return;
 
             var assignedByEmployee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Employee_Id == ticket.AssignedBy);
+                .FirstOrDefaultAsync(e => e.Employee_Id == ticket.AssignedBy && e.OrganizationId == ticket.OrganizationId);
 
-            string assignedBy = assignedByEmployee?.Name ?? ticket.AssignedBy;
+            string assignedBy = assignedByEmployee?.Name;
+            if (string.IsNullOrWhiteSpace(assignedBy))
+            {
+                var admin = await _context.Admins
+                    .FirstOrDefaultAsync(a => a.Email == ticket.AssignedBy && (a.OrganizationId == ticket.OrganizationId || a.OrganizationId == null || a.OrganizationId == 0));
+                assignedBy = !string.IsNullOrWhiteSpace(admin?.FullName) ? admin.FullName : ticket.AssignedBy;
+            }
 
             string subject = $"New Ticket Assigned - {ticket.TicketNumber}";
 
@@ -247,8 +443,11 @@ EMS Team
                 subject,
                 body);
         }
+
         public async Task<IEnumerable<TicketResponseDto>> GetAllTickets()
         {
+            int orgId = GetCurrentOrgId();
+
             var normalTickets =
                 await (
                     from t in _context.Tickets
@@ -257,12 +456,15 @@ EMS Team
                         on t.ProjectId equals p.Id
 
                     join assignedTo in _context.Employees
-                        on t.AssignedTo equals assignedTo.Employee_Id
+                        on t.AssignedTo equals assignedTo.Employee_Id into assignedToGroup
+                    from assignedTo in assignedToGroup.DefaultIfEmpty()
 
                     join assignedBy in _context.Employees
-                        on t.AssignedBy equals assignedBy.Employee_Id
+                        on t.AssignedBy equals assignedBy.Employee_Id into assignedByGroup
+                    from assignedBy in assignedByGroup.DefaultIfEmpty()
 
                     where t.IsActive
+                          && t.OrganizationId == orgId
                           && !t.Technology.Equals("Training")
 
                     select new TicketResponseDto
@@ -283,10 +485,10 @@ EMS Team
                         Status = t.Status,
 
                         AssignedTo = t.AssignedTo,
-                        AssignedToName = assignedTo.Name,
+                        AssignedToName = assignedTo != null ? assignedTo.Name : null,
 
                         AssignedBy = t.AssignedBy,
-                        AssignedByName = assignedBy.Name,
+                        AssignedByName = assignedBy != null ? assignedBy.Name : t.AssignedBy,
 
                         AssignedDate = t.AssignedDate,
                         OpenedDate = t.OpenedDate,
@@ -321,9 +523,11 @@ EMS Team
                         on ta.EmployeeId equals assignedTo.Employee_Id
 
                     join assignedBy in _context.Employees
-                        on t.AssignedBy equals assignedBy.Employee_Id
+                        on t.AssignedBy equals assignedBy.Employee_Id into assignedByGroup
+                    from assignedBy in assignedByGroup.DefaultIfEmpty()
 
                     where t.IsActive
+                          && t.OrganizationId == orgId
                           && t.Technology == "Training"
 
                     select new TicketResponseDto
@@ -347,7 +551,7 @@ EMS Team
                         AssignedToName = assignedTo.Name,
 
                         AssignedBy = t.AssignedBy,
-                        AssignedByName = assignedBy.Name,
+                        AssignedByName = assignedBy != null ? assignedBy.Name : t.AssignedBy,
 
                         AssignedDate = ta.AssignedDate,
 
@@ -368,6 +572,7 @@ EMS Team
                         UpdatedAt = t.UpdatedAt
                     }
                 ).ToListAsync();
+
             // Convert UTC timestamps to IST for API response
             foreach (var ticket in normalTickets)
             {
@@ -406,19 +611,23 @@ EMS Team
                 if (ticket.UpdatedAt.HasValue)
                     ticket.UpdatedAt = ConvertUtcToIst(ticket.UpdatedAt.Value);
             }
+
             return normalTickets
                 .Concat(trainingTickets)
                 .OrderByDescending(x => x.CreatedAt)
                 .ToList();
         }
+
         public async Task<TicketResponseDto?> GetTicketById(int id)
         {
+            int orgId = GetCurrentOrgId();
+
             var ticket = await
                 (
                     from t in _context.Tickets
 
                     join p in _context.Projects
-     on t.ProjectId equals p.Id into projectGroup
+                        on t.ProjectId equals p.Id into projectGroup
                     from p in projectGroup.DefaultIfEmpty()
 
                     join e1 in _context.Employees
@@ -429,7 +638,7 @@ EMS Team
                         on t.AssignedBy equals e2.Employee_Id into assignedByGroup
                     from e2 in assignedByGroup.DefaultIfEmpty()
 
-                    where t.Id == id && t.IsActive
+                    where t.Id == id && t.OrganizationId == orgId && t.IsActive
 
                     select new TicketResponseDto
                     {
@@ -455,7 +664,7 @@ EMS Team
                         AssignedToName = e1 != null ? e1.Name : null,
 
                         AssignedBy = t.AssignedBy,
-                        AssignedByName = e2 != null ? e2.Name : null,
+                        AssignedByName = e2 != null ? e2.Name : t.AssignedBy,
 
                         // Ticket timestamps
                         AssignedDate = t.AssignedDate,
@@ -471,9 +680,6 @@ EMS Team
 
                         CreatedAt = t.CreatedAt,
                         UpdatedAt = t.UpdatedAt,
-
-                        // Latest status-change remark
-
                     }
                 )
                 .FirstOrDefaultAsync();
@@ -500,9 +706,6 @@ EMS Team
             if (ticket.UpdatedAt.HasValue)
                 ticket.UpdatedAt =
                     ConvertUtcToIst(ticket.UpdatedAt.Value);
-            // ==========================================
-            // GET ALL TICKET REMARKS
-            // ==========================================
 
             // ==========================================
             // GET ALL TICKET REMARKS
@@ -528,13 +731,14 @@ EMS Team
                     CreatedAt = ConvertUtcToIst(x.CreatedAt)
                 })
                 .ToList();
+
             // ==========================================
             // CALCULATE ACTUAL & REMAINING HOURS
             // ==========================================
             var workLogs = await _context.TicketWorkLogs
-    .AsNoTracking()
-    .Where(x => x.TicketId == id)
-    .ToListAsync();
+                .AsNoTracking()
+                .Where(x => x.TicketId == id)
+                .ToListAsync();
 
             var totalWorkedMinutes = workLogs
                 .Where(x => !x.IsRunning)
@@ -564,6 +768,7 @@ EMS Team
                         ticket.EstimatedHours.Value -
                         ticket.ActualHours);
             }
+
             // ==========================================
             // GET TICKET ATTACHMENTS
             // ==========================================
@@ -588,18 +793,13 @@ EMS Team
                 })
                 .ToList();
 
-
             return ticket;
         }
+
         public async Task<IEnumerable<TicketResponseDto>> GetMyTickets(ClaimsPrincipal user)
         {
-            var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
-
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-
-            if (employee == null)
-                throw new Exception("Employee not found.");
+            int orgId = GetCurrentOrgId();
+            var (userId, userName, isAdmin) = await ResolveUserIdentityAsync(user, orgId);
 
             var tickets = await
                 (
@@ -609,9 +809,10 @@ EMS Team
                         on t.ProjectId equals p.Id
 
                     join assignedBy in _context.Employees
-                        on t.AssignedBy equals assignedBy.Employee_Id
+                        on t.AssignedBy equals assignedBy.Employee_Id into assignedByGroup
+                    from assignedBy in assignedByGroup.DefaultIfEmpty()
 
-                    // LEFT JOIN TicketAssignments
+                        // LEFT JOIN TicketAssignments
                     join ta in _context.TicketAssignments
                         on t.Id equals ta.TicketId into ticketAssignments
 
@@ -624,14 +825,20 @@ EMS Team
                     from assignedEmployee in assignedEmployees.DefaultIfEmpty()
 
                     where t.IsActive &&
+                          t.OrganizationId == orgId &&
                           (
                               // Normal Ticket
-                              t.AssignedTo == employee.Employee_Id
+                              t.AssignedTo == userId
 
                               ||
 
                               // Training Ticket
-                              ta.EmployeeId == employee.Employee_Id
+                              ta.EmployeeId == userId
+
+                              ||
+
+                              // Admin creator
+                              (isAdmin && t.AssignedBy == userId)
                           )
 
                     orderby t.CreatedAt descending
@@ -654,10 +861,10 @@ EMS Team
                         AssignedTo = t.AssignedTo,
                         AssignedToName = assignedEmployee != null
                                             ? assignedEmployee.Name
-                                            : employee.Name,
+                                            : (t.AssignedTo == userId ? userName : null),
 
                         AssignedBy = t.AssignedBy,
-                        AssignedByName = assignedBy.Name,
+                        AssignedByName = assignedBy != null ? assignedBy.Name : (t.AssignedBy == userId ? userName : null),
 
                         // Ticket timestamps
                         AssignedDate = t.AssignedDate,
@@ -702,6 +909,7 @@ EMS Team
                     ticket.UpdatedAt =
                         ConvertUtcToIst(ticket.UpdatedAt.Value);
             }
+
             // ==========================================
             // CALCULATE ACTUAL & REMAINING HOURS
             // ==========================================
@@ -745,15 +953,19 @@ EMS Team
 
             return tickets;
         }
+
         public async Task<string> UpdateTicketStatus(
-        int ticketId,
-        string status,
-        string? remarks,
-        ClaimsPrincipal user)
+            int ticketId,
+            string status,
+            string? remarks,
+            ClaimsPrincipal user)
         {
+            int orgId = GetCurrentOrgId();
+
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x =>
                     x.Id == ticketId &&
+                    x.OrganizationId == orgId &&
                     x.IsActive);
 
             if (ticket == null)
@@ -778,19 +990,9 @@ EMS Team
 
             await _context.SaveChangesAsync();
 
-            // Get logged-in employee
-            var email = user.FindFirst(ClaimTypes.Email)?
-                .Value?
-                .Trim()
-                .ToLower();
+            // Get logged-in user - Scoped to Organization
+            var (modifierId, modifierName, isAdmin) = await ResolveUserIdentityAsync(user, orgId);
 
-            var loggedInEmployee = await _context.Employees
-                .FirstOrDefaultAsync(x =>
-                    x.Email.ToLower() == email &&
-                    x.Status == "Active");
-
-            if (loggedInEmployee == null)
-                throw new Exception("Employee not found.");
             // ==========================================
             // TICKET ATTACHMENT UPLOAD
             // ==========================================
@@ -802,34 +1004,34 @@ EMS Team
             {
                 var allowedExtensions = new[]
                 {
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
-        ".bmp",
+                    ".jpg",
+                    ".jpeg",
+                    ".png",
+                    ".gif",
+                    ".webp",
+                    ".bmp",
 
-        ".pdf",
-        ".doc",
-        ".docx",
-        ".txt",
+                    ".pdf",
+                    ".doc",
+                    ".docx",
+                    ".txt",
 
-        ".xls",
-        ".xlsx",
+                    ".xls",
+                    ".xlsx",
 
-        ".ppt",
-        ".pptx",
+                    ".ppt",
+                    ".pptx",
 
-        ".csv",
-        ".zip"
-    };
+                    ".csv",
+                    ".zip"
+                };
 
                 var uploadFolder = Path.Combine(
                     Directory.GetCurrentDirectory(),
                     "wwwroot",
                     "uploads",
                     "tickets",
-                    loggedInEmployee.Employee_Id);
+                    modifierId);
 
                 if (!Directory.Exists(uploadFolder))
                 {
@@ -874,10 +1076,10 @@ EMS Team
                     var attachment = new TicketAttachment
                     {
                         TicketId = ticket.Id,
-                        EmployeeId = loggedInEmployee.Employee_Id,
+                        EmployeeId = modifierId,
                         FileName = file.FileName,
                         FilePath =
-                            $"/uploads/tickets/{loggedInEmployee.Employee_Id}/{uniqueFileName}",
+                            $"/uploads/tickets/{modifierId}/{uniqueFileName}",
                         ContentType = file.ContentType,
                         FileSize = file.Length,
                         UploadedAt = DateTime.UtcNow
@@ -898,7 +1100,7 @@ EMS Team
                 OldStatus = oldStatus,
                 NewStatus = status,
                 Remarks = remarks,
-                CreatedBy = loggedInEmployee.Employee_Id,
+                CreatedBy = modifierId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -908,55 +1110,130 @@ EMS Team
 
             return "Ticket status updated successfully.";
         }
+
         public async Task<string> UpdateTicket(
-      int ticketId,
-      UpdateTicketDto dto,
-      ClaimsPrincipal user)
+            int ticketId,
+            UpdateTicketDto dto,
+            ClaimsPrincipal user)
         {
+            int orgId = GetCurrentOrgId();
             var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
             if (string.IsNullOrWhiteSpace(email))
                 throw new Exception("Invalid user.");
 
-            // Logged-in employee (No Manager role required)
-            var loggedInEmployee = await _context.Employees
-                .FirstOrDefaultAsync(x =>
-                    x.Email.ToLower() == email &&
-                    x.Status == "Active");
-
-            if (loggedInEmployee == null)
-                throw new Exception("Employee not found.");
-
+            // Resolve user identity (Supports both Admin and Employee)
+            var (modifierId, modifierName, isAdmin) = await ResolveUserIdentityAsync(user, orgId);
 
             var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(x => x.Id == ticketId && x.IsActive);
+                .FirstOrDefaultAsync(x => x.Id == ticketId && x.OrganizationId == orgId && x.IsActive);
 
             if (ticket == null)
                 throw new Exception("Ticket not found.");
+
             var oldAssignedTo = ticket.AssignedTo;
 
+            int targetProjectId = dto.ProjectId > 0 ? dto.ProjectId : ticket.ProjectId;
             var project = await _context.Projects
-                .FirstOrDefaultAsync(x => x.Id == dto.ProjectId);
+                .FirstOrDefaultAsync(x => x.Id == targetProjectId && x.OrganizationId == orgId);
 
             if (project == null)
-                throw new Exception("Invalid Project.");
+            {
+                project = await _context.Projects.FirstOrDefaultAsync(x => x.OrganizationId == orgId);
+            }
 
-            // Validate assigned employee
-            var assignedEmployee = await _context.Employees
-                .FirstOrDefaultAsync(x =>
-                    x.Employee_Id == dto.AssignedTo &&
-                    x.Status == "Active");
+            if (project == null)
+            {
+                project = new Project
+                {
+                    OrganizationId = orgId,
+                    Project_Name = "General",
+                    Project_Id = $"PRJ-{orgId}-GEN",
+                    ProjectCode = "GEN",
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Projects.Add(project);
+                await _context.SaveChangesAsync();
+            }
 
-            if (assignedEmployee == null)
-                throw new Exception("Assigned employee not found.");
+            targetProjectId = project.Id;
+            dto.ProjectId = targetProjectId;
+
+            // Validate assigned employee - Scoped to Organization
+            if (!string.IsNullOrWhiteSpace(dto.AssignedTo) &&
+                !dto.AssignedTo.Equals("null", StringComparison.OrdinalIgnoreCase) &&
+                !dto.AssignedTo.Equals("undefined", StringComparison.OrdinalIgnoreCase) &&
+                !dto.AssignedTo.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+            {
+                var assignedInput = dto.AssignedTo.Trim();
+                var assignedInputLower = assignedInput.ToLower();
+
+                var cleanInput = assignedInput;
+                if (cleanInput.Contains(" - "))
+                {
+                    cleanInput = cleanInput.Split(" - ")[0].Trim();
+                }
+                else if (cleanInput.Contains("(") && cleanInput.Contains(")"))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(cleanInput, @"\(([^)]+)\)");
+                    if (match.Success)
+                    {
+                        cleanInput = match.Groups[1].Value.Trim();
+                    }
+                }
+
+                var orgAdminIds = await _context.Admins
+                    .AsNoTracking()
+                    .Where(a => a.OrganizationId == orgId)
+                    .Select(a => a.Id)
+                    .ToListAsync();
+
+                var assignedEmployee = await _context.Employees
+                    .FirstOrDefaultAsync(x =>
+                        (x.Employee_Id == cleanInput ||
+                         x.Employee_Id.ToLower() == cleanInput.ToLower() ||
+                         x.Employee_Id == assignedInput ||
+                         x.Employee_Id.ToLower() == assignedInputLower ||
+                         (x.Name != null && (x.Name == assignedInput || x.Name.ToLower() == assignedInputLower)) ||
+                         (x.Email != null && (x.Email == assignedInput || x.Email.ToLower() == assignedInputLower))) &&
+                        (x.OrganizationId == orgId || (x.AdminId.HasValue && orgAdminIds.Contains(x.AdminId.Value))));
+
+                if (assignedEmployee != null)
+                {
+                    dto.AssignedTo = assignedEmployee.Employee_Id;
+                }
+                else
+                {
+                    var matchedAdmin = await _context.Admins
+                        .FirstOrDefaultAsync(a =>
+                            (a.Email.ToLower() == assignedInputLower ||
+                             (a.FullName != null && a.FullName.ToLower() == assignedInputLower) ||
+                             assignedInputLower == "admin") &&
+                            (a.OrganizationId == orgId || a.OrganizationId == null || a.OrganizationId == 0));
+
+                    if (matchedAdmin != null)
+                    {
+                        dto.AssignedTo = matchedAdmin.Email;
+                    }
+                    else
+                    {
+                        throw new Exception("Assigned employee not found in this organization.");
+                    }
+                }
+            }
+            else
+            {
+                dto.AssignedTo = null;
+            }
 
             bool isTransfer =
-    !string.IsNullOrWhiteSpace(oldAssignedTo) &&
-    !string.IsNullOrWhiteSpace(dto.AssignedTo) &&
-    !string.Equals(
-        oldAssignedTo,
-        dto.AssignedTo,
-        StringComparison.OrdinalIgnoreCase);
+                !string.IsNullOrWhiteSpace(oldAssignedTo) &&
+                !string.IsNullOrWhiteSpace(dto.AssignedTo) &&
+                !string.Equals(
+                    oldAssignedTo,
+                    dto.AssignedTo,
+                    StringComparison.OrdinalIgnoreCase);
 
             if (dto.StartDate.HasValue &&
                 dto.DueDate.HasValue &&
@@ -970,7 +1247,8 @@ EMS Team
             {
                 throw new Exception("Estimated hours must be greater than zero.");
             }
-            ticket.ProjectId = dto.ProjectId;
+
+            ticket.ProjectId = targetProjectId;
             ticket.Title = dto.Title;
             ticket.Description = dto.Description;
             ticket.Technology = dto.Technology;
@@ -981,8 +1259,6 @@ EMS Team
             ticket.EstimatedHours = dto.EstimatedHours;
 
             ticket.UpdatedAt = DateTime.UtcNow;
-
-
 
             await _context.SaveChangesAsync();
 
@@ -998,7 +1274,7 @@ EMS Team
                     Remarks = dto.Remarks,
                     TransferFromEmployeeId = oldAssignedTo,
                     TransferToEmployeeId = dto.AssignedTo,
-                    CreatedBy = loggedInEmployee.Employee_Id,
+                    CreatedBy = modifierId,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -1009,16 +1285,18 @@ EMS Team
 
             return "Ticket updated successfully.";
         }
+
         public async Task<bool> DeleteTicket(int ticketId)
         {
+            int orgId = GetCurrentOrgId();
+
             var ticket = await _context.Tickets
-                .FirstOrDefaultAsync(x => x.Id == ticketId);
+                .FirstOrDefaultAsync(x => x.Id == ticketId && x.OrganizationId == orgId);
 
             if (ticket == null)
                 return false;
 
             ticket.IsActive = false;
-
             ticket.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -1043,13 +1321,13 @@ EMS Team
 
         private async Task<byte[]> ExportTicketsToExcelForProject(List<int>? projectIds)
         {
-            // Remove duplicate project IDs
+            int orgId = GetCurrentOrgId();
+
             var selectedProjectIds = projectIds?.Distinct().ToList();
 
             bool filterByProjects =
                 selectedProjectIds != null && selectedProjectIds.Count > 0;
 
-            // Get tickets
             var tickets = await
             (
                 from t in _context.Tickets
@@ -1058,14 +1336,15 @@ EMS Team
                     on t.ProjectId equals p.Id
 
                 join assignedTo in _context.Employees
-                    on t.AssignedTo equals assignedTo.Employee_Id
+                    on t.AssignedTo equals assignedTo.Employee_Id into assignedToGroup
+                from assignedTo in assignedToGroup.DefaultIfEmpty()
 
                 join assignedBy in _context.Employees
-                    on t.AssignedBy equals assignedBy.Employee_Id
+                    on t.AssignedBy equals assignedBy.Employee_Id into assignedByGroup
+                from assignedBy in assignedByGroup.DefaultIfEmpty()
 
-                where t.IsActive &&
-                      (!filterByProjects ||
-                       selectedProjectIds!.Contains(t.ProjectId))
+                where t.IsActive && t.OrganizationId == orgId &&
+                      (!filterByProjects || selectedProjectIds!.Contains(t.ProjectId))
 
                 orderby t.CreatedAt descending
 
@@ -1078,8 +1357,8 @@ EMS Team
                     t.Technology,
                     t.Priority,
                     t.Status,
-                    AssignedTo = assignedTo.Name,
-                    AssignedBy = assignedBy.Name,
+                    AssignedTo = assignedTo != null ? assignedTo.Name : "-",
+                    AssignedBy = assignedBy != null ? assignedBy.Name : "-",
                     t.StartDate,
                     t.DueDate,
                     t.EstimatedHours,
@@ -1087,20 +1366,16 @@ EMS Team
                     t.CompletedDate,
                     t.CreatedAt
                 }
-
             ).ToListAsync();
 
-            // Get transfer history for the selected projects
-            var transferHistory = await _context.TicketHistory
-                .AsNoTracking()
-                .Where(x =>
-                    x.Action == "Transfer" &&
-                    (!filterByProjects ||
-                     _context.Tickets.Any(t =>
-                         t.Id == x.TicketId &&
-                         selectedProjectIds!.Contains(t.ProjectId))))
-                .OrderByDescending(x => x.CreatedAt)
-                .ToListAsync();
+            var transferHistory = await (
+                from th in _context.TicketHistory
+                join t in _context.Tickets on th.TicketId equals t.Id
+                where th.Action == "Transfer" && t.OrganizationId == orgId &&
+                      (!filterByProjects || selectedProjectIds!.Contains(t.ProjectId))
+                orderby th.CreatedAt descending
+                select th
+            ).AsNoTracking().ToListAsync();
 
             using var workbook = new XLWorkbook();
 
@@ -1133,8 +1408,7 @@ EMS Team
             worksheet.Cell(1, 16).Value = "Completed At (IST)";
 
             // Header Style
-            var transferHeader =
-     transferWorksheet.Range(1, 1, 1, 6);
+            var transferHeader = transferWorksheet.Range(1, 1, 1, 6);
 
             transferHeader.Style.Font.Bold = true;
             transferHeader.Style.Alignment.Horizontal =
@@ -1185,13 +1459,14 @@ EMS Team
 
                 row++;
             }
+
             int transferRow = 2;
 
             foreach (var transfer in transferHistory)
             {
                 var ticket = await _context.Tickets
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == transfer.TicketId);
+                    .FirstOrDefaultAsync(x => x.Id == transfer.TicketId && x.OrganizationId == orgId);
 
                 if (ticket == null)
                     continue;
@@ -1199,17 +1474,20 @@ EMS Team
                 var fromEmployee = await _context.Employees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x =>
-                        x.Employee_Id == transfer.TransferFromEmployeeId);
+                        x.Employee_Id == transfer.TransferFromEmployeeId &&
+                        x.OrganizationId == orgId);
 
                 var toEmployee = await _context.Employees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x =>
-                        x.Employee_Id == transfer.TransferToEmployeeId);
+                        x.Employee_Id == transfer.TransferToEmployeeId &&
+                        x.OrganizationId == orgId);
 
                 var transferredBy = await _context.Employees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x =>
-                        x.Employee_Id == transfer.CreatedBy);
+                        x.Employee_Id == transfer.CreatedBy &&
+                        x.OrganizationId == orgId);
 
                 transferWorksheet.Cell(transferRow, 1).Value =
                     ticket.TicketNumber;
@@ -1231,13 +1509,14 @@ EMS Team
 
                 transferRow++;
             }
+
             transferWorksheet.Column(6).Style.DateFormat.Format =
-    "dd-MMM-yyyy hh:mm AM/PM";
+                "dd-MMM-yyyy hh:mm AM/PM";
 
             transferWorksheet.Columns().AdjustToContents();
             worksheet.Columns().AdjustToContents();
             worksheet.Column(15).Style.DateFormat.Format =
-    "dd-MMM-yyyy hh:mm AM/PM";
+                "dd-MMM-yyyy hh:mm AM/PM";
 
             worksheet.Column(16).Style.DateFormat.Format =
                 "dd-MMM-yyyy hh:mm AM/PM";
@@ -1250,23 +1529,14 @@ EMS Team
         }
 
         public async Task<BulkUploadResultDto> BulkUploadTickets(
-       IFormFile file,
-       ClaimsPrincipal user)
+            IFormFile file,
+            ClaimsPrincipal user)
         {
+            int orgId = GetCurrentOrgId();
             var result = new BulkUploadResultDto();
 
-            var email = user.FindFirst(ClaimTypes.Email)?
-                .Value?
-                .Trim()
-                .ToLower();
-
-            var manager = await _context.Employees
-                .FirstOrDefaultAsync(x =>
-                    x.Email.ToLower() == email &&
-                    x.Status == "Active"); // varsha: inactive manager cannot bulk upload tickets
-
-            if (manager == null)
-                throw new Exception("Manager not found or is inactive."); // varsha
+            // Resolve caller identity (Supports both Admin and Employee)
+            var (uploaderId, uploaderName, isAdmin) = await ResolveUserIdentityAsync(user, orgId);
 
             if (file == null || file.Length == 0)
                 throw new Exception("Please select an Excel file.");
@@ -1293,35 +1563,46 @@ EMS Team
                 try
                 {
                     // ===========================================
-                    // PROJECT NAME
-                    // ===========================================
-                    // ===========================================
-                    // PROJECT NAME
+                    // PROJECT NAME - Scoped to Organization
                     // ===========================================
 
                     var projectName = row.Cell(1)
                         .GetString()
                         .Trim();
 
-                    if (string.IsNullOrWhiteSpace(projectName))
+                    Project? project = null;
+
+                    if (!string.IsNullOrWhiteSpace(projectName))
                     {
-                        throw new Exception("Project Name is required.");
+                        var normalizedProjectName = projectName.ToLower();
+                        project = await _context.Projects
+                            .FirstOrDefaultAsync(x =>
+                                x.OrganizationId == orgId &&
+                                ((x.Project_Name != null && x.Project_Name.ToLower() == normalizedProjectName) ||
+                                 (x.ProjectCode != null && x.ProjectCode.ToLower() == normalizedProjectName) ||
+                                 (x.Project_Id != null && x.Project_Id.ToLower() == normalizedProjectName)));
                     }
-
-                    var normalizedProjectName = projectName
-                        .Trim()
-                        .ToLower();
-
-                    var project = await _context.Projects
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(x =>
-                            x.Project_Name != null &&
-                            x.Project_Name.Trim().ToLower() == normalizedProjectName);
 
                     if (project == null)
                     {
-                        throw new Exception(
-                            $"Project '{projectName}' not found. Please verify the Project Name in Excel matches the Projects table.");
+                        project = await _context.Projects
+                            .FirstOrDefaultAsync(x => x.OrganizationId == orgId);
+                    }
+
+                    if (project == null)
+                    {
+                        string safeProjName = !string.IsNullOrWhiteSpace(projectName) ? projectName : "General";
+                        project = new Project
+                        {
+                            OrganizationId = orgId,
+                            Project_Name = safeProjName,
+                            Project_Id = $"PRJ-{orgId}-GEN",
+                            ProjectCode = "GEN",
+                            Status = "Active",
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.Projects.Add(project);
+                        await _context.SaveChangesAsync();
                     }
 
                     // ===========================================
@@ -1329,23 +1610,28 @@ EMS Team
                     // ===========================================
                     var dto = new CreateTicketDto
                     {
+                        OrganizationId = orgId,
                         ProjectId = project.Id,
 
                         Title = row.Cell(2)
-         .GetString()
-         .Trim(),
+                            .GetString()
+                            .Trim(),
 
                         Description = row.Cell(3)
-         .GetString()
-         .Trim(),
+                            .GetString()
+                            .Trim(),
 
                         Technology = row.Cell(4)
-         .GetString()
-         .Trim(),
+                            .GetString()
+                            .Trim(),
 
                         Priority = row.Cell(5)
-         .GetString()
-         .Trim(),
+                            .GetString()
+                            .Trim(),
+
+                        Module = row.Cell(6)
+                            .GetString()
+                            .Trim(),
 
                         AssignedTo = null,
 
@@ -1355,6 +1641,7 @@ EMS Team
 
                         EstimatedHours = ParseExcelDecimal(row.Cell(9))
                     };
+
                     // ===========================================
                     // VALIDATION
                     // ===========================================
@@ -1384,12 +1671,13 @@ EMS Team
                     }
 
                     // ===========================================
-                    // DUPLICATE CHECK
+                    // DUPLICATE CHECK - Scoped to Organization
                     // ===========================================
 
                     var duplicateTicket = await _context.Tickets
                         .AsNoTracking()
                         .AnyAsync(t =>
+                            t.OrganizationId == orgId &&
                             t.ProjectId == dto.ProjectId &&
                             t.Title.ToLower() == dto.Title.ToLower() &&
                             t.Technology.ToLower() == dto.Technology.ToLower() &&
@@ -1432,11 +1720,15 @@ EMS Team
 
             return result;
         }
+
         public async Task<bool> AcceptTicketAsync(AcceptTicketDto dto)
         {
+            int orgId = GetCurrentOrgId();
+
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x =>
                     x.Id == dto.TicketId &&
+                    x.OrganizationId == orgId &&
                     x.IsActive);
 
             if (ticket == null)
@@ -1478,6 +1770,7 @@ EMS Team
 
             return true;
         }
+
         private DateTime ConvertUtcToIst(DateTime utcDateTime)
         {
             TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(
@@ -1489,11 +1782,15 @@ EMS Team
                 DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc),
                 istZone);
         }
+
         public async Task<bool> RejectTicketAsync(RejectTicketDto dto)
         {
+            int orgId = GetCurrentOrgId();
+
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x =>
                     x.Id == dto.TicketId &&
+                    x.OrganizationId == orgId &&
                     x.IsActive);
 
             if (ticket == null)
@@ -1538,8 +1835,10 @@ EMS Team
 
         public async Task<bool> StartWorkAsync(StartWorkDto dto)
         {
+            int orgId = GetCurrentOrgId();
+
             // ==========================================
-            // GET LOGGED-IN EMPLOYEE FROM JWT
+            // GET LOGGED-IN EMPLOYEE FROM JWT - Scoped to Organization
             // ==========================================
 
             var email = _httpContextAccessor.HttpContext?
@@ -1554,7 +1853,9 @@ EMS Team
 
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(x =>
+                    x.Email != null &&
                     x.Email.ToLower() == email &&
+                    x.OrganizationId == orgId &&
                     x.Status == "Active");
 
             if (employee == null)
@@ -1563,12 +1864,13 @@ EMS Team
             var employeeId = employee.Employee_Id;
 
             // ==========================================
-            // GET TICKET
+            // GET TICKET - Scoped to Organization
             // ==========================================
 
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(t =>
                     t.Id == dto.TicketId &&
+                    t.OrganizationId == orgId &&
                     t.IsActive);
 
             if (ticket == null)
@@ -1596,6 +1898,7 @@ EMS Team
                 if (ticket.AssignedTo != employeeId)
                     return false;
             }
+
             // ==========================================
             // STATUS CHECK
             // ==========================================
@@ -1713,11 +2016,12 @@ EMS Team
             return true;
         }
 
-
         public async Task<bool> StopWorkAsync(StopWorkDto dto)
         {
+            int orgId = GetCurrentOrgId();
+
             // ==========================================
-            // GET LOGGED-IN EMPLOYEE FROM JWT
+            // GET LOGGED-IN EMPLOYEE FROM JWT - Scoped to Organization
             // ==========================================
 
             var email = _httpContextAccessor.HttpContext?
@@ -1732,7 +2036,9 @@ EMS Team
 
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(x =>
+                    x.Email != null &&
                     x.Email.ToLower() == email &&
+                    x.OrganizationId == orgId &&
                     x.Status == "Active");
 
             if (employee == null)
@@ -1756,12 +2062,13 @@ EMS Team
                 return false;
 
             // ==========================================
-            // GET TICKET
+            // GET TICKET - Scoped to Organization
             // ==========================================
 
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(x =>
                     x.Id == dto.TicketId &&
+                    x.OrganizationId == orgId &&
                     x.IsActive);
 
             if (ticket == null)
@@ -1869,10 +2176,6 @@ EMS Team
             // TICKET STATUS
             // ==========================================
 
-            // Do NOT check:
-            // if (ticket.Status != "In Progress")
-            //     return false;
-
             ticket.Status = "Completed";
             ticket.UpdatedAt = DateTime.UtcNow;
 
@@ -1904,8 +2207,17 @@ EMS Team
 
             return true;
         }
+
         public async Task<List<TicketWorkLog>> GetWorkLogsAsync(int ticketId)
         {
+            int orgId = GetCurrentOrgId();
+
+            var ticketExists = await _context.Tickets
+                .AnyAsync(t => t.Id == ticketId && t.OrganizationId == orgId && t.IsActive);
+
+            if (!ticketExists)
+                return new List<TicketWorkLog>();
+
             var workLogs = await _context.TicketWorkLogs
                 .Where(x => x.TicketId == ticketId)
                 .OrderByDescending(x => x.StartTime)
@@ -1921,8 +2233,11 @@ EMS Team
 
             return workLogs;
         }
+
         public async Task<List<TicketResponseDto>> GetTicketsByEmployeeIdAsync(string employeeId)
         {
+            int orgId = GetCurrentOrgId();
+
             return await (
                 from t in _context.Tickets
 
@@ -1940,6 +2255,7 @@ EMS Team
                 from ta in assignmentJoin.DefaultIfEmpty()
 
                 where t.IsActive
+                      && t.OrganizationId == orgId
                       &&
                       (
                           // Normal Technologies
@@ -1970,8 +2286,8 @@ EMS Team
 
                     Priority = t.Priority,
                     Status = t.Technology == "Training"
-            ? ta.Status
-            : t.Status,
+                        ? ta.Status
+                        : t.Status,
 
                     AssignedTo = t.Technology == "Training"
                                     ? ta.EmployeeId
@@ -1979,10 +2295,10 @@ EMS Team
 
                     AssignedToName = t.Technology == "Training"
                                         ? _context.Employees
-                                            .Where(x => x.Employee_Id == ta.EmployeeId)
+                                            .Where(x => x.Employee_Id == ta.EmployeeId && x.OrganizationId == orgId)
                                             .Select(x => x.Name)
                                             .FirstOrDefault()
-                                        : e.Name,
+                                        : (e != null ? e.Name : null),
 
                     AssignedBy = t.AssignedBy,
 
@@ -2003,13 +2319,14 @@ EMS Team
                     CreatedAt = t.CreatedAt,
                     UpdatedAt = t.UpdatedAt
                 }
-
             )
             .Distinct()
             .ToListAsync();
-        }  // Helper Methods
+        }
 
+        // =========================================================
         // Helper Methods
+        // =========================================================
 
         private DateTime? ParseExcelDate(IXLCell cell)
         {
@@ -2065,7 +2382,6 @@ EMS Team
             throw new Exception(
                 $"Invalid date '{value}'. Please use dd-MM-yyyy format.");
         }
-
 
         private decimal? ParseExcelDecimal(IXLCell cell)
         {

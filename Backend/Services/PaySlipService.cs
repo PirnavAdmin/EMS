@@ -1,30 +1,26 @@
-﻿
+
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Documents;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
-using Hangfire;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using Microsoft.AspNetCore.Hosting;
+using Hangfire;
+
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
-using OpenXmlText = DocumentFormat.OpenXml.Wordprocessing.Text;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -45,6 +41,7 @@ namespace EmployeeManagementSystem.Services
 
         private readonly ITemplateService _templateService;
         private readonly IWebHostEnvironment _environment;//vishnu
+        private readonly ITenantProvider _tenantProvider;
 
         public PaySlipService(
        AppDbContext context,
@@ -53,7 +50,8 @@ namespace EmployeeManagementSystem.Services
        IEmailService emailService,
        IServiceScopeFactory scopeFactory,
        ITemplateService templateService,
-       IWebHostEnvironment environment)
+       IWebHostEnvironment environment,
+       ITenantProvider tenantProvider)
         {
             _context = context;
             _attendanceService = attendanceService;
@@ -62,6 +60,7 @@ namespace EmployeeManagementSystem.Services
             _scopeFactory = scopeFactory;
             _templateService = templateService;
             _environment = environment;
+            _tenantProvider = tenantProvider;
         }
 
 
@@ -369,39 +368,10 @@ e.Status == "Active");
             // ATTENDANCE RATIO
             //--------------------------------
 
-            //--------------------------------
-            // SALARY PRORATION
-            //--------------------------------
-
-            // Default: use the attendance summary for a normal month.
-            decimal salaryRatio;
-
-            bool isJoiningMonth =
-                joiningDate.Year == yearValue &&
-                joiningDate.Month == monthNumber;
-
-            if (isJoiningMonth)
-            {
-                // For the joining month, calculate salary against
-                // the entire calendar month, not just days after joining.
-                int daysInMonth =
-                    DateTime.DaysInMonth(yearValue, monthNumber);
-
-                salaryRatio = daysInMonth == 0
-                    ? 0m
-                    : paidDays / daysInMonth;
-            }
-            else
-            {
-                // Preserve existing attendance-based calculation
-                // for employees who joined in an earlier month.
-                salaryRatio = payrollDays == 0
-                    ? 0m
+            decimal ratio =
+                payrollDays == 0
+                    ? 0
                     : paidDays / payrollDays;
-            }
-
-            // Prevent the ratio from exceeding 100%.
-            salaryRatio = Math.Clamp(salaryRatio, 0m, 1m);
 
 
             //--------------------------------
@@ -433,22 +403,16 @@ e.Status == "Active");
             //--------------------------------
             // EARNINGS AFTER ATTENDANCE / LOP
             //--------------------------------
-            //--------------------------------
-            // EARNINGS AFTER ATTENDANCE / LOP
-            //--------------------------------
+            decimal basic = RoundSalary(fullBasic * ratio);
 
-            decimal basic = RoundSalary(fullBasic * salaryRatio);
+            decimal hra = RoundSalary(fullHRA * ratio);
 
-            decimal hra = RoundSalary(fullHRA * salaryRatio);
+            decimal conveyance = RoundSalary(fullConveyance * ratio);
 
-            decimal conveyance =
-                RoundSalary(fullConveyance * salaryRatio);
-
-            decimal medical =
-                RoundSalary(fullMedical * salaryRatio);
+            decimal medical = RoundSalary(fullMedical * ratio);
 
             decimal specialAllowance =
-                RoundSalary(fullSpecialAllowance * salaryRatio);
+     RoundSalary(fullSpecialAllowance * ratio);
 
             //--------------------------------
             // TOTAL EARNINGS
@@ -490,8 +454,8 @@ e.Status == "Active");
             //--------------------------------
 
             decimal pf =
-       RoundSalary(
-           salaryStructure.EmployeePF * salaryRatio);
+     RoundSalary(
+         salaryStructure.EmployeePF * ratio);
 
 
             //--------------------------------
@@ -554,16 +518,60 @@ e.Status == "Active");
             // GET PAYSLIP TEMPLATE
             //--------------------------------
 
+          
+
+            var template = await _templateService.GetActiveTemplateAsync(
+     "PAYSLIP");
+
+            if (template == null)
+            {
+                throw new Exception(
+                    "Active Payslip template not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(template.FilePath))
+            {
+                throw new Exception(
+                    "Payslip template file path is missing.");
+            }
+
+            var relativeTemplatePath = template.FilePath
+                .TrimStart('/', '\\');
 
             var templatePath = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "Templates",
-                "PaySlipTemplate.docx");
+                _environment.WebRootPath,
+                relativeTemplatePath);
 
             if (!File.Exists(templatePath))
             {
-                throw new Exception(
-                    $"Payslip template file not found: {templatePath}");
+                var fallbackPath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "PaySlipTemplate.docx");
+                if (File.Exists(fallbackPath))
+                {
+                    templatePath = fallbackPath;
+                }
+                else
+                {
+                    var fallbackInWebRoot = Path.Combine(_environment.WebRootPath, "Templates", "PaySlipTemplate.docx");
+                    if (File.Exists(fallbackInWebRoot))
+                    {
+                        templatePath = fallbackInWebRoot;
+                    }
+                    else
+                    {
+                        var anyTemplate = Directory.Exists(Path.Combine(_environment.WebRootPath, "uploads", "templates"))
+                            ? Directory.GetFiles(Path.Combine(_environment.WebRootPath, "uploads", "templates"), "PAYSLIP*.docx").FirstOrDefault()
+                            : null;
+                        if (!string.IsNullOrEmpty(anyTemplate) && File.Exists(anyTemplate))
+                        {
+                            templatePath = anyTemplate;
+                        }
+                        else
+                        {
+                            throw new Exception(
+                                $"Payslip template file not found: {templatePath}");
+                        }
+                    }
+                }
             }
 
             ////    vishnu    //--------------------------------
@@ -1001,6 +1009,7 @@ e.Status == "Active");
             //--------------------------------
             var payslip = new PaySlip
             {
+                OrganizationId = employee.OrganizationId ?? (employee.AdminId.HasValue ? (_context.Admins.Where(a => a.Id == employee.AdminId.Value).Select(a => a.OrganizationId).FirstOrDefault() ?? throw new InvalidOperationException($"Employee {employee.Employee_Id} has no assigned organization.")) : throw new InvalidOperationException($"Employee {employee.Employee_Id} has no assigned organization.")),
                 EmployeeId = employee.Employee_Id,
                 Month = month,
                 Year = year,
@@ -1043,7 +1052,7 @@ e.Status == "Active");
                 throw;
             }
 
-            var employeeName = fullEmployeeName;
+         var employeeName = fullEmployeeName;
             // Notification Settings Check
 
             //var notification = await _context.NotificationSettings
@@ -1103,8 +1112,15 @@ e.Status == "Active");
         public async Task<List<BulkPayslipGenerationResultDto>> GenerateAllPaySlips(
        int year,
        List<string> months,
-       List<string> employeeIds)
+       List<string> employeeIds,
+       string? organizationCode = null)
         {
+            if (!string.IsNullOrWhiteSpace(organizationCode))
+            {
+                _tenantProvider.SetCurrentTenant(organizationCode);
+                var connStr = _tenantProvider.GetTenantConnectionString();
+                _context.Database.SetConnectionString(connStr);
+            }
             // ============================================================
             // 1. VALIDATE INPUT
             // ============================================================
@@ -1396,7 +1412,7 @@ StringComparison.OrdinalIgnoreCase))
                         continue;
                     }
 
-                    var joiningDate = employee.JoiningDate.Date;
+                        var joiningDate = employee.JoiningDate.Date;
 
                     var joiningMonthStart = new DateTime(
                         joiningDate.Year,
@@ -1712,8 +1728,19 @@ StringComparison.OrdinalIgnoreCase))
             //--------------------------------
         public async Task<List<PaySlip>> GetRecentPayslips()
         {
-            var payslips = await _context.PaySlips
-                .AsNoTracking()
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
+            var query = _context.PaySlips.AsNoTracking();
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var payslips = await query
                 .OrderByDescending(x => x.Id)
                 .ToListAsync();
 
@@ -1756,10 +1783,10 @@ StringComparison.OrdinalIgnoreCase))
 
                 if (run != null)
                 {
-                    run.RemoveAllChildren<OpenXmlText>();
+                    run.RemoveAllChildren<Text>();
 
                     run.Append(
-                       new OpenXmlText(text ?? "-"));
+                        new Text(text ?? "-"));
                 }
             }
         }
@@ -1864,6 +1891,14 @@ StringComparison.OrdinalIgnoreCase))
 
         public async Task<List<object>> GetEmployeePayslips(string employeeId)
         {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user != null)
+            {
+                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, user, employeeId);
+                if (!inTenant)
+                    throw new Exception("Employee not found in your organization.");
+            }
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Employee_Id == employeeId);
 
@@ -1896,11 +1931,19 @@ StringComparison.OrdinalIgnoreCase))
 
         public async Task<bool> DeletePaySlip(int id)
         {
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
             var payslip = await _context.PaySlips
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (payslip == null)
                 throw new Exception("Payslip not found.");
+
+            if (orgId.HasValue && orgId.Value > 0 && payslip.OrganizationId != orgId.Value)
+                throw new UnauthorizedAccessException("Unauthorized to delete payslip from another organization.");
 
             // Delete PDF file
             if (!string.IsNullOrWhiteSpace(payslip.FilePath))
@@ -1942,11 +1985,23 @@ StringComparison.OrdinalIgnoreCase))
             // GET GENERATED PAYSLIPS
             //------------------------------------------------
 
-            var payslips = await _context.PaySlips
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
+            var query = _context.PaySlips
                 .AsNoTracking()
                 .Where(p =>
                     p.Year == year &&
-                    p.Month.ToLower() == month.ToLower())
+                    p.Month.ToLower() == month.ToLower());
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(p => p.OrganizationId == orgId.Value);
+            }
+
+            var payslips = await query
                 .Select(p => new
                 {
                     p.Id,
@@ -2025,8 +2080,7 @@ StringComparison.OrdinalIgnoreCase))
                                 .FirstOrDefaultAsync(
                                     e =>
                                         e.Employee_Id ==
-                                        payslip.EmployeeId &&
-                                        e.Status == "Active", // varsha: exclude inactive employees from bulk payslip emails
+                                        payslip.EmployeeId,
                                     cancellationToken);
 
 
@@ -2036,7 +2090,7 @@ StringComparison.OrdinalIgnoreCase))
                                 ref failedCount);
 
                             failedEmployees.Add(
-                                $"{payslip.EmployeeId} - Employee not found or is inactive"); // varsha
+                                $"{payslip.EmployeeId} - Employee not found");
 
                             return;
                         }
@@ -2164,10 +2218,21 @@ StringComparison.OrdinalIgnoreCase))
     string month,
     int year)
         {
-            var payslips = await _context.PaySlips
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = user != null
+                ? await CurrentUserHelper.GetTenantContextAsync(_context, user)
+                : (null, new List<int>());
+
+            var query = _context.PaySlips
                 .Where(x => x.Month == month &&
-                            x.Year == year)
-                .ToListAsync();
+                            x.Year == year);
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var payslips = await query.ToListAsync();
 
             using var workbook = new XLWorkbook();
 

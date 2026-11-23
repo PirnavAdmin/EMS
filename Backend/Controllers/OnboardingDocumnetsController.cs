@@ -1,11 +1,14 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class OnboardingDocumentsController : ControllerBase
@@ -29,6 +32,9 @@ namespace EmployeeManagementSystem.Controllers
             if (string.IsNullOrWhiteSpace(dto.OnboardingId))
                 return BadRequest("Onboarding Id is required.");
 
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, dto.OnboardingId))
+                return NotFound("Invalid Onboarding Id or unauthorized.");
+
             var candidate = await _context.OnboardingCandidates
                 .FirstOrDefaultAsync(x => x.OnboardingId == dto.OnboardingId);
 
@@ -43,21 +49,21 @@ namespace EmployeeManagementSystem.Controllers
 
             var allowedDocumentTypes = new[]
             {
-        "10th Certificate",
-        "Intermediate / 12th Certificate",
-        "Degree Certificate",
-        "Post Graduation Certificate",
-        "Aadhaar Card",
-        "PAN Card",
-        "Passport",
-        "Passport Size Photo",
-        "Offer Letter",
-        "Appointment Letter",
-        "Relieving Letter",
-        "Payslip Month 1",
-        "Payslip Month 2",
-        "Payslip Month 3"
-    };
+                "10th Certificate",
+                "Intermediate / 12th Certificate",
+                "Degree Certificate",
+                "Post Graduation Certificate",
+                "Aadhaar Card",
+                "PAN Card",
+                "Passport",
+                "Passport Size Photo",
+                "Offer Letter",
+                "Appointment Letter",
+                "Relieving Letter",
+                "Payslip Month 1",
+                "Payslip Month 2",
+                "Payslip Month 3"
+            };
 
             if (!allowedDocumentTypes.Contains(dto.DocumentType))
                 return BadRequest("Invalid document type.");
@@ -78,11 +84,11 @@ namespace EmployeeManagementSystem.Controllers
 
             var allowedExtensions = new[]
             {
-        ".pdf",
-        ".jpg",
-        ".jpeg",
-        ".png"
-    };
+                ".pdf",
+                ".jpg",
+                ".jpeg",
+                ".png"
+            };
 
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
@@ -130,12 +136,17 @@ namespace EmployeeManagementSystem.Controllers
                 document.FilePath,
                 document.UploadedOn
             });
-        }    // ============================================
+        }
+
+        // ============================================
         // Get All Documents By Onboarding Id
         // ============================================
         [HttpGet("{onboardingId}")]
         public async Task<IActionResult> GetDocuments(string onboardingId)
         {
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, onboardingId))
+                return NotFound("Record not found.");
+
             var documents = await _context.OnboardingDocuments
                 .Where(x => x.OnboardingId == onboardingId)
                 .ToListAsync();
@@ -148,7 +159,6 @@ namespace EmployeeManagementSystem.Controllers
                 FileType = Path.GetExtension(x.FileName)
                                 .Replace(".", "")
                                 .ToUpper(),
-                
             }).ToList();
 
             return Ok(result);
@@ -166,6 +176,9 @@ namespace EmployeeManagementSystem.Controllers
             if (document == null)
                 return NotFound("Document not found.");
 
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, document.OnboardingId))
+                return NotFound("Document not found.");
+
             var filePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "wwwroot",
@@ -177,7 +190,6 @@ namespace EmployeeManagementSystem.Controllers
                 return NotFound("File not found.");
 
             var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
-
             var extension = Path.GetExtension(document.FileName).ToLower();
 
             var contentType = extension switch
@@ -207,6 +219,9 @@ namespace EmployeeManagementSystem.Controllers
             if (document == null)
                 return NotFound("Document not found.");
 
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, document.OnboardingId))
+                return NotFound("Document not found.");
+
             var filePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "wwwroot",
@@ -228,6 +243,7 @@ namespace EmployeeManagementSystem.Controllers
 
             return PhysicalFile(filePath, contentType);
         }
+
         // ============================================
         // Delete Document
         // ============================================
@@ -245,6 +261,9 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, document.OnboardingId))
+                return NotFound(new { message = "Document not found." });
+
             var filePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "wwwroot",
@@ -256,7 +275,6 @@ namespace EmployeeManagementSystem.Controllers
             }
 
             _context.OnboardingDocuments.Remove(document);
-
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -284,7 +302,12 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
-          
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, document.OnboardingId))
+                return NotFound(new { message = "Document not found." });
+
+            bool isAdmin = await CurrentUserHelper.IsAdminUserAsync(_context, User);
+            if (!isAdmin)
+                return Forbid();
 
             await _context.SaveChangesAsync();
 
@@ -313,7 +336,12 @@ namespace EmployeeManagementSystem.Controllers
                 });
             }
 
-           
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, document.OnboardingId))
+                return NotFound(new { message = "Document not found." });
+
+            bool isAdmin = await CurrentUserHelper.IsAdminUserAsync(_context, User);
+            if (!isAdmin)
+                return Forbid();
 
             await _context.SaveChangesAsync();
 
@@ -323,14 +351,15 @@ namespace EmployeeManagementSystem.Controllers
             });
         }
 
-      
-
         // ============================================
         // Document Checklist
         // ============================================
         [HttpGet("checklist/{onboardingId}")]
         public async Task<IActionResult> GetChecklist(string onboardingId)
         {
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, onboardingId))
+                return NotFound("Record not found.");
+
             var requiredDocuments = new List<string>
             {
                 "10th Certificate",
@@ -364,7 +393,6 @@ namespace EmployeeManagementSystem.Controllers
                 {
                     DocumentType = document,
                     Uploaded = uploaded != null,
-                    
                 });
             }
 
@@ -387,6 +415,9 @@ namespace EmployeeManagementSystem.Controllers
                     message = "Document not found."
                 });
             }
+
+            if (!await CurrentUserHelper.CanAccessOnboardingCandidateAsync(_context, User, document.OnboardingId))
+                return NotFound(new { message = "Document not found." });
 
             return Ok(document);
         }

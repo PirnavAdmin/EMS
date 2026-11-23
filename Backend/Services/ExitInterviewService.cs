@@ -1,10 +1,14 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 
 using EmployeeManagementSystem.DTOs;
+
+using EmployeeManagementSystem.Helpers;
 
 using EmployeeManagementSystem.Interfaces;
 
 using EmployeeManagementSystem.Models;
+
+using Microsoft.AspNetCore.Http;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -18,11 +22,15 @@ namespace EmployeeManagementSystem.Services
 
         private readonly AppDbContext _context;
 
-        public ExitInterviewService(AppDbContext context)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public ExitInterviewService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
 
         {
 
             _context = context;
+
+            _httpContextAccessor = httpContextAccessor;
 
         }
 
@@ -42,15 +50,41 @@ namespace EmployeeManagementSystem.Services
 
             {
 
+                var user = _httpContextAccessor.HttpContext?.User;
+
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
                 // ----------------------------------------------------
 
                 // 1. Check resignation
 
                 // ----------------------------------------------------
 
+                var resignationQuery = _context.EmployeeResignations
+
+                    .Include(x => x.Employee)
+
+                    .AsQueryable();
+
+                if (orgId.HasValue && orgId.Value > 0)
+
+                {
+
+                    resignationQuery = resignationQuery.Where(x => x.OrganizationId == orgId.Value);
+
+                }
+
+                else if (adminIds != null && adminIds.Any())
+
+                {
+
+                    resignationQuery = resignationQuery.Where(x => x.Employee != null && x.Employee.AdminId.HasValue && adminIds.Contains(x.Employee.AdminId.Value));
+
+                }
+
                 var resignation =
 
-                    await _context.EmployeeResignations
+                    await resignationQuery
 
                         .FirstOrDefaultAsync(x =>
 
@@ -144,6 +178,8 @@ namespace EmployeeManagementSystem.Services
 
                     {
 
+                        OrganizationId = resignation.OrganizationId ?? orgId,
+
                         ResignationId =
 
                             dto.ResignationId,
@@ -206,9 +242,37 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            return await _context.ExitInterviews
+            var user = _httpContextAccessor.HttpContext?.User;
 
-                .AsNoTracking()
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.ExitInterviews
+
+                .Include(x => x.EmployeeResignation)
+
+                    .ThenInclude(x => x!.Employee)
+
+                .AsNoTracking();
+
+            if (orgId.HasValue && orgId.Value > 0)
+
+            {
+
+                query = query.Where(x => x.OrganizationId == orgId.Value ||
+
+                    (x.EmployeeResignation != null && x.EmployeeResignation.OrganizationId == orgId.Value));
+
+            }
+
+            else if (adminIds != null && adminIds.Any())
+
+            {
+
+                query = query.Where(x => x.EmployeeResignation != null && x.EmployeeResignation.Employee != null && x.EmployeeResignation.Employee.AdminId.HasValue && adminIds.Contains(x.EmployeeResignation.Employee.AdminId.Value));
+
+            }
+
+            return await query
 
                 .Where(x =>
 
@@ -225,6 +289,10 @@ namespace EmployeeManagementSystem.Services
                         ExitInterviewId =
 
                             x.ExitInterviewId,
+
+                        OrganizationId =
+
+                            x.OrganizationId,
 
                         ResignationId =
 
@@ -268,9 +336,37 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            return await _context.ExitInterviews
+            var user = _httpContextAccessor.HttpContext?.User;
 
-                .AsNoTracking()
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.ExitInterviews
+
+                .Include(x => x.EmployeeResignation)
+
+                    .ThenInclude(x => x!.Employee)
+
+                .AsNoTracking();
+
+            if (orgId.HasValue && orgId.Value > 0)
+
+            {
+
+                query = query.Where(x => x.OrganizationId == orgId.Value ||
+
+                    (x.EmployeeResignation != null && x.EmployeeResignation.OrganizationId == orgId.Value));
+
+            }
+
+            else if (adminIds != null && adminIds.Any())
+
+            {
+
+                query = query.Where(x => x.EmployeeResignation != null && x.EmployeeResignation.Employee != null && x.EmployeeResignation.Employee.AdminId.HasValue && adminIds.Contains(x.EmployeeResignation.Employee.AdminId.Value));
+
+            }
+
+            return await query
 
                 .OrderByDescending(x =>
 
@@ -285,6 +381,10 @@ namespace EmployeeManagementSystem.Services
                         ExitInterviewId =
 
                             x.ExitInterviewId,
+
+                        OrganizationId =
+
+                            x.OrganizationId,
 
                         ResignationId =
 
@@ -332,9 +432,39 @@ namespace EmployeeManagementSystem.Services
 
             {
 
+                var user = _httpContextAccessor.HttpContext?.User;
+
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+                var query = _context.ExitInterviews
+
+                    .Include(x => x.EmployeeResignation)
+
+                        .ThenInclude(x => x!.Employee)
+
+                    .AsQueryable();
+
+                if (orgId.HasValue && orgId.Value > 0)
+
+                {
+
+                    query = query.Where(x => x.OrganizationId == orgId.Value ||
+
+                        (x.EmployeeResignation != null && x.EmployeeResignation.OrganizationId == orgId.Value));
+
+                }
+
+                else if (adminIds != null && adminIds.Any())
+
+                {
+
+                    query = query.Where(x => x.EmployeeResignation != null && x.EmployeeResignation.Employee != null && x.EmployeeResignation.Employee.AdminId.HasValue && adminIds.Contains(x.EmployeeResignation.Employee.AdminId.Value));
+
+                }
+
                 var interview =
 
-                    await _context.ExitInterviews
+                    await query
 
                         .FirstOrDefaultAsync(x =>
 

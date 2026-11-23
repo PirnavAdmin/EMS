@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Authorization;
+using EmployeeManagementSystem.Authorization;
 using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.DTOs;
 using EmployeeManagementSystem.Interfaces;
@@ -181,8 +181,8 @@ namespace EmployeeManagementSystem.Controllers
         // ✅ Daily Attendance (MAIN UI)
 
 
-      
-      [HttpGet("today")]
+        [Authorize]
+        [HttpGet("today")]
 public async Task<IActionResult> GetAttendanceByDate(
     DateTime date,
     string status = "All",
@@ -193,6 +193,7 @@ public async Task<IActionResult> GetAttendanceByDate(
 
     return Ok(result);
 }
+        [Authorize]
         [HttpGet("admin-dashboard-overview")]
         public async Task<IActionResult> GetAdminDashboardOverview()
         {
@@ -200,17 +201,17 @@ public async Task<IActionResult> GetAttendanceByDate(
         }
 
         // ✅ Monthly / Year View
-
+        [Authorize]
         [HttpGet("monthly")]
         public async Task<IActionResult> GetMonthlyAttendance(
      [FromQuery] int month,
      [FromQuery] int year)
         {
             if (month < 1 || month > 12)
-                return BadRequest("Month must be between 1 and 12.");
+                return BadRequest(new { message = "Month must be between 1 and 12." });
 
             if (year < 2000 || year > 2100)
-                return BadRequest("Invalid year.");
+                return BadRequest(new { message = "Invalid year." });
 
             var result = await _attendanceService
                 .GetAllEmployeeAttendance(month, year);
@@ -246,7 +247,7 @@ public async Task<IActionResult> GetAttendanceByDate(
         // ✅ Today
 
         //[Authorize(Roles = "Admin")]
-
+        [Authorize]
         [HttpGet("stats/today")]
 
         public async Task<IActionResult> GetTodayStats()
@@ -262,7 +263,7 @@ public async Task<IActionResult> GetAttendanceByDate(
         // ✅ Yearly Summary
 
         //[Authorize(Roles = "Admin")]
-
+        [Authorize]
         [HttpGet("stats/year")]
 
         public async Task<IActionResult> GetYearlySummary([FromQuery] int year)
@@ -332,7 +333,7 @@ public async Task<IActionResult> GetAttendanceByDate(
             );
 
         }
-
+        [Authorize]
         [HttpGet("admin/download-monthly")]
 
         public async Task<IActionResult> DownloadMonthlyAttendance(int month, int year)
@@ -353,6 +354,7 @@ public async Task<IActionResult> GetAttendanceByDate(
 
         }
 
+        [Authorize]
         [HttpGet("admin/download-weekly")]
 
         public async Task<IActionResult> DownloadWeeklyAttendance(DateTime weekStartDate)
@@ -373,7 +375,7 @@ public async Task<IActionResult> GetAttendanceByDate(
 
         }
 
-
+        [Authorize]
         [HttpGet("admin/download-daily")]
         public async Task<IActionResult> DownloadDaily(DateTime date)
         {
@@ -384,6 +386,8 @@ public async Task<IActionResult> GetAttendanceByDate(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 $"daily-attendance-{date:yyyy-MM-dd}.xlsx");
         }
+
+        [Authorize]
         [HttpGet("export-absent")]
         public async Task<IActionResult> ExportAbsent([FromQuery] DateTime date)
         {
@@ -395,6 +399,7 @@ public async Task<IActionResult> GetAttendanceByDate(
                 $"AbsentEmployees_{date:yyyyMMdd}.xlsx");
         }
 
+        [Authorize]
         [HttpGet("export-present-late")]
         public async Task<IActionResult> ExportPresentLate([FromQuery] DateTime date)
         {

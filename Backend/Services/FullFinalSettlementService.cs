@@ -1,5 +1,6 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using iText.IO.Font.Constants;
@@ -8,6 +9,7 @@ using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Element;
 using iText.Layout.Properties;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -17,11 +19,14 @@ namespace EmployeeManagementSystem.Services
         : IFullFinalSettlementService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public FullFinalSettlementService(
-            AppDbContext context)
+            AppDbContext context,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // =========================================================
@@ -39,12 +44,25 @@ namespace EmployeeManagementSystem.Services
                     return false;
                 }
 
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
                 // -------------------------------------------------
                 // 1. CHECK EMPLOYEE
                 // -------------------------------------------------
 
+                var empQuery = _context.Employees.AsQueryable();
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    empQuery = empQuery.Where(x => x.OrganizationId == orgId.Value);
+                }
+                else if (adminIds != null && adminIds.Any())
+                {
+                    empQuery = empQuery.Where(x => x.AdminId.HasValue && adminIds.Contains(x.AdminId.Value));
+                }
+
                 var employee =
-                    await _context.Employees
+                    await empQuery
                         .FirstOrDefaultAsync(x =>
                             x.Employee_Id == dto.Employee_Id);
 
@@ -255,6 +273,9 @@ namespace EmployeeManagementSystem.Services
                 var settlement =
                     new FullFinalSettlement
                     {
+                        OrganizationId =
+                            employee.OrganizationId ?? orgId,
+
                         Employee_Id =
                             dto.Employee_Id,
 
@@ -310,8 +331,25 @@ namespace EmployeeManagementSystem.Services
                     return false;
                 }
 
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+                var query = _context.FullFinalSettlements
+                    .Include(x => x.Employee)
+                    .AsQueryable();
+
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value ||
+                        (x.Employee != null && x.Employee.OrganizationId == orgId.Value));
+                }
+                else if (adminIds != null && adminIds.Any())
+                {
+                    query = query.Where(x => x.Employee != null && x.Employee.AdminId.HasValue && adminIds.Contains(x.Employee.AdminId.Value));
+                }
+
                 var settlement =
-                    await _context.FullFinalSettlements
+                    await query
                         .FirstOrDefaultAsync(x =>
                             x.SettlementId ==
                             dto.SettlementId);
@@ -357,8 +395,24 @@ namespace EmployeeManagementSystem.Services
         {
             try
             {
-                return await _context.FullFinalSettlements
-                    .AsNoTracking()
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+                var query = _context.FullFinalSettlements
+                    .Include(x => x.Employee)
+                    .AsNoTracking();
+
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value ||
+                        (x.Employee != null && x.Employee.OrganizationId == orgId.Value));
+                }
+                else if (adminIds != null && adminIds.Any())
+                {
+                    query = query.Where(x => x.Employee != null && x.Employee.AdminId.HasValue && adminIds.Contains(x.Employee.AdminId.Value));
+                }
+
+                return await query
                     .OrderByDescending(x =>
                         x.SettlementId)
                     .Select(x =>
@@ -366,6 +420,9 @@ namespace EmployeeManagementSystem.Services
                         {
                             SettlementId =
                                 x.SettlementId,
+
+                            OrganizationId =
+                                x.OrganizationId,
 
                             Employee_Id =
                                 x.Employee_Id,
@@ -417,8 +474,24 @@ namespace EmployeeManagementSystem.Services
                     return null;
                 }
 
-                return await _context.FullFinalSettlements
-                    .AsNoTracking()
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+                var query = _context.FullFinalSettlements
+                    .Include(x => x.Employee)
+                    .AsNoTracking();
+
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value ||
+                        (x.Employee != null && x.Employee.OrganizationId == orgId.Value));
+                }
+                else if (adminIds != null && adminIds.Any())
+                {
+                    query = query.Where(x => x.Employee != null && x.Employee.AdminId.HasValue && adminIds.Contains(x.Employee.AdminId.Value));
+                }
+
+                return await query
                     .Where(x =>
                         x.Employee_Id ==
                         employeeId)
@@ -429,6 +502,9 @@ namespace EmployeeManagementSystem.Services
                         {
                             SettlementId =
                                 x.SettlementId,
+
+                            OrganizationId =
+                                x.OrganizationId,
 
                             Employee_Id =
                                 x.Employee_Id,
@@ -474,8 +550,25 @@ namespace EmployeeManagementSystem.Services
         {
             try
             {
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+                var query = _context.FullFinalSettlements
+                    .Include(x => x.Employee)
+                    .AsQueryable();
+
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value ||
+                        (x.Employee != null && x.Employee.OrganizationId == orgId.Value));
+                }
+                else if (adminIds != null && adminIds.Any())
+                {
+                    query = query.Where(x => x.Employee != null && x.Employee.AdminId.HasValue && adminIds.Contains(x.Employee.AdminId.Value));
+                }
+
                 var settlement =
-                    await _context.FullFinalSettlements
+                    await query
                         .FirstOrDefaultAsync(x =>
                             x.SettlementId ==
                             settlementId);
@@ -520,13 +613,29 @@ namespace EmployeeManagementSystem.Services
         {
             try
             {
+                var user = _httpContextAccessor.HttpContext?.User;
+                var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+                var query = _context.FullFinalSettlements
+                    .Include(x => x.Employee)
+                    .AsNoTracking();
+
+                if (orgId.HasValue && orgId.Value > 0)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value ||
+                        (x.Employee != null && x.Employee.OrganizationId == orgId.Value));
+                }
+                else if (adminIds != null && adminIds.Any())
+                {
+                    query = query.Where(x => x.Employee != null && x.Employee.AdminId.HasValue && adminIds.Contains(x.Employee.AdminId.Value));
+                }
+
                 // -------------------------------------------------
                 // 1. GET SETTLEMENT
                 // -------------------------------------------------
 
                 var settlement =
-                    await _context.FullFinalSettlements
-                        .AsNoTracking()
+                    await query
                         .FirstOrDefaultAsync(x =>
                             x.SettlementId ==
                             settlementId);

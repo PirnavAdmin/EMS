@@ -8,6 +8,11 @@ public class Holiday
     public int Id { get; set; }   // Internal only
 
     [Required]
+    [Column("OrganizationId")]
+    public int OrganizationId { get; set; }
+
+
+    [Required]
     public string Holiday_Name { get; set; } = string.Empty;
 
     [Required]

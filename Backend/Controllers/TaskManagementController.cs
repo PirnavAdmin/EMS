@@ -1,18 +1,23 @@
-﻿using DocumentFormat.OpenXml.InkML;
-using EmployeeManagementSystem.Data;
+﻿using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TaskManagementController : ControllerBase
 {
     private readonly ITaskManagementService _taskService;
     private readonly AppDbContext _context;
+
     public TaskManagementController(ITaskManagementService taskService, AppDbContext context)
     {
         _taskService = taskService;
@@ -24,7 +29,6 @@ public class TaskManagementController : ControllerBase
     public async Task<IActionResult> Create(TaskManagementDto dto)
     {
         var result = await _taskService.CreateTask(dto);
-
         return Ok(new { message = result });
     }
 
@@ -39,11 +43,9 @@ public class TaskManagementController : ControllerBase
         {
             var status = task.Status;
 
-            // ✅ Convert Pending → In Progress
             if (status == "Pending")
                 status = "In Progress";
 
-            // ✅ Convert Overdue
             if (task.DueDate.HasValue &&
                 task.DueDate.Value.Date < today &&
                 status != "Completed")
@@ -71,9 +73,9 @@ public class TaskManagementController : ControllerBase
     public async Task<IActionResult> GetByEmployee(string employeeId)
     {
         var tasks = await _taskService.GetTasksByEmployee(employeeId);
-
         return Ok(tasks);
     }
+
     // UPDATE TASK
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, TaskManagementDto dto)
@@ -111,7 +113,6 @@ public class TaskManagementController : ControllerBase
     }
 
     // CHECK DEADLINES
-
     [HttpPost("check-task-deadlines")]
     public async Task<IActionResult> CheckTaskDeadlines()
     {
@@ -119,40 +120,41 @@ public class TaskManagementController : ControllerBase
         return Ok("Task deadline notifications checked");
     }
 
-
     [HttpPut("user/update-status/{id}")]
     public async Task<IActionResult> UpdateStatusByUser(int id, [FromBody] string status)
     {
         var result = await _taskService.UpdateStatus(id, status);
         return Ok(result);
     }
-   
-    [Authorize]
+
     [HttpGet("my-tasks")]
     public async Task<IActionResult> GetMyTasks()
     {
+        var orgId = CurrentUserHelper.GetOrganizationId(User);
+        if (!orgId.HasValue || orgId.Value <= 0)
+            return Unauthorized(new { message = "OrganizationId not found in token." });
+
         var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
         if (string.IsNullOrEmpty(email))
             return Unauthorized("Invalid token");
 
         var employee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.Email == email);
+            .FirstOrDefaultAsync(e => e.Email == email && e.OrganizationId == orgId.Value);
 
-        if (employee == null || employee.Status != "Active") // varsha: block inactive employee from task retrieval
-            return NotFound("Employee not found or is inactive"); // varsha
+        if (employee == null || employee.Status != "Active")
+            return NotFound("Employee not found or is inactive");
 
         var today = DateTime.UtcNow.Date;
 
         var tasks = await _context.TaskManagement
-            .Where(t => t.AssignedTo == employee.Employee_Id)
+            .Where(t => t.OrganizationId == orgId.Value && t.AssignedTo == employee.Employee_Id)
             .ToListAsync();
 
         var updatedTasks = tasks.Select(task =>
         {
             var status = task.Status;
 
-            // ✅ KEEP YOUR EXISTING LOGIC
             if (status == "Pending")
                 status = "In Progress";
 
@@ -175,7 +177,6 @@ public class TaskManagementController : ControllerBase
             };
         }).ToList();
 
-        // ✅ ADD COUNTS HERE (THIS FIXES YOUR ISSUE)
         var todoCount = updatedTasks.Count(t => t.Status == "To Do");
         var inProgressCount = updatedTasks.Count(t => t.Status == "In Progress");
         var completedCount = updatedTasks.Count(t => t.Status == "Completed");
@@ -188,6 +189,7 @@ public class TaskManagementController : ControllerBase
             completedCount
         });
     }
+
     [HttpGet("export")]
     public async Task<IActionResult> ExportTasks()
     {

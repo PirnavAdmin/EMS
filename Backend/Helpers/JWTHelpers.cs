@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.Models;
 
 using Microsoft.IdentityModel.Tokens;
 
@@ -29,14 +29,12 @@ namespace EmployeeManagementSystem.Helpers
         // ✅ Updated method (added employeeId)
 
         public string GenerateToken(
-
-    Register user,
-
-    string roleName,
-
-    string employeeId,
-
-    int? adminId)
+            Register user,
+            string roleName,
+            string employeeId,
+            int? adminId,
+            int? organizationId = null,
+            string? organizationCode = null)
 
         {
 
@@ -92,6 +90,19 @@ namespace EmployeeManagementSystem.Helpers
 
             }
 
+            if (organizationId.HasValue)
+            {
+                claims.Add(
+                    new Claim(
+                        "OrganizationId",
+                        organizationId.Value.ToString()));
+            }
+
+            if (!string.IsNullOrEmpty(organizationCode))
+            {
+                claims.Add(new Claim("OrganizationCode", organizationCode));
+            }
+
             var key =
 
                 new SymmetricSecurityKey(
@@ -132,25 +143,30 @@ namespace EmployeeManagementSystem.Helpers
 
         {
 
-            var claims = new[]
+            var claims = new List<Claim>
 
             {
 
         new Claim(ClaimTypes.Email, candidate.Email),
- 
+
         // Identify the login type
 
         new Claim("UserType", "Onboarding"),
- 
+
         // Candidate Id
 
         new Claim("OnboardingId", candidate.OnboardingId),
- 
+
         // Optional: use Role as Onboarding
 
         new Claim(ClaimTypes.Role, "Onboarding")
 
-    };
+            };
+
+            if (candidate.OrganizationId.HasValue)
+            {
+                claims.Add(new Claim("OrganizationId", candidate.OrganizationId.Value.ToString()));
+            }
 
             var key = new SymmetricSecurityKey(
 

@@ -1,8 +1,10 @@
-﻿namespace EmployeeManagementSystem.DTOs
+namespace EmployeeManagementSystem.DTOs
 {
     public class SettlementResponseDto
     {
         public int SettlementId { get; set; }
+
+        public int? OrganizationId { get; set; }
 
         public string Employee_Id { get; set; }
 

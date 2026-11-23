@@ -60,9 +60,9 @@ namespace EmployeeManagementSystem.Services
 
                     .FirstOrDefaultAsync(x => x.Email == email);
 
-                if (employee == null || employee.Status != "Active") // varsha: exclude inactive employees
+                if (employee == null || employee.Status != "Active")
 
-                    return new NotFoundObjectResult("Employee not found or is inactive"); // varsha
+                    return new NotFoundObjectResult("Employee not found or is inactive");
 
                 var notifications = await _context.UserNotifications
 
@@ -121,12 +121,11 @@ namespace EmployeeManagementSystem.Services
 
                 Console.WriteLine("=====================================");
 
-                // varsha: Do not return notifications for inactive employees
-                var isEmployeeActive = await _context.Employees // varsha
-                    .AsNoTracking() // varsha
-                    .AnyAsync(e => e.Employee_Id == employeeId && e.Status == "Active"); // varsha
-                if (!isEmployeeActive) // varsha
-                    return new List<UserNotification>(); // varsha
+                var isEmployeeActive = await _context.Employees
+                    .AsNoTracking()
+                    .AnyAsync(e => e.Employee_Id == employeeId && e.Status == "Active");
+                if (!isEmployeeActive)
+                    return new List<UserNotification>();
 
                 var notifications = await _context.UserNotifications
 
@@ -206,18 +205,17 @@ namespace EmployeeManagementSystem.Services
 
                 Console.WriteLine("=====================================");
 
-                // varsha: Do not create notifications for inactive employees
-                if (!string.IsNullOrWhiteSpace(dto.Employee_Id)) // varsha
-                { // varsha
-                    var isEmployeeActive = await _context.Employees // varsha
-                        .AsNoTracking() // varsha
-                        .AnyAsync(e => e.Employee_Id == dto.Employee_Id && e.Status == "Active"); // varsha
-                    if (!isEmployeeActive) // varsha
-                    { // varsha
-                        Console.WriteLine($"[UserNotification] Suppressed notification for inactive employee: {dto.Employee_Id}"); // varsha
-                        return; // varsha
-                    } // varsha
-                } // varsha
+                if (!string.IsNullOrWhiteSpace(dto.Employee_Id))
+                {
+                    var isEmployeeActive = await _context.Employees
+                        .AsNoTracking()
+                        .AnyAsync(e => e.Employee_Id == dto.Employee_Id && e.Status == "Active");
+                    if (!isEmployeeActive)
+                    {
+                        Console.WriteLine($"[UserNotification] Suppressed notification for inactive employee: {dto.Employee_Id}");
+                        return;
+                    }
+                }
 
                 var notification = new UserNotification
 
@@ -311,12 +309,11 @@ namespace EmployeeManagementSystem.Services
 
                 Console.WriteLine("=====================================");
 
-                // varsha: Do not perform notification actions for inactive employees
-                var isEmployeeActive = await _context.Employees // varsha
-                    .AsNoTracking() // varsha
-                    .AnyAsync(e => e.Employee_Id == employeeId && e.Status == "Active"); // varsha
-                if (!isEmployeeActive) // varsha
-                    return; // varsha
+                var isEmployeeActive = await _context.Employees
+                    .AsNoTracking()
+                    .AnyAsync(e => e.Employee_Id == employeeId && e.Status == "Active");
+                if (!isEmployeeActive)
+                    return;
 
                 var unread = await _context.UserNotifications
 

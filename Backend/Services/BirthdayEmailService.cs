@@ -51,16 +51,13 @@ namespace EmployeeManagementSystem.Services
         private async Task SendBirthdayEmailsAsync(
             CancellationToken cancellationToken)
         {
-            using var scope =
-                _scopeFactory.CreateScope();
+            using var scope = _scopeFactory.CreateScope();
+            var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
 
-            var context =
-                scope.ServiceProvider
-                    .GetRequiredService<AppDbContext>();
-
-            var emailService =
-                scope.ServiceProvider
-                    .GetRequiredService<IEmailService>();
+            var orgs = await masterDb.Organizations
+                .Where(o => !o.IsDeleted)
+                .Select(o => o.OrganizationCode)
+                .ToListAsync(cancellationToken);
 
             var todayIst =
                 TimeZoneInfo.ConvertTimeFromUtc(
@@ -68,65 +65,70 @@ namespace EmployeeManagementSystem.Services
                     IndiaTimeZone);
 
             _logger.LogInformation(
-                "Checking birthdays for {Date}.",
+                "Checking birthdays across all organizations for {Date}.",
                 todayIst.ToString("dd-MM-yyyy"));
 
-            var employees =
-     await (
-         from employee in context.Employees
-         join personal in context.EmployeePersonalInfos
-             on employee.Employee_Id equals personal.Employee_Id
-         where personal.DateOfBirth.Month == todayIst.Month
-               && personal.DateOfBirth.Day == todayIst.Day
-               && !string.IsNullOrWhiteSpace(employee.Email)
-               && employee.Status == "Active" // varsha: exclude inactive employees from birthday notifications
-         select new
-         {
-             employee.Employee_Id,
-             employee.Name,
-             employee.Email,
-             DateOfBirth = personal.DateOfBirth
-         }
-     )
-     .ToListAsync(cancellationToken);
-
-            if (!employees.Any())
+            foreach (var orgCode in orgs)
             {
-                _logger.LogInformation(
-                    "No birthdays found for {Date}.",
-                    todayIst.ToString("dd-MM-yyyy"));
+                if (string.IsNullOrWhiteSpace(orgCode) || string.Equals(orgCode, "master", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-                return;
-            }
-
-            foreach (var employee in employees)
-            {
                 try
                 {
-                    var subject =
-                        $"🎉 Happy Birthday, {employee.Name}! 🎂";
+                    using var tenantScope = _scopeFactory.CreateScope();
+                    var tenantProvider = tenantScope.ServiceProvider.GetRequiredService<ITenantProvider>();
+                    tenantProvider.SetCurrentTenant(orgCode);
 
-                    var body =
-                        BuildBirthdayEmail(
-                            employee.Name);
+                    var context = tenantScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var emailService = tenantScope.ServiceProvider.GetRequiredService<IEmailService>();
 
-                    // Use your existing IEmailService method
-                    await emailService.SendEmailAsync(
-                        employee.Email,
-                        subject,
-                        body);
+                    var employees = await (
+                        from employee in context.Employees
+                        join personal in context.EmployeePersonalInfos
+                            on employee.Employee_Id equals personal.Employee_Id
+                        where personal.DateOfBirth.Month == todayIst.Month
+                              && personal.DateOfBirth.Day == todayIst.Day
+                              && !string.IsNullOrWhiteSpace(employee.Email)
+                        select new
+                        {
+                            employee.Employee_Id,
+                            employee.Name,
+                            employee.Email,
+                            DateOfBirth = personal.DateOfBirth
+                        }
+                    ).ToListAsync(cancellationToken);
 
-                    _logger.LogInformation(
-                        "Birthday email sent to {EmployeeId} - {Email}.",
-                        employee.Employee_Id,
-                        employee.Email);
+                    foreach (var employee in employees)
+                    {
+                        try
+                        {
+                            var subject = $"🎉 Happy Birthday, {employee.Name}! 🎂";
+                            var body = BuildBirthdayEmail(employee.Name);
+
+                            await emailService.SendEmailAsync(
+                                employee.Email,
+                                subject,
+                                body);
+
+                            _logger.LogInformation(
+                                "[{OrgCode}] Birthday email sent to {EmployeeId} - {Email}.",
+                                orgCode,
+                                employee.Employee_Id,
+                                employee.Email);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(
+                                ex,
+                                "[{OrgCode}] Failed to send birthday email to {Email}",
+                                orgCode,
+                                employee.Email);
+                        }
+                    }
                 }
-                catch (Exception ex)
+                catch (Exception orgEx)
                 {
-                    _logger.LogError(
-                        ex,
-                        "Birthday email failed for Employee {EmployeeId}.",
-                        employee.Employee_Id);
+                    _logger.LogWarning("Failed checking birthdays for organization {OrgCode}: {Error}", orgCode, orgEx.Message);
                 }
             }
         }

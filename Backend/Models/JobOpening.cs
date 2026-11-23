@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("JobOpenings")]
@@ -6,6 +6,8 @@ public class JobOpening
 {
     [Key]
     public int Id { get; set; }   // Internal
+
+    public int? OrganizationId { get; set; }
 
     [Required]
     public string Job_Title { get; set; } = string.Empty;

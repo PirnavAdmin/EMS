@@ -1,4 +1,5 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,26 +19,39 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> Dashboard()
         {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+
+            var empQuery = _context.Employees.AsNoTracking();
+            var goalQuery = _context.EmployeeGoals.AsNoTracking();
+            var appraisalQuery = _context.Appraisals.AsNoTracking();
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                empQuery = empQuery.Where(x => x.OrganizationId == orgId.Value);
+                goalQuery = goalQuery.Where(x => x.OrganizationId == orgId.Value);
+                appraisalQuery = appraisalQuery.Where(x => x.OrganizationId == orgId.Value);
+            }
+
             var totalEmployees =
-                await _context.Employees.CountAsync(x => x.Status == "Active"); // varsha: performance dashboard only counts active employees
+                await empQuery.CountAsync();
 
             var totalGoals =
-                await _context.EmployeeGoals.CountAsync();
+                await goalQuery.CountAsync();
 
             var completedGoals =
-                await _context.EmployeeGoals
+                await goalQuery
                     .CountAsync(x => x.Status == "Completed");
 
             var pendingReviews =
-                await _context.Appraisals
+                await appraisalQuery
                     .CountAsync(x => x.Status != "Completed");
 
             var avgRating =
-                await _context.Appraisals
+                await appraisalQuery
                     .AverageAsync(x => (double?)x.FinalRating) ?? 0;
 
             var topPerformers =
-                await _context.Appraisals
+                await appraisalQuery
                     .OrderByDescending(x => x.FinalRating)
                     .Take(10)
                     .ToListAsync();

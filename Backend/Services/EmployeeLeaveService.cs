@@ -1,53 +1,85 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
 using EmployeeManagementSystem.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenXmlPowerTools;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 public class EmployeeLeaveService : IEmployeeLeaveService
-
 {
-
-
-
     private readonly AppDbContext _context;
-
     private readonly IAdminNotificationService _notificationService;
     private readonly IEmailService _emailService;
     private readonly ILeaveBalanceService _leaveBalanceService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
     public EmployeeLeaveService(
-     AppDbContext context,
-     IAdminNotificationService notificationService,
-     IEmailService emailService,
-     ILeaveBalanceService leaveBalanceService)
+        AppDbContext context,
+        IAdminNotificationService notificationService,
+        IEmailService emailService,
+        ILeaveBalanceService leaveBalanceService,
+        IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _notificationService = notificationService;
         _emailService = emailService;
         _leaveBalanceService = leaveBalanceService;
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    private LeaveSettings GetLeaveSettings()
+    private async Task<(int? OrgId, List<string> EmployeeIds)> GetCurrentOrgEmployeeContextAsync(ClaimsPrincipal? user = null)
     {
-        var settings = _context.LeaveSettings
-            .AsNoTracking()
-            .FirstOrDefault();
+        user ??= _httpContextAccessor.HttpContext?.User;
+        if (user == null)
+        {
+            return (null, new List<string>());
+        }
 
+        var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+        if (orgId.HasValue && orgId.Value > 0)
+        {
+            var empIds = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
+                .Select(e => e.Employee_Id)
+                .ToListAsync();
+
+            return (orgId.Value, empIds);
+        }
+
+        if (adminIds != null && adminIds.Any())
+        {
+            var empIds = await CurrentUserHelper.FilterEmployeesByTenant(_context, null, adminIds)
+                .Select(e => e.Employee_Id)
+                .ToListAsync();
+
+            return (null, empIds);
+        }
+
+        return (null, new List<string>());
+    }
+
+    private LeaveSettings GetLeaveSettings(int? orgId = null)
+    {
+        var query = _context.LeaveSettings.AsNoTracking();
+        if (orgId.HasValue && orgId.Value > 0)
+        {
+            var orgSettings = query.FirstOrDefault(s => s.OrganizationId == orgId.Value);
+            if (orgSettings != null) return orgSettings;
+        }
+
+        var settings = query.FirstOrDefault();
         if (settings == null)
             throw new Exception("Leave Settings not configured.");
 
         return settings;
     }
+
 
     private NotificationSettings GetNotificationSettings()
     {
@@ -71,9 +103,9 @@ public class EmployeeLeaveService : IEmployeeLeaveService
 
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null || employee.Status != "Active") // varsha: block inactive employee from applying leave
+        if (employee == null)
 
-            return new BadRequestObjectResult(new { message = "Employee is inactive or not found" }); // varsha
+            return new BadRequestObjectResult(new { message = "Employee not found" });
 
         // ============================================================
         // Employee Details for Leave Email
@@ -277,46 +309,30 @@ Employee ID: {employee.Employee_Id}";
         }
 
         var leave = new EmployeeLeave
-
         {
-
+            OrganizationId = employee.OrganizationId ?? CurrentUserHelper.GetOrganizationId(user),
             EmployeeId = employee.Employee_Id,
-
             EmployeeName = employee.Name,
-
             LeaveType = dto.LeaveType,
-
             RequestedType = "Leave",
             ApprovedType = null,
             ApprovalRemarks = null,
-
             FromDate = fromDate,
-
             ToDate = toDate,
-
-
             Reason = returnReason,
-
             Status = "Pending",
-
             ManagerStatus = "Pending",
-
             HRStatus = "Pending",
-
             ApprovalToken = approvalToken,
             AttachmentFileName = attachmentFileName,
             AttachmentPath = attachmentPath,
-
-
             CreatedAt = DateTime.UtcNow
-
         };
 
         await _context.EmployeeLeaves.AddAsync(leave);
-
         await _context.SaveChangesAsync();
 
-        var leaveSettings = GetLeaveSettings();
+        var leaveSettings = GetLeaveSettings(employee.OrganizationId ?? CurrentUserHelper.GetOrganizationId(user));
 
         var approvalRoles = leaveSettings.ApprovalRoles
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -324,11 +340,12 @@ Employee ID: {employee.Employee_Id}";
             .ToList();
 
         var approvers = await _context.Employees
-            .Where(x =>
-                x.Status == "Active" && // varsha: exclude inactive approvers
-                !string.IsNullOrWhiteSpace(x.RoleName) &&
-                approvalRoles.Contains(x.RoleName.ToLower()))
-            .ToListAsync();
+    .Where(x =>
+        (!employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+        !string.IsNullOrWhiteSpace(x.RoleName) &&
+        approvalRoles.Contains(x.RoleName.ToLower()))
+    .ToListAsync();
+
 
         var internalEmails = approvers
 
@@ -346,7 +363,7 @@ Employee ID: {employee.Employee_Id}";
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
 
-        string baseUrl = "https://peoplehrsync.com";
+        string baseUrl = "https://localhost:7191";
         var notification = GetNotificationSettings();
 
         if (!notification.EnableEmailNotifications ||
@@ -358,7 +375,8 @@ Employee ID: {employee.Employee_Id}";
                 Message = $"{employee.Name} applied for leave",
                 UserRole = "Manager",
                 IsRead = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                OrganizationId = employee.OrganizationId
             });
 
             await _context.SaveChangesAsync();
@@ -686,7 +704,9 @@ Pirnav Software Solutions Pvt. Ltd.
 
             IsRead = false,
 
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+
+            OrganizationId = employee.OrganizationId
         });
 
         await _context.SaveChangesAsync();
@@ -818,6 +838,18 @@ Pirnav Software Solutions Pvt. Ltd.
         if (leave == null)
             return new NotFoundObjectResult("Leave not found");
 
+        var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+        if (orgId.HasValue && leave.OrganizationId.HasValue && leave.OrganizationId.Value != orgId.Value)
+        {
+            return new NotFoundObjectResult("Leave not found");
+        }
+        else if (adminIds != null && adminIds.Any() && !string.IsNullOrWhiteSpace(leave.EmployeeId))
+        {
+            var isMember = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
+                .AnyAsync(e => e.Employee_Id == leave.EmployeeId);
+            if (!isMember) return new NotFoundObjectResult("Leave not found");
+        }
+
         if (leave.Status != null &&
             leave.Status.StartsWith("Approved"))
         {
@@ -848,9 +880,6 @@ Pirnav Software Solutions Pvt. Ltd.
 
         var loggedInEmployee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-
-        if (loggedInEmployee != null && loggedInEmployee.Status != "Active") // varsha: block inactive employee from approving leave
-            return new UnauthorizedObjectResult("Approver account is inactive."); // varsha
 
         if (loggedInEmployee != null)
         {
@@ -1028,7 +1057,7 @@ Pirnav Software Solutions Pvt. Ltd.
             await _context.SaveChangesAsync();
 
             // Fixed email addresses
-            var leaveSettings = GetLeaveSettings();
+            var leaveSettings = GetLeaveSettings(leave.OrganizationId ?? orgId);
 
             var emailList = leaveSettings.ExternalEmails?
                 .Split(';', StringSplitOptions.RemoveEmptyEntries)
@@ -1043,19 +1072,20 @@ Pirnav Software Solutions Pvt. Ltd.
     .ToList();
 
             var roleEmails = await _context.Employees
-                .Where(x =>
-                    x.Status == "Active" && // varsha: exclude inactive recipients
-                    !string.IsNullOrWhiteSpace(x.Email) &&
-                    !string.IsNullOrWhiteSpace(x.RoleName) &&
-                    approvalRoles.Contains(x.RoleName.ToLower()))
-                .Select(x => x.Email)
-                .ToListAsync();
+    .Where(x =>
+        (employee == null || !employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+        !string.IsNullOrWhiteSpace(x.Email) &&
+        !string.IsNullOrWhiteSpace(x.RoleName) &&
+        approvalRoles.Contains(x.RoleName.ToLower()))
+    .Select(x => x.Email)
+    .ToListAsync();
+
 
             // Add role emails
             emailList.AddRange(roleEmails);
 
             // Add employee email
-            if (employee != null && employee.Status == "Active" && !string.IsNullOrWhiteSpace(employee.Email)) // varsha: do not notify inactive applicant
+            if (employee != null && !string.IsNullOrWhiteSpace(employee.Email))
             {
                 emailList.Add(employee.Email);
             }
@@ -1184,7 +1214,7 @@ Pirnav Software Solutions Pvt. Ltd.
             await _context.SaveChangesAsync();
 
             // Fixed email addresses
-            var leaveSettings = GetLeaveSettings();
+            var leaveSettings = GetLeaveSettings(leave.OrganizationId ?? orgId);
 
             var emailList = leaveSettings.ExternalEmails?
                 .Split(';', StringSplitOptions.RemoveEmptyEntries)
@@ -1199,18 +1229,19 @@ Pirnav Software Solutions Pvt. Ltd.
                 .ToList();
 
             var roleEmails = await _context.Employees
-                .Where(x =>
-                    x.Status == "Active" && // varsha: exclude inactive recipients
-                    !string.IsNullOrWhiteSpace(x.Email) &&
-                    !string.IsNullOrWhiteSpace(x.RoleName) &&
-                    approvalRoles.Contains(x.RoleName.ToLower()))
-                .Select(x => x.Email)
-                .ToListAsync();
+    .Where(x =>
+        (employee == null || !employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+        !string.IsNullOrWhiteSpace(x.Email) &&
+        !string.IsNullOrWhiteSpace(x.RoleName) &&
+        approvalRoles.Contains(x.RoleName.ToLower()))
+    .Select(x => x.Email)
+    .ToListAsync();
+
 
             emailList.AddRange(roleEmails);
 
             // Add employee email
-            if (employee != null && employee.Status == "Active" && // varsha: do not notify inactive applicant
+            if (employee != null &&
                 !string.IsNullOrWhiteSpace(employee.Email))
             {
                 emailList.Add(employee.Email);
@@ -1419,11 +1450,26 @@ Pirnav Software Solutions Pvt. Ltd.
 
         await _context.SaveChangesAsync();
     }
-    public async Task<IActionResult> GetAllLeaves()
+    public async Task<IActionResult> GetAllLeaves(ClaimsPrincipal user)
     {
+        var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync(user);
         var today = DateTime.Today;
 
-        var leaves = await _context.EmployeeLeaves
+        var query = _context.EmployeeLeaves.AsQueryable();
+        if (orgId.HasValue && orgId.Value > 0)
+        {
+            query = query.Where(x => x.OrganizationId == orgId.Value);
+        }
+        else if (tenantEmployeeIds != null && tenantEmployeeIds.Any())
+        {
+            query = query.Where(x => tenantEmployeeIds.Contains(x.EmployeeId));
+        }
+        else
+        {
+            return new OkObjectResult(new List<object>());
+        }
+
+        var leaves = await query
             .OrderByDescending(x =>
                 x.Status.StartsWith("Approved") &&
                 x.FromDate.Date <= today &&
@@ -1481,6 +1527,7 @@ Pirnav Software Solutions Pvt. Ltd.
 
         return new OkObjectResult(leaves);
     }
+
     public async Task<IActionResult> GetMyLeaves(ClaimsPrincipal user)
     {
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
@@ -1488,9 +1535,9 @@ Pirnav Software Solutions Pvt. Ltd.
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
+        if (employee == null)
         {
-            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
+            return new BadRequestObjectResult("Employee not found");
         }
 
         var today = DateTime.Today;
@@ -1656,8 +1703,12 @@ Pirnav Software Solutions Pvt. Ltd.
 
     //}
 
-    public async Task<IActionResult> GetEmployeeLeaveDetails(string employeeId)
+    public async Task<IActionResult> GetEmployeeLeaveDetails(string employeeId, ClaimsPrincipal user)
     {
+        var isInTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, user, employeeId);
+        if (!isInTenant)
+            return new NotFoundObjectResult("Employee not found");
+
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
 
@@ -1732,11 +1783,25 @@ Pirnav Software Solutions Pvt. Ltd.
             LeaveHistory = leaveHistory
         });
     }
-    public async Task<byte[]> ExportLeavesExcel()
+    public async Task<byte[]> ExportLeavesExcel(ClaimsPrincipal user)
     {
-        var leaves = await _context.EmployeeLeaves
-            .AsNoTracking()
-            .ToListAsync();
+        var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync(user);
+
+        var query = _context.EmployeeLeaves.AsNoTracking();
+        if (orgId.HasValue && orgId.Value > 0)
+        {
+            query = query.Where(l => l.OrganizationId == orgId.Value);
+        }
+        else if (tenantEmployeeIds != null && tenantEmployeeIds.Any())
+        {
+            query = query.Where(l => tenantEmployeeIds.Contains(l.EmployeeId));
+        }
+        else
+        {
+            query = query.Where(l => false);
+        }
+
+        var leaves = await query.ToListAsync();
 
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Employee Leaves");
@@ -1770,31 +1835,37 @@ Pirnav Software Solutions Pvt. Ltd.
             row++;
         }
 
-        worksheet.Columns().AdjustToContents();
-
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-
         return stream.ToArray();
     }
 
 
-    public async Task<IActionResult> Delete(int id)
 
+    public async Task<IActionResult> Delete(int id, ClaimsPrincipal user)
     {
-
         var leave = await _context.EmployeeLeaves.FindAsync(id);
 
         if (leave == null)
-
             return new NotFoundObjectResult("Leave not found");
+
+        var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+        if (orgId.HasValue && leave.OrganizationId.HasValue && leave.OrganizationId.Value != orgId.Value)
+        {
+            return new NotFoundObjectResult("Leave not found");
+        }
+        else if (adminIds != null && adminIds.Any() && !string.IsNullOrWhiteSpace(leave.EmployeeId))
+        {
+            var isMember = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
+                .AnyAsync(e => e.Employee_Id == leave.EmployeeId);
+            if (!isMember) return new NotFoundObjectResult("Leave not found");
+        }
 
         _context.EmployeeLeaves.Remove(leave);
 
         await _context.SaveChangesAsync();
 
         return new OkObjectResult("Leave deleted");
-
     }
     public async Task<IActionResult> CancelLeave(int id, ClaimsPrincipal user)
     {
@@ -1803,8 +1874,8 @@ Pirnav Software Solutions Pvt. Ltd.
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
-            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
+        if (employee == null)
+            return new BadRequestObjectResult("Employee not found");
 
         var leave = await _context.EmployeeLeaves
             .FirstOrDefaultAsync(l => l.Id == id &&
@@ -2019,11 +2090,11 @@ Pirnav Software Solutions Pvt. Ltd.
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null || employee.Status != "Active") // varsha: block inactive employee from applying WFH
+        if (employee == null)
         {
             return new BadRequestObjectResult(new
             {
-                message = "Employee is inactive or not found" // varsha
+                message = "Employee not found"
             });
 
         }
@@ -2193,13 +2264,14 @@ Employee ID: {employee.Employee_Id}";
 
         var wfh = new WorkFromHomeRequest
         {
+            OrganizationId = employee.OrganizationId ?? CurrentUserHelper.GetOrganizationId(user),
             EmployeeId = employee.Employee_Id,
             EmployeeName = employee.Name,
             LeaveType = dto.LeaveType,
             FromDate = fromDate,
             ToDate = toDate,
             Reason = returnReason,
-
+           
             AttachmentFileName = attachmentFileName,
             AttachmentPath = attachmentPath,
             Status = "Pending",
@@ -2216,7 +2288,7 @@ Employee ID: {employee.Employee_Id}";
         // Dynamic Leave Settings
         //==========================================================
 
-        var leaveSettings = GetLeaveSettings();
+        var leaveSettings = GetLeaveSettings(employee.OrganizationId ?? CurrentUserHelper.GetOrganizationId(user));
 
         var approvalRoles = leaveSettings.ApprovalRoles
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -2224,11 +2296,12 @@ Employee ID: {employee.Employee_Id}";
             .ToList();
 
         var approvers = await _context.Employees
-            .Where(x =>
-                x.Status == "Active" && // varsha: exclude inactive approvers
-                !string.IsNullOrWhiteSpace(x.RoleName) &&
-                approvalRoles.Contains(x.RoleName.ToLower()))
-            .ToListAsync();
+    .Where(x =>
+        (!employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+        !string.IsNullOrWhiteSpace(x.RoleName) &&
+        approvalRoles.Contains(x.RoleName.ToLower()))
+    .ToListAsync();
+
 
         var internalEmails = approvers
             .Where(x => !string.IsNullOrWhiteSpace(x.Email))
@@ -2243,7 +2316,7 @@ Employee ID: {employee.Employee_Id}";
             .ToList()
             ?? new List<string>();
 
-        string baseUrl = "https://peoplehrsync.com";
+        string baseUrl = "https://localhost:7191";
 
         var notification = GetNotificationSettings();
 
@@ -2256,7 +2329,8 @@ Employee ID: {employee.Employee_Id}";
                 Message = $"{employee.Name} applied for Work From Home",
                 UserRole = "Manager",
                 IsRead = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                OrganizationId = employee.OrganizationId
             });
 
             await _context.SaveChangesAsync();
@@ -2408,24 +2482,24 @@ Pirnav Software Solutions Pvt. Ltd.
   );
             }
         }
-        //==========================================================
-        // External Mail
-        //==========================================================
+                //==========================================================
+                // External Mail
+                //==========================================================
 
-        foreach (var externalEmail in externalEmails)
-        {
-            // ============================================================
-            // APPROVE AS WFH
-            // ============================================================
+                foreach (var externalEmail in externalEmails)
+                {
+                    // ============================================================
+                    // APPROVE AS WFH
+                    // ============================================================
 
-            var approveAsWFHLink =
-                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
+                    var approveAsWFHLink =
+                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsWFH&token={approvalToken}&approverEmail={externalEmail}";
 
-            var approveAsLeaveLink =
-                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
+                    var approveAsLeaveLink =
+                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=ApproveAsLeave&token={approvalToken}&approverEmail={externalEmail}";
 
-            var rejectLink =
-                $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
+                    var rejectLink =
+                        $"{baseUrl}/api/WorkFromHome/mail-action?requestId={wfh.Id}&action=Reject&token={approvalToken}&approverEmail={externalEmail}";
 
 
             await _emailService.SendEmailWithAttachment(
@@ -2566,52 +2640,68 @@ attachmentPhysicalPath ?? string.Empty
 );
         }
 
-        // ==========================================================
-        // Admin Notification
-        // ==========================================================
+                // ==========================================================
+                // Admin Notification
+                // ==========================================================
 
-        _context.AdminNotifications.Add(new AdminNotification
-        {
-            Title = "WFH Request",
+                _context.AdminNotifications.Add(new AdminNotification
+                {
+                    Title = "WFH Request",
 
-            Message = $"{employee.Name} applied for Work From Home",
+                    Message = $"{employee.Name} applied for Work From Home",
 
-            UserRole = "Manager",
+                    UserRole = "Manager",
 
-            IsRead = false,
+                    IsRead = false,
 
-            CreatedAt = DateTime.UtcNow
-        });
+                    CreatedAt = DateTime.UtcNow,
 
-        await _context.SaveChangesAsync();
+                    OrganizationId = employee.OrganizationId
+                });
 
-        return new OkObjectResult(new
-        {
-            message = "Work From Home applied successfully."
-        });
-    }
+                await _context.SaveChangesAsync();
 
-    [HttpGet("all-wfh")]
-    public async Task<IActionResult> GetAllWFH()
+                return new OkObjectResult(new
+                {
+                    message = "Work From Home applied successfully."
+                });
+            }
+
+    public async Task<IActionResult> GetAllWFH(ClaimsPrincipal user)
     {
         try
         {
-            var requests = await _context.WorkFromHomeRequests
-     .Where(x =>
-         (x.ApprovedType == null ||
-          x.ApprovedType != "Leave")
-         &&
-         !_context.EmployeeLeaves.Any(l =>
-             l.EmployeeId == x.EmployeeId &&
-             l.Status != "Rejected" &&
-             l.Status != "Cancelled" &&
-             x.FromDate.Date <= l.ToDate.Date &&
-             x.ToDate.Date >= l.FromDate.Date))
-     .OrderByDescending(x => x.AppliedOn)
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync(user);
+
+            var query = _context.WorkFromHomeRequests.AsQueryable();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+            else if (tenantEmployeeIds != null && tenantEmployeeIds.Any())
+            {
+                query = query.Where(x => tenantEmployeeIds.Contains(x.EmployeeId));
+            }
+            else
+            {
+                return new OkObjectResult(new List<object>());
+            }
+
+            var requests = await query
+                .Where(x =>
+                    (x.ApprovedType == null ||
+                     x.ApprovedType != "Leave")
+                    &&
+                    !_context.EmployeeLeaves.Any(l =>
+                        l.EmployeeId == x.EmployeeId &&
+                        l.Status != "Rejected" &&
+                        l.Status != "Cancelled" &&
+                        x.FromDate.Date <= l.ToDate.Date &&
+                        x.ToDate.Date >= l.FromDate.Date))
+                .OrderByDescending(x => x.AppliedOn)
                 .Select(x => new
                 {
                     Id = x.Id,
-
                     EmployeeId = x.EmployeeId,
                     EmployeeName = x.EmployeeName,
 
@@ -2645,21 +2735,15 @@ attachmentPhysicalPath ?? string.Empty
                             : "Not Completed",
 
                     LeaveType = x.LeaveType,
-
                     FromDate = x.FromDate,
                     ToDate = x.ToDate,
-
                     Reason = x.Reason,
-
-                    AttachmentFileName = x.AttachmentFileName,
-                    AttachmentPath = x.AttachmentPath,
-
                     Status = x.Status,
                     ApprovedBy = x.ApprovedBy,
-                    ApprovedOn = x.ApprovedOn,
-                    AppliedOn = x.AppliedOn,
-
-                    ApprovalRemarks = x.ApprovalRemarks
+                    AppliedDate = x.AppliedOn,
+                    ApprovedDate = x.ApprovedOn,
+                    AttachmentFileName = x.AttachmentFileName,
+                    AttachmentPath = x.AttachmentPath
                 })
                 .ToListAsync();
 
@@ -2667,13 +2751,10 @@ attachmentPhysicalPath ?? string.Empty
         }
         catch (Exception ex)
         {
-            return new BadRequestObjectResult(new
-            {
-                Message = ex.Message,
-                StackTrace = ex.StackTrace
-            });
+            return new BadRequestObjectResult(new { message = ex.Message });
         }
     }
+
     public async Task<IActionResult> GetMyWFH(ClaimsPrincipal user)
     {
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
@@ -2681,8 +2762,8 @@ attachmentPhysicalPath ?? string.Empty
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
-            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
+        if (employee == null)
+            return new BadRequestObjectResult("Employee not found");
 
         var designation = await _context.EmployeePersonalInfos
             .AsNoTracking()
@@ -2771,6 +2852,18 @@ attachmentPhysicalPath ?? string.Empty
         if (request == null)
             return new NotFoundObjectResult("WFH request not found");
 
+        var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+        if (orgId.HasValue && request.OrganizationId.HasValue && request.OrganizationId.Value != orgId.Value)
+        {
+            return new NotFoundObjectResult("WFH request not found");
+        }
+        else if (adminIds != null && adminIds.Any() && !string.IsNullOrWhiteSpace(request.EmployeeId))
+        {
+            var isMember = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
+                .AnyAsync(e => e.Employee_Id == request.EmployeeId);
+            if (!isMember) return new NotFoundObjectResult("WFH request not found");
+        }
+
 
         var email = user.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
@@ -2779,9 +2872,6 @@ attachmentPhysicalPath ?? string.Empty
         // Check Employees
         var loggedInEmployee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-
-        if (loggedInEmployee != null && loggedInEmployee.Status != "Active") // varsha: block inactive employee from approving leave
-            return new UnauthorizedObjectResult("Approver account is inactive."); // varsha
 
         if (loggedInEmployee != null)
         {
@@ -2808,11 +2898,11 @@ attachmentPhysicalPath ?? string.Empty
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .FirstOrDefault() ?? approverName;
         }
-
+       
         var employee = await _context.Employees
             .FirstOrDefaultAsync(x => x.Employee_Id == request.EmployeeId);
 
-        var leaveSettings = GetLeaveSettings();
+        var leaveSettings = GetLeaveSettings(request.OrganizationId ?? orgId);
 
         var emailList = leaveSettings.ExternalEmails?
             .Split(';', StringSplitOptions.RemoveEmptyEntries)
@@ -2827,17 +2917,18 @@ attachmentPhysicalPath ?? string.Empty
      .ToList();
 
         var roleEmails = await _context.Employees
-            .Where(x =>
-                x.Status == "Active" && // varsha: exclude inactive recipients
-                !string.IsNullOrWhiteSpace(x.Email) &&
-                !string.IsNullOrWhiteSpace(x.RoleName) &&
-                approvalRoles.Contains(x.RoleName.ToLower()))
-            .Select(x => x.Email)
-            .ToListAsync();
+    .Where(x =>
+        (employee == null || !employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+        !string.IsNullOrWhiteSpace(x.Email) &&
+        !string.IsNullOrWhiteSpace(x.RoleName) &&
+        approvalRoles.Contains(x.RoleName.ToLower()))
+    .Select(x => x.Email)
+    .ToListAsync();
+
 
         emailList.AddRange(roleEmails);
 
-        if (employee != null && employee.Status == "Active" && !string.IsNullOrWhiteSpace(employee.Email)) // varsha: do not notify inactive applicant
+        if (employee != null && !string.IsNullOrWhiteSpace(employee.Email))
         {
             emailList.Add(employee.Email);
         }
@@ -2985,6 +3076,7 @@ style='border-collapse:collapse;'>
 
             var leave = new EmployeeLeave
             {
+                OrganizationId = request.OrganizationId ?? orgId,
                 EmployeeId = request.EmployeeId,
                 EmployeeName = request.EmployeeName,
 
@@ -3185,9 +3277,9 @@ style='border-collapse:collapse;'>
 
             .FirstOrDefaultAsync(e => e.Email.ToLower() == email);
 
-        if (employee == null || employee.Status != "Active") // varsha: block inactive employee
+        if (employee == null)
 
-            return new BadRequestObjectResult("Employee is inactive or not found"); // varsha
+            return new BadRequestObjectResult("Employee not found");
 
         var request = await _context.WorkFromHomeRequests
 
@@ -3409,19 +3501,20 @@ style='border-collapse:collapse;'>
 
         // Get HR and Manager employees
         var hrManagerEmails = await _context.Employees
-            .Where(x =>
-                x.Status == "Active" && // varsha: exclude inactive recipients
-                !string.IsNullOrWhiteSpace(x.Email) &&
-                !string.IsNullOrWhiteSpace(x.RoleName) &&
-                (
-                    x.RoleName.ToLower() == "hr" ||
-                    x.RoleName.ToLower() == "manager"
-                ))
-            .Select(x => x.Email)
-            .ToListAsync();
+     .Where(x =>
+         (employee == null || !employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+         !string.IsNullOrWhiteSpace(x.Email) &&
+         !string.IsNullOrWhiteSpace(x.RoleName) &&
+         (
+             x.RoleName.ToLower() == "hr" ||
+             x.RoleName.ToLower() == "manager"
+         ))
+     .Select(x => x.Email)
+     .ToListAsync();
+
 
         // Add employee email
-        if (employee != null && employee.Status == "Active" && // varsha: do not notify inactive applicant
+        if (employee != null &&
             !string.IsNullOrWhiteSpace(employee.Email))
         {
             hrManagerEmails.Add(employee.Email);
@@ -3618,6 +3711,7 @@ by the external approver.
         {
             var leave = new EmployeeLeave
             {
+                OrganizationId = request.OrganizationId,
                 EmployeeId =
         request.EmployeeId,
 
@@ -3773,19 +3867,20 @@ by the external approver.
 
         // Get HR and Manager emails
         var hrManagerEmails = await _context.Employees
-            .Where(x =>
-                x.Status == "Active" && // varsha: exclude inactive recipients
-                !string.IsNullOrWhiteSpace(x.Email) &&
-                !string.IsNullOrWhiteSpace(x.RoleName) &&
-                (
-                    x.RoleName.ToLower() == "hr" ||
-                    x.RoleName.ToLower() == "manager"
-                ))
-            .Select(x => x.Email)
-            .ToListAsync();
+    .Where(x =>
+        (employee == null || !employee.OrganizationId.HasValue || x.OrganizationId == employee.OrganizationId.Value) &&
+        !string.IsNullOrWhiteSpace(x.Email) &&
+        !string.IsNullOrWhiteSpace(x.RoleName) &&
+        (
+            x.RoleName.ToLower() == "hr" ||
+            x.RoleName.ToLower() == "manager"
+        ))
+    .Select(x => x.Email)
+    .ToListAsync();
+
 
         // Add employee email
-        if (employee != null && employee.Status == "Active" && // varsha: do not notify inactive applicant
+        if (employee != null &&
             !string.IsNullOrWhiteSpace(employee.Email))
         {
             hrManagerEmails.Add(employee.Email);

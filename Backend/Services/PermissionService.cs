@@ -8,10 +8,12 @@ namespace EmployeeManagementSystem.Services
     public class PermissionService : IPermissionService
     {
         private readonly AppDbContext _context;
+        private readonly MasterDbContext _masterDb;
 
-        public PermissionService(AppDbContext context)
+        public PermissionService(AppDbContext context, MasterDbContext masterDb)
         {
             _context = context;
+            _masterDb = masterDb;
         }
 
         public async Task<List<object>> GetFinalPermissions(string employeeId)
@@ -83,6 +85,47 @@ namespace EmployeeManagementSystem.Services
             int moduleId,
             string permission)
         {
+            var roleClaim = user.FindFirst(ClaimTypes.Role)?.Value
+                            ?? user.FindFirst("role")?.Value;
+
+            // 1. SuperAdmin has unrestricted access
+            if (string.Equals(roleClaim, "SuperAdmin", StringComparison.OrdinalIgnoreCase) ||
+                user.HasClaim(c => c.Type == "SuperAdminId"))
+            {
+                return true;
+            }
+
+            // 2. Admin Permission Check
+            if (string.Equals(roleClaim, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                var adminIdClaim = user.FindFirst("AdminId")?.Value;
+                if (!int.TryParse(adminIdClaim, out int adminId) || adminId <= 0)
+                {
+                    return false;
+                }
+
+                var adminPerm = await _context.AdminPermissions
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.AdminId == adminId && p.ModuleId == moduleId)
+                    ?? await _masterDb.AdminPermissions
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.AdminId == adminId && p.ModuleId == moduleId);
+
+                if (adminPerm == null || !adminPerm.CanAccess)
+                    return false;
+
+                permission = permission.Trim().ToLower();
+                return permission switch
+                {
+                    "view" => adminPerm.CanView,
+                    "add" => adminPerm.CanAdd,
+                    "edit" => adminPerm.CanEdit,
+                    "delete" => adminPerm.CanDelete,
+                    _ => adminPerm.CanAccess
+                };
+            }
+
+            // 3. Employee Permission Check
             var email = user.FindFirst(ClaimTypes.Email)?.Value;
 
             if (string.IsNullOrWhiteSpace(email))

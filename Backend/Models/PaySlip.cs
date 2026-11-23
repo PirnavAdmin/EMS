@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -8,6 +8,8 @@ namespace EmployeeManagementSystem.Models
     public class PaySlip
     {
         public int Id { get; set; }
+
+        public int OrganizationId { get; set; }
 
         public string EmployeeId { get; set; }
 

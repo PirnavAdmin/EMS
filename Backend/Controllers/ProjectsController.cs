@@ -1,46 +1,45 @@
 ﻿using ClosedXML.Excel;
-using EmployeeManagementSystem.Authorization;
-using EmployeeManagementSystem.Constants;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using OpenXmlPowerTools;
+using System.IO;
 
-//[Authorize]
+[Authorize]
 [ApiController]
-
 [Route("api/[controller]")]
-
 public class ProjectsController : ControllerBase
-
 {
-
     private readonly AppDbContext _context;
 
     public ProjectsController(AppDbContext context)
-
     {
-
         _context = context;
-
     }
 
-    // ========================= GET ALL =========================
+    private int GetCurrentOrgId()
+    {
+        var orgId = CurrentUserHelper.GetOrganizationId(User);
+        if (!orgId.HasValue || orgId.Value <= 0)
+        {
+            throw new UnauthorizedAccessException("OrganizationId not found in token.");
+        }
+        return orgId.Value;
+    }
 
-    private async Task<string> GenerateProjectCode(string projectName)
+    // ========================= GENERATE PROJECT CODE =========================
+    private async Task<string> GenerateProjectCode(string projectName, int orgId)
     {
         if (string.IsNullOrWhiteSpace(projectName))
             throw new Exception("Project Name is required.");
 
-        // Generate initials
         var words = projectName
             .Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         string prefix;
-
         if (words.Length == 1)
         {
             prefix = words[0].Length >= 3
@@ -52,9 +51,9 @@ public class ProjectsController : ControllerBase
             prefix = string.Concat(words.Select(w => char.ToUpper(w[0])));
         }
 
-        // Find existing project codes with the same prefix
+        // Find existing project codes within the current organization
         var existingCodes = await _context.Projects
-            .Where(p => p.ProjectCode.StartsWith(prefix))
+            .Where(p => p.OrganizationId == orgId && p.ProjectCode.StartsWith(prefix))
             .Select(p => p.ProjectCode)
             .ToListAsync();
 
@@ -72,21 +71,23 @@ public class ProjectsController : ControllerBase
         return $"{prefix}{(maxNumber + 1):D3}";
     }
 
-    //[Permission(ModuleIds.Projects, PermissionAction.View)]
+    // ========================= 1. GET ALL =========================
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        int orgId = GetCurrentOrgId();
         var today = DateTime.Today;
 
-        // Get today's attendance once
+        // Get today's attendance for employees in this organization
         var todayAttendance = await _context.Attendance
             .Where(a => a.Attendance_Date.Date == today.Date)
             .ToDictionaryAsync(a => a.Employee_Id);
 
-        // Get all projects
+        // Get all projects for current organization only
         var projects = await _context.Projects
             .Include(p => p.Client)
             .AsNoTracking()
+            .Where(p => p.OrganizationId == orgId) // 🔥 Isolated
             .ToListAsync();
 
         var result = new List<ProjectDto>();
@@ -94,7 +95,7 @@ public class ProjectsController : ControllerBase
         foreach (var p in projects)
         {
             var projectMembers = await _context.ProjectTeamMembers
-                .Where(pt => pt.ProjectId == p.Id && (pt.Employee == null || pt.Employee.Status == "Active")) // varsha: exclude inactive members
+                .Where(pt => pt.ProjectId == p.Id)
                 .Include(pt => pt.Employee)
                 .ToListAsync();
 
@@ -109,10 +110,8 @@ public class ProjectsController : ControllerBase
                 return new ProjectMemberDto
                 {
                     Employee_Id = pt.EmployeeId,
-                    Name = pt.Employee.Name,
+                    Name = pt.Employee?.Name ?? pt.EmployeeId,
                     Technology = pt.Technology,
-
-                    // Add these properties to ProjectMemberDto
                     IsActive = isActive,
                     AttendanceStatus = isActive ? "Active" : "Inactive"
                 };
@@ -124,40 +123,35 @@ public class ProjectsController : ControllerBase
                 Project_Name = p.Project_Name,
                 Project_Id = p.Project_Id,
                 ClientId = p.ClientId,
-                Client = p.Client != null
-                    ? p.Client.Client_Name
-                    : null,
-
+                Client = p.Client?.Client_Name,
                 Start_Date = p.Start_Date,
                 End_Date = p.End_Date,
-
-                // Existing property
                 Team_Members = p.Team_Members,
-
-                // New member list with attendance status
                 ProjectMembers = memberDtos,
-
-                Status = p.Status
+                Status = p.Status,
+                OrganizationId = p.OrganizationId
             });
         }
 
         return Ok(result);
     }
-    // ========================= GET BY ID =========================
-    //[Permission(ModuleIds.Projects, PermissionAction.View)]
+
+    // ========================= 2. GET BY ID =========================
     [HttpGet("{projectId}")]
     public async Task<IActionResult> GetByProjectId(string projectId)
     {
+        int orgId = GetCurrentOrgId();
+
         var project = await _context.Projects
             .Include(p => p.Client)
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Project_Id == projectId);
+            .FirstOrDefaultAsync(p => p.Project_Id == projectId && p.OrganizationId == orgId); // 🔥 Ownership check
 
         if (project == null)
             return NotFound("Project not found");
 
         var projectMembers = await _context.ProjectTeamMembers
-            .Where(pt => pt.ProjectId == project.Id && (pt.Employee == null || pt.Employee.Status == "Active")) // varsha: exclude inactive members
+            .Where(pt => pt.ProjectId == project.Id)
             .Include(pt => pt.Employee)
             .Select(pt => new ProjectMemberDto
             {
@@ -174,41 +168,47 @@ public class ProjectsController : ControllerBase
             Project_Id = project.Project_Id,
             ClientId = project.ClientId,
             Client = project.Client?.Client_Name,
-
             Start_Date = project.Start_Date,
             End_Date = project.End_Date,
-
-            Team_Members = project.Team_Members, // Keep temporarily
-
+            Team_Members = project.Team_Members,
             ProjectMembers = projectMembers,
-
-            Status = project.Status
+            Status = project.Status,
+            OrganizationId = project.OrganizationId
         };
 
         return Ok(result);
     }
-    // ========================= CREATE =========================
-    //[Permission(ModuleIds.Projects, PermissionAction.Add)]
+
+    // ========================= 3. CREATE =========================
     [HttpPost]
     public async Task<IActionResult> Create(ProjectDto dto)
     {
-        var projectCode = await GenerateProjectCode(dto.Project_Name);
+        int orgId = GetCurrentOrgId();
+
+        // If ClientId is provided, verify it belongs to this organization
+        if (dto.ClientId.HasValue)
+        {
+            bool clientBelongsToOrg = await _context.Clients
+                .AnyAsync(c => c.Id == dto.ClientId.Value && c.OrganizationId == orgId);
+
+            if (!clientBelongsToOrg)
+                return BadRequest("Invalid Client for this organization.");
+        }
+
+        var projectCode = await GenerateProjectCode(dto.Project_Name, orgId);
 
         var project = new Project
         {
+            OrganizationId = orgId, // 🔥 Scoped to current org
             Project_Name = dto.Project_Name,
             Project_Id = dto.Project_Id,
-            ProjectCode = projectCode,   // Auto Generated
-
+            ProjectCode = projectCode,
             ClientId = dto.ClientId,
             Start_Date = dto.Start_Date,
             End_Date = dto.End_Date,
-
-            Team_Members = string.IsNullOrWhiteSpace(dto.Team_Members)
-                ? null
-                : dto.Team_Members,
-
-            Status = dto.Status
+            Team_Members = string.IsNullOrWhiteSpace(dto.Team_Members) ? null : dto.Team_Members,
+            Status = dto.Status ?? "Active",
+            CreatedAt = DateTime.UtcNow
         };
 
         await _context.Projects.AddAsync(project);
@@ -218,9 +218,6 @@ public class ProjectsController : ControllerBase
         {
             foreach (var member in dto.TeamMemberTechnologies)
             {
-                var isEmpActive = await _context.Employees.AnyAsync(e => e.Employee_Id == member.EmployeeId && e.Status == "Active"); // varsha: only active members
-                if (!isEmpActive) continue; // varsha: skip inactive employee
-
                 await _context.ProjectTeamMembers.AddAsync(new ProjectTeamMember
                 {
                     ProjectId = project.Id,
@@ -235,31 +232,39 @@ public class ProjectsController : ControllerBase
         return Ok(new
         {
             Message = "New Project created successfully",
-            ProjectCode = project.ProjectCode
+            ProjectCode = project.ProjectCode,
+            Id = project.Id
         });
-    }  // ========================= UPDATE =========================
+    }
 
-    //[Permission(ModuleIds.Projects, PermissionAction.Edit)]
+    // ========================= 4. UPDATE =========================
     [HttpPut("{projectId}")]
     public async Task<IActionResult> Update(string projectId, ProjectDto dto)
     {
+        int orgId = GetCurrentOrgId();
+
         var project = await _context.Projects
-            .FirstOrDefaultAsync(p => p.Project_Id == projectId);
+            .FirstOrDefaultAsync(p => p.Project_Id == projectId && p.OrganizationId == orgId); // 🔥 Ownership check
 
         if (project == null)
             return NotFound("Project not found");
 
-        // Update project details
+        if (dto.ClientId.HasValue)
+        {
+            bool clientBelongsToOrg = await _context.Clients
+                .AnyAsync(c => c.Id == dto.ClientId.Value && c.OrganizationId == orgId);
+
+            if (!clientBelongsToOrg)
+                return BadRequest("Invalid Client for this organization.");
+        }
+
         project.Project_Name = dto.Project_Name;
         project.Project_Id = dto.Project_Id;
         project.ClientId = dto.ClientId;
         project.Start_Date = dto.Start_Date;
         project.End_Date = dto.End_Date;
         project.Status = dto.Status;
-
-        project.Team_Members = string.IsNullOrWhiteSpace(dto.Team_Members)
-            ? null
-            : dto.Team_Members;
+        project.Team_Members = string.IsNullOrWhiteSpace(dto.Team_Members) ? null : dto.Team_Members;
 
         // Remove old team members
         var existingMembers = await _context.ProjectTeamMembers
@@ -269,14 +274,10 @@ public class ProjectsController : ControllerBase
         _context.ProjectTeamMembers.RemoveRange(existingMembers);
 
         // Insert new team members
-        if (dto.TeamMemberTechnologies != null &&
-            dto.TeamMemberTechnologies.Any())
+        if (dto.TeamMemberTechnologies != null && dto.TeamMemberTechnologies.Any())
         {
             foreach (var member in dto.TeamMemberTechnologies)
             {
-                var isEmpActive = await _context.Employees.AnyAsync(e => e.Employee_Id == member.EmployeeId && e.Status == "Active"); // varsha: only active members
-                if (!isEmpActive) continue; // varsha: skip inactive employee
-
                 _context.ProjectTeamMembers.Add(new ProjectTeamMember
                 {
                     ProjectId = project.Id,
@@ -288,15 +289,17 @@ public class ProjectsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok("Project updated successfully.");
+        return Ok(new { message = "Project updated successfully." });
     }
-    // ========================= DELETE =========================
-    //[Permission(ModuleIds.Projects, PermissionAction.Delete)]
+
+    // ========================= 5. DELETE =========================
     [HttpDelete("{projectId}")]
     public async Task<IActionResult> Delete(string projectId)
     {
+        int orgId = GetCurrentOrgId();
+
         var project = await _context.Projects
-            .FirstOrDefaultAsync(p => p.Project_Id == projectId);
+            .FirstOrDefaultAsync(p => p.Project_Id == projectId && p.OrganizationId == orgId); // 🔥 Ownership check
 
         if (project == null)
             return NotFound("Project not found");
@@ -318,16 +321,13 @@ public class ProjectsController : ControllerBase
             .ToListAsync();
 
         _context.ProjectTeamMembers.RemoveRange(members);
-
         _context.Projects.Remove(project);
-
         await _context.SaveChangesAsync();
 
-        return Ok("Project deleted successfully.");
+        return Ok(new { message = "Project deleted successfully." });
     }
 
     // ========================= STATUSES =========================
-    // Endpoint to get available project statuses including "After Live Support"
     [HttpGet("statuses")]
     public IActionResult GetStatuses()
     {
@@ -344,191 +344,81 @@ public class ProjectsController : ControllerBase
         return Ok(statuses);
     }
 
-    // ========================= EXPORT =========================
-
-    //[Permission(ModuleIds.Projects, PermissionAction.View)]
+    // ========================= 6. EXPORT =========================
     [HttpGet("export")]
-
     public async Task<IActionResult> ExportProjects()
-
     {
+        int orgId = GetCurrentOrgId();
 
         var projects = await _context.Projects
-
             .Include(p => p.Client)
-
             .AsNoTracking()
-
+            .Where(p => p.OrganizationId == orgId) // 🔥 Isolated
             .ToListAsync();
 
         using var workbook = new XLWorkbook();
-
         var worksheet = workbook.Worksheets.Add("Projects");
 
         int maxEmployees = projects
-
             .Select(p => string.IsNullOrWhiteSpace(p.Team_Members)
-
                 ? 0
-
-                : p.Team_Members
-
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-
-                    .Length)
-
+                : p.Team_Members.Split(',', StringSplitOptions.RemoveEmptyEntries).Length)
             .DefaultIfEmpty(0)
-
             .Max();
 
         worksheet.Cell(1, 1).Value = "Project ID";
-
         worksheet.Cell(1, 2).Value = "Project Name";
-
         worksheet.Cell(1, 3).Value = "Client";
-
         worksheet.Cell(1, 4).Value = "Start Date";
-
         worksheet.Cell(1, 5).Value = "End Date";
-
         worksheet.Cell(1, 6).Value = "Status";
 
         for (int i = 0; i < maxEmployees; i++)
-
         {
-
-            worksheet.Cell(1, 7 + i).Value =
-
-                $"Employee {i + 1}";
-
+            worksheet.Cell(1, 7 + i).Value = $"Employee {i + 1}";
         }
 
-        var header = worksheet.Range(
-
-            1,
-
-            1,
-
-            1,
-
-            6 + maxEmployees
-
-        );
-
+        var header = worksheet.Range(1, 1, 1, 6 + maxEmployees);
         header.Style.Font.Bold = true;
-
-        header.Style.Fill.BackgroundColor =
-
-            XLColor.FromHtml("#1F2937");
-
-        header.Style.Font.FontColor =
-
-            XLColor.White;
+        header.Style.Fill.BackgroundColor = XLColor.FromHtml("#1F2937");
+        header.Style.Font.FontColor = XLColor.White;
 
         int row = 2;
-
         foreach (var project in projects)
-
         {
+            worksheet.Cell(row, 1).Value = project.Project_Id;
+            worksheet.Cell(row, 2).Value = project.Project_Name;
+            worksheet.Cell(row, 3).Value = project.Client?.Client_Name ?? "";
+            worksheet.Cell(row, 4).Value = project.Start_Date?.ToString("dd-MMM-yyyy") ?? "";
+            worksheet.Cell(row, 5).Value = project.End_Date?.ToString("dd-MMM-yyyy") ?? "";
+            worksheet.Cell(row, 6).Value = project.Status;
 
-            worksheet.Cell(row, 1).Value =
+            var employeeIds = string.IsNullOrWhiteSpace(project.Team_Members)
+                ? new List<string>()
+                : project.Team_Members.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToList();
 
-                project.Project_Id;
-
-            worksheet.Cell(row, 2).Value =
-
-                project.Project_Name;
-
-            worksheet.Cell(row, 3).Value =
-
-                project.Client?.Client_Name ?? "";
-
-            worksheet.Cell(row, 4).Value =
-
-                project.Start_Date.HasValue
-
-                    ? project.Start_Date.Value
-
-                        .ToString("dd-MMM-yyyy")
-
-                    : "";
-
-            worksheet.Cell(row, 5).Value =
-
-                project.End_Date.HasValue
-
-                    ? project.End_Date.Value
-
-                        .ToString("dd-MMM-yyyy")
-
-                    : "";
-
-            worksheet.Cell(row, 6).Value =
-
-                project.Status;
-
-            var employeeIds =
-
-                string.IsNullOrWhiteSpace(project.Team_Members)
-
-                    ? new List<string>()
-
-                    : project.Team_Members
-
-                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
-
-                        .Select(x => x.Trim())
-
-                        .ToList();
-
-            var employeeNames =
-
-                await _context.Employees
-
-                    .Where(e => employeeIds.Contains(e.Employee_Id))
-
-                    .Select(e =>
-
-                        $"{e.Employee_Id} - {e.Name}")
-
-                    .ToListAsync();
+            var employeeNames = await _context.Employees
+                .Where(e => employeeIds.Contains(e.Employee_Id))
+                .Select(e => $"{e.Employee_Id} - {e.Name}")
+                .ToListAsync();
 
             for (int i = 0; i < employeeNames.Count; i++)
-
             {
-
-                worksheet.Cell(row, 7 + i).Value =
-
-                    employeeNames[i];
-
+                worksheet.Cell(row, 7 + i).Value = employeeNames[i];
             }
 
             row++;
-
         }
 
         worksheet.Columns().AdjustToContents();
 
         using var stream = new MemoryStream();
-
         workbook.SaveAs(stream);
 
         return File(
-
             stream.ToArray(),
-
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
             $"Projects_{DateTime.Now:yyyyMMdd}.xlsx"
-
         );
-
     }
-
 }
-
-
-
-// ========================= EMPLOYEE DTO =========================
-
-

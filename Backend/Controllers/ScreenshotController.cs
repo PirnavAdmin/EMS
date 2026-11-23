@@ -1,5 +1,6 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
 
 using Microsoft.AspNetCore.Mvc;
@@ -45,7 +46,7 @@ namespace EmployeeManagementSystem.Controllers
                 }
 
                 var isEmployeeActive = await _context.Employees
-                    .AnyAsync(e => e.Employee_Id == dto.EmployeeId && e.Status == "Active"); // varsha: only active employees can upload screenshots
+                    .AnyAsync(e => e.Employee_Id == dto.EmployeeId && e.Status == "Active");
 
                 if (!isEmployeeActive)
                 {
@@ -100,10 +101,31 @@ namespace EmployeeManagementSystem.Controllers
                     imageBytes
                 );
 
+                // RESOLVE TENANT
+                int? orgId = null;
+                if (!string.IsNullOrEmpty(dto.EmployeeId))
+                {
+                    var employee = await _context.Employees
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(e => e.Employee_Id == dto.EmployeeId);
+                    if (employee != null)
+                    {
+                        orgId = employee.OrganizationId;
+                    }
+                }
+
+                if (!orgId.HasValue)
+                {
+                    var (tokenOrgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+                    orgId = tokenOrgId;
+                }
+
                 // SAVE DB RECORD
 
                 var screenshot = new EmployeeScreenshot
                 {
+                    OrganizationId = orgId,
+
                     EmployeeId = dto.EmployeeId,
 
                     ScreenshotPath =
@@ -147,9 +169,26 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> GetHistory(
             string employeeId)
         {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            if (orgId.HasValue)
+            {
+                var isTenantEmployee = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+                if (!isTenantEmployee)
+                {
+                    return Ok(new List<object>());
+                }
+            }
+
+            var query = _context.EmployeeScreenshots
+                .Where(x => x.EmployeeId == employeeId);
+
+            if (orgId.HasValue)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
             var screenshots =
-                await _context.EmployeeScreenshots
-                    .Where(x => x.EmployeeId == employeeId)
+                await query
                     .OrderByDescending(x => x.CreatedAt)
                     .Select(x => new
                     {
@@ -175,9 +214,16 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.EmployeeScreenshots.AsQueryable();
+
+            if (orgId.HasValue)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
             var screenshot =
-                await _context.EmployeeScreenshots
-                    .FirstOrDefaultAsync(x => x.Id == id);
+                await query.FirstOrDefaultAsync(x => x.Id == id);
 
             if (screenshot == null)
             {
@@ -189,6 +235,7 @@ namespace EmployeeManagementSystem.Controllers
 
             return Ok(screenshot);
         }
+
         // =========================================
         // DELETE ALL SCREENSHOTS OF EMPLOYEE
         // =========================================
@@ -199,10 +246,28 @@ namespace EmployeeManagementSystem.Controllers
         {
             try
             {
-                var screenshots =
-                    await _context.EmployeeScreenshots
-                        .Where(x => x.EmployeeId == employeeId)
-                        .ToListAsync();
+                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+                if (orgId.HasValue)
+                {
+                    var isTenantEmployee = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+                    if (!isTenantEmployee)
+                    {
+                        return NotFound(new
+                        {
+                            message = "No screenshots found"
+                        });
+                    }
+                }
+
+                var query = _context.EmployeeScreenshots
+                    .Where(x => x.EmployeeId == employeeId);
+
+                if (orgId.HasValue)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value);
+                }
+
+                var screenshots = await query.ToListAsync();
 
                 if (!screenshots.Any())
                 {
@@ -262,13 +327,19 @@ namespace EmployeeManagementSystem.Controllers
         {
             try
             {
+                var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
                 var cutoffDate =
                     DateTime.Now.AddDays(-days);
 
-                var screenshots =
-                    await _context.EmployeeScreenshots
-                        .Where(x => x.CreatedAt < cutoffDate)
-                        .ToListAsync();
+                var query = _context.EmployeeScreenshots
+                    .Where(x => x.CreatedAt < cutoffDate);
+
+                if (orgId.HasValue)
+                {
+                    query = query.Where(x => x.OrganizationId == orgId.Value);
+                }
+
+                var screenshots = await query.ToListAsync();
 
                 // DELETE FILES
 
@@ -319,19 +390,26 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("statistics")]
         public async Task<IActionResult> GetStatistics()
         {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
             var today = DateTime.Today;
 
+            var query = _context.EmployeeScreenshots.AsQueryable();
+
+            if (orgId.HasValue)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
             var totalScreenshots =
-                await _context.EmployeeScreenshots
-                    .CountAsync();
+                await query.CountAsync();
 
             var screenshotsToday =
-                await _context.EmployeeScreenshots
+                await query
                     .Where(x => x.CreatedAt.Date == today)
                     .CountAsync();
 
             var monitoredEmployees =
-                await _context.EmployeeScreenshots
+                await query
                     .Select(x => x.EmployeeId)
                     .Distinct()
                     .CountAsync();
@@ -352,9 +430,16 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.EmployeeScreenshots.AsQueryable();
+
+            if (orgId.HasValue)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
             var screenshot =
-                await _context.EmployeeScreenshots
-                    .FirstOrDefaultAsync(x => x.Id == id);
+                await query.FirstOrDefaultAsync(x => x.Id == id);
 
             if (screenshot == null)
             {

@@ -1,18 +1,81 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
 {
     public class ShiftSwapService : IShiftSwapService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ShiftSwapService(AppDbContext context)
+        public ShiftSwapService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private async Task<(int? OrgId, List<string> EmployeeIds)> GetCurrentOrgEmployeeContextAsync()
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                var allActive = await _context.Employees.AsNoTracking().Where(e => e.Status == "Active").Select(e => e.Employee_Id).ToListAsync();
+                return (null, allActive);
+            }
+
+            var orgId = CurrentUserHelper.GetOrganizationId(user);
+            int? adminId = null;
+
+            var adminIdClaim = user.FindFirst("AdminId")?.Value;
+            if (!string.IsNullOrWhiteSpace(adminIdClaim) && int.TryParse(adminIdClaim, out int aid) && aid > 0)
+                adminId = aid;
+
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                if (adminId.HasValue)
+                {
+                    var admin = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId.Value);
+                    if (admin?.OrganizationId != null && admin.OrganizationId > 0)
+                        orgId = admin.OrganizationId.Value;
+                }
+            }
+
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                var empId = CurrentUserHelper.GetEmployeeId(user);
+                if (!string.IsNullOrWhiteSpace(empId))
+                {
+                    var emp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == empId);
+                    if (emp?.OrganizationId != null && emp.OrganizationId > 0)
+                        orgId = emp.OrganizationId.Value;
+                }
+            }
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                var orgAdminIds = await _context.Admins
+                    .AsNoTracking()
+                    .Where(a => a.OrganizationId == orgId.Value)
+                    .Select(a => a.Id)
+                    .ToListAsync();
+
+                var empIds = await _context.Employees
+                    .AsNoTracking()
+                    .Where(e => e.OrganizationId == orgId.Value || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
+                    .Select(e => e.Employee_Id)
+                    .ToListAsync();
+
+                return (orgId.Value, empIds);
+            }
+
+            var fallbackEmpIds = await _context.Employees.AsNoTracking().Where(e => e.Status == "Active").Select(e => e.Employee_Id).ToListAsync();
+            return (null, fallbackEmpIds);
         }
 
         #region Helper Status Checkers
@@ -85,6 +148,7 @@ namespace EmployeeManagementSystem.Services
                 await _context.SaveChangesAsync();
             }
 
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var query = _context.ShiftSwaps.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(resolvedEmpId) && !isAdminView)
@@ -105,12 +169,11 @@ namespace EmployeeManagementSystem.Services
                     query = query.Where(x => x.FromEmployeeId == resolvedEmpId || x.ToEmployeeId == resolvedEmpId);
                 }
             }
-            else if (isAdminView)
+            else if (isAdminView && tenantEmployeeIds != null && tenantEmployeeIds.Any())
             {
-                // ADMIN / MANAGER:
-                // Show ALL shift swap requests.
-                // Do not filter by employee ID or workflow status here.
+                query = query.Where(x => tenantEmployeeIds.Contains(x.FromEmployeeId) || tenantEmployeeIds.Contains(x.ToEmployeeId));
             }
+
 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -203,8 +266,11 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<ShiftSwapResponseDto?> GetByIdAsync(int id)
         {
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var swap = await _context.ShiftSwaps.FindAsync(id);
             if (swap == null) return null;
+            if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(swap.FromEmployeeId) && !tenantEmployeeIds.Contains(swap.ToEmployeeId))
+                return null;
 
             var fromEmp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == swap.FromEmployeeId);
             var toEmp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == swap.ToEmployeeId);
@@ -248,13 +314,13 @@ namespace EmployeeManagementSystem.Services
             // 1. Check direct match on Employee_Id (e.g. "P464", "P497")
             var emp = await _context.Employees
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Employee_Id == trimmed && x.Status == "Active"); // varsha: resolve active employees only
+                .FirstOrDefaultAsync(x => x.Employee_Id == trimmed);
             if (emp != null) return emp.Employee_Id;
 
             // 2. Check case-insensitive match
             var empCi = await _context.Employees
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Employee_Id.ToLower() == trimmed.ToLower() && x.Status == "Active"); // varsha: resolve active employees only
+                .FirstOrDefaultAsync(x => x.Employee_Id.ToLower() == trimmed.ToLower());
             if (empCi != null) return empCi.Employee_Id;
 
             // 3. If numeric, check integer primary keys in Employees.Id or TeamMembers.Id
@@ -262,7 +328,7 @@ namespace EmployeeManagementSystem.Services
             {
                 var empById = await _context.Employees
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == numericId && x.Status == "Active"); // varsha: resolve active employees only
+                    .FirstOrDefaultAsync(x => x.Id == numericId);
                 if (empById != null) return empById.Employee_Id;
 
                 var teamMember = await _context.TeamMembers
@@ -274,7 +340,7 @@ namespace EmployeeManagementSystem.Services
             // 4. Check email match
             var empByEmail = await _context.Employees
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Email != null && x.Email.ToLower() == trimmed.ToLower() && x.Status == "Active"); // varsha: resolve active employees only
+                .FirstOrDefaultAsync(x => x.Email != null && x.Email.ToLower() == trimmed.ToLower());
             if (empByEmail != null) return empByEmail.Employee_Id;
 
             return null;
@@ -292,7 +358,7 @@ namespace EmployeeManagementSystem.Services
             {
                 return (
                     false,
-                    "Requesting employee could not be identified."
+                    "Requester not found."
                 );
             }
 
@@ -300,7 +366,7 @@ namespace EmployeeManagementSystem.Services
             {
                 return (
                     false,
-                    "Target employee could not be identified."
+                    "Target employee not found."
                 );
             }
 
@@ -320,7 +386,7 @@ namespace EmployeeManagementSystem.Services
             {
                 return (
                     false,
-                    $"Employee {fromEmployeeId} is not assigned to an active team."
+                    "You are not assigned to an active team."
                 );
             }
 
@@ -340,7 +406,7 @@ namespace EmployeeManagementSystem.Services
             {
                 return (
                     false,
-                    $"Employee {toEmployeeId} is not assigned to an active team."
+                    "Selected employee is not in an active team."
                 );
             }
 
@@ -348,178 +414,100 @@ namespace EmployeeManagementSystem.Services
             var toTeam = toTeamMember.Team;
 
             // ============================================================
-            // 4. SAME TEAM VALIDATION
+            // 4. TRAINING TEAM ISOLATION RULE
             // ============================================================
+            bool fromIsTraining = string.Equals(fromTeam.EngagementType, "Training", StringComparison.OrdinalIgnoreCase);
+            bool toIsTraining = string.Equals(toTeam.EngagementType, "Training", StringComparison.OrdinalIgnoreCase);
 
-            if (fromTeam.Id != toTeam.Id)
+            if (fromIsTraining)
             {
-                return (
-                    false,
-                    $" {fromEmployeeId} and {toEmployeeId} belong to different teams."
-                );
+                if (!toIsTraining)
+                {
+                    return (false, "Can only swap with training teams.");
+                }
+
+                // Both are in training -> Allowed without technology check
+                return (true, "Eligible for shift swap.");
+            }
+
+            if (toIsTraining)
+            {
+                return (false, "Cannot swap with a training team.");
             }
 
             // ============================================================
-            // 5. Validate project
+            // 5. SAME TEAM SWAP (NO TECHNOLOGY CHECK NEEDED)
             // ============================================================
-
-            // ProjectId is an int in the Team model, so do not use
-            // HasValue or Value.
-
-            if (fromTeam.ProjectId <= 0)
+            if (fromTeam.Id == toTeam.Id)
             {
-                return (
-                    false,
-                    $"Team '{fromTeam.TeamName}' is not associated with a valid project."
-                );
+                return (true, "Eligible for shift swap.");
             }
 
-            if (toTeam.ProjectId <= 0)
+            // ============================================================
+            // 6. CROSS-PROJECT TEAM SWAP (TECHNOLOGY COMPATIBILITY CHECK)
+            // ============================================================
+            if (!fromTeam.ProjectId.HasValue || fromTeam.ProjectId.Value <= 0)
             {
-                return (
-                    false,
-                    $"Team '{toTeam.TeamName}' is not associated with a valid project."
-                );
+                return (false, "Your team has no linked project.");
             }
 
-            // Same team should belong to the same project.
-            if (fromTeam.ProjectId != toTeam.ProjectId)
+            if (!toTeam.ProjectId.HasValue || toTeam.ProjectId.Value <= 0)
             {
-                return (
-                    false,
-                    "Employee's Team Mismatch."
-                );
+                return (false, "Selected team has no linked project.");
             }
 
-            int projectId = fromTeam.ProjectId.Value;
-
-            // ============================================================
-            // 6. Get Employee A technology
-            // ============================================================
-
-            var fromProjectTeamMember = await _context.ProjectTeamMembers
+            // Get Employee A's technology from their project
+            var fromPtm = await _context.ProjectTeamMembers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(ptm =>
                     ptm.EmployeeId == fromEmployeeId &&
-                    ptm.ProjectId == projectId);
+                    ptm.ProjectId == fromTeam.ProjectId.Value);
 
-            if (fromProjectTeamMember == null ||
-                string.IsNullOrWhiteSpace(fromProjectTeamMember.Technology))
+            if (fromPtm == null || string.IsNullOrWhiteSpace(fromPtm.Technology))
             {
-                return (
-                    false,
-                    $"Technology is not assigned to employee {fromEmployeeId}."
-                );
+                return (false, "Your technology is not set.");
             }
 
-            // ============================================================
-            // 7. Get Employee B technology
-            // ============================================================
-
-            var toProjectTeamMember = await _context.ProjectTeamMembers
+            // Get Employee B's technology from their project
+            var toPtm = await _context.ProjectTeamMembers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(ptm =>
                     ptm.EmployeeId == toEmployeeId &&
-                    ptm.ProjectId == projectId);
+                    ptm.ProjectId == toTeam.ProjectId.Value);
 
-            if (toProjectTeamMember == null ||
-                string.IsNullOrWhiteSpace(toProjectTeamMember.Technology))
+            if (toPtm == null || string.IsNullOrWhiteSpace(toPtm.Technology))
             {
-                return (
-                    false,
-                    $"Technology is not assigned to employee {toEmployeeId}."
-                );
+                return (false, "Selected employee has no technology assigned.");
             }
 
-            string fromTechnology =
-                fromProjectTeamMember.Technology.Trim();
+            // Normalize technology names
+            string normFrom = fromPtm.Technology.Replace(" ", "").Replace("-", "").Replace("_", "").Trim().ToLowerInvariant();
+            string normTo = toPtm.Technology.Replace(" ", "").Replace("-", "").Replace("_", "").Trim().ToLowerInvariant();
 
-            string toTechnology =
-                toProjectTeamMember.Technology.Trim();
-
-            // ============================================================
-            // 8. Normalize technology names
-            // ============================================================
-
-            string normalizedFromTechnology = fromTechnology
-                .Replace(" ", "")
-                .Replace("-", "")
-                .Replace("_", "")
-                .Trim()
-                .ToLowerInvariant();
-
-            string normalizedToTechnology = toTechnology
-                .Replace(" ", "")
-                .Replace("-", "")
-                .Replace("_", "")
-                .Trim()
-                .ToLowerInvariant();
-
-            // ============================================================
-            // 9. SAME TECHNOLOGY = ALLOWED
-            // ============================================================
-
-            if (normalizedFromTechnology ==
-                normalizedToTechnology)
+            // 1. Same technology (e.g. Backend <-> Backend, Frontend <-> Frontend)
+            if (normFrom == normTo)
             {
-                return (
-                    true,
-                    "Shift swap is allowed."
-                );
+                return (true, "Eligible for shift swap.");
             }
 
-            // ============================================================
-            // 10. FULL STACK COMPATIBILITY
-            // ============================================================
+            // 2. Fullstack compatibility (Fullstack <-> Backend OR Fullstack <-> Frontend)
+            bool fromIsFullStack = normFrom == "fullstack";
+            bool toIsFullStack = normTo == "fullstack";
+            bool fromIsFrontend = normFrom == "frontend";
+            bool toIsFrontend = normTo == "frontend";
+            bool fromIsBackend = normFrom == "backend";
+            bool toIsBackend = normTo == "backend";
 
-            bool fromIsFullStack =
-                normalizedFromTechnology == "fullstack";
-
-            bool toIsFullStack =
-                normalizedToTechnology == "fullstack";
-
-            bool fromIsFrontend =
-                normalizedFromTechnology == "frontend";
-
-            bool toIsFrontend =
-                normalizedToTechnology == "frontend";
-
-            bool fromIsBackend =
-                normalizedFromTechnology == "backend";
-
-            bool toIsBackend =
-                normalizedToTechnology == "backend";
-
-            // Full Stack <-> Frontend
-            if ((fromIsFullStack && toIsFrontend) ||
-                (fromIsFrontend && toIsFullStack))
+            if ((fromIsFullStack && toIsFrontend) || (fromIsFrontend && toIsFullStack) ||
+                (fromIsFullStack && toIsBackend) || (fromIsBackend && toIsFullStack))
             {
-                return (
-                    true,
-                    "Shift swap is allowed."
-                );
+                return (true, "Eligible for shift swap.");
             }
 
-            // Full Stack <-> Backend
-            if ((fromIsFullStack && toIsBackend) ||
-                (fromIsBackend && toIsFullStack))
-            {
-                return (
-                    true,
-                    "Shift swap is allowed."
-                );
-            }
-
-            // ============================================================
-            // 11. ALL OTHER COMBINATIONS = NOT ALLOWED
-            // ============================================================
-
-            return (
-                false,
-
-                "Employees must have the same technology "
-            );
+            // 3. Incompatible (e.g. Frontend <-> Backend, QA <-> Backend)
+            return (false, $"Incompatible technology: {fromPtm.Technology} cannot swap with {toPtm.Technology}.");
         }
+
         private async Task<int> GetEffectiveShiftIdAsync(string employeeId, DateTime date)
         {
             if (string.IsNullOrWhiteSpace(employeeId)) return 1;
@@ -682,9 +670,8 @@ namespace EmployeeManagementSystem.Services
             if (exists)
                 return (false, $"An active shift swap request already exists between {fromId} and {toId} for {shiftDate:yyyy-MM-dd}.");
 
-            var emp1 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == fromId && x.Status == "Active"); // varsha
-            var emp2 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == toId && x.Status == "Active"); // varsha
-            if (emp1 == null || emp2 == null) return (false, "One or both employees could not be found or are inactive."); // varsha
+            var emp1 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == fromId);
+            var emp2 = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Employee_Id == toId);
 
             string targetName = emp2?.Name ?? toId;
             string initialStatus = "PendingEmployeeApproval";
@@ -897,9 +884,12 @@ namespace EmployeeManagementSystem.Services
 
             return await strategy.ExecuteAsync(async () =>
             {
+                var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
                 var swap = await _context.ShiftSwaps.FirstOrDefaultAsync(x => x.SwapId == id);
                 if (swap == null)
                     return (false, $"Shift swap request with ID {id} was not found.", null);
+                if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(swap.FromEmployeeId))
+                    return (false, "Shift swap request not found in your organization.", null);
 
                 // 1. Prevent duplicate approval / exchange
                 if (IsApproved(swap.Status))
@@ -1121,9 +1111,12 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<(bool Success, string Message, string? CurrentStatus)> AdminRejectSwapDetailedAsync(int id, string? remarks = null, string? rejectedBy = null)
         {
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var swap = await _context.ShiftSwaps.FirstOrDefaultAsync(x => x.SwapId == id);
             if (swap == null)
                 return (false, $"Shift swap request with ID {id} was not found.", null);
+            if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(swap.FromEmployeeId))
+                return (false, "Shift swap request not found in your organization.", null);
 
             if (IsApproved(swap.Status))
                 return (false, $"Shift swap request #{id} cannot be rejected because it is already approved (Current status: '{swap.Status}').", swap.Status);
@@ -1256,10 +1249,12 @@ namespace EmployeeManagementSystem.Services
 
         public async Task<bool> DeleteAsync(int id)
         {
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var swap = await _context.ShiftSwaps.FindAsync(id);
             if (swap == null || IsApproved(swap.Status))
                 return false;
-
+            if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(swap.FromEmployeeId))
+                return false;
             _context.ShiftSwaps.Remove(swap);
             await _context.SaveChangesAsync();
             return true;

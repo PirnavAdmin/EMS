@@ -1,7 +1,8 @@
-﻿namespace EmployeeManagementSystem.DTOs
+namespace EmployeeManagementSystem.DTOs
 {
     public class CreateEmployeeGoalDto
     {
+        public int? OrganizationId { get; set; }
         public string Employee_Id { get; set; } = string.Empty;
         public int PerformanceCycleId { get; set; }
         public string GoalTitle { get; set; } = string.Empty;

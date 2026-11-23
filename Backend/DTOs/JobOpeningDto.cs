@@ -1,5 +1,6 @@
-﻿public class JobOpeningDto
+public class JobOpeningDto
 {
+    public int? OrganizationId { get; set; }
     public string Job_Title { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
     public string? Experience { get; set; }

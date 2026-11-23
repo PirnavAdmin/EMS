@@ -1,18 +1,81 @@
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Interfaces;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
 {
     public class EmployeeShiftService : IEmployeeShiftService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public EmployeeShiftService(AppDbContext context)
+        public EmployeeShiftService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private async Task<(int? OrgId, List<string> EmployeeIds)> GetCurrentOrgEmployeeContextAsync()
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                var allActive = await _context.Employees.AsNoTracking().Where(e => e.Status == "Active").Select(e => e.Employee_Id).ToListAsync();
+                return (null, allActive);
+            }
+
+            var orgId = CurrentUserHelper.GetOrganizationId(user);
+            int? adminId = null;
+
+            var adminIdClaim = user.FindFirst("AdminId")?.Value;
+            if (!string.IsNullOrWhiteSpace(adminIdClaim) && int.TryParse(adminIdClaim, out int aid) && aid > 0)
+                adminId = aid;
+
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                if (adminId.HasValue)
+                {
+                    var admin = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId.Value);
+                    if (admin?.OrganizationId != null && admin.OrganizationId > 0)
+                        orgId = admin.OrganizationId.Value;
+                }
+            }
+
+            if (!orgId.HasValue || orgId.Value <= 0)
+            {
+                var empId = CurrentUserHelper.GetEmployeeId(user);
+                if (!string.IsNullOrWhiteSpace(empId))
+                {
+                    var emp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Employee_Id == empId);
+                    if (emp?.OrganizationId != null && emp.OrganizationId > 0)
+                        orgId = emp.OrganizationId.Value;
+                }
+            }
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                var orgAdminIds = await _context.Admins
+                    .AsNoTracking()
+                    .Where(a => a.OrganizationId == orgId.Value)
+                    .Select(a => a.Id)
+                    .ToListAsync();
+
+                var empIds = await _context.Employees
+                    .AsNoTracking()
+                    .Where(e => e.OrganizationId == orgId.Value || (e.AdminId.HasValue && orgAdminIds.Contains(e.AdminId.Value)))
+                    .Select(e => e.Employee_Id)
+                    .ToListAsync();
+
+                return (orgId.Value, empIds);
+            }
+
+            var fallbackEmpIds = await _context.Employees.AsNoTracking().Where(e => e.Status == "Active").Select(e => e.Employee_Id).ToListAsync();
+            return (null, fallbackEmpIds);
         }
 
         // =========================================================================
@@ -21,20 +84,24 @@ namespace EmployeeManagementSystem.Services
         public async Task<string> AssignShiftAsync(AssignShiftDto dto)
         {
             var empId = dto.Employee_Id?.Trim() ?? "";
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
 
-            // 1. Validate employee
+            // 1. Validate employee belongs to caller's organization
+            if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(empId))
+                return "Employee not found in your organization.";
+
             var employeeExists = await _context.Employees
-                .AnyAsync(x => x.Employee_Id == empId && x.Status == "Active"); // varsha: validate employee is active
+                .AnyAsync(x => x.Employee_Id == empId);
 
             if (!employeeExists)
-                return "Employee not found or is inactive."; // varsha
+                return "Employee not found.";
 
-            // 2. Validate shift
+            // 2. Validate shift belongs to caller's organization
             var shift = await _context.ShiftMasters
-                .FirstOrDefaultAsync(x => x.ShiftId == dto.ShiftId);
+                .FirstOrDefaultAsync(x => x.ShiftId == dto.ShiftId && (orgId == null || x.OrganizationId == orgId.Value));
 
             if (shift == null)
-                return "Shift not found.";
+                return "Shift not found in your organization.";
 
             if (!shift.IsActive)
                 return "Selected shift is inactive.";
@@ -137,39 +204,42 @@ namespace EmployeeManagementSystem.Services
         {
             var today = DateTime.Today;
 
-            // 1. Fetch all active employees
-            var employees = await _context.Employees
-                .AsNoTracking()
-                .Where(e => e.Status == "Active") // varsha: strictly active employees only
-                .ToListAsync();
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
+
+            // 1. Fetch active employees belonging to current organization
+            var employeeQuery = _context.Employees.AsNoTracking().Where(e => e.Status == "Active");
+            if (tenantEmployeeIds != null && tenantEmployeeIds.Any())
+            {
+                employeeQuery = employeeQuery.Where(e => tenantEmployeeIds.Contains(e.Employee_Id));
+            }
+            var employees = await employeeQuery.ToListAsync();
 
             if (!employees.Any())
                 return Enumerable.Empty<EmployeeShiftResponseDto>();
 
-            // 2. Fetch all shifts
-            var allShifts = await _context.ShiftMasters
-                .AsNoTracking()
-                .Where(s => s.IsActive)
-                .ToListAsync();
-
-            if (!allShifts.Any())
+            // 2. Fetch shifts belonging to current organization
+            var shiftQuery = _context.ShiftMasters.AsNoTracking().Where(s => s.IsActive);
+            if (orgId.HasValue && orgId.Value > 0)
             {
-                allShifts = await _context.ShiftMasters.AsNoTracking().ToListAsync();
+                shiftQuery = shiftQuery.Where(s => s.OrganizationId == orgId.Value);
             }
+            var allShifts = await shiftQuery.ToListAsync();
 
+            // REMOVED CROSS-TENANT LEAK: Do NOT fall back to loading all shifts globally!
             if (!allShifts.Any())
                 return Enumerable.Empty<EmployeeShiftResponseDto>();
 
-            // 3. Fetch all direct assignments from DB
+            // 3. Fetch direct assignments filtered by tenant employees
             var allDirectAssignments = await _context.EmployeeShiftAssignments
-                .Where(x => x.EffectiveFrom.Date <= today)
+                .Where(x => x.EffectiveFrom.Date <= today && (tenantEmployeeIds == null || tenantEmployeeIds.Contains(x.Employee_Id)))
                 .ToListAsync();
 
-            // 4. Fetch daily rosters for today
+            // 4. Fetch daily rosters for today filtered by tenant employees
             var todayRosters = await _context.ShiftRosters
                 .AsNoTracking()
-                .Where(r => r.RosterDate.Date == today && r.IsPublished)
+                .Where(r => r.RosterDate.Date == today && r.IsPublished && (tenantEmployeeIds == null || tenantEmployeeIds.Contains(r.Employee_Id)))
                 .ToListAsync();
+
 
             // 5. Fetch team memberships
             var teamMembers = await _context.TeamMembers
@@ -240,7 +310,6 @@ namespace EmployeeManagementSystem.Services
                     }
                 }
 
-                
                 // Priority 3: Team Member Custom Override
                 if (effectiveShift == null)
                 {
@@ -248,31 +317,22 @@ namespace EmployeeManagementSystem.Services
                         .Where(tm => string.Equals(tm.EmployeeId?.Trim(), empId, StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
-                    // Check if member has an explicit override (either a custom shift OR explicitly unassigned/null)
                     var overrideMember = empTeams.FirstOrDefault(tm =>
                         tm.TeamMemberOverride != null &&
-                        tm.TeamMemberOverride.CustomShift);
+                        tm.TeamMemberOverride.CustomShift &&
+                        tm.TeamMemberOverride.OverrideShiftId.HasValue);
 
-                    if (overrideMember?.TeamMemberOverride != null)
+                    if (overrideMember?.TeamMemberOverride?.OverrideShiftId != null)
                     {
-                        if (overrideMember.TeamMemberOverride.OverrideShiftId.HasValue)
+                        effectiveShift = allShifts.FirstOrDefault(s => s.ShiftId == overrideMember.TeamMemberOverride.OverrideShiftId.Value);
+                        if (effectiveShift != null)
                         {
-                            // Explicit assigned shift
-                            effectiveShift = allShifts.FirstOrDefault(s => s.ShiftId == overrideMember.TeamMemberOverride.OverrideShiftId.Value);
-                            if (effectiveShift != null)
-                            {
-                                assignmentType = "TeamOverride";
-                            }
-                        }
-                        else
-                        {
-                            // Explicitly UNASSIGNED (No Shift) -> DO NOT FALL BACK TO TEAM SHIFT!
-                            effectiveShift = null;
+                            assignmentType = "TeamOverride";
                         }
                     }
                     else if (empTeams.Any())
                     {
-                        // Priority 4: Team Base Shift (only if member has no custom override)
+                        // Priority 4: Team Base Shift
                         var teamWithShift = empTeams.FirstOrDefault(tm => tm.Team?.ShiftId != null);
                         if (teamWithShift?.Team?.ShiftId != null)
                         {
@@ -284,6 +344,7 @@ namespace EmployeeManagementSystem.Services
                         }
                     }
                 }
+
                 if (effectiveShift != null)
                 {
                     result.Add(new EmployeeShiftResponseDto
@@ -313,7 +374,6 @@ namespace EmployeeManagementSystem.Services
         public async Task<EmployeeShiftResponseDto?> GetEmployeeShiftAsync(string employeeId)
         {
             var all = await GetAllAssignmentsAsync();
-
             return all.FirstOrDefault(x => string.Equals(x.Employee_Id?.Trim(), employeeId?.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
@@ -325,11 +385,14 @@ namespace EmployeeManagementSystem.Services
             if (assignmentId <= 0)
                 return "Invalid assignment ID.";
 
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
+
             var assignment = await _context.EmployeeShiftAssignments
-                .FirstOrDefaultAsync(x => x.AssignmentId == assignmentId);
+                .FirstOrDefaultAsync(x => x.AssignmentId == assignmentId && (tenantEmployeeIds == null || tenantEmployeeIds.Contains(x.Employee_Id)));
 
             if (assignment == null)
-                return "Assignment not found.";
+                return "Assignment not found in your organization.";
+
 
             var empId = assignment.Employee_Id;
 
@@ -375,96 +438,70 @@ namespace EmployeeManagementSystem.Services
         // =========================================================================
         // 6. UNASSIGN SHIFT BY EMPLOYEE ID
         // =========================================================================
-        // =========================================================================
-
-        // 6. UNASSIGN SHIFT
-
-        // =========================================================================
-
         public async Task<string> UnassignShiftAsync(string employeeId)
-
         {
-
+            var (orgId, tenantEmployeeIds) = await GetCurrentOrgEmployeeContextAsync();
             var empId = employeeId?.Trim() ?? "";
 
-            // 1. Validate employee
+            if (tenantEmployeeIds != null && !tenantEmployeeIds.Contains(empId))
+                return "Employee not found in your organization.";
+            ;
 
-            var employeeExists = await _context.Employees
-
-                .AnyAsync(x => x.Employee_Id == empId && x.Status == "Active"); // varsha: validate employee is active
-
-            if (!employeeExists)
-
-                return "Employee not found or is inactive."; // varsha
-
-            // 2. Find and deactivate all active assignments
-
+            // 2. Find active assignments
             var activeAssignments = await _context.EmployeeShiftAssignments
-
                 .Where(x => x.Employee_Id == empId && x.IsActive)
-
                 .ToListAsync();
 
+            // Deactivate all active assignments
             foreach (var item in activeAssignments)
-
             {
-
                 item.IsActive = false;
-
                 item.EffectiveTo = DateTime.Now;
-
                 item.UpdatedDate = DateTime.Now;
-
             }
 
-            // 3. Sync TeamMemberOverride if employee is in a team (sets to No Shift)
-
-            var teamMember = await _context.TeamMembers.FirstOrDefaultAsync(tm => tm.EmployeeId == empId);
-
-            if (teamMember != null)
-
+            if (!activeAssignments.Any())
             {
+                // Create an explicit unassigned record to ensure no fallback re-attaches
+                _context.EmployeeShiftAssignments.Add(new EmployeeShiftAssignment
+                {
+                    Employee_Id = empId,
+                    ShiftId = 1,
+                    EffectiveFrom = DateTime.Today,
+                    EffectiveTo = DateTime.Now,
+                    IsActive = false,
+                    CreatedDate = DateTime.Now,
+                    UpdatedDate = DateTime.Now
+                });
+            }
 
+            // Sync TeamMemberOverride if in a team
+            var teamMember = await _context.TeamMembers.FirstOrDefaultAsync(tm => tm.EmployeeId == empId);
+            if (teamMember != null)
+            {
                 var tmo = await _context.TeamMemberOverrides.FirstOrDefaultAsync(o => o.TeamMemberId == teamMember.Id);
-
                 if (tmo != null)
-
                 {
-
                     tmo.OverrideShiftId = null;
-
                     tmo.CustomShift = true;
-
                 }
-
                 else
-
                 {
-
                     _context.TeamMemberOverrides.Add(new TeamMemberOverride
-
                     {
-
                         TeamMemberId = teamMember.Id,
-
                         OverrideShiftId = null,
-
                         CustomShift = true
-
                     });
-
                 }
-
             }
 
             await _context.SaveChangesAsync();
 
-            // 4. Clear attendance shift cache so attendance reflects unassigned shift immediately
-
+            // Clear attendance shift cache for this employee so attendance reflects the unassigned shift immediately
             AttendanceService.ClearShiftCache(empId);
 
             return "Shift unassigned from employee successfully.";
-
         }
     }
 }

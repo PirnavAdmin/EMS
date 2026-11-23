@@ -1,24 +1,32 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.Helpers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EmployeeManagementSystem.Services
 {
     public class ModuleSearchService
     {
         private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ModuleSearchService(AppDbContext context)
+        public ModuleSearchService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<ModuleSearchResponseDto> SearchModule(string keyword)
         {
+            var user = _httpContextAccessor.HttpContext?.User;
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
             // 🔍 Find module
             var module = await _context.Modules
-    .FirstOrDefaultAsync(m =>
-        EF.Functions.Like(m.ModuleName, $"%{keyword}%"));
+                .FirstOrDefaultAsync(m =>
+                    EF.Functions.Like(m.ModuleName, $"%{keyword}%"));
 
             if (module == null)
                 return null;
@@ -26,27 +34,66 @@ namespace EmployeeManagementSystem.Services
             // 🔥 Mapping (NO switch-case)
             var moduleMap = new Dictionary<string, Func<Task<object>>>
             {
-                ["payroll"] = async () => await _context.PaySlips
-                    .OrderByDescending(p => p.Generated_On)
-                    .Take(10)
-                    .ToListAsync(),
+                ["payroll"] = async () =>
+                {
+                    var q = _context.PaySlips.AsQueryable();
+                    if (orgId.HasValue && orgId.Value > 0)
+                    {
+                        q = q.Where(p => p.OrganizationId == orgId.Value);
+                    }
+                    return await q
+                        .OrderByDescending(p => p.Generated_On)
+                        .Take(10)
+                        .ToListAsync();
+                },
 
-                ["employees"] = async () => await _context.Employees
-                    .Where(e => e.Status == "Active") // varsha: module search only returns active employees
-                    .Take(10)
-                    .ToListAsync(),
+                ["employees"] = async () =>
+                {
+                    var q = _context.Employees.AsQueryable();
+                    if (orgId.HasValue && orgId.Value > 0)
+                    {
+                        q = q.Where(e => e.OrganizationId == orgId.Value);
+                    }
+                    return await q
+                        .Take(10)
+                        .ToListAsync();
+                },
 
-                ["departments"] = async () => await _context.Departments
-                    .Take(10)
-                    .ToListAsync(),
+                ["departments"] = async () =>
+                {
+                    var q = _context.Departments.AsQueryable();
+                    if (orgId.HasValue && orgId.Value > 0)
+                    {
+                        q = q.Where(d => d.OrganizationId == orgId.Value);
+                    }
+                    return await q
+                        .Take(10)
+                        .ToListAsync();
+                },
 
-                ["tasks"] = async () => await _context.TaskManagement
-                    .Take(10)
-                    .ToListAsync(),
+                ["tasks"] = async () =>
+                {
+                    var q = _context.TaskManagement.AsQueryable();
+                    if (orgId.HasValue && orgId.Value > 0)
+                    {
+                        q = q.Where(t => t.OrganizationId == orgId.Value);
+                    }
+                    return await q
+                        .Take(10)
+                        .ToListAsync();
+                },
 
-                ["leaves"] = async () => await _context.EmployeeLeaves
-                    .Take(10)
-                    .ToListAsync(),
+                ["leaves"] = async () =>
+                {
+                    var q = _context.EmployeeLeaves.AsQueryable();
+                    if (orgId.HasValue && orgId.Value > 0)
+                    {
+                        q = q.Where(l => l.OrganizationId == orgId.Value);
+                    }
+                    return await q
+                        .Take(10)
+                        .ToListAsync();
+                },
             };
 
             var key = module.ModuleName.ToLower();

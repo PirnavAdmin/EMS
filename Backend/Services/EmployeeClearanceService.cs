@@ -1,10 +1,14 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 
 using EmployeeManagementSystem.DTOs;
+
+using EmployeeManagementSystem.Helpers;
 
 using EmployeeManagementSystem.Interfaces;
 
 using EmployeeManagementSystem.Models;
+
+using Microsoft.AspNetCore.Http;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -18,11 +22,15 @@ namespace EmployeeManagementSystem.Services
 
         private readonly AppDbContext _context;
 
-        public EmployeeClearanceService(AppDbContext context)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public EmployeeClearanceService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
 
         {
 
             _context = context;
+
+            _httpContextAccessor = httpContextAccessor;
 
         }
 
@@ -36,9 +44,33 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            var resignation = await _context.EmployeeResignations
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var resignationQuery = _context.EmployeeResignations
 
                 .Include(x => x.Employee)
+
+                .AsQueryable();
+
+            if (orgId.HasValue && orgId.Value > 0)
+
+            {
+
+                resignationQuery = resignationQuery.Where(x => x.OrganizationId == orgId.Value);
+
+            }
+
+            else if (adminIds != null && adminIds.Any())
+
+            {
+
+                resignationQuery = resignationQuery.Where(x => x.Employee != null && x.Employee.AdminId.HasValue && adminIds.Contains(x.Employee.AdminId.Value));
+
+            }
+
+            var resignation = await resignationQuery
 
                 .FirstOrDefaultAsync(x =>
 
@@ -79,6 +111,8 @@ namespace EmployeeManagementSystem.Services
             var clearance = new EmployeeClearance
 
             {
+
+                OrganizationId = resignation.OrganizationId ?? orgId,
 
                 ResignationId = dto.ResignationId,
 
@@ -122,9 +156,37 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            var clearance = await _context.EmployeeClearances
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeClearances
 
                 .Include(x => x.EmployeeResignation)
+
+                    .ThenInclude(x => x!.Employee)
+
+                .AsQueryable();
+
+            if (orgId.HasValue && orgId.Value > 0)
+
+            {
+
+                query = query.Where(x => x.OrganizationId == orgId.Value ||
+
+                    (x.EmployeeResignation != null && x.EmployeeResignation.OrganizationId == orgId.Value));
+
+            }
+
+            else if (adminIds != null && adminIds.Any())
+
+            {
+
+                query = query.Where(x => x.EmployeeResignation != null && x.EmployeeResignation.Employee != null && x.EmployeeResignation.Employee.AdminId.HasValue && adminIds.Contains(x.EmployeeResignation.Employee.AdminId.Value));
+
+            }
+
+            var clearance = await query
 
                 .FirstOrDefaultAsync(x =>
 
@@ -301,11 +363,37 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            var clearance = await _context.EmployeeClearances
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeClearances
 
                 .Include(x => x.EmployeeResignation)
 
                     .ThenInclude(x => x!.Employee)
+
+                .AsQueryable();
+
+            if (orgId.HasValue && orgId.Value > 0)
+
+            {
+
+                query = query.Where(x => x.OrganizationId == orgId.Value ||
+
+                    (x.EmployeeResignation != null && x.EmployeeResignation.OrganizationId == orgId.Value));
+
+            }
+
+            else if (adminIds != null && adminIds.Any())
+
+            {
+
+                query = query.Where(x => x.EmployeeResignation != null && x.EmployeeResignation.Employee != null && x.EmployeeResignation.Employee.AdminId.HasValue && adminIds.Contains(x.EmployeeResignation.Employee.AdminId.Value));
+
+            }
+
+            var clearance = await query
 
                 .FirstOrDefaultAsync(x =>
 
@@ -329,13 +417,37 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            var clearances = await _context.EmployeeClearances
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeClearances
 
                 .Include(x => x.EmployeeResignation)
 
                     .ThenInclude(x => x!.Employee)
 
-                .Where(x => x.CompletedDate == null)
+                .Where(x => x.CompletedDate == null);
+
+            if (orgId.HasValue && orgId.Value > 0)
+
+            {
+
+                query = query.Where(x => x.OrganizationId == orgId.Value ||
+
+                    (x.EmployeeResignation != null && x.EmployeeResignation.OrganizationId == orgId.Value));
+
+            }
+
+            else if (adminIds != null && adminIds.Any())
+
+            {
+
+                query = query.Where(x => x.EmployeeResignation != null && x.EmployeeResignation.Employee != null && x.EmployeeResignation.Employee.AdminId.HasValue && adminIds.Contains(x.EmployeeResignation.Employee.AdminId.Value));
+
+            }
+
+            var clearances = await query
 
                 .OrderByDescending(x => x.ClearanceId)
 
@@ -365,13 +477,37 @@ namespace EmployeeManagementSystem.Services
 
         {
 
-            var clearances = await _context.EmployeeClearances
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, user);
+
+            var query = _context.EmployeeClearances
 
                 .Include(x => x.EmployeeResignation)
 
                     .ThenInclude(x => x!.Employee)
 
-                .Where(x => x.CompletedDate != null)
+                .Where(x => x.CompletedDate != null);
+
+            if (orgId.HasValue && orgId.Value > 0)
+
+            {
+
+                query = query.Where(x => x.OrganizationId == orgId.Value ||
+
+                    (x.EmployeeResignation != null && x.EmployeeResignation.OrganizationId == orgId.Value));
+
+            }
+
+            else if (adminIds != null && adminIds.Any())
+
+            {
+
+                query = query.Where(x => x.EmployeeResignation != null && x.EmployeeResignation.Employee != null && x.EmployeeResignation.Employee.AdminId.HasValue && adminIds.Contains(x.EmployeeResignation.Employee.AdminId.Value));
+
+            }
+
+            var clearances = await query
 
                 .OrderByDescending(x => x.CompletedDate)
 
@@ -505,6 +641,8 @@ namespace EmployeeManagementSystem.Services
             {
 
                 ClearanceId = clearance.ClearanceId,
+
+                OrganizationId = clearance.OrganizationId,
 
                 ResignationId = clearance.ResignationId,
 

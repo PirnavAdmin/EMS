@@ -1,4 +1,4 @@
-﻿/*
+/*
 namespace EmployeeManagementSystem.Models
 {
     public class Role
@@ -24,6 +24,8 @@ namespace EmployeeManagementSystem.Models
     {
         [Key]
         public int RoleId { get; set; }   
+
+        public int? OrganizationId { get; set; }
 
         public string Name { get; set; }
         public bool IsActive { get; set; } = true;

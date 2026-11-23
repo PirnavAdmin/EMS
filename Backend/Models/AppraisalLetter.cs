@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmployeeManagementSystem.Models
@@ -7,6 +7,7 @@ namespace EmployeeManagementSystem.Models
     {
         [Key]
         public int AppraisalLetterId { get; set; }
+        public int OrganizationId { get; set; }
 
         public string Employee_Id { get; set; } = string.Empty;
 

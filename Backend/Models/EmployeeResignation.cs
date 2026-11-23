@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -13,11 +13,11 @@ namespace EmployeeManagementSystem.Models
     {
 
         [Key]
-
         public int ResignationId { get; set; }
 
-        [Required]
+        public int? OrganizationId { get; set; }
 
+        [Required]
         public string Employee_Id { get; set; } = string.Empty;
 
         [ForeignKey(nameof(Employee_Id))]

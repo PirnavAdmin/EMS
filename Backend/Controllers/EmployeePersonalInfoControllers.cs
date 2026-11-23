@@ -1,4 +1,4 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
 
 using EmployeeManagementSystem.DTOs;
 
@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using EmployeeManagementSystem.Helpers;
 namespace EmployeeManagementSystem.Controllers
 
 {
@@ -65,8 +66,8 @@ namespace EmployeeManagementSystem.Controllers
 
             if (employee != null)
             {
-                if (employee.Status != "Active") // varsha: inactive employees cannot update personal info
-                    return Unauthorized("Your account is inactive."); // varsha
+                if (employee.Status != "Active")
+                    return Unauthorized("Your account is inactive.");
 
                 // Logged-in employee
                 employeeId = employee.Employee_Id;
@@ -82,6 +83,13 @@ namespace EmployeeManagementSystem.Controllers
 
                 employeeId = dto.Employee_Id;
             }
+
+            var inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+            if (!inTenant)
+            {
+                return NotFound(new { message = "Employee not found in your organization." });
+            }
+
             var exists = await _context.EmployeePersonalInfos
                 .AnyAsync(x => x.Employee_Id == employeeId);
 
@@ -142,22 +150,24 @@ namespace EmployeeManagementSystem.Controllers
             if (string.IsNullOrWhiteSpace(employeeId))
                 return BadRequest("Employee Id is required.");
 
-            // Check if logged-in user is Admin
-            var currentUserId = User.FindFirst("EmployeeId")?.Value
-                  ?? User.FindFirst("OnboardingId")?.Value;
+            bool isAdmin = await CurrentUserHelper.IsAdminUserAsync(_context, User);
+            var currentUserId = CurrentUserHelper.GetEmployeeOrOnboardingId(User);
 
-            // Employee can edit only their own details
-            //if (!string.IsNullOrWhiteSpace(currentUserId))
-            //{
-            //    if (!string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase))
-            //    {
-            //        return Forbid("You can edit only your own information.");
-            //    }
-            //}
-
-            // If EmployeeId is not present in JWT,
-            // this request is coming from Admin / HR / Manager / Permission user,
-            // so allow the update.
+            if (!isAdmin)
+            {
+                if (!string.Equals(currentUserId, employeeId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid("You can edit only your own information.");
+                }
+            }
+            else
+            {
+                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+                if (!inTenant)
+                {
+                    return NotFound(new { message = "Employee Personal Information not found." });
+                }
+            }
 
             var existing = await _context.EmployeePersonalInfos
                 .FirstOrDefaultAsync(x => x.Employee_Id == employeeId);
@@ -208,17 +218,19 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-
-            bool isAdmin = await _context.Admins
-                .AnyAsync(a => a.Email == loggedInEmail);
-
+            bool isAdmin = await CurrentUserHelper.IsAdminUserAsync(_context, User);
             if (!isAdmin)
             {
                 return Forbid("Only administrators can view all employee records.");
             }
 
+            var (orgId, adminIds) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var tenantEmpIds = await CurrentUserHelper.FilterEmployeesByTenant(_context, orgId, adminIds)
+                .Select(e => e.Employee_Id)
+                .ToListAsync();
+
             var data = await _context.EmployeePersonalInfos
+                .Where(x => tenantEmpIds.Contains(x.Employee_Id))
                 .OrderBy(x => x.Employee_Id)
                 .ToListAsync();
 
@@ -231,19 +243,22 @@ namespace EmployeeManagementSystem.Controllers
         public async Task<IActionResult> GetByEmployeeId(string employeeId)
         {
             employeeId = Uri.UnescapeDataString(employeeId).Trim();
-            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-
-            bool isAdmin = await _context.Admins
-                .AnyAsync(a => a.Email == loggedInEmail);
+            bool isAdmin = await CurrentUserHelper.IsAdminUserAsync(_context, User);
 
             if (!isAdmin)
             {
-                var currentId = User.FindFirst("EmployeeId")?.Value
-                             ?? User.FindFirst("OnboardingId")?.Value;
-
-                if (currentId != employeeId)
+                var currentId = CurrentUserHelper.GetEmployeeOrOnboardingId(User);
+                if (!string.Equals(currentId, employeeId, StringComparison.OrdinalIgnoreCase))
                 {
                     return Forbid("You can view only your own personal information.");
+                }
+            }
+            else
+            {
+                bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+                if (!inTenant)
+                {
+                    return NotFound(new { message = "Employee Personal Information not found." });
                 }
             }
 
@@ -266,14 +281,17 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{employeeId}")]
         public async Task<IActionResult> Delete(string employeeId)
         {
-            var loggedInEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-
-            bool isAdmin = await _context.Admins
-                .AnyAsync(a => a.Email == loggedInEmail);
-
+            bool isAdmin = await CurrentUserHelper.IsAdminUserAsync(_context, User);
             if (!isAdmin)
             {
                 return Forbid("Only administrators can delete employee personal information.");
+            }
+
+            employeeId = Uri.UnescapeDataString(employeeId).Trim();
+            bool inTenant = await CurrentUserHelper.IsEmployeeInTenantAsync(_context, User, employeeId);
+            if (!inTenant)
+            {
+                return NotFound(new { message = "Employee not found in your organization." });
             }
 
             var data = await _context.EmployeePersonalInfos

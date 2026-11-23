@@ -1,10 +1,13 @@
-﻿using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Data;
+using EmployeeManagementSystem.Helpers;
 using EmployeeManagementSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagementSystem.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class TaxDeclarationController : ControllerBase
@@ -19,7 +22,15 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            return Ok(await _context.TaxDeclarations
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.TaxDeclarations.AsQueryable();
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            return Ok(await query
                 .OrderByDescending(x => x.TaxDeclarationId)
                 .ToListAsync());
         }
@@ -27,9 +38,15 @@ namespace EmployeeManagementSystem.Controllers
         [HttpGet("{employeeId}")]
         public async Task<IActionResult> GetByEmployee(string employeeId)
         {
-            var data = await _context.TaxDeclarations
-                .Where(x => x.Employee_Id == employeeId)
-                .ToListAsync();
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.TaxDeclarations.Where(x => x.Employee_Id == employeeId);
+
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var data = await query.ToListAsync();
 
             return Ok(data);
         }
@@ -37,6 +54,17 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] TaxDeclaration model)
         {
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Employee_Id == model.Employee_Id);
+
+            if (employee != null && orgId.HasValue && orgId.Value > 0 && employee.OrganizationId != orgId.Value)
+            {
+                return Forbid();
+            }
+
+            model.OrganizationId = orgId ?? employee?.OrganizationId;
             model.CreatedDate = DateTime.Now;
             model.Status = "Draft";
 
@@ -53,8 +81,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] TaxDeclaration model)
         {
-            var declaration = await _context.TaxDeclarations
-                .FindAsync(model.TaxDeclarationId);
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.TaxDeclarations.AsQueryable();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var declaration = await query.FirstOrDefaultAsync(x => x.TaxDeclarationId == model.TaxDeclarationId);
 
             if (declaration == null)
                 return NotFound();
@@ -71,7 +105,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost("submit/{id}")]
         public async Task<IActionResult> Submit(int id)
         {
-            var declaration = await _context.TaxDeclarations.FindAsync(id);
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.TaxDeclarations.AsQueryable();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var declaration = await query.FirstOrDefaultAsync(x => x.TaxDeclarationId == id);
 
             if (declaration == null)
                 return NotFound();
@@ -87,7 +128,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpPost("approve/{id}")]
         public async Task<IActionResult> Approve(int id)
         {
-            var declaration = await _context.TaxDeclarations.FindAsync(id);
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.TaxDeclarations.AsQueryable();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var declaration = await query.FirstOrDefaultAsync(x => x.TaxDeclarationId == id);
 
             if (declaration == null)
                 return NotFound();
@@ -104,7 +152,14 @@ namespace EmployeeManagementSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var declaration = await _context.TaxDeclarations.FindAsync(id);
+            var (orgId, _) = await CurrentUserHelper.GetTenantContextAsync(_context, User);
+            var query = _context.TaxDeclarations.AsQueryable();
+            if (orgId.HasValue && orgId.Value > 0)
+            {
+                query = query.Where(x => x.OrganizationId == orgId.Value);
+            }
+
+            var declaration = await query.FirstOrDefaultAsync(x => x.TaxDeclarationId == id);
 
             if (declaration == null)
                 return NotFound();

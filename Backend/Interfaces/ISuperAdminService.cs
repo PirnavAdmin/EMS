@@ -1,4 +1,5 @@
-﻿using EmployeeManagementSystem.DTOs;
+using EmployeeManagementSystem.DTOs;
+
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
@@ -120,6 +121,7 @@ namespace EmployeeManagementSystem.Interfaces
         Task<object> GetLandingLogo();
         Task<List<LandingPricingPlanDto>> GetLandingPricingPlans();
         Task<object> UpdateLandingPricingPlans(List<UpdateLandingPricingPlanDto> plans);
+        Task<object> DeleteLandingPricingPlan(string planKey);
 
     }
 

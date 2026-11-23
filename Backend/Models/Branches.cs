@@ -8,6 +8,11 @@ public class Branch
     [Key]
     public int Id { get; set; }
 
+    // 🔥 Make OrganizationId required
+    [Required]
+    [Column("OrganizationId")]
+    public int OrganizationId { get; set; }
+
     [Required]
     [Column("Branch_Name")]
     public string? BranchName { get; set; }
@@ -16,17 +21,14 @@ public class Branch
 
     [Column("Phone_Number")]
     public string? PhoneNumber { get; set; }
+
     [EmailAddress]
     public string? Email { get; set; }
 
-  
     [Column("Department_Id")]
     public string? DepartmentId { get; set; }
-    public string? Branch_Id {  get; set; }
+
+    public string? Branch_Id { get; set; }
+
     public int? AdminId { get; set; }
-
-    public int? OrganizationId { get; set; }
-
-
-
 }
