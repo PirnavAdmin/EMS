@@ -24,13 +24,12 @@ function UserNotifications() {
   const [markingAll, setMarkingAll] = useState(false);
   const authSnapshot = getAuthenticatedUserSnapshot();
   const currentRole = authSnapshot.role || authSnapshot.roleName || "";
+  const [activeFilter, setActiveFilter] = useState("all");
 
-  const normalizeNotifications = (data) => {
+ const normalizeNotifications = (data) => {
     if (!Array.isArray(data)) return [];
 
-    const normalized = data.
-    map((item, index) => {
-      const normalizedItem = {
+    return data.map((item, index) => ({
         ...item,
         id: item.id ?? item.notificationId ?? index,
         isRead: item.isRead ?? item.read ?? item.isread ?? false,
@@ -38,15 +37,8 @@ function UserNotifications() {
         description: item.description || item.message || "No message",
         type: item.type || "info",
         timeAgo: item.timeAgo || item.createdAt || item.createdOn || ""
-      };
-
-      return normalizedItem;
-    }).
-    filter((item) => !item.isRead); // ✅ only keep unread
-
-    return normalized;
-  };
-
+    }));
+};
   const fetchUserNotifications = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
@@ -80,37 +72,36 @@ function UserNotifications() {
   }, [fetchUserNotifications]);
 
   // ✅ MARK SINGLE → REMOVE FROM UI
-  const markAsRead = async (id) => {
+ const markAsRead = async (id) => {
     try {
-      if (!id) return;
+        if (!id) return;
 
-      setUpdatingId(id);
+        setUpdatingId(id);
 
-      const previousNotifications = [...notifications];
+        const success = await markNotificationAsRead(currentRole, id);
 
-      setNotifications((prev) => prev.filter((item) => item.id !== id));
+        if (!success) {
+            await fetchUserNotifications(true);
+            return;
+        }
 
-      const success = await markNotificationAsRead(currentRole, id);
+        // Keep notification visible, but remove unread status
+        setNotifications((prev) =>
+            prev.map((item) =>
+                item.id === id
+                    ? { ...item, isRead: true }
+                    : item
+            )
+        );
 
-      if (!success) {
-        setNotifications(previousNotifications);
+        window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch (error) {
+        console.error("Failed to mark notification as read:", error);
         await fetchUserNotifications(true);
-        return;
-      }
-
-      const refreshedNotifications = await fetchUserNotifications(true);
-      window.dispatchEvent(
-        new CustomEvent("notificationsUpdated", {
-          detail: {
-            notifications: refreshedNotifications
-          }
-        })
-      );
     } finally {
-      setUpdatingId(null);
+        setUpdatingId(null);
     }
-  };
-
+};
   const handleNotificationClick = (item) => {
     if (isShiftSwapNotification(item)) {
       navigate("/my-team");
@@ -120,39 +111,35 @@ function UserNotifications() {
   };
 
   // ✅ MARK ALL → CLEAR UI
-  const markAllAsRead = async () => {
+ const markAllAsRead = async () => {
     if (notifications.length === 0) return;
 
-    const previousNotifications = [...notifications];
-
     try {
-      setMarkingAll(true);
+        setMarkingAll(true);
 
-      setNotifications([]);
+        const success = await markAllNotificationsAsRead(currentRole);
 
-      const success = await markAllNotificationsAsRead(currentRole);
+        if (!success) {
+            await fetchUserNotifications(true);
+            return;
+        }
 
-      if (!success) {
-        setNotifications(previousNotifications);
+        // Keep all notifications, update them to read
+        setNotifications((prev) =>
+            prev.map((item) => ({
+                ...item,
+                isRead: true
+            }))
+        );
+
+        window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch (error) {
+        console.error("Failed to mark all notifications as read:", error);
         await fetchUserNotifications(true);
-        return;
-      }
-
-      const refreshedNotifications = await fetchUserNotifications(true);
-      window.dispatchEvent(
-        new CustomEvent("notificationsUpdated", {
-          detail: {
-            notifications: refreshedNotifications
-          }
-        })
-      );
-    } catch {
-      setNotifications(previousNotifications);
     } finally {
-      setMarkingAll(false);
+        setMarkingAll(false);
     }
-  };
-
+};
   const getIcon = (type) => {
     switch ((type || "").toLowerCase()) {
       case "success":
@@ -166,96 +153,146 @@ function UserNotifications() {
     }
   };
 
-  const unreadCount = notifications.length;
+const unreadCount = notifications.filter(
+  (item) => !item.isRead
+).length;
 
-  return (
-    <div className="notifications-container">
+const readCount = notifications.length - unreadCount;
 
-      <div className="notifications-header">
+const filteredNotifications = notifications.filter((item) => {
+  if (activeFilter === "unread") return !item.isRead;
+  if (activeFilter === "read") return item.isRead;
+  return true;
+});
 
-        <div>
+ return (
+  <div className="notifications-container">
 
-          <h2>My Notifications</h2>
+    {/* Header */}
+    <div className="notifications-header">
+      <div>
+        <h2>My Notifications</h2>
+        <p>
+          {unreadCount} unread notifications
+        </p>
+      </div>
 
-          <p>{unreadCount} unread notifications</p>
+      <button
+        className="mark-read-btn"
+        onClick={markAllAsRead}
+        disabled={unreadCount === 0 || markingAll}
+      >
+        {markingAll ? "Marking..." : "Mark all as read"}
+      </button>
+    </div>
 
-        </div>
-
-
+    {/* Filters */}
+    <div className="notification-toolbar">
+      <div className="notification-filter-tabs">
 
         <button
-          className="mark-read-btn"
-          onClick={markAllAsRead}
-          disabled={unreadCount === 0 || markingAll}>
-          
+          className={`notification-filter ${
+            activeFilter === "all" ? "active" : ""
+          }`}
+          onClick={() => setActiveFilter("all")}
+        >
+          All <span>{notifications.length}</span>
+        </button>
 
-          {markingAll ? "Marking..." : "Mark all as read"}
+        <button
+          className={`notification-filter ${
+            activeFilter === "unread" ? "active" : ""
+          }`}
+          onClick={() => setActiveFilter("unread")}
+        >
+          Unread <span>{unreadCount}</span>
+        </button>
 
+        <button
+          className={`notification-filter ${
+            activeFilter === "read" ? "active" : ""
+          }`}
+          onClick={() => setActiveFilter("read")}
+        >
+          Read <span>{readCount}</span>
         </button>
 
       </div>
 
+      <span className="notification-toolbar-caption">
+        {activeFilter === "all"
+          ? "All notifications"
+          : activeFilter === "unread"
+          ? `${unreadCount} unread notifications`
+          : `${readCount} read notifications`}
+      </span>
+    </div>
 
+    {/* Notifications List */}
+    <div className="notifications-list">
 
-      <div className="notifications-list">
+      {loading ? (
+        <CardSkeleton count={4} variant="panel" />
+      ) : filteredNotifications.length === 0 ? (
+        <p className="no-notifications">
+          {activeFilter === "unread"
+            ? "No unread notifications"
+            : activeFilter === "read"
+            ? "No read notifications"
+            : "No notifications"}
+        </p>
+      ) : (
+        filteredNotifications.map((item, index) => (
+          <div
+            key={item.id || index}
+            className={`notification-card ${
+              item.isRead ? "read" : "unread"
+            }`}
+            onClick={() => handleNotificationClick(item)}
+            style={{ cursor: "pointer" }}
+          >
 
-        {loading ?
-        <CardSkeleton count={4} variant="panel" /> :
-        notifications.length === 0 ?
-        <p className="no-notifications">No notifications</p> :
+            {/* {!item.isRead && (
+              <span className="notification-unread-indicator" />
+            )} */}
 
-        notifications.map((item, index) =>
-        <div
-          key={item.id || index}
-          className="notification-card unread"
-          onClick={() => handleNotificationClick(item)}
-          style={{ cursor: "pointer" }}>
-          
+            <div className={`icon-circle ${item.type || "info"}`}>
+              {getIcon(item.type)}
+            </div>
 
-              <div className={`icon-circle ${item.type || "info"}`}>
+            <div className="notification-content">
 
-                {getIcon(item.type)}
-
-              </div>
-
-
-
-              <div className="notification-content">
-
-                <div className="notification-title">
-
+              <div className="notification-title">
+                <span className="notification-title-text">
                   {item.title}
+                </span>
 
-                  <span className="unread-dot"></span>
-
-                </div>
-
-
-
-                <p>{item.description}</p>
-
+                {!item.isRead && (
+                  <span className="new-badge">
+                    New
+                  </span>
+                )}
               </div>
 
-
-
-              <div className="notification-time">
-
-                {updatingId === item.id ?
-            "Updating..." :
-            markingAll ?
-            "Updating..." :
-            item.timeAgo}
-
-              </div>
+              <p>{item.description}</p>
 
             </div>
-        )
-        }
 
-      </div>
+            <div className="notification-time">
+              {updatingId === item.id
+                ? "Updating..."
+                : markingAll
+                ? "Updating..."
+                : item.timeAgo}
+            </div>
 
-    </div>);
+          </div>
+        ))
+      )}
 
+    </div>
+  </div>
+);
 }
 
 export default UserNotifications;
