@@ -28,10 +28,11 @@ namespace EmployeeManagementSystem.BackgroundServices
                     using var scope = _scopeFactory.CreateScope();
                     var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
 
-                    var orgs = await masterDb.Organizations
-                        .Where(o => !o.IsDeleted)
-                        .Select(o => o.OrganizationCode)
-                        .ToListAsync(stoppingToken);
+                   var orgs = await masterDb.Organizations
+    .AsNoTracking()
+    .Where(o => !o.IsDeleted)
+    .Select(o => o.OrganizationCode)
+    .ToListAsync(stoppingToken);
 
                     foreach (var orgCode in orgs)
                     {
@@ -45,7 +46,7 @@ namespace EmployeeManagementSystem.BackgroundServices
                             tenantProvider.SetCurrentTenant(orgCode);
 
                             var overdueService = tenantScope.ServiceProvider.GetRequiredService<ITicketOverdueService>();
-                            await overdueService.CheckOverdueTicketsAsync();
+                           await overdueService.CheckOverdueTicketsAsync(stoppingToken);
                         }
                         catch (Exception orgEx)
                         {

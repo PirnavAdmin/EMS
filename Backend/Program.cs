@@ -209,7 +209,10 @@ builder.Services.AddHangfire(config =>
         ));
 });
 
-builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 3;
+});
 builder.Services.AddScoped<IOfferLetterService, OfferLetterService>();
 
 builder.Services.AddScoped<IPaySlipService, PaySlipService>();

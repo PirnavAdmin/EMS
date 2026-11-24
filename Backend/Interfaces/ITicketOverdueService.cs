@@ -1,7 +1,7 @@
 ﻿namespace EmployeeManagementSystem.Interfaces
 {
     public interface ITicketOverdueService
-    {
-        Task CheckOverdueTicketsAsync();
-    }
+{
+    Task CheckOverdueTicketsAsync(CancellationToken cancellationToken = default);
+}
 }

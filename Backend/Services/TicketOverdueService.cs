@@ -13,38 +13,37 @@ namespace EmployeeManagementSystem.Services
             _context = context;
         }
 
-        public async Task CheckOverdueTicketsAsync()
-        {
-            var now = DateTime.UtcNow;
+     public async Task CheckOverdueTicketsAsync(
+    CancellationToken cancellationToken = default)
+{
+    var now = DateTime.UtcNow;
 
-            var overdueTickets = await _context.Tickets
-                .Where(t =>
-                    t.IsActive &&
-                    t.Status == "In Progress" &&
-                    t.Deadline.HasValue &&
-                    t.Deadline.Value.AddHours(1) <= now) // 1-hour grace period
-                .ToListAsync();
+    var overdueTickets = await _context.Tickets
+        .Where(t =>
+            t.IsActive &&
+            t.Status == "In Progress" &&
+            t.Deadline.HasValue &&
+            t.Deadline.Value.AddHours(1) <= now)
+        .ToListAsync(cancellationToken);
 
-            if (!overdueTickets.Any())
-                return;
+    if (overdueTickets.Count == 0)
+        return;
 
-            foreach (var ticket in overdueTickets)
-            {
-                ticket.Status = "Overdue";
-                ticket.SLAStatus = "Breached";
+    foreach (var ticket in overdueTickets)
+    {
+        ticket.Status = "Overdue";
+        ticket.SLAStatus = "Breached";
 
-                if (ticket.OverdueDate == null)
-                {
-                    ticket.OverdueDate = now;
-                }
+        if (ticket.OverdueDate == null)
+            ticket.OverdueDate = now;
 
-                // Delay calculated after grace period
-                ticket.DelayMinutes = (int)(now - ticket.Deadline.Value.AddHours(1)).TotalMinutes;
+        ticket.DelayMinutes =
+            (int)(now - ticket.Deadline.Value.AddHours(1)).TotalMinutes;
 
-                ticket.UpdatedAt = now;
-            }
+        ticket.UpdatedAt = now;
+    }
 
-            await _context.SaveChangesAsync();
-        }
+    await _context.SaveChangesAsync(cancellationToken);
+}
     }
 }

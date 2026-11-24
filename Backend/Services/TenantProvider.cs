@@ -93,31 +93,54 @@ namespace EmployeeManagementSystem.Services
                 var masterDb = scope.ServiceProvider.GetService(typeof(MasterDbContext)) as MasterDbContext;
                 if (masterDb != null)
                 {
-                    var org = masterDb.Organizations
-                        .FirstOrDefault(o => o.OrganizationCode == orgCode && !o.IsDeleted);
+                   var org = masterDb.Organizations
+    .AsNoTracking()
+    .FirstOrDefault(o =>
+        o.OrganizationCode == orgCode &&
+        !o.IsDeleted);
 
                     if (org != null && !string.IsNullOrWhiteSpace(org.DatabaseName))
                     {
                         var masterConnStr = _config.GetConnectionString("MasterConnection") ?? "";
                         var masterBuilder = new MySqlConnectionStringBuilder(masterConnStr);
 
-                        var template = _config.GetConnectionString("TenantConnectionTemplate")
-                            ?? "Server={Host};Port={Port};Database={Database};User={User};Password={Password};SslMode=None;AllowPublicKeyRetrieval=True;Allow User Variables=True;";
+                        // var template = _config.GetConnectionString("TenantConnectionTemplate")
+                        //     ?? "Server={Host};Port={Port};Database={Database};User={User};Password={Password};SslMode=None;AllowPublicKeyRetrieval=True;Allow User Variables=True;";
 
                         var host = !string.IsNullOrWhiteSpace(org.DbHost) ? org.DbHost : masterBuilder.Server;
                         var port = org.DbPort > 0 ? org.DbPort : (masterBuilder.Port > 0 ? (int)masterBuilder.Port : 3306);
                         var user = !string.IsNullOrWhiteSpace(org.DbUser) ? org.DbUser : masterBuilder.UserID;
                         var pass = !string.IsNullOrWhiteSpace(org.DbPassword) ? org.DbPassword : masterBuilder.Password;
 
-                        var connStr = template
-                            .Replace("{Host}", host)
-                            .Replace("{Port}", port.ToString())
-                            .Replace("{Database}", org.DatabaseName)
-                            .Replace("{User}", user)
-                            .Replace("{Password}", pass);
+                       var tenantBuilder = new MySqlConnectionStringBuilder
+{
+    Server = host,
+    Port = (uint)port,
+    Database = org.DatabaseName,
+    UserID = user,
+    Password = pass,
 
-                        _cache.Set(cacheKey, connStr, TimeSpan.FromMinutes(10));
-                        return connStr;
+    SslMode = MySqlSslMode.None,
+    AllowPublicKeyRetrieval = true,
+    AllowUserVariables = true,
+
+    Pooling = true,
+    MinimumPoolSize = 0,
+    MaximumPoolSize = 10,
+    ConnectionIdleTimeout = 60,
+    ConnectionTimeout = 15
+};
+
+var connStr = tenantBuilder.ConnectionString;
+
+// Cache normalized connection string
+_cache.Set(
+    cacheKey,
+    connStr,
+    TimeSpan.FromMinutes(10)
+);
+
+return connStr;
                     }
                 }
             }
