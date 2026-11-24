@@ -7,12 +7,11 @@ import "../Employees/ScreenPermissions/ScreenPermissions.css";
 import { TableSkeleton } from "../components/Skeletons";
 import { toastError, toastSuccess } from "../components/common/Toast/toastService";
 import {
+  buildAdminPermissionSavePayload,
   fetchAdminPermissionsByAdminId,
   getAdminPermissionErrorMessage,
   saveAdminPermissions } from
 "../services/adminPermissionService";
-import { fetchPermissionModules } from "../services/permissionService";
-import { getAuditLogsPermission, updateAuditLogsPermission } from "../services/auditLogsPermissionService";
 import {
   getAdmins,
   getApiErrorMessage } from
@@ -50,6 +49,7 @@ const normalizeAdminPermissionRow = (permission = {}) => {
       permission.ScreenId ??
       permission.permissionId ??
       permission.PermissionId ??
+      permission.moduleName ??
       ""
     ),
     moduleName: normalizeId(permission.moduleName ?? permission.ModuleName ?? ""),
@@ -73,20 +73,16 @@ const permissionKeyLabel = (key) =>
 ACTIONS.find((action) => action.key === key)?.label || key;
 
 const normalizeModuleId = (permission) =>
-[
-  permission?.moduleId,
-  permission?.ModuleId,
-  permission?.screenId,
-  permission?.ScreenId,
-  permission?.permissionId,
-  permission?.PermissionId,
-  permission?.moduleName,
-].map(normalizeId).find(Boolean) || "";
-
-const isAuditLogsPermission = (permission) =>
-  normalizeId(permission?.moduleName ?? permission?.ModuleName)
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "") === "auditlogs";
+normalizeId(
+  permission?.moduleId ??
+  permission?.ModuleId ??
+  permission?.screenId ??
+  permission?.ScreenId ??
+  permission?.permissionId ??
+  permission?.PermissionId ??
+  permission?.moduleName ??
+  ""
+);
 
 function SuperAdminPermissions() {
   const location = useLocation();
@@ -97,16 +93,11 @@ function SuperAdminPermissions() {
   const [admins, setAdmins] = useState([]);
   const [selectedAdminId, setSelectedAdminId] = useState(queryAdminId);
   const [permissions, setPermissions] = useState([]);
-  const [moduleCatalog, setModuleCatalog] = useState([]);
-  const [auditLogsPermission, setAuditLogsPermission] = useState(null);
-  const [savedAuditLogsPermission, setSavedAuditLogsPermission] = useState(null);
-  const [auditLogsPermissionError, setAuditLogsPermissionError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const permissionRequestIdRef = useRef(0);
   const permissionsRef = useRef(permissions);
-  const savedPermissionsRef = useRef([]);
 
   useEffect(() => {
     permissionsRef.current = permissions;
@@ -146,14 +137,11 @@ function SuperAdminPermissions() {
     admins.some((admin) => normalizeId(admin.adminId) === selectedAdminId)
   );
 
-  const loadPermissionsForAdmin = async (adminId, { showLoading = true, catalog = moduleCatalog } = {}) => {
+  const loadPermissionsForAdmin = async (adminId, { showLoading = true } = {}) => {
     const normalizedAdminId = normalizeId(adminId);
 
     if (!normalizedAdminId) {
       setPermissions([]);
-      setAuditLogsPermission(null);
-      setSavedAuditLogsPermission(null);
-      setAuditLogsPermissionError("");
       return [];
     }
 
@@ -162,10 +150,6 @@ function SuperAdminPermissions() {
     if (showLoading) {
       setLoading(true);
     }
-
-    setAuditLogsPermission(null);
-    setSavedAuditLogsPermission(null);
-    setAuditLogsPermissionError("");
 
     setError("");
 
@@ -176,34 +160,13 @@ function SuperAdminPermissions() {
         return snapshot.permissions || [];
       }
 
-      const returnedPermissions = (Array.isArray(snapshot.permissions) ? snapshot.permissions : [])
-        .filter((permission) => !isAuditLogsPermission(permission));
-      const returnedNames = new Set(returnedPermissions.map((item) => normalizeId(item.moduleName ?? item.ModuleName).toLowerCase()));
-      const catalogRows = catalog.filter((module) => !isAuditLogsPermission(module)).map((module) => ({
-        ...module,
-        canView: false,
-        canAdd: false,
-        canEdit: false,
-        canDelete: false,
-      })).filter((module) => !returnedNames.has(normalizeId(module.moduleName).toLowerCase()));
       const mappedPermissions = sortPermissions(
-        [...returnedPermissions, ...catalogRows].map((permission) => normalizeAdminPermissionRow(permission))
+        (Array.isArray(snapshot.permissions) ? snapshot.permissions : []).map(
+          (permission) => normalizeAdminPermissionRow(permission)
+        )
       );
 
       setPermissions(mappedPermissions);
-      savedPermissionsRef.current = mappedPermissions;
-
-      try {
-        const auditStatus = await getAuditLogsPermission(normalizedAdminId);
-        if (requestId === permissionRequestIdRef.current) {
-          setAuditLogsPermission(auditStatus.hasAuditLogsPermission);
-          setSavedAuditLogsPermission(auditStatus.hasAuditLogsPermission);
-        }
-      } catch (auditError) {
-        if (requestId === permissionRequestIdRef.current) {
-          setAuditLogsPermissionError(getAdminPermissionErrorMessage(auditError, "Unable to load Audit Logs permission."));
-        }
-      }
 
       return mappedPermissions;
     } catch (requestError) {
@@ -235,19 +198,12 @@ function SuperAdminPermissions() {
 
       try {
         const adminList = await getAdmins();
-        let catalog = [];
-        try {
-          catalog = await fetchPermissionModules();
-        } catch {
-          // Permission rows can still be loaded if the module catalog is unavailable.
-        }
 
         if (!isMounted) {
           return;
         }
 
         const normalizedAdmins = Array.isArray(adminList) ? adminList : [];
-        setModuleCatalog(catalog);
         setAdmins(normalizedAdmins);
 
         const initialAdminId =
@@ -261,8 +217,7 @@ function SuperAdminPermissions() {
 
         if (initialAdminId) {
           await loadPermissionsForAdmin(initialAdminId, {
-            showLoading: false,
-            catalog,
+            showLoading: false
           });
         } else {
           setPermissions([]);
@@ -302,7 +257,6 @@ function SuperAdminPermissions() {
 
     if (!nextAdminId) {
       setPermissions([]);
-      savedPermissionsRef.current = [];
       setError("");
       return;
     }
@@ -390,17 +344,6 @@ function SuperAdminPermissions() {
       const currentPermissions = sortPermissions(permissionsRef.current).map((permission) =>
       normalizeAdminPermissionRow(permission)
       );
-      const comparable = (items) => JSON.stringify(items.map((permission) => ({
-        moduleId: normalizeModuleId(permission),
-        canView: Boolean(permission.canView),
-        canAdd: Boolean(permission.canAdd),
-        canEdit: Boolean(permission.canEdit),
-        canDelete: Boolean(permission.canDelete),
-      })));
-      const genericPermissionsChanged = comparable(currentPermissions) !== comparable(savedPermissionsRef.current);
-      const auditPermissionChanged =
-        typeof auditLogsPermission === "boolean" &&
-        auditLogsPermission !== savedAuditLogsPermission;
       const token = getStoredToken();
 
       if (!token) {
@@ -410,30 +353,17 @@ function SuperAdminPermissions() {
         return;
       }
 
-      if (genericPermissionsChanged) {
-        await saveAdminPermissions({
-          adminId: selectedAdminId,
-          permissions: currentPermissions
-        });
-        savedPermissionsRef.current = currentPermissions;
-      }
+      const payload = buildAdminPermissionSavePayload({
+        adminId: selectedAdminId,
+        permissions: currentPermissions
+      });
 
-      if (auditPermissionChanged) {
-        await updateAuditLogsPermission(selectedAdminId, auditLogsPermission);
-        const verified = await getAuditLogsPermission(selectedAdminId);
-        if (verified.hasAuditLogsPermission !== auditLogsPermission) {
-          throw new Error("The Audit Logs permission could not be verified after saving.");
-        }
-        setSavedAuditLogsPermission(verified.hasAuditLogsPermission);
-      }
+      await saveAdminPermissions({
+        adminId: selectedAdminId,
+        permissions: currentPermissions
+      });
 
-      toastSuccess(
-        auditPermissionChanged
-          ? "Audit Logs permission saved and verified successfully."
-          : genericPermissionsChanged
-            ? "Permissions saved successfully."
-            : "Permissions are already up to date."
-      );
+      toastSuccess("Permissions saved successfully.");
       await loadPermissionsForAdmin(selectedAdminId);
     } catch (requestError) {
 
@@ -529,11 +459,6 @@ function SuperAdminPermissions() {
         </div> :
       null}
 
-      {auditLogsPermissionError ?
-      <div className="sidebar-status-panel sidebar-status-error" style={{ marginBottom: 20 }}>
-        <div className="sidebar-status-copy"><div><div className="sidebar-status-title">Audit Logs permission unavailable</div><div className="sidebar-status-text">{auditLogsPermissionError}</div></div></div>
-      </div> : null}
-
       <div className="emp-table-container">
         {loading && !hasPermissions ?
         <TableSkeleton rows={8} columns={6} /> :
@@ -613,14 +538,6 @@ function SuperAdminPermissions() {
                   </td>
                 </tr>
             }
-              {typeof auditLogsPermission === "boolean" && <tr>
-                <td>Audit Logs</td>
-                <td colSpan={ACTIONS.length} />
-                <td className="permission-access-col"><label className={`permission-switch ${auditLogsPermission ? "active" : ""}`}>
-                  <input type="checkbox" checked={auditLogsPermission} disabled={isBusy} onChange={(event) => setAuditLogsPermission(event.target.checked)} aria-label="Audit Logs permission" />
-                  <span className="permission-slider" aria-hidden="true" />
-                </label></td>
-              </tr>}
             </tbody>
           </table>
         }

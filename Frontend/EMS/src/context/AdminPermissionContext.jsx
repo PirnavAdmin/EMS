@@ -43,7 +43,6 @@ import {
   isSuperAdmin } from
 "../utils/authorization";
 import { logPermissionCollection } from "../utils/debugLogging";
-import { getAuthenticatedAdminAuditLogsPermission } from "../services/auditLogsPermissionService";
 
 const AdminPermissionContext = createContext(null);
 
@@ -207,8 +206,6 @@ export const AdminPermissionProvider = ({ children }) => {
   const [adminEmail, setAdminEmail] = useState(
     () => initialSnapshot?.adminEmail || getStoredAdminEmail() || ""
   );
-  const [auditLogsPermission, setAuditLogsPermission] = useState(null);
-  const [auditLogsPermissionError, setAuditLogsPermissionError] = useState("");
 
   const isLoading = status === "loading";
   const isReady = status === "ready";
@@ -273,8 +270,6 @@ export const AdminPermissionProvider = ({ children }) => {
     setAllowedModules([]);
     setAdminId("");
     setAdminEmail("");
-    setAuditLogsPermission(null);
-    setAuditLogsPermissionError("");
   }, []);
 
   const canAccessModule = useCallback(
@@ -375,8 +370,6 @@ export const AdminPermissionProvider = ({ children }) => {
       isAdmin(currentRole);
 
       if (isSuperAdminRole) {
-        setAuditLogsPermission(null);
-        setAuditLogsPermissionError("");
 
         const snapshot = persistAdminPermissions(
           createSuperAdminPermissionSnapshot({
@@ -394,8 +387,6 @@ export const AdminPermissionProvider = ({ children }) => {
       if (!isAdminRole && !isSuperAdminRole) {
         clearCurrentAdminAllowedModules();
         setAllowedModules([]);
-        setAuditLogsPermission(null);
-        setAuditLogsPermissionError("");
         setStatus("ready");
         setError("");
         setErrorStatus(0);
@@ -405,8 +396,6 @@ export const AdminPermissionProvider = ({ children }) => {
       if (force) {
         clearCurrentAdminAllowedModules();
         setAllowedModules([]);
-        setAuditLogsPermission(null);
-        setAuditLogsPermissionError("");
       }
 
       if (!force) {
@@ -434,39 +423,7 @@ export const AdminPermissionProvider = ({ children }) => {
           adminEmail: currentAdminEmail
         });
 
-        let apiModules = Array.isArray(modules) ? modules : [];
-        let hasAuditLogsPermission = false;
-        let auditLogsPermissionErrorMessage = "";
-
-        try {
-          const auditStatus = await getAuthenticatedAdminAuditLogsPermission(currentAdminId);
-          hasAuditLogsPermission = auditStatus.hasAuditLogsPermission;
-        } catch (auditError) {
-          if (isAdminPermissionAuthFailure(auditError)) {
-            throw auditError;
-          }
-          auditLogsPermissionErrorMessage = getAdminPermissionErrorMessage(
-            auditError,
-            "Unable to verify Audit Logs access. Access is disabled until it can be verified."
-          );
-        }
-
-        apiModules = [
-          ...apiModules.filter((permission) =>
-            normalizeModuleName(permission?.moduleName ?? permission?.ModuleName) !== "auditlogs"
-          ),
-          {
-            moduleName: "Audit Logs",
-            canAccess: hasAuditLogsPermission,
-            canView: hasAuditLogsPermission,
-            canAdd: false,
-            canEdit: false,
-            canDelete: false,
-          },
-        ];
-        setAuditLogsPermission(hasAuditLogsPermission);
-        setAuditLogsPermissionError(auditLogsPermissionErrorMessage);
-
+        const apiModules = Array.isArray(modules) ? modules : [];
         if (import.meta.env.DEV) {
           console.log("[Admin Permissions] Runtime permissions:", modules);
           console.log("[Admin Permissions] Normalized permissions:", apiModules);
@@ -536,8 +493,6 @@ export const AdminPermissionProvider = ({ children }) => {
       adminId,
       adminEmail,
       allowedModules,
-      auditLogsPermission,
-      auditLogsPermissionError,
       isLoading,
       loadingPermissions: isLoading,
       isReady,
@@ -554,8 +509,6 @@ export const AdminPermissionProvider = ({ children }) => {
     adminEmail,
     adminId,
     allowedModules,
-    auditLogsPermission,
-    auditLogsPermissionError,
     isAuthenticated,
     canAccessModule,
     canAddModule,

@@ -864,7 +864,6 @@ import {
   FaHeadset,
   FaChartLine,
   FaEnvelopeOpenText,
-  FaHistory,
 } from
   "react-icons/fa";
 import { NavLink, useLocation } from "react-router-dom";
@@ -874,8 +873,8 @@ import {
   useOrganizationAdminLogo,
   useSuperAdminLogo,
 } from "../utils/brandingLogo";
+import { getStoredPermissions } from "../utils/authStorage";
 import { getUserRole, hasModulePermission, hasRole, isAdmin, isOnboardingUser, isSuperAdmin } from "../utils/authorization";
-import { usePermissionScope } from "../context/usePermissionScope";
 
 const SUPER_ADMIN_EXPANDABLE_MENUS = [];
 
@@ -1104,13 +1103,6 @@ const STATIC_MENUS_AFTER_DROPDOWNS = [
     permission: "Reports"
   },
   {
-    to: "/audit-logs",
-    icon: FaHistory,
-    label: "Audit Logs",
-    permission: "Audit Logs",
-    adminOnly: true,
-  },
-  {
     to: "/performance",
     icon: FaChartLine,
     label: "Performance",
@@ -1282,7 +1274,7 @@ function Sidebar({
 }) {
   const location = useLocation();
   const roleName = getUserRole();
-  const { allowedModules: loadedPermissions = [] } = usePermissionScope();
+  const loadedPermissions = getStoredPermissions(roleName);
   const superAdminUser = isSuperAdmin();
   const organizationBrandingUser =
     !superAdminUser && !isOnboardingUser();

@@ -109,7 +109,6 @@ export const API = {
         ADMINS: "/SuperAdmin/admins",
         ADMIN_BY_ID: (adminId) => `/SuperAdmin/admins/${adminId}`,
         ASSIGN_ADMIN_ORGANIZATION: (adminId) => `/SuperAdmin/admins/${adminId}/assign-organization`,
-        AUDIT_LOGS_PERMISSION: (adminId) => `/SuperAdmin/admins/${adminId}/audit-logs-permission`,
         UPDATE_ADMIN_STATUS: (adminId) => `/SuperAdmin/admins/${adminId}/status`,
         ROLES: "/SuperAdmin/roles",
         ROLE_BY_ID: (roleId) => `/SuperAdmin/roles/${roleId}`,
@@ -150,8 +149,6 @@ export const API = {
     ADMIN_PERMISSION: {
         SAVE: "/AdminPermission/save",
         GET: (adminId) => `/AdminPermission/${adminId}`,
-        AUDIT_LOGS: (adminId) => `/AdminPermission/${adminId}/audit-logs`,
-        AUDIT_LOGS_STATUS: (adminId) => `/AdminPermission/${adminId}/audit-logs-status`,
         ALLOWED_MODULES: "/AdminPermission/allowed-modules",
     },
 
@@ -743,14 +740,6 @@ export const API = {
         ALL: "/reports/all",
     },
 
-    // ================= AUDIT LOGS =================
-    AUDIT_LOGS: {
-        LIST: "/AuditLogs",
-        SUMMARY: "/AuditLogs/summary",
-        BY_ID: (id) => `/AuditLogs/${encodePathSegment(id)}`,
-        EXPORT: "/AuditLogs/export",
-    },
-
     // ================= PAYSLIP =================
     PAYSLIP: {
         // Kept as PaySlip because that is what the current app/backend uses.
@@ -899,7 +888,6 @@ export const API_ENDPOINTS = {
         admins: API.SUPER_ADMIN.ADMINS,
         adminById: API.SUPER_ADMIN.ADMIN_BY_ID,
         assignAdminOrganization: API.SUPER_ADMIN.ASSIGN_ADMIN_ORGANIZATION,
-        auditLogsPermission: API.SUPER_ADMIN.AUDIT_LOGS_PERMISSION,
         updateAdminStatus: API.SUPER_ADMIN.UPDATE_ADMIN_STATUS,
         roles: API.SUPER_ADMIN.ROLES,
         roleById: API.SUPER_ADMIN.ROLE_BY_ID,
@@ -936,15 +924,7 @@ export const API_ENDPOINTS = {
     adminPermission: {
         save: API.ADMIN_PERMISSION.SAVE,
         get: API.ADMIN_PERMISSION.GET,
-        auditLogs: API.ADMIN_PERMISSION.AUDIT_LOGS,
-        auditLogsStatus: API.ADMIN_PERMISSION.AUDIT_LOGS_STATUS,
         allowedModules: API.ADMIN_PERMISSION.ALLOWED_MODULES,
-    },
-    auditLogs: {
-        list: API.AUDIT_LOGS.LIST,
-        summary: API.AUDIT_LOGS.SUMMARY,
-        byId: API.AUDIT_LOGS.BY_ID,
-        export: API.AUDIT_LOGS.EXPORT,
     },
     adminSubscription: {
         create: API.ADMIN_SUBSCRIPTION.CREATE,
