@@ -1010,7 +1010,10 @@ namespace EmployeeManagementSystem.Controllers
 
         }
 
-        // ============================================================// varsha - LOGOUT// ============================================================        [HttpPost("logout")]
+        // ============================================================
+        // varsha - LOGOUT
+        // ============================================================
+        [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
         //  - Audit user logout
