@@ -101,145 +101,90 @@ namespace EmployeeManagementSystem.Services
             return null;
         }
 
-        public string GetTenantConnectionString(string organizationCode)
-        {
-            var baseConn = _configuration.GetConnectionString("MasterConnection")
-                ?? _configuration.GetConnectionString("DefaultConnection")
-                ?? string.Empty;
+     public string GetTenantConnectionString(string organizationCode)
+{
+    if (string.IsNullOrWhiteSpace(organizationCode))
+        throw new ArgumentException("Organization code is required.");
 
-            if (string.IsNullOrWhiteSpace(baseConn) || string.IsNullOrWhiteSpace(organizationCode))
-            {
-                return baseConn;
-            }
+    var organization = _context.Organizations
+        .AsNoTracking()
+        .FirstOrDefault(o =>
+            o.OrganizationCode == organizationCode &&
+            !o.IsDeleted);
 
-            string safeOrgCode = Regex.Replace(organizationCode.Trim().ToLowerInvariant(), @"[^a-z0-9_]", "_");
-            string tenantDbName = $"ems_tenant_{safeOrgCode}";
+    if (organization == null)
+        throw new Exception(
+            $"Organization '{organizationCode}' was not found.");
 
-            try
-            {
-                var builder = new MySqlConnectionStringBuilder(baseConn)
-                {
-                    Database = tenantDbName
-                };
-                return builder.ConnectionString;
-            }
-            catch
-            {
-                // Regex fallback if connection string builder fails
-                return Regex.Replace(baseConn, @"Database=[^;]+;", $"Database={tenantDbName};", RegexOptions.IgnoreCase);
-            }
-        }
+    if (string.IsNullOrWhiteSpace(organization.DatabaseName))
+        throw new Exception(
+            $"DatabaseName is not configured for organization '{organizationCode}'.");
 
+    var baseConn =
+        _configuration.GetConnectionString("MasterConnection")
+        ?? _configuration.GetConnectionString("DefaultConnection");
 
-        public async Task EnsureTenantDatabaseAndAuditTableAsync(string organizationCode)
-        {
-            if (string.IsNullOrWhiteSpace(organizationCode))
-                return;
+    if (string.IsNullOrWhiteSpace(baseConn))
+        throw new Exception("Master database connection string is missing.");
 
-            string safeOrgCode = Regex.Replace(
-                organizationCode.Trim().ToLowerInvariant(),
-                @"[^a-z0-9_]",
-                "_");
+    var builder = new MySqlConnectionStringBuilder(baseConn)
+    {
+        Database = organization.DatabaseName
+    };
 
-            string tenantDbName = $"ems_tenant_{safeOrgCode}";
+    // Use organization-specific connection details when provided.
+    if (!string.IsNullOrWhiteSpace(organization.DbHost))
+        builder.Server = organization.DbHost;
 
-            if (InitializedTenants.ContainsKey(tenantDbName))
-                return;
+    if (organization.DbPort > 0)
+        builder.Port = (uint)organization.DbPort;
 
-            var initializationLock = TenantInitializationLocks.GetOrAdd(
-                tenantDbName,
-                _ => new SemaphoreSlim(1, 1));
+    if (!string.IsNullOrWhiteSpace(organization.DbUser))
+        builder.UserID = organization.DbUser;
 
-            await initializationLock.WaitAsync();
+    if (!string.IsNullOrWhiteSpace(organization.DbPassword))
+        builder.Password = organization.DbPassword;
 
-            try
-            {
-                // Check again after acquiring the lock.
-                if (InitializedTenants.ContainsKey(tenantDbName))
-                    return;
+    return builder.ConnectionString;
+}
 
-                var baseConn = _configuration.GetConnectionString("MasterConnection")
-                    ?? _configuration.GetConnectionString("DefaultConnection");
+       public async Task EnsureTenantDatabaseAndAuditTableAsync(
+    string organizationCode)
+{
+    if (string.IsNullOrWhiteSpace(organizationCode))
+        throw new ArgumentException("Organization code is required.");
 
-                if (string.IsNullOrWhiteSpace(baseConn))
-                    return;
+    string connectionString =
+        GetTenantConnectionString(organizationCode);
 
-                try
-                {
-                    // 1. Create tenant database if it doesn't exist.
-                    await using (var serverConnection = new MySqlConnection(baseConn))
-                    {
-                        await serverConnection.OpenAsync();
+    string databaseName =
+        new MySqlConnectionStringBuilder(connectionString).Database;
 
-                        var createDbSql =
-                            $"CREATE DATABASE IF NOT EXISTS `{tenantDbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;";
+    if (InitializedTenants.ContainsKey(databaseName))
+        return;
 
-                        await using var cmd = new MySqlCommand(createDbSql, serverConnection);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
+    var semaphore = TenantInitializationLocks.GetOrAdd(
+        databaseName,
+        _ => new SemaphoreSlim(1, 1));
 
-                    // 2. Create auditlogs table in tenant database.
-                    var tenantConn = GetTenantConnectionString(organizationCode);
+    await semaphore.WaitAsync();
 
-                    await using (var tenantConnection = new MySqlConnection(tenantConn))
-                    {
-                        await tenantConnection.OpenAsync();
+    try
+    {
+        if (InitializedTenants.ContainsKey(databaseName))
+            return;
 
-                        var createTableSql = @"
-CREATE TABLE IF NOT EXISTS `auditlogs` (
-    `Id` BIGINT NOT NULL AUTO_INCREMENT,
-    `OrganizationCode` VARCHAR(100) NOT NULL,
-    `UserId` VARCHAR(100) NULL,
-    `UserName` VARCHAR(255) NULL,
-    `UserRole` VARCHAR(100) NULL,
-    `Action` VARCHAR(100) NOT NULL,
-    `Module` VARCHAR(100) NOT NULL,
-    `EntityName` VARCHAR(100) NULL,
-    `EntityId` VARCHAR(100) NULL,
-    `Description` TEXT NULL,
-    `OldValues` LONGTEXT NULL,
-    `NewValues` LONGTEXT NULL,
-    `IpAddress` VARCHAR(100) NULL,
-    `UserAgent` VARCHAR(500) NULL,
-    `RequestMethod` VARCHAR(20) NULL,
-    `RequestPath` VARCHAR(500) NULL,
-    `StatusCode` INT NOT NULL DEFAULT 200,
-    `CorrelationId` VARCHAR(100) NULL,
-    `CreatedAt` DATETIME(6) NOT NULL,
-    PRIMARY KEY (`Id`),
-    INDEX `IX_auditlogs_OrganizationCode` (`OrganizationCode`),
-    INDEX `IX_auditlogs_CreatedAt` (`CreatedAt`),
-    INDEX `IX_auditlogs_UserId` (`UserId`),
-    INDEX `IX_auditlogs_Module` (`Module`),
-    INDEX `IX_auditlogs_Action` (`Action`),
-    INDEX `IX_auditlogs_EntityName_EntityId` (`EntityName`, `EntityId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+        // Connect to the organization's configured database.
+        // If it does not exist or access is denied, surface the error.
+        await EnsureAuditTableInDefaultDatabaseAsync(connectionString);
 
-                        await using var cmd = new MySqlCommand(createTableSql, tenantConnection);
-                        await cmd.ExecuteNonQueryAsync();
-
-                        await EnsureColumnsAndIndexesExistAsync(
-                            tenantConnection,
-                            "auditlogs");
-                    }
-
-                    InitializedTenants[tenantDbName] = true;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[TenantProvisioningNotice] {ex.Message}");
-
-                    await EnsureAuditTableInDefaultDatabaseAsync(baseConn);
-
-                    InitializedTenants[tenantDbName] = true;
-                }
-            }
-            finally
-            {
-                initializationLock.Release();
-            }
-        }
-
+        InitializedTenants[databaseName] = true;
+    }
+    finally
+    {
+        semaphore.Release();
+    }
+}
         private async Task EnsureAuditTableInDefaultDatabaseAsync(string baseConn)
         {
             try
@@ -404,47 +349,27 @@ CREATE TABLE IF NOT EXISTS `auditlogs` (
         }
 
 
-        public AppDbContext CreateTenantDbContext(string organizationCode)
+       public AppDbContext CreateTenantDbContext(string organizationCode)
+{
+    string connectionString =
+        GetTenantConnectionString(organizationCode);
+
+    var optionsBuilder =
+        new DbContextOptionsBuilder<AppDbContext>();
+
+    optionsBuilder.UseMySql(
+        connectionString,
+        new MySqlServerVersion(new Version(8, 0, 36)),
+        options =>
         {
-            var tenantConn = GetTenantConnectionString(organizationCode);
-            var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+            options.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null);
+        });
 
-            var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
-
-            try
-            {
-                optionsBuilder.UseMySql(
-                    tenantConn,
-                    serverVersion,
-                    mysqlOptions =>
-                    {
-                        mysqlOptions.EnableRetryOnFailure(
-                            maxRetryCount: 3,
-                            maxRetryDelay: TimeSpan.FromSeconds(5),
-                            errorNumbersToAdd: null);
-                    });
-
-                return new AppDbContext(optionsBuilder.Options);
-            }
-            catch
-            {
-                var baseConn = _configuration.GetConnectionString("MasterConnection")
-                    ?? _configuration.GetConnectionString("DefaultConnection");
-
-                optionsBuilder.UseMySql(
-                    baseConn!,
-                    serverVersion,
-                    mysqlOptions =>
-                    {
-                        mysqlOptions.EnableRetryOnFailure(
-                            maxRetryCount: 3,
-                            maxRetryDelay: TimeSpan.FromSeconds(5),
-                            errorNumbersToAdd: null);
-                    });
-
-                return new AppDbContext(optionsBuilder.Options);
-            }
-        }
+    return new AppDbContext(optionsBuilder.Options);
+}
 
     }
 }
