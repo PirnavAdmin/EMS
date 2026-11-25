@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EmployeeManagementSystem.Services
@@ -19,6 +20,9 @@ namespace EmployeeManagementSystem.Services
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
         private static readonly ConcurrentDictionary<string, bool> InitializedTenants = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim>
+    TenantInitializationLocks =
+        new(StringComparer.OrdinalIgnoreCase);
 
         public TenantService(IConfiguration configuration, AppDbContext context)
         {
@@ -126,37 +130,62 @@ namespace EmployeeManagementSystem.Services
             }
         }
 
+
         public async Task EnsureTenantDatabaseAndAuditTableAsync(string organizationCode)
         {
-            if (string.IsNullOrWhiteSpace(organizationCode)) return;
+            if (string.IsNullOrWhiteSpace(organizationCode))
+                return;
 
-            string safeOrgCode = Regex.Replace(organizationCode.Trim().ToLowerInvariant(), @"[^a-z0-9_]", "_");
+            string safeOrgCode = Regex.Replace(
+                organizationCode.Trim().ToLowerInvariant(),
+                @"[^a-z0-9_]",
+                "_");
+
             string tenantDbName = $"ems_tenant_{safeOrgCode}";
 
-            if (InitializedTenants.ContainsKey(tenantDbName)) return;
+            if (InitializedTenants.ContainsKey(tenantDbName))
+                return;
 
-            var baseConn = _configuration.GetConnectionString("MasterConnection")
-                ?? _configuration.GetConnectionString("DefaultConnection");
+            var initializationLock = TenantInitializationLocks.GetOrAdd(
+                tenantDbName,
+                _ => new SemaphoreSlim(1, 1));
 
-            if (string.IsNullOrWhiteSpace(baseConn)) return;
+            await initializationLock.WaitAsync();
 
             try
             {
-                // 1. Create tenant database if it doesn't exist
-                await using (var serverConnection = new MySqlConnection(baseConn))
-                {
-                    await serverConnection.OpenAsync();
-                    var createDbSql = $"CREATE DATABASE IF NOT EXISTS `{tenantDbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;";
-                    await using var cmd = new MySqlCommand(createDbSql, serverConnection);
-                    await cmd.ExecuteNonQueryAsync();
-                }
+                // Check again after acquiring the lock.
+                if (InitializedTenants.ContainsKey(tenantDbName))
+                    return;
 
-                // 2. Create auditlogs table in tenant database
-                var tenantConn = GetTenantConnectionString(organizationCode);
-                await using (var tenantConnection = new MySqlConnection(tenantConn))
+                var baseConn = _configuration.GetConnectionString("MasterConnection")
+                    ?? _configuration.GetConnectionString("DefaultConnection");
+
+                if (string.IsNullOrWhiteSpace(baseConn))
+                    return;
+
+                try
                 {
-                    await tenantConnection.OpenAsync();
-                    var createTableSql = @"
+                    // 1. Create tenant database if it doesn't exist.
+                    await using (var serverConnection = new MySqlConnection(baseConn))
+                    {
+                        await serverConnection.OpenAsync();
+
+                        var createDbSql =
+                            $"CREATE DATABASE IF NOT EXISTS `{tenantDbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;";
+
+                        await using var cmd = new MySqlCommand(createDbSql, serverConnection);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+
+                    // 2. Create auditlogs table in tenant database.
+                    var tenantConn = GetTenantConnectionString(organizationCode);
+
+                    await using (var tenantConnection = new MySqlConnection(tenantConn))
+                    {
+                        await tenantConnection.OpenAsync();
+
+                        var createTableSql = @"
 CREATE TABLE IF NOT EXISTS `auditlogs` (
     `Id` BIGINT NOT NULL AUTO_INCREMENT,
     `OrganizationCode` VARCHAR(100) NOT NULL,
@@ -185,20 +214,29 @@ CREATE TABLE IF NOT EXISTS `auditlogs` (
     INDEX `IX_auditlogs_Action` (`Action`),
     INDEX `IX_auditlogs_EntityName_EntityId` (`EntityName`, `EntityId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
-                    await using var cmd = new MySqlCommand(createTableSql, tenantConnection);
-                    await cmd.ExecuteNonQueryAsync();
 
-                    await EnsureColumnsAndIndexesExistAsync(tenantConnection, "auditlogs");
+                        await using var cmd = new MySqlCommand(createTableSql, tenantConnection);
+                        await cmd.ExecuteNonQueryAsync();
+
+                        await EnsureColumnsAndIndexesExistAsync(
+                            tenantConnection,
+                            "auditlogs");
+                    }
+
+                    InitializedTenants[tenantDbName] = true;
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[TenantProvisioningNotice] {ex.Message}");
 
-                InitializedTenants[tenantDbName] = true;
+                    await EnsureAuditTableInDefaultDatabaseAsync(baseConn);
+
+                    InitializedTenants[tenantDbName] = true;
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                Console.WriteLine($"[TenantProvisioningNotice] {ex.Message}");
-                // Ensure auditlogs table in current database has required columns
-                await EnsureAuditTableInDefaultDatabaseAsync(baseConn);
-                InitializedTenants[tenantDbName] = true;
+                initializationLock.Release();
             }
         }
 
@@ -365,16 +403,19 @@ CREATE TABLE IF NOT EXISTS `auditlogs` (
             }
         }
 
+
         public AppDbContext CreateTenantDbContext(string organizationCode)
         {
             var tenantConn = GetTenantConnectionString(organizationCode);
             var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 
+            var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+
             try
             {
                 optionsBuilder.UseMySql(
                     tenantConn,
-                    ServerVersion.AutoDetect(tenantConn),
+                    serverVersion,
                     mysqlOptions =>
                     {
                         mysqlOptions.EnableRetryOnFailure(
@@ -382,6 +423,7 @@ CREATE TABLE IF NOT EXISTS `auditlogs` (
                             maxRetryDelay: TimeSpan.FromSeconds(5),
                             errorNumbersToAdd: null);
                     });
+
                 return new AppDbContext(optionsBuilder.Options);
             }
             catch
@@ -391,7 +433,7 @@ CREATE TABLE IF NOT EXISTS `auditlogs` (
 
                 optionsBuilder.UseMySql(
                     baseConn!,
-                    ServerVersion.AutoDetect(baseConn),
+                    serverVersion,
                     mysqlOptions =>
                     {
                         mysqlOptions.EnableRetryOnFailure(
@@ -399,8 +441,11 @@ CREATE TABLE IF NOT EXISTS `auditlogs` (
                             maxRetryDelay: TimeSpan.FromSeconds(5),
                             errorNumbersToAdd: null);
                     });
+
                 return new AppDbContext(optionsBuilder.Options);
             }
         }
+
     }
+}
 }
