@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace EmployeeManagementSystem.Services
 {
@@ -185,6 +186,121 @@ namespace EmployeeManagementSystem.Services
                 restRun,
                 suffixRun);
         }
+            private static void ReplacePronouns(
+WordprocessingDocument doc,
+string? title)
+    {
+        var normalizedTitle = title?
+            .Trim()
+            .TrimEnd('.')
+            .ToLowerInvariant();
+
+        bool isFemale = normalizedTitle switch
+        {
+            "miss" or "ms" or "mrs" => true,
+            "mr" => false,
+            _ => throw new ArgumentException(
+                "Unsupported title. Please select Mr., Miss, Ms., or Mrs.")
+        };
+
+        var body = doc.MainDocumentPart?.Document.Body;
+
+        if (body == null)
+        {
+            throw new InvalidOperationException(
+                "Word document body was not found.");
+        }
+
+        var paragraphs = body
+            .Descendants<Paragraph>()
+            .ToList();
+
+        foreach (var paragraph in paragraphs)
+        {
+            var runs = paragraph.Elements<Run>().ToList();
+
+            if (runs.Count == 0)
+                continue;
+
+            // Combine text across runs because Word may split
+            // his/her, him/her, or He/She into separate runs.
+            var originalText = string.Concat(
+                runs.SelectMany(run => run.Descendants<Text>())
+                    .Select(text => text.Text));
+
+            if (!Regex.IsMatch(
+                    originalText,
+                    @"(?:his/her|him/her|he/she)",
+                    RegexOptions.IgnoreCase))
+            {
+                continue;
+            }
+
+            // Replace the alternatives according to the title.
+            var updatedText = Regex.Replace(
+                originalText,
+                @"his/her|him/her|he/she",
+                match =>
+                {
+                    var pronoun = match.Value.ToLowerInvariant();
+
+                    string replacement = pronoun switch
+                    {
+                        "his/her" => isFemale ? "her" : "his",
+                        "him/her" => isFemale ? "her" : "him",
+                        "he/she" => isFemale ? "she" : "he",
+                        _ => match.Value
+                    };
+
+                    // Preserve the initial capitalization.
+                    if (char.IsUpper(match.Value[0]))
+                    {
+                        replacement =
+                            char.ToUpperInvariant(replacement[0]) +
+                            replacement.Substring(1);
+                    }
+
+                    return replacement;
+                },
+                RegexOptions.IgnoreCase);
+
+            if (updatedText == originalText)
+                continue;
+
+            // Preserve the first run's formatting.
+            var firstRun = runs.FirstOrDefault(
+                run => run.Descendants<Text>().Any());
+
+            if (firstRun == null)
+                continue;
+
+            var runProperties = firstRun.RunProperties?
+                .CloneNode(true) as RunProperties;
+
+            var newRun = new Run();
+
+            if (runProperties != null)
+            {
+                newRun.Append(runProperties);
+            }
+
+            newRun.Append(new Text(updatedText)
+            {
+                Space = SpaceProcessingModeValues.Preserve
+            });
+
+            // Insert the new run before the existing runs.
+            firstRun.InsertBeforeSelf(newRun);
+
+            // Remove the old text runs.
+            foreach (var run in runs)
+            {
+                run.Remove();
+            }
+        }
+
+        doc.MainDocumentPart.Document.Save();
+    }
         public async Task<object> GenerateRelievingLetterAsync(
       RelievingLetterRequestDto dto)
         {
