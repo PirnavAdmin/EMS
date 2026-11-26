@@ -66,20 +66,28 @@ function AdminOnboardingList() {
   const [loading, setLoading] = useState(true);
   const [candidateToDelete, setCandidateToDelete] = useState(null);
 
-  const fetchCandidates = async () => {
-    setLoading(true);
+  
+const fetchCandidates = async () => {
+  setLoading(true);
 
-    try {
-      const response = await getOnboardingPersonalInfoList();
-      setCandidates(extractCollection(response.data).map(normalizeCandidate));
-    } catch (error) {
+  try {
+    const response = await getOnboardingPersonalInfoList();
 
-      toastError("Unable to load onboarding candidates.");
-      setCandidates([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const data = Array.isArray(response)
+      ? response
+      : extractCollection(response);
+
+    setCandidates(data.map(normalizeCandidate));
+
+  } catch (error) {
+    console.error("Onboarding list API error:", error);
+    toastError("Unable to load onboarding candidates.");
+    setCandidates([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchCandidates();
