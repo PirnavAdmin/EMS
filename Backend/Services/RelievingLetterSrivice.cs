@@ -495,6 +495,7 @@ string? title)
                     wordDoc,
                     "Designation",
                     designation);
+                    ReplacePronouns(wordDoc, dto.Title);
             }
 
             // =====================================================
