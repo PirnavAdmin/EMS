@@ -1206,7 +1206,7 @@ namespace EmployeeManagementSystem.Services
         <div style='text-align: center;
                     margin: 25px 0;'>
 
-            <a href='https://hrms.pirnav.com'
+            <a href='https://peoplehrsync.com/register'
                style='display: inline-block;
                       padding: 12px 24px;
                       background-color: #1f2937;
@@ -1223,8 +1223,8 @@ namespace EmployeeManagementSystem.Services
 
         <p>
             Portal:
-            <a href='https://hrms.pirnav.com'>
-                https://hrms.pirnav.com
+            <a href='https://peoplehrsync.com/register'>
+                https://peoplehrsync.com/register
             </a>
         </p>
 
